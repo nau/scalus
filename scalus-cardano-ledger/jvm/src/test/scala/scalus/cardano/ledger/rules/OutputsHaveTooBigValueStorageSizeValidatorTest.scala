@@ -5,8 +5,8 @@ import org.scalacheck.Arbitrary
 import scalus.cardano.address.{Address, ShelleyAddress}
 import org.scalatest.funsuite.AnyFunSuite
 
-class OutputTooBigUTxOValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
-    test("OutputTooBigUTxOValidator TransactionOutputs success") {
+class OutputsHaveTooBigValueStorageSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
+    test("OutputsHaveTooBigValueStorageSizeValidator TransactionOutputs success") {
         val context = Context()
 
         val output = Arbitrary.arbitrary[TransactionOutput].sample.get
@@ -25,11 +25,12 @@ class OutputTooBigUTxOValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = OutputTooBigUTxOValidator.validate(context, state, transaction)
+        val result =
+            OutputsHaveTooBigValueStorageSizeValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("OutputTooBigUTxOValidator TransactionOutputs failure") {
+    test("OutputsHaveTooBigValueStorageSizeValidator TransactionOutputs failure") {
         val context = Context()
 
         val output = TransactionOutput.Shelley(
@@ -61,11 +62,12 @@ class OutputTooBigUTxOValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = OutputTooBigUTxOValidator.validate(context, state, transaction)
+        val result =
+            OutputsHaveTooBigValueStorageSizeValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
-    test("OutputTooBigUTxOValidator CollateralReturnOutput success") {
+    test("OutputsHaveTooBigValueStorageSizeValidator CollateralReturnOutput success") {
         val context = Context()
 
         val collateralReturnOutput = Arbitrary.arbitrary[TransactionOutput].sample.get
@@ -84,11 +86,12 @@ class OutputTooBigUTxOValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = OutputTooBigUTxOValidator.validate(context, state, transaction)
+        val result =
+            OutputsHaveTooBigValueStorageSizeValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("OutputTooBigUTxOValidator CollateralReturnOutput failure") {
+    test("OutputsHaveTooBigValueStorageSizeValidator CollateralReturnOutput failure") {
         val context = Context()
 
         val collateralReturnOutput = TransactionOutput.Shelley(
@@ -120,7 +123,8 @@ class OutputTooBigUTxOValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State()
 
-        val result = OutputTooBigUTxOValidator.validate(context, state, transaction)
+        val result =
+            OutputsHaveTooBigValueStorageSizeValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 }

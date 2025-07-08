@@ -10,6 +10,7 @@ object NativeScriptsValidator extends STS.Validator {
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id
+        val validityInterval = event.validityInterval
         val utxo = state.utxo
 
         for
@@ -27,7 +28,6 @@ object NativeScriptsValidator extends STS.Validator {
             allWitnessesNativeScripts = AllWitnessesScripts.allWitnessesNativeScripts(event)
 
             validatorKeys = extractValidatorKeys(event)
-            validityInterval = extractValidityInterval(event)
 
             invalidWitnessesNativeScriptHashes = invalidNativeScriptHashes(
               allWitnessesNativeScripts,
@@ -61,10 +61,6 @@ object NativeScriptsValidator extends STS.Validator {
     private def extractValidatorKeys(
         event: Event
     ): Set[AddrKeyHash] = event.witnessSet.vkeyWitnesses.map(_.vkeyHash)
-
-    private def extractValidityInterval(
-        event: Event
-    ): ValidityInterval = ValidityInterval(event.body.value.validityStartSlot, event.body.value.ttl)
 
     private def invalidNativeScriptHashes(
         nativeScripts: Set[Script.Native],

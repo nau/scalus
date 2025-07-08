@@ -4,6 +4,7 @@ import io.bullet.borer.*
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
+import scalus.ledger.api.ValidityInterval
 
 /** Represents a complete transaction in Cardano */
 case class Transaction(
@@ -22,6 +23,10 @@ case class Transaction(
     @transient lazy val id: TransactionHash = Hash(
       platform.blake2b_256(ByteString.unsafeFromArray(body.raw))
     )
+
+    @transient lazy val validityInterval: ValidityInterval =
+        ValidityInterval(body.value.validityStartSlot, body.value.ttl)
+
 }
 
 object Transaction {

@@ -3,20 +3,25 @@ package rules
 
 import scalus.ledger.api.ValidityInterval
 
-// It's Babbage.validateOutsideValidityIntervalUTxO in cardano-ledger
-object OutsideValidityIntervalUTxOValidator extends STS.Validator {
+// It's Allegra.validateOutsideValidityIntervalUTxO in cardano-ledger
+object OutsideValidityIntervalValidator extends STS.Validator {
+    override final type Error = TransactionException.OutsideValidityIntervalException | Throwable
+
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id
-        val validityInterval = extractValidityInterval(event)
+        val validityInterval = event.validityInterval
         val slot = context.env.slot
 
-        if checkInterval(validityInterval, slot) then success
-        else
-            failure(
-              IllegalArgumentException(
-                s"Transaction $transactionId is outside the validity interval $validityInterval for slot $slot"
+        if !checkInterval(validityInterval, slot) then
+            return failure(
+              TransactionException.OutsideValidityIntervalException(
+                transactionId,
+                validityInterval,
+                slot
               )
             )
+
+        success
     }
 
     // Test if a slot is in the Validity interval. Recall that a ValidityInterval
@@ -32,8 +37,4 @@ object OutsideValidityIntervalUTxOValidator extends STS.Validator {
             case ValidityInterval(Some(invalidBefore), Some(invalidHereafter)) =>
                 slot >= invalidBefore && slot < invalidHereafter
     }
-
-    private def extractValidityInterval(
-        event: Event
-    ): ValidityInterval = ValidityInterval(event.body.value.validityStartSlot, event.body.value.ttl)
 }

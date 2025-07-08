@@ -5,8 +5,8 @@ import org.scalacheck.Arbitrary
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
 import org.scalatest.funsuite.AnyFunSuite
 
-class OutputTooSmallUTxOValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
-    test("OutputTooSmallUTxOValidator TransactionOutputs success") {
+class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
+    test("OutputsHaveNotEnoughCoinsValidator TransactionOutputs success") {
         val context = Context()
 
         val output = TransactionOutput.Shelley(
@@ -38,11 +38,11 @@ class OutputTooSmallUTxOValidatorTest extends AnyFunSuite, ValidatorRulesTestKit
 
         val state = State()
 
-        val result = OutputTooSmallUTxOValidator.validate(context, state, transaction)
+        val result = OutputsHaveNotEnoughCoinsValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("OutputTooSmallUTxOValidator TransactionOutputs failure") {
+    test("OutputsHaveNotEnoughCoinsValidator TransactionOutputs failure") {
         val context = Context()
 
         val output = TransactionOutput.Shelley(
@@ -74,11 +74,11 @@ class OutputTooSmallUTxOValidatorTest extends AnyFunSuite, ValidatorRulesTestKit
 
         val state = State()
 
-        val result = OutputTooSmallUTxOValidator.validate(context, state, transaction)
+        val result = OutputsHaveNotEnoughCoinsValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
-    test("OutputTooSmallUTxOValidator CollateralReturnOutput success") {
+    test("OutputsHaveNotEnoughCoinsValidator CollateralReturnOutput success") {
         val context = Context()
 
         val collateralReturnOutput = TransactionOutput.Shelley(
@@ -110,11 +110,11 @@ class OutputTooSmallUTxOValidatorTest extends AnyFunSuite, ValidatorRulesTestKit
 
         val state = State()
 
-        val result = OutputTooSmallUTxOValidator.validate(context, state, transaction)
+        val result = OutputsHaveNotEnoughCoinsValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("OutputTooSmallUTxOValidator CollateralReturnOutput failure") {
+    test("OutputsHaveNotEnoughCoinsValidator CollateralReturnOutput failure") {
         val context = Context()
 
         val collateralReturnOutput = TransactionOutput.Shelley(
@@ -146,7 +146,7 @@ class OutputTooSmallUTxOValidatorTest extends AnyFunSuite, ValidatorRulesTestKit
 
         val state = State()
 
-        val result = OutputTooSmallUTxOValidator.validate(context, state, transaction)
+        val result = OutputsHaveNotEnoughCoinsValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 }

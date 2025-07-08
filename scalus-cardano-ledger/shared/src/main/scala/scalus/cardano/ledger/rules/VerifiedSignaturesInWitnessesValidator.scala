@@ -5,8 +5,9 @@ import scalus.builtin.{platform, ByteString}
 import scala.util.control.NonFatal
 
 // It's Shelley.validateVerifiedWits in cardano-ledger
-object VerifiedWitnessesValidator extends STS.Validator {
-    override final type Error = TransactionException.InvalidVerifiedWitnessesException | Throwable
+object VerifiedSignaturesInWitnessesValidator extends STS.Validator {
+    override final type Error = TransactionException.InvalidSignaturesInWitnessesException |
+        Throwable
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id
@@ -18,7 +19,7 @@ object VerifiedWitnessesValidator extends STS.Validator {
         if invalidVkeyWitnessesSet.nonEmpty || invalidBootstrapWitnessesSet.nonEmpty
         then
             return failure(
-              TransactionException.InvalidVerifiedWitnessesException(
+              TransactionException.InvalidSignaturesInWitnessesException(
                 transactionId,
                 invalidVkeyWitnessesSet,
                 invalidBootstrapWitnessesSet
@@ -36,7 +37,7 @@ object VerifiedWitnessesValidator extends STS.Validator {
         val vkeyWitnesses = event.witnessSet.vkeyWitnesses
 
         vkeyWitnesses.filterNot(vkeyWitness =>
-            verifyWitness(transactionId, vkeyWitness.vkey, vkeyWitness.signature)
+            verifyWitnessSignature(transactionId, vkeyWitness.vkey, vkeyWitness.signature)
         )
     }
 
@@ -48,11 +49,15 @@ object VerifiedWitnessesValidator extends STS.Validator {
         val bootstrapWitnesses = event.witnessSet.bootstrapWitnesses
 
         bootstrapWitnesses.filterNot(bootstrapWitness =>
-            verifyWitness(transactionId, bootstrapWitness.publicKey, bootstrapWitness.signature)
+            verifyWitnessSignature(
+              transactionId,
+              bootstrapWitness.publicKey,
+              bootstrapWitness.signature
+            )
         )
     }
 
-    private def verifyWitness(
+    private def verifyWitnessSignature(
         transactionId: TransactionHash,
         key: ByteString,
         signature: ByteString

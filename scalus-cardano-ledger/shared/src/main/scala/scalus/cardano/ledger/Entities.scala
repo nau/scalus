@@ -1,5 +1,7 @@
 package scalus.cardano.ledger
 
+import scalus.ledger.api.ValidityInterval
+
 sealed abstract class TransactionException(message: String, cause: Throwable)
     extends RuntimeException(message, cause) {
     def this(message: String) = this(message, null)
@@ -47,12 +49,12 @@ object TransactionException {
         )
 
     // It's Shelley.InvalidWitnessesUTXOW in cardano-ledger
-    final class InvalidVerifiedWitnessesException(
+    final class InvalidSignaturesInWitnessesException(
         val transactionId: TransactionHash,
         val invalidVkeyWitnesses: Set[VKeyWitness],
         val invalidBootstrapWitnesses: Set[BootstrapWitness]
     ) extends TransactionException(
-          s"Invalid verified witnesses for transactionId $transactionId, invalid vkey witnesses: $invalidVkeyWitnesses, invalid bootstrap witnesses: $invalidBootstrapWitnesses"
+          s"Invalid verified signatures in witnesses for transactionId $transactionId, invalid vkey witnesses: $invalidVkeyWitnesses, invalid bootstrap witnesses: $invalidBootstrapWitnesses"
         )
 
     // It's Shelley.MissingVKeyWitnessesUTXOW in cardano-ledger
@@ -68,7 +70,7 @@ object TransactionException {
           s"Missing key hashes for transactionId $transactionId, missing inputs key hashes: $missingInputsKeyHashes, missing collateral inputs key hashes: $missingCollateralInputsKeyHashes, missing voting procedures key hashes: $missingVotingProceduresKeyHashes, missing withdrawals key hashes: $missingWithdrawalsKeyHashes, missing certificates key hashes: $missingCertificatesKeyHashes, missing required signers key hashes: $missingRequiredSignersKeyHashes"
         )
 
-    // It's Shelley.MissingScriptWitnessesUTXOW or Shelley.ExtraneousScriptWitnessesUTXOW in cardano-ledger
+    // It's Shelley.MissingScriptWitnessesUTXOW and Shelley.ExtraneousScriptWitnessesUTXOW in cardano-ledger
     final class MissingOrExtraScriptHashesException(
         val transactionId: TransactionHash,
         val missingInputsScriptHashes: Set[ScriptHash],
@@ -89,6 +91,43 @@ object TransactionException {
         val invalidProvidedReferenceNativeScripts: Set[ScriptHash],
     ) extends TransactionException(
           s"Invalid native scripts for transactionId $transactionId, invalid witnesses native scripts: $invalidWitnessesNativeScripts, invalid provided reference native scripts: $invalidProvidedReferenceNativeScripts"
+        )
+
+    // It's Shelley.MaxTxSizeUTxO in cardano-ledger
+    final class InvalidTransactionSizeException(
+        val transactionId: TransactionHash,
+        val transactionSize: Int,
+        val maxTransactionSize: Long
+    ) extends TransactionException(
+          s"Transaction size $transactionSize exceeds maximum allowed size $maxTransactionSize for transactionId $transactionId"
+        )
+
+    // It's BabbageOutputTooSmallUTxO in cardano-ledger
+    final class OutputsHaveNotEnoughCoinsException(
+        val transactionId: TransactionHash,
+        val invalidOutputs: Seq[(TransactionOutput, Coin)],
+        val invalidCollateralOutput: Option[(TransactionOutput, Coin)]
+    ) extends TransactionException(
+          s"Transaction outputs are too small for transactionId $transactionId, invalid outputs: $invalidOutputs, invalid collateral output: $invalidCollateralOutput"
+        )
+
+    // It's Alonzo.OutputTooBigUTxO in cardano-ledger
+    final class OutputsHaveTooBigValueStorageSizeException(
+        val transactionId: TransactionHash,
+        val maxValueSize: Long,
+        val invalidOutputs: Seq[(TransactionOutput, Int)],
+        val invalidCollateralOutput: Option[(TransactionOutput, Int)]
+    ) extends TransactionException(
+          s"Transaction outputs exceed maximum value storage size $maxValueSize for transactionId $transactionId, invalid outputs: $invalidOutputs, invalid collateral output: $invalidCollateralOutput"
+        )
+
+    // It's Allegra.OutsideValidityIntervalUTxO in cardano-ledger
+    final class OutsideValidityIntervalException(
+        val transactionId: TransactionHash,
+        val validityInterval: ValidityInterval,
+        val slot: SlotNo
+    ) extends TransactionException(
+          s"Transaction $transactionId is outside the validity interval $validityInterval for slot $slot"
         )
 }
 

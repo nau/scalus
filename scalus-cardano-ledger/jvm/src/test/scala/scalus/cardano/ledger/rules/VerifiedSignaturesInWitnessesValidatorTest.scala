@@ -4,8 +4,8 @@ package rules
 import scalus.builtin.platform
 import org.scalatest.funsuite.AnyFunSuite
 
-class VerifiedWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
-    test("VerifiedWitnessesValidator VkeyWitnesses rule success") {
+class VerifiedSignaturesInWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
+    test("VerifiedSignaturesInWitnessesValidator VkeyWitnesses rule success") {
         val context = Context()
         val transaction = {
             val (privateKey1, publicKey1) = generateKeyPair()
@@ -25,11 +25,11 @@ class VerifiedWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit 
         }
         val state = State()
 
-        val result = VerifiedWitnessesValidator.validate(context, state, transaction)
+        val result = VerifiedSignaturesInWitnessesValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("VerifiedWitnessesValidator VkeyWitnesses rule failure") {
+    test("VerifiedSignaturesInWitnessesValidator VkeyWitnesses rule failure") {
         val context = Context()
         val transaction = {
             val (privateKey1, publicKey1) = generateKeyPair()
@@ -56,11 +56,11 @@ class VerifiedWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit 
         }
         val state = State()
 
-        val result = VerifiedWitnessesValidator.validate(context, state, transaction)
+        val result = VerifiedSignaturesInWitnessesValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 
-    test("VerifiedWitnessesValidator BootstrapWitnesses rule success") {
+    test("VerifiedSignaturesInWitnessesValidator BootstrapWitnesses rule success") {
         val context = Context()
         val transaction = {
             val (privateKey1, publicKey1) = generateKeyPair()
@@ -95,11 +95,11 @@ class VerifiedWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit 
         }
         val state = State()
 
-        val result = VerifiedWitnessesValidator.validate(context, state, transaction)
+        val result = VerifiedSignaturesInWitnessesValidator.validate(context, state, transaction)
         assert(result.isRight)
     }
 
-    test("VerifiedWitnessesValidator BootstrapWitnesses rule failure") {
+    test("VerifiedSignaturesInWitnessesValidator BootstrapWitnesses rule failure") {
         val context = Context()
         val transaction = {
             val (privateKey1, publicKey1) = generateKeyPair()
@@ -138,7 +138,7 @@ class VerifiedWitnessesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit 
         }
         val state = State()
 
-        val result = VerifiedWitnessesValidator.validate(context, state, transaction)
+        val result = VerifiedSignaturesInWitnessesValidator.validate(context, state, transaction)
         assert(result.isLeft)
     }
 }
