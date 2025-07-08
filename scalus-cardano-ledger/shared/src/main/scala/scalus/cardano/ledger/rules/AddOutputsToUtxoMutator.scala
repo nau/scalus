@@ -3,7 +3,7 @@ package rules
 
 // It's part of Shelley.updateUTxOState in cardano-ledger
 object AddOutputsToUtxoMutator extends STS.Mutator {
-    override final type Error = Nothing | Throwable
+    override final type Error = Nothing
 
     override def transit(context: Context, state: State, event: Event): Result = {
         val addedUtxo: UTxO = event.body.value.outputs.view.zipWithIndex.map {

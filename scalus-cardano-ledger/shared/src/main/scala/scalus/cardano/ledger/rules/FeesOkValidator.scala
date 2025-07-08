@@ -19,6 +19,10 @@ import scala.annotation.tailrec
 //--   6) The collateral is equivalent to total collateral asserted by the transaction
 //--   7) There is at least one collateral input
 object FeesOkValidator extends STS.Validator {
+    override final type Error = TransactionException.BadInputsUTxOException |
+        TransactionException.BadReferenceInputsUTxOException |
+        TransactionException.IllegalArgumentException
+
     override def validate(context: Context, state: State, event: Event): Result = boundary {
         val transactionId = event.id
         val collateralInputs = event.body.value.collateralInputs
@@ -89,7 +93,7 @@ object FeesOkValidator extends STS.Validator {
             _ <-
                 if transactionFee < minTransactionFee then
                     failure(
-                      IllegalArgumentException(
+                      TransactionException.IllegalArgumentException(
                         s"Transaction fee $transactionFee is less than minimum transaction fee $minTransactionFee"
                       )
                     )
@@ -116,7 +120,7 @@ object FeesOkValidator extends STS.Validator {
             // This check allows to be an order independent in the sequence of validation rules
             case None =>
                 Left(
-                  IllegalArgumentException(
+                  TransactionException.IllegalArgumentException(
                     s"Collateral input $collateralInput at index $index is missing in UTXO for transactionId $transactionId"
                   )
                 )
@@ -130,7 +134,7 @@ object FeesOkValidator extends STS.Validator {
     ): Result = {
         if collateralOutput.address.keyHash.isEmpty then
             failure(
-              IllegalArgumentException(
+              TransactionException.IllegalArgumentException(
                 s"Collateral input $collateralInput at index $index is not a VKey address in UTXO for transactionId $transactionId"
               )
             )
@@ -145,7 +149,7 @@ object FeesOkValidator extends STS.Validator {
     ): Result = {
         if collateralOutput.value.assets.nonEmpty then
             failure(
-              IllegalArgumentException(
+              TransactionException.IllegalArgumentException(
                 s"Collateral input $collateralInput at index $index contains non-ADA assets in UTXO for transactionId $transactionId"
               )
             )
@@ -169,7 +173,7 @@ object FeesOkValidator extends STS.Validator {
 
         if (deltaCoins * 100) < transactionFee * collateralPercentage then
             failure(
-              IllegalArgumentException(
+              TransactionException.IllegalArgumentException(
                 s"Total sum of collateral coins $totalSumOfCollateralCoins are insufficient for transaction fee $transactionFee with collateral percentage $collateralPercentage% and collateral return output $collateralReturnOutput for transactionId $transactionId"
               )
             )
@@ -188,7 +192,7 @@ object FeesOkValidator extends STS.Validator {
             case Some(collateral) =>
                 if collateral.value != totalSumOfCollateralCoins.value then
                     failure(
-                      IllegalArgumentException(
+                      TransactionException.IllegalArgumentException(
                         s"Total collateral $collateral is not equivalent to total sum of collateral coins $totalSumOfCollateralCoins for transactionId $transactionId"
                       )
                     )
@@ -200,7 +204,7 @@ object FeesOkValidator extends STS.Validator {
     ): Result = {
         if event.body.value.collateralInputs.isEmpty then
             failure(
-              IllegalArgumentException(
+              TransactionException.IllegalArgumentException(
                 s"There is no collateral input in transaction ${event.id}"
               )
             )

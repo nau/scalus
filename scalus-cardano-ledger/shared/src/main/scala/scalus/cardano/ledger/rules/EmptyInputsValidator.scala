@@ -4,7 +4,7 @@ package rules
 // txins txb ≠ ∅
 // It's Shelley.validateInputSetEmptyUTxO in cardano-ledger
 object EmptyInputsValidator extends STS.Validator {
-    override final type Error = TransactionException.EmptyInputsException | Throwable
+    override final type Error = TransactionException.EmptyInputsException
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id

@@ -2,6 +2,8 @@ package scalus.cardano.ledger
 package rules
 
 object CardanoMutator extends STS.Mutator {
+    override final type Error = TransactionException
+
     override def transit(context: Context, state: State, event: Event): Result = {
         for
             _ <- EmptyInputsValidator.validate(context, state, event)
@@ -17,7 +19,7 @@ object CardanoMutator extends STS.Mutator {
             _ <- OutputsHaveNotEnoughCoinsValidator.validate(context, state, event)
             _ <- OutputsHaveTooBigValueStorageSizeValidator.validate(context, state, event)
             _ <- OutsideValidityIntervalValidator.validate(context, state, event)
-//            _ <- OutsideForecastValidator.validate(context, state, event)
+            _ <- OutsideForecastValidator.validate(context, state, event)
             state <- RemoveInputsFromUtxoMutator.transit(context, state, event)
             state <- AddOutputsToUtxoMutator.transit(context, state, event)
             state <- FeeMutator.transit(context, state, event)

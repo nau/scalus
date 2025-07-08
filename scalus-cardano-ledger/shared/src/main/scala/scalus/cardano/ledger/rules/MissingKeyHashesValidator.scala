@@ -7,7 +7,7 @@ import scalus.cardano.ledger.utils.{AllNeededKeyHashes, AllWitnessesKeyHashes}
 object MissingKeyHashesValidator extends STS.Validator {
     override final type Error = TransactionException.BadInputsUTxOException |
         TransactionException.BadCollateralInputsUTxOException |
-        TransactionException.MissingKeyHashesException | Throwable
+        TransactionException.MissingKeyHashesException
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id

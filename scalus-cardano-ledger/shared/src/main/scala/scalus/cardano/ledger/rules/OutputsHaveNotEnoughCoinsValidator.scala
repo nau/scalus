@@ -6,7 +6,7 @@ import scalus.ledger.babbage.ProtocolParams
 
 // It's Babbage.validateOutputTooSmallUTxO in cardano-ledger
 object OutputsHaveNotEnoughCoinsValidator extends STS.Validator {
-    override final type Error = TransactionException.OutputsHaveNotEnoughCoinsException | Throwable
+    override final type Error = TransactionException.OutputsHaveNotEnoughCoinsException
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id

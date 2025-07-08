@@ -5,7 +5,7 @@ package rules
 // (spendInputs txb ∪ collInputs txb ∪ refInputs txb) ⊆ dom utxo
 // It's Babbage.validateBadInputsUTxO in cardano-ledger
 object AllInputsMustBeInUtxoValidator extends STS.Validator {
-    override final type Error = TransactionException.BadAllInputsUTxOException | Throwable
+    override final type Error = TransactionException.BadAllInputsUTxOException
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id

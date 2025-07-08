@@ -6,7 +6,9 @@ import scalus.ledger.api.ValidityInterval
 
 // It's validateFailedBabbageScripts in cardano-ledger
 object NativeScriptsValidator extends STS.Validator {
-    override final type Error = TransactionException.NativeScriptsException | Throwable
+    override final type Error = TransactionException.BadInputsUTxOException |
+        TransactionException.BadReferenceInputsUTxOException |
+        TransactionException.NativeScriptsException
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id

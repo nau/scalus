@@ -5,7 +5,7 @@ import io.bullet.borer.Cbor
 
 // It's Shelley.validateMaxTxSizeUTxO in cardano-ledger
 object TransactionSizeValidator extends STS.Validator {
-    override final type Error = TransactionException.InvalidTransactionSizeException | Throwable
+    override final type Error = TransactionException.InvalidTransactionSizeException
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id

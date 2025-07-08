@@ -5,8 +5,7 @@ package rules
 // It's Babbage.disjointRefInputs in cardano-ledger
 // {- inputs ∩ refInputs = ∅ -}
 object InputsAndReferenceInputsDisjointValidator extends STS.Validator {
-    override final type Error = TransactionException.NonDisjointInputsAndReferenceInputsException |
-        Throwable
+    override final type Error = TransactionException.NonDisjointInputsAndReferenceInputsException
 
     override def validate(context: Context, state: State, event: Event): Result = {
 //        ( pvMajor (pp ^. ppProtocolVersionL) > eraProtVerHigh @BabbageEra

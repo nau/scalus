@@ -1,14 +1,19 @@
-package scalus.cardano.ledger.rules
+package scalus.cardano.ledger
+package rules
 
-import scalus.cardano.ledger.*
-import scalus.ledger.babbage.ProtocolParams
+import scala.util.boundary
+import scala.util.boundary.break
 
 /** This is Shelley.validateValueNotConservedUTxO
   *
   * consumed pp utxo txb = produced pp poolParams txb
   */
 object ValueNotConservedUTxOValidator extends STS.Validator {
-    override def validate(context: Context, state: State, tx: Transaction): Result = {
+    override final type Error = TransactionException.BadInputsUTxOException |
+        TransactionException.ValueNotConservedUTxOException
+
+    override def validate(context: Context, state: State, tx: Transaction): Result = boundary {
+        val transactionId = tx.id
         val params = context.env.params
         val txBody = tx.body.value
         val mint = txBody.mint.getOrElse(Map.empty)
@@ -19,7 +24,9 @@ object ValueNotConservedUTxOValidator extends STS.Validator {
                     state.utxo.get(input) match {
                         case Some(output) => output.value
                         case None =>
-                            throw IllegalStateException(s"Input $input not found in UTxO state")
+                            break(
+                              failure(TransactionException.BadInputsUTxOException(transactionId))
+                            )
                     }
                 }
                 .foldLeft(Value.zero)(_ + _)
@@ -91,9 +98,7 @@ object ValueNotConservedUTxOValidator extends STS.Validator {
         if consumed == produced then success
         else
             failure(
-              IllegalArgumentException(
-                s"Value not conserved: consumed $consumed, produced $produced"
-              )
+              TransactionException.ValueNotConservedUTxOException(transactionId, consumed, produced)
             )
     }
 }

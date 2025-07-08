@@ -129,6 +129,20 @@ object TransactionException {
     ) extends TransactionException(
           s"Transaction $transactionId is outside the validity interval $validityInterval for slot $slot"
         )
+
+    // It's Shelley.ValueNotConservedUTxO in cardano-ledger
+    final class ValueNotConservedUTxOException(
+        val transactionId: TransactionHash,
+        val consumed: Value,
+        val produced: Value
+    ) extends TransactionException(
+          s"Value not conserved for transactionId $transactionId, consumed: $consumed, produced: $produced"
+        )
+
+    // It's Babbage.FeeTooSmallUTxO in cardano-ledger
+
+    // TODO placeholder remove after refactoring
+    final class IllegalArgumentException(message: String) extends TransactionException(message)
 }
 
 type UTxO = Map[TransactionInput, TransactionOutput]

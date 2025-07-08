@@ -6,8 +6,7 @@ import scala.util.control.NonFatal
 
 // It's Shelley.validateVerifiedWits in cardano-ledger
 object VerifiedSignaturesInWitnessesValidator extends STS.Validator {
-    override final type Error = TransactionException.InvalidSignaturesInWitnessesException |
-        Throwable
+    override final type Error = TransactionException.InvalidSignaturesInWitnessesException
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id

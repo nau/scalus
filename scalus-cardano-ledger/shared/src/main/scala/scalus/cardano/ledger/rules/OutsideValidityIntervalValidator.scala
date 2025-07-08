@@ -5,7 +5,7 @@ import scalus.ledger.api.ValidityInterval
 
 // It's Allegra.validateOutsideValidityIntervalUTxO in cardano-ledger
 object OutsideValidityIntervalValidator extends STS.Validator {
-    override final type Error = TransactionException.OutsideValidityIntervalException | Throwable
+    override final type Error = TransactionException.OutsideValidityIntervalException
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id

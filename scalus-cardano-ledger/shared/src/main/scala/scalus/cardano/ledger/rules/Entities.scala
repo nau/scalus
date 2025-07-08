@@ -38,7 +38,7 @@ sealed trait STS {
     final type State = scalus.cardano.ledger.rules.State
     final type Event = Transaction
     type Value
-    type Error = TransactionException | Throwable
+    type Error <: TransactionException
     final type Result = Either[Error, Value]
 
     def apply(context: Context, state: State, event: Event): Result

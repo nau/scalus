@@ -7,7 +7,7 @@ import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllProvidedReferenceS
 object MissingOrExtraScriptHashesValidator extends STS.Validator {
     override final type Error = TransactionException.BadInputsUTxOException |
         TransactionException.BadReferenceInputsUTxOException |
-        TransactionException.MissingOrExtraScriptHashesException | Throwable
+        TransactionException.MissingOrExtraScriptHashesException
 
     override def validate(context: Context, state: State, event: Event): Result = {
         for

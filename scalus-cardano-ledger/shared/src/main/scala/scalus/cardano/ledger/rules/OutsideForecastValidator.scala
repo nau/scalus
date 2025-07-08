@@ -14,6 +14,8 @@ package rules
 //-- failure due to cached state information being too stale for the current
 //-- query.
 object OutsideForecastValidator extends STS.Validator {
+    override final type Error = Nothing
+
     override def validate(context: Context, state: State, event: Event): Result = {
         success
     }

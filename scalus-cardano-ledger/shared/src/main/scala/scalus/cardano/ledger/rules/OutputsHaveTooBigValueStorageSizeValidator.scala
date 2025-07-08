@@ -5,8 +5,7 @@ import io.bullet.borer.Cbor
 
 // It's Babbage.validateOutputTooBigUTxO in cardano-ledger
 object OutputsHaveTooBigValueStorageSizeValidator extends STS.Validator {
-    override final type Error = TransactionException.OutputsHaveTooBigValueStorageSizeException |
-        Throwable
+    override final type Error = TransactionException.OutputsHaveTooBigValueStorageSizeException
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionId = event.id
