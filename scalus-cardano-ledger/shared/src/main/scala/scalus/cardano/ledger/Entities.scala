@@ -151,7 +151,7 @@ object TransactionException {
     // It's Alonzo.ScriptsNotPaidUTxO in cardano-ledger
     final class CollateralsConsistNotOnlyVKeyAddressException(
         val transactionId: TransactionHash,
-        val invalidCollaterals: Set[(TransactionInput, TransactionOutput)],
+        val invalidCollaterals: Set[(TransactionInput, TransactionOutput)]
     ) extends TransactionException(
           s"Collaterals consist not only VKey addresses for transactionId $transactionId, invalid collaterals: $invalidCollaterals"
         )
@@ -160,8 +160,9 @@ object TransactionException {
     final class CollateralsContainNotOnlyADAException(
         val transactionId: TransactionHash,
         val invalidCollaterals: Set[(TransactionInput, TransactionOutput)],
+        val collateralReturnOutput: Option[TransactionOutput]
     ) extends TransactionException(
-          s"Collaterals contain not only ADA for transactionId $transactionId, invalid collaterals: $invalidCollaterals"
+          s"Collaterals contain non-ADA assets for transactionId $transactionId, invalid collaterals: $invalidCollaterals, collateral return output: $collateralReturnOutput"
         )
 
     // It's Alonzo.InsufficientCollateral in cardano-ledger

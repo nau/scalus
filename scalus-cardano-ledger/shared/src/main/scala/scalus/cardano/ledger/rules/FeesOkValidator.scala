@@ -29,6 +29,7 @@ object FeesOkValidator extends STS.Validator {
     override def validate(context: Context, state: State, event: Event): Result = boundary {
         val transactionId = event.id
         val collateralInputs = event.body.value.collateralInputs
+        val collateralReturnOutput = event.body.value.collateralReturnOutput.map(_.value)
         val utxo = state.utxo
 
         for
@@ -39,7 +40,7 @@ object FeesOkValidator extends STS.Validator {
                     val (
                       notVKeyAddressCollaterals,
                       notOnlyADACollaterals,
-                      totalSumOfCollateralCoins
+                      totalSumOfCollaterals
                     ) = collateralInputs.view
                         .map { collateralInput =>
                             utxo.get(collateralInput) match
@@ -58,7 +59,7 @@ object FeesOkValidator extends STS.Validator {
                           (
                             Set.empty[(TransactionInput, TransactionOutput)],
                             Set.empty[(TransactionInput, TransactionOutput)],
-                            Coin.zero
+                            Value.zero
                           )
                         ) { (collateralData, acc) =>
                             val (collateralInput, collateralOutput) = collateralData
@@ -66,7 +67,7 @@ object FeesOkValidator extends STS.Validator {
                             val (
                               notVKeyAddressCollaterals,
                               notOnlyADACollaterals,
-                              totalSumOfCollateralCoins
+                              totalSumOfCollaterals
                             ) = acc
 
                             val newNotVKeyAddressCollaterals =
@@ -79,13 +80,13 @@ object FeesOkValidator extends STS.Validator {
                                     notOnlyADACollaterals
                                 else notOnlyADACollaterals + collateralData
 
-                            val newTotalSumOfCollateralCoins =
-                                totalSumOfCollateralCoins + collateralOutput.value.coin
+                            val newTotalSumOfCollaterals =
+                                totalSumOfCollaterals + collateralOutput.value
 
                             (
                               newNotVKeyAddressCollaterals,
                               newNotOnlyADACollaterals,
-                              newTotalSumOfCollateralCoins
+                              newTotalSumOfCollaterals
                             )
                         }
 
@@ -99,12 +100,21 @@ object FeesOkValidator extends STS.Validator {
                           )
                         )
 
-                    if notOnlyADACollaterals.nonEmpty then
+                    val collateralReturnOutputValue = collateralReturnOutput
+                        .map(_.value)
+                        .getOrElse(Value.zero)
+
+                    if !(
+                          totalSumOfCollaterals.assets.isEmpty && collateralReturnOutputValue.assets.isEmpty ||
+                              totalSumOfCollaterals.assets == collateralReturnOutputValue.assets
+                        )
+                    then
                         break(
                           failure(
                             TransactionException.CollateralsContainNotOnlyADAException(
                               transactionId,
-                              notOnlyADACollaterals
+                              notOnlyADACollaterals,
+                              collateralReturnOutput
                             )
                           )
                         )
@@ -113,11 +123,11 @@ object FeesOkValidator extends STS.Validator {
                         _ <- totalSumOfCollateralCoinsIsSufficient(
                           context,
                           event,
-                          totalSumOfCollateralCoins
+                          totalSumOfCollaterals.coin
                         )
                         _ <- totalSumOfCollateralCoinsIsEquivalentToTotalCollateral(
                           event,
-                          totalSumOfCollateralCoins
+                          totalSumOfCollaterals.coin
                         )
                         _ <- isAtLeastOneCollateralInput(event)
                     yield ()
