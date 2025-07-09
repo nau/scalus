@@ -48,11 +48,11 @@ type MultiAsset = Map[PolicyId, Map[AssetName, Long]]
 object MultiAsset {
     val zero: MultiAsset = Map.empty
     def binOp(op: (Long, Long) => Long)(self: MultiAsset, other: MultiAsset): MultiAsset = {
-        (self.keySet ++ other.keySet).map { policyId =>
+        (self.keySet ++ other.keySet).view.map { policyId =>
             val selfAssets = self.getOrElse(policyId, Map.empty)
             val otherAssets = other.getOrElse(policyId, Map.empty)
 
-            val mergedAssets = (selfAssets.keySet ++ otherAssets.keySet).map { assetName =>
+            val mergedAssets = (selfAssets.keySet ++ otherAssets.keySet).view.map { assetName =>
                 val combinedValue =
                     op(selfAssets.getOrElse(assetName, 0L), otherAssets.getOrElse(assetName, 0L))
                 assetName -> combinedValue

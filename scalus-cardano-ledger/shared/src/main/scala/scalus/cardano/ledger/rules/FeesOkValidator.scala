@@ -55,14 +55,14 @@ object FeesOkValidator extends STS.Validator {
                                       )
                                     )
                         }
-                        .foldRight(
+                        .foldLeft(
                           (
                             Set.empty[(TransactionInput, TransactionOutput)],
                             Set.empty[(TransactionInput, TransactionOutput)],
                             Value.zero
                           )
-                        ) { (collateralData, acc) =>
-                            val (collateralInput, collateralOutput) = collateralData
+                        ) { (acc, collateralData) =>
+                            val (_, collateralOutput) = collateralData
 
                             val (
                               notVKeyAddressCollaterals,
@@ -106,11 +106,11 @@ object FeesOkValidator extends STS.Validator {
                     val collateralReturnOutputValue = collateralReturnOutput
                         .map(_.value)
                         .getOrElse(Value.zero)
-
                     if !(
                           totalSumOfCollaterals.assets.isEmpty && collateralReturnOutputValue.assets.isEmpty ||
                               MultiAsset
-                                  .-(totalSumOfCollaterals.assets)(
+                                  .binOp(_ - _)(
+                                    totalSumOfCollaterals.assets,
                                     collateralReturnOutputValue.assets
                                   )
                                   .isEmpty
