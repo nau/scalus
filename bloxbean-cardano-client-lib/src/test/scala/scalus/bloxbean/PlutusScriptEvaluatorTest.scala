@@ -11,6 +11,7 @@ import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.ShelleyDelegationPart.Null
 import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.Language.*
 import scalus.examples.PubKeyValidator
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.*
@@ -23,14 +24,18 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
     val sender1Addr: String = sender1.baseAddress()
 
     test("TxEvaluator PlutusV2") {
-        val costMdls = com.bloxbean.cardano.client.plutus.spec.CostMdls()
-        costMdls.add(CostModelUtil.PlutusV1CostModel)
-        costMdls.add(CostModelUtil.PlutusV2CostModel)
+        val costModels = CostModels(models =
+            Map(
+              PlutusV1.ordinal -> CostModelUtil.PlutusV1CostModel.getCosts.toIndexedSeq,
+              PlutusV2.ordinal -> CostModelUtil.PlutusV2CostModel.getCosts.toIndexedSeq,
+              PlutusV3.ordinal -> CostModelUtil.PlutusV3CostModel.getCosts.toIndexedSeq,
+            )
+        )
         val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
           protocolMajorVersion = MajorProtocolVersion.plominPV,
-          costMdls = costMdls
+          costModels = costModels
         )
 
         inline def requiredPubKeyHash =

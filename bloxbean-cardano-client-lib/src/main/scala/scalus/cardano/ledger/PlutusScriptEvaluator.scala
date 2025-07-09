@@ -1,19 +1,17 @@
 package scalus.cardano.ledger
 
-import com.bloxbean.cardano.client.plutus.spec.CostMdls
 import org.slf4j.LoggerFactory
-import scalus.bloxbean.Interop.translateMachineParamsFromCostMdls
 import scalus.bloxbean.{EvaluatorMode, RestrictingBudgetSpenderWithScripDump, TxEvaluationException}
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.Language.*
 import scalus.cardano.ledger.LedgerToPlutusTranslation.*
 import scalus.cardano.ledger.utils.AllWitnessesScripts
 import scalus.ledger
 import scalus.ledger.api
-import scalus.ledger.api.PlutusLedgerLanguage.*
-import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion, PlutusLedgerLanguage}
+import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
@@ -25,7 +23,7 @@ private[scalus] class PlutusScriptEvaluator(
     val slotConfig: SlotConfig,
     val initialBudget: ExBudget,
     val protocolMajorVersion: MajorProtocolVersion,
-    val costMdls: CostMdls,
+    val costModels: CostModels,
     val mode: EvaluatorMode = EvaluatorMode.EVALUATE_AND_COMPUTE_COST,
     val debugDumpFilesForTesting: Boolean = false
 ) {
@@ -48,8 +46,8 @@ private[scalus] class PlutusScriptEvaluator(
     // Each VM is configured with version-specific cost models and protocol parameters
     private lazy val plutusV1VM =
         PlutusVM.makePlutusV1VM(
-          translateMachineParamsFromCostMdls(
-            costMdls,
+          translateMachineParamsFromCostModels(
+            costModels,
             PlutusV1,
             protocolMajorVersion
           )
@@ -57,8 +55,8 @@ private[scalus] class PlutusScriptEvaluator(
 
     private lazy val plutusV2VM =
         PlutusVM.makePlutusV2VM(
-          translateMachineParamsFromCostMdls(
-            costMdls,
+          translateMachineParamsFromCostModels(
+            costModels,
             PlutusV2,
             protocolMajorVersion
           )
@@ -66,8 +64,8 @@ private[scalus] class PlutusScriptEvaluator(
 
     private lazy val plutusV3VM =
         PlutusVM.makePlutusV3VM(
-          translateMachineParamsFromCostMdls(
-            costMdls,
+          translateMachineParamsFromCostModels(
+            costModels,
             PlutusV3,
             protocolMajorVersion
           )

@@ -7,6 +7,7 @@ import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.bloxbean.BlocksValidation.apiKey
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.Language.*
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.eval.ExBudget
 
@@ -40,14 +41,18 @@ class BlockDeserializationTest extends AnyFunSuite {
         )
         val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
         val utxos = utxoResolver.resolveUtxos(tx)
-        val costMdls = com.bloxbean.cardano.client.plutus.spec.CostMdls()
-        costMdls.add(CostModelUtil.PlutusV1CostModel)
-        costMdls.add(CostModelUtil.PlutusV2CostModel)
+        val costModels = CostModels(models =
+            Map(
+              PlutusV1.ordinal -> CostModelUtil.PlutusV1CostModel.getCosts.toIndexedSeq,
+              PlutusV2.ordinal -> CostModelUtil.PlutusV2CostModel.getCosts.toIndexedSeq,
+              PlutusV3.ordinal -> CostModelUtil.PlutusV3CostModel.getCosts.toIndexedSeq,
+            )
+        )
         val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
           protocolMajorVersion = MajorProtocolVersion.plominPV,
-          costMdls = costMdls
+          costModels = costModels
         )
         val redeemers = evaluator.evalPhaseTwo(tx, utxos)
         assert(redeemers == tx.witnessSet.redeemers.get.value.toIndexedSeq)
