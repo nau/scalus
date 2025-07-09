@@ -44,7 +44,7 @@ class FromDataEraseLinkerTest extends AnyFunSuite {
                 } || containsSubterm(body)(p)
             case SIR.Apply(f, arg, tp, anns) =>
                 p(sir) || containsSubterm(arg)(p) || containsSubterm(f)(p)
-            case SIR.LamAbs(param, body, anns) =>
+            case SIR.LamAbs(param, body, tps, anns) =>
                 p(sir) || p(param) || containsSubterm(body)(p)
             case SIR.Const(c, tp, anns) => p(sir)
             case SIR.Constr(name, dataDecl, args, tp, anns) =>

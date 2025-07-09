@@ -21,7 +21,7 @@ object SirDSL:
     // flatten LamAbs into a list of names and the body
     def lamAbsToList(lam: SIR): (List[String], SIR) =
         lam match
-            case SIR.LamAbs(svar, body, _) =>
+            case SIR.LamAbs(svar, body, _, _) =>
                 val (names, body1) = lamAbsToList(body)
                 (svar.name :: names, body1)
             case body => (Nil, body)
@@ -29,7 +29,12 @@ object SirDSL:
     def λ(names: String*)(term: SIR): SIR = lam(names*)(term)
     def lam(names: String*)(term: SIR): SIR =
         names.foldRight(term)((e, s) =>
-            SIR.LamAbs(SIR.Var(e, s.tp, AnnotationsDecl.empty), s, AnnotationsDecl.empty)
+            SIR.LamAbs(
+              SIR.Var(e, s.tp, AnnotationsDecl.empty),
+              s,
+              List.empty,
+              AnnotationsDecl.empty
+            )
         )
     extension (term: SIR)
         infix def $(rhs: SIR): AnnotatedSIR =

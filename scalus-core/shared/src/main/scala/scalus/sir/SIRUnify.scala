@@ -13,7 +13,7 @@ object SIRUnify {
         eqTypes: Map[SIRType.TypeVar, Set[SIRType.TypeVar]] = Map.empty,
         parentTypes: Map[SIRType, Set[SIRType]] = Map.empty,
         debug: Boolean = false,
-        upcasting: Boolean = false
+        upcasting: Boolean = false,
     ) {
         def withDebug: Env = this.copy(debug = true)
         def withoutUpcasting: Env = this.copy(upcasting = false)
@@ -151,20 +151,29 @@ object SIRUnify {
                         UnificationFailure(path, bindingsLeft, bindingsRight)
             case (v1: SIR.LamAbs, v2: SIR.LamAbs) =>
                 // note, that this is not semantic unification, but syntactic
-                //  so, different parametes means different lambda.
+                //  so, different parametes means different lambdas.
                 unifySIRExpr(v1.param, v2.param, env.copy()) match
                     case UnificationSuccess(env1, param) =>
                         val nParam = param.asInstanceOf[SIR.Var]
-                        unifySIR(v1.term, v2.term, env1.copy(path = "body" :: env.path)) match
-                            case UnificationSuccess(env2, term) =>
-                                UnificationSuccess(
-                                  env2.copy(path = env.path),
-                                  SIR.LamAbs(nParam, term, v1.anns)
-                                )
-                            case failure @ UnificationFailure(path, bodyLeft, bodyRight) =>
-                                failure
-                    case failure @ UnificationFailure(path, paramLeft, paramRight) =>
-                        failure
+                        unifyList(
+                          v1.typeParams,
+                          v2.typeParams,
+                          env1.copy(path = "typeParams" :: env.path)
+                        )(using TypeVarRelaxingUnify) match
+                            case UnificationSuccess(env2, typeParams) =>
+                                unifySIR(
+                                  v1.term,
+                                  v2.term,
+                                  env2.copy(path = "body" :: env.path)
+                                ) match
+                                    case UnificationSuccess(env2, term) =>
+                                        UnificationSuccess(
+                                          env2.copy(path = env.path),
+                                          SIR.LamAbs(nParam, term, typeParams, v1.anns)
+                                        )
+                                    case failure: UnificationFailure[?] => failure
+                            case failure: UnificationFailure[?] => failure
+                    case failure: UnificationFailure[?] => failure
             case (app1: SIR.Apply, app2: SIR.Apply) =>
                 unifySIRExpr(app1.f, app2.f, env.copy(path = "f" :: env.path)) match
                     case UnificationSuccess(env1, fun) =>

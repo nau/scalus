@@ -16,6 +16,7 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
                   lctx.typeGenerator(input).defaultRepresentation(input),
                   lctx.typeGenerator(output).defaultRepresentation(output)
                 )
+
             case None =>
                 throw IllegalStateException(
                   s"Function type generator can't be used for type ${tp.show}",
@@ -121,8 +122,10 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
         tp match {
             case SIRType.Fun(input, output) =>
                 Some((Set.empty, input, output))
-            case SIRType.TypeLambda(typeVars, SIRType.Fun(input, output)) =>
-                Some((typeVars.toSet, input, output))
+            case SIRType.TypeLambda(typeVars, body) =>
+                collect(body).map { case (bTypeVars, input, output) =>
+                    (typeVars.toSet ++ bTypeVars, input, output)
+                }
             case SIRType.TypeProxy(ref) => None
             case tv: SIRType.TypeVar =>
                 Some(Set.empty, SIRType.FreeUnificator, SIRType.FreeUnificator)

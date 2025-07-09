@@ -1016,11 +1016,12 @@ object FlatInstantces:
             case aLet: SIR.Let =>
                 termTagWidth +
                     SIRLetHashConsedFlat.bitSizeHC(aLet, hashCons)
-            case LamAbs(x, t, anns) =>
+            case LamAbs(x, t, tps, anns) =>
                 termTagWidth + SIRVarHashConsedFlat.bitSizeHC(x, hashCons) + bitSizeHC(
                   t,
                   hashCons
-                ) + AnnotationsDeclFlat.bitSizeHC(anns, hashCons)
+                ) + summon[Flat[List[SIRType.TypeVar]]].bitSize(tps) +
+                    AnnotationsDeclFlat.bitSizeHC(anns, hashCons)
             case Apply(f, x, tp, anns) =>
                 termTagWidth + bitSizeHC(f, hashCons) + bitSizeHC(x, hashCons) +
                     SIRTypeHashConsedFlat.bitSizeHC(tp, hashCons) + AnnotationsDeclFlat.bitSizeHC(
@@ -1096,10 +1097,11 @@ object FlatInstantces:
                 case aLet: SIR.Let =>
                     enc.encode.bits(termTagWidth, tagLet)
                     SIRLetHashConsedFlat.encodeHC(aLet, enc)
-                case LamAbs(x, t, anns) =>
+                case LamAbs(x, t, tps, anns) =>
                     enc.encode.bits(termTagWidth, tagLamAbs)
                     SIRVarHashConsedFlat.encodeHC(x, enc)
                     encodeHC(t, enc)
+                    summon[Flat[List[SIRType.TypeVar]]].encode(tps, enc.encode)
                     AnnotationsDeclFlat.encodeHC(anns, enc)
                 case Apply(f, x, tp, anns) =>
                     enc.encode.bits(termTagWidth, tagApply)
@@ -1183,11 +1185,13 @@ object FlatInstantces:
                 case `tagLamAbs` =>
                     val x = SIRVarHashConsedFlat.decodeHC(decoder)
                     val t = decodeHC(decoder)
+                    val tps = summon[Flat[List[SIRType.TypeVar]]].decode(decoder.decode)
                     val anns = AnnotationsDeclFlat.decodeHC(decoder)
                     HashConsedRef.deferred((hs, l, p) =>
                         LamAbs(
                           x.finValue(hs, l, p),
                           t.finValue(hs, l, p),
+                          tps,
                           anns.finValue(hs, l, p)
                         )
                     )

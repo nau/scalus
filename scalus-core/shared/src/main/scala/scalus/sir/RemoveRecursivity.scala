@@ -30,7 +30,7 @@ object RemoveRecursivity:
                   removeRecursivity(body),
                   anns
                 )
-            case LamAbs(name, term, anns) => LamAbs(name, removeRecursivity(term), anns)
+            case LamAbs(name, term, tps, anns) => LamAbs(name, removeRecursivity(term), tps, anns)
             case Apply(f, arg, tp, anns) =>
                 Apply(removeRecursivityInExpr(f), removeRecursivityInExpr(arg), tp, anns)
             case Select(s, field, tp, anns) => Select(removeRecursivity(s), field, tp, anns)
@@ -77,7 +77,7 @@ object RemoveRecursivity:
                 val newEnv = bindings.map(_.name) ++ env
                 bindings.exists(b => isRecursive(name, b.value, newEnv))
                 || isRecursive(name, body, newEnv)
-            case LamAbs(n, t, _)    => isRecursive(name, t, n.name :: env)
+            case LamAbs(n, t, _, _) => isRecursive(name, t, n.name :: env)
             case Apply(f, a, tp, _) => isRecursive(name, f, env) || isRecursive(name, a, env)
             case Select(s, _, _, _) => isRecursive(name, s, env)
             case And(a, b, _)       => isRecursive(name, a, env) || isRecursive(name, b, env)

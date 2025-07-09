@@ -181,6 +181,14 @@ object SIRType {
 
     }
 
+    trait TypeVarGenerationContext {
+
+        def contains(tv: TypeVar): Boolean
+
+        def freshCopy(tv: TypeVar): TypeVar
+
+    }
+
     /** Type lamnda (always carried).
       * @param param
       * @param body
@@ -501,69 +509,130 @@ object SIRType {
         env: Map[TypeVar, SIRType],
         debug: Boolean = false
     ): SIRType = {
+        val maxTypeVarIdInEnv = env.keys
+            .map(_.optId.getOrElse(0L))
+            .maxOption
+            .getOrElse(0L)
         calculateApplyTypeWithUnifyEnv(
           f,
           arg,
-          SIRUnify.Env.empty.copy(filledTypes = env, debug = debug)
+          new CalculateApplyTypeContext(
+            SIRUnify.Env.empty.copy(filledTypes = env, debug = debug),
+            createMinimalTypeVarGenerationContext(maxTypeVarIdInEnv, scala.List(f, arg))
+          )
         )
     }
 
+    class CalculateApplyTypeContext(
+        var env: SIRUnify.Env,
+        val tvGen: SetBasedTypeVarGenerationContext,
+        var tvSubst: Map[SIRType.TypeVar, SIRType.TypeVar] = Map.empty,
+        val tvAlreadyUnique: Boolean = false,
+        val paranoid: Boolean = true
+    )
+
+    /** Calculate the type of the application of function f to argument arg.
+      * @param f
+      * @param arg
+      * @param ctx
+      * @return
+      */
     def calculateApplyTypeWithUnifyEnv(
         f: SIRType,
         arg: SIRType,
-        env: SIRUnify.Env,
-    ): SIRType =
-        f match {
-            case Fun(in, out) =>
-                // TODO: check unification exceptions and rethrow as type exception
-                SIRUnify.unifyType(
-                  in,
-                  arg,
-                  env.withUpcasting
-                ) match
-                    case r: SIRUnify.UnificationSuccess[?] =>
-                        substitute(out, r.env.filledTypes, Map.empty)
-                    case e: SIRUnify.UnificationFailure[?] =>
-                        val lString =
-                            if e.left.isInstanceOf[SIRType] then e.left.asInstanceOf[SIRType].show
-                            else e.left.toString
-                        val rString =
-                            if e.right.isInstanceOf[SIRType] then e.right.asInstanceOf[SIRType].show
-                            else e.right.toString
-                        val message =
-                            s"Cannot unify ${in.show} with ${arg.show}, difference at path ${e.path}, l=${lString}, r=${rString}"
-                        println(message)
-                        val filledTypesDebug = env.filledTypes
-                            .map { (tv, tp) =>
-                                s"${tv.name}[${tv.optId.getOrElse("None")}] -> ${tp.show}"
-                            }
-                            .mkString("\n")
-                        println(s"filledTypesDebug:\n$filledTypesDebug")
-                        if false then
-                            @unused val unused = SIRUnify.unifyType(
-                              in,
-                              arg,
-                              env.withUpcasting.withDebug
-                            )
-                        throw new CaclulateApplyTypeException(message)
-            // TypeError(s"Cannot unify $in with $arg, difference at path ${e.path}", null)
-            case tvF: TypeVar =>
-                env.filledTypes.get(tvF) match
-                    case Some(f1) => calculateApplyTypeWithUnifyEnv(tvF, arg, env)
-                    case None =>
-                        throw new CaclulateApplyTypeException(s"Unbound type variable ${tvF.name}")
-            case TypeLambda(params, body) =>
-                // val newEnv = params.foldLeft(env) { case (acc, tv) =>
-                //    acc + (tv -> FreeUnificator)
-                // }
-                calculateApplyTypeWithUnifyEnv(body, arg, env)
-            case TypeProxy(next) =>
-                if next == null then
-                    throw CaclulateApplyTypeException(s"TypeProxy is not resolved: $f")
-                else calculateApplyTypeWithUnifyEnv(next, arg, env)
-            case other =>
-                throw CaclulateApplyTypeException(s"Expected function type, got $other", null)
+        ctx: CalculateApplyTypeContext
+    ): SIRType = {
+
+        def freshTypeLambda(tl: TypeLambda): (SIRType, scala.List[TypeVar]) = {
+            val newMappingPairs = tl.params.map(tv => (tv, ctx.tvGen.freshCopy(tv)))
+            val newMapping = newMappingPairs.toMap
+            ctx.tvSubst = ctx.tvSubst ++ newMapping
+            val renamingContext = RenamingTypeVars.makeContext(newMapping, ctx.tvGen)
+            (RenamingTypeVars.inType(tl.body, renamingContext), newMappingPairs.map(_._2).toList)
         }
+
+        def unrollTypeLambda(
+            x: SIRType,
+            freshCondition: => Boolean
+        ): (SIRType, scala.List[TypeVar]) =
+            x match {
+                case tl: SIRType.TypeLambda =>
+                    if freshCondition then freshTypeLambda(tl)
+                    else (tl.body, tl.params)
+                case TypeProxy(ref) =>
+                    unrollTypeLambda(ref, freshCondition)
+                case _ =>
+                    (x, scala.List.empty)
+            }
+
+        val argOverlapp = ctx.tvGen.importSetFromType(arg)
+        val fOverlapp = ctx.tvGen.importSetFromType(f)
+
+        val (uniqueArg, argTps) = unrollTypeLambda(arg, argOverlapp)
+        val (uniqueF, fTps) = unrollTypeLambda(f, fOverlapp)
+
+        uniqueF match
+            case SIRType.Fun(in, out) =>
+                val (uniqueIn, inTps) = unrollTypeLambda(in, true)
+                val (uniqueOut, outTps) = unrollTypeLambda(out, true)
+                SIRUnify.unifyType(uniqueIn, uniqueArg, ctx.env.withUpcasting) match
+                    case SIRUnify.UnificationSuccess(env, unificator) =>
+                        ctx.env = env
+                        val argTpsRest = argTps.filterNot(ctx.env.filledTypes.contains)
+                        val inTvSubst = inTps.flatMap { tv =>
+                            ctx.env.eqTypes.get(tv) match {
+                                case Some(eqTypes) =>
+                                    eqTypes.find(etv => argTps.contains(etv)).map((tv, _))
+                                case None => None
+                            }
+                        }.toMap
+                        val inTpsRest = inTps.filterNot(x =>
+                            inTvSubst.contains(x) || env.filledTypes.contains(x)
+                        )
+                        val fTvSubst = fTps.flatMap { tv =>
+                            ctx.env.eqTypes.get(tv) match {
+                                case Some(eqTypes) =>
+                                    eqTypes
+                                        .find(etv => argTps.contains(etv))
+                                        .orElse(eqTypes.find(etv => inTps.contains(etv)))
+                                        .map((tv, _))
+                                case None => None
+                            }
+                        }
+                        val fTvRest =
+                            fTps.filterNot(x => fTvSubst.contains(x) || env.filledTypes.contains(x))
+                        val resBody = substitute(
+                          uniqueOut,
+                          env.filledTypes ++ inTvSubst ++ fTvSubst,
+                          Map.empty
+                        )
+                        val resParams0 = argTpsRest ++ inTpsRest ++ fTvRest ++ outTps
+                        val resParams =
+                            if ctx.paranoid then
+                                val (ground, unground) = partitionGround(resParams0, resBody)
+                                if unground.nonEmpty then
+                                    println(
+                                      "warnings: type parameters are not ground in the result type: " +
+                                          s"${unground.map(_.show).mkString(", ")} in $resBody"
+                                    )
+                                ground
+                            else resParams0
+                        if resParams.isEmpty then resBody
+                        else SIRType.TypeLambda(resParams, resBody)
+            case tv: TypeVar =>
+                ctx.env.filledTypes.get(tv) match
+                    case Some(filledType) =>
+                        calculateApplyTypeWithUnifyEnv(filledType, arg, ctx)
+                    case None =>
+                        throw CaclulateApplyTypeException(
+                          s"Cannot calculate apply type for $f to $arg, type variable $tv is not filled in the environment"
+                        )
+            case _ =>
+                throw CaclulateApplyTypeException(
+                  s"Cannot calculate apply type for $f to $arg, expected a function type, got ${f.show}"
+                )
+
+    }
 
     def substitute(
         rType: SIRType,
@@ -576,7 +645,9 @@ object SIRType {
                     case Some(t) => t
                     case None    => tv
             case TypeLambda(params, body) =>
-                TypeLambda(params, substitute(body, env, proxyEnv))
+                val intersected = params.filter(tv => env.contains(tv))
+                if intersected.isEmpty then TypeLambda(params, substitute(body, env, proxyEnv))
+                else TypeLambda(params, substitute(body, env -- intersected, proxyEnv))
             case CaseClass(constrDecl, typeArgs, optParent) =>
                 CaseClass(
                   constrDecl,
@@ -749,6 +820,283 @@ object SIRType {
 
     def isSynteticNarrowConstrDeclName(name: String): Boolean = {
         name.startsWith("z_narrow$$")
+    }
+
+    class SetBasedTypeVarGenerationContext(
+        var typeVars: Set[TypeVar],
+        var maxCounter: Long,
+    ) extends TypeVarGenerationContext {
+
+        override def contains(tv: TypeVar): Boolean =
+            typeVars.contains(tv)
+
+        override def freshCopy(tv: TypeVar): TypeVar = {
+            if maxCounter == -1 then
+                throw new IllegalStateException(
+                  "Cannot create fresh copy of type variable when maxCounter is -1"
+                )
+            maxCounter += 1
+            val freshTypeVar = TypeVar(tv.name, Some(maxCounter), tv.isBuiltin)
+            typeVars += freshTypeVar
+            freshTypeVar
+        }
+
+        def updateMaxCounter(id: Long): Unit = {
+            if id > maxCounter then maxCounter = id
+        }
+
+        def importSetFromType(tp: SIRType): Boolean = {
+            val proxySet = new util.IdentityHashMap[SIRType, SIRType]()
+
+            val prevTypeVars = typeVars
+            var foundCollision = false
+
+            def accept(tp: SIRType): Unit = {
+                tp match {
+                    case TypeLambda(tps, body) =>
+                        tps.foreach { tv =>
+                            if !contains(tv) then
+                                typeVars += tv
+                                updateMaxCounter(tv.optId.getOrElse(0L))
+                            else if !foundCollision && prevTypeVars.contains(tv) then
+                                foundCollision = true
+                        }
+                        accept(body)
+                    case tv: TypeVar =>
+                        if !contains(tv) then
+                            typeVars += tv
+                            updateMaxCounter(tv.optId.getOrElse(0L))
+                        else if !foundCollision && prevTypeVars.contains(tv) then
+                            foundCollision = true
+                    case Fun(in, out) =>
+                        accept(in)
+                        accept(out)
+                    case CaseClass(constrDecl, typeArgs, optParent) =>
+                        typeArgs.foreach(accept)
+                        optParent.foreach(accept)
+                        proxySet.put(tp, tp)
+                    case SumCaseClass(dataDecl, typeArgs) =>
+                        typeArgs.foreach(accept)
+                        proxySet.put(tp, tp)
+                    case TypeProxy(ref) =>
+                        Option(proxySet.get(ref)) match {
+                            case Some(visited) =>
+                            // do nothing, already visited
+                            case None =>
+                                proxySet.put(ref, ref)
+                                accept(ref)
+                        }
+                    case TypeNothing | Unit | Integer | String | Boolean | ByteString | Data |
+                        BLS12_381_G1_Element | BLS12_381_G2_Element | BLS12_381_MlResult =>
+                    // do nothing, these types are not type variables
+                }
+            }
+
+            accept(tp)
+            foundCollision
+        }
+
+    }
+
+    def createMinimalTypeVarGenerationContext(
+        initCounter: Long,
+        initTypes: scala.List[SIRType]
+    ): SetBasedTypeVarGenerationContext = {
+
+        @tailrec
+        def advance(
+            acc: SetBasedTypeVarGenerationContext,
+            dataDeclNames: Set[String],
+            constrDeclNames: Set[String],
+            proxiedRefs: util.IdentityHashMap[SIRType, SIRType],
+            initTypes: LazyList[SIRType]
+        ): SetBasedTypeVarGenerationContext = {
+            if initTypes.isEmpty then acc
+            else
+                initTypes.head match {
+                    case TypeVar(name, Some(id), isBuiltin) =>
+                        if id > acc.maxCounter then acc.maxCounter = id
+                        acc.typeVars += TypeVar(name, Some(id), isBuiltin)
+                        acc
+                    case TypeLambda(params, body) =>
+                        params.foreach { tv =>
+                            if !acc.contains(tv) then
+                                acc.typeVars += tv
+                                if tv.optId.isDefined && tv.optId.get > acc.maxCounter then
+                                    acc.maxCounter = tv.optId.get
+                        }
+                        advance(
+                          acc,
+                          dataDeclNames,
+                          constrDeclNames,
+                          proxiedRefs,
+                          initTypes.tail.prepended(body)
+                        )
+                    case CaseClass(constrDecl, typeArgs, optParent) =>
+                        if !constrDeclNames.contains(constrDecl.name) then {
+                            val nConstrDeclNames = constrDeclNames + constrDecl.name
+                            advance(
+                              acc,
+                              dataDeclNames,
+                              nConstrDeclNames,
+                              proxiedRefs,
+                              LazyList[SIRType](typeArgs*) ++
+                                  optParent.to(LazyList) ++
+                                  constrDecl.typeParams ++
+                                  constrDecl.params.map(_.tp).to(LazyList) ++ initTypes.tail
+                            )
+                        } else acc
+                    case SumCaseClass(dataDecl, typeArgs) =>
+                        if !dataDeclNames.contains(dataDecl.name) then {
+                            val nDataDeclNames = dataDeclNames + dataDecl.name
+                            val nConstrDeclNames =
+                                dataDecl.constructors.map(_.name).toSet ++ constrDeclNames
+                            advance(
+                              acc,
+                              nDataDeclNames,
+                              nConstrDeclNames,
+                              proxiedRefs,
+                              typeArgs.to(LazyList) ++ dataDecl.typeParams ++
+                                  dataDecl.constructors
+                                      .flatMap { constrDecl =>
+                                          constrDecl.params.map(_.tp) ++ constrDecl.typeParams
+                                      }
+                                      .to(LazyList) ++ initTypes.tail
+                            )
+                        } else acc
+                    case Fun(in, out) =>
+                        advance(
+                          acc,
+                          dataDeclNames,
+                          constrDeclNames,
+                          proxiedRefs,
+                          LazyList(in) ++ LazyList(out) ++ initTypes.tail
+                        )
+                    case TypeProxy(ref) =>
+                        Option(proxiedRefs.get(ref)) match
+                            case Some(visited) => acc
+                            case None =>
+                                proxiedRefs.put(ref, ref)
+                                advance(
+                                  acc,
+                                  dataDeclNames,
+                                  constrDeclNames,
+                                  proxiedRefs,
+                                  LazyList(ref) ++ initTypes.tail
+                                )
+                    case _ =>
+                        advance(acc, dataDeclNames, constrDeclNames, proxiedRefs, initTypes.tail)
+                }
+
+        }
+
+        advance(
+          new SetBasedTypeVarGenerationContext(Set.empty, initCounter),
+          Set.empty,
+          Set.empty,
+          new util.IdentityHashMap[SIRType, SIRType](),
+          initTypes.to(LazyList)
+        )
+
+    }
+
+    def isGround(tv: TypeVar, tp: SIRType): Boolean = {
+        var found = false
+        val typeProxies = new util.IdentityHashMap[SIRType, SIRType]()
+        val stack = scala.collection.mutable.Stack[SIRType](tp)
+
+        @scala.annotation.tailrec
+        def advance(tp: SIRType): Unit = {
+            if !found then
+                tp match {
+                    case tv1: SIRType.TypeVar =>
+                        if tv1 == tv then found = true
+                    case TypeLambda(params, body) =>
+                        if !params.contains(tv) then advance(body)
+                    case TypeProxy(ref) =>
+                        Option(typeProxies.get(ref)) match {
+                            case Some(visited) =>
+                            // do nothing, already visited
+                            case None =>
+                                typeProxies.put(ref, ref)
+                                advance(ref)
+                        }
+                    case Fun(in, out) =>
+                        stack.push(out)
+                        advance(in)
+                    case CaseClass(constrDecl, typeArgs, optParent) =>
+                        typeArgs.foreach { arg =>
+                            stack.push(arg)
+                        }
+                        optParent.foreach { parent =>
+                            stack.push(parent)
+                        }
+                    case SumCaseClass(dataDecl, typeArgs) =>
+                        typeArgs.foreach { arg =>
+                            stack.push(arg)
+                        }
+                    case _ =>
+                }
+        }
+
+        stack.push(tp)
+        while stack.nonEmpty && !found do
+            val tp = stack.pop()
+            advance(tp)
+        found
+    }
+
+    def partitionGround(tvs: List[TypeVar], tp: SIRType): (List[TypeVar], List[TypeVar]) = {
+        var grounded: Set[TypeVar] = Set.empty
+        var ungrounded: Set[TypeVar] = tvs.toSet
+
+        val typeProxies = new util.IdentityHashMap[SIRType, SIRType]()
+
+        val stack = scala.collection.mutable.Stack[(SIRType, Set[TypeVar])]()
+
+        @tailrec
+        def advance(tp: SIRType, unshadowedSet: Set[TypeVar]): Unit = {
+            if unshadowedSet.nonEmpty && ungrounded.isEmpty then
+                tp match
+                    case TypeLambda(params, body) =>
+                        val unshadowed = unshadowedSet -- params
+                        advance(body, unshadowed)
+                    case tv: TypeVar =>
+                        if unshadowedSet.contains(tv) then
+                            if ungrounded.contains(tv) then
+                                grounded += tv
+                                ungrounded -= tv
+                    case TypeProxy(ref) =>
+                        Option(typeProxies.get(ref)) match {
+                            case Some(visited) =>
+                            // do nothing
+                            case None =>
+                                typeProxies.put(ref, ref)
+                                advance(ref, unshadowedSet)
+                        }
+                    case Fun(in, out) =>
+                        stack.push((out, unshadowedSet))
+                        advance(in, unshadowedSet)
+                    case CaseClass(constrDecl, typeArgs, optParent) =>
+                        typeArgs.foreach { arg =>
+                            stack.push((arg, unshadowedSet))
+                        }
+                        optParent.foreach { parent =>
+                            stack.push((parent, unshadowedSet))
+                        }
+                    case SumCaseClass(dataDecl, typeArgs) =>
+                        typeArgs.foreach { arg =>
+                            stack.push((arg, unshadowedSet))
+                        }
+                    case other =>
+        }
+
+        stack.push((tp, ungrounded))
+        while stack.nonEmpty && ungrounded.nonEmpty do
+            val (tp, unshadowedSet) = stack.pop()
+            advance(tp, unshadowedSet)
+        (grounded.toList, ungrounded.toList)
+
     }
 
 }

@@ -125,6 +125,7 @@ lazy val scalusPlugin = project
             "scalus/sir/SIRHashCodeInRec.scala",
             "scalus/sir/FlatInstances.scala",
             "scalus/sir/RemoveRecursivity.scala",
+            "scalus/sir/RenamingTypeVars.scala",
             "scalus/uplc/Constant.scala",
             "scalus/uplc/DefaultFun.scala",
             "scalus/uplc/DefaultUni.scala",

@@ -16,6 +16,8 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
                 TypeVarRepresentation(isBuiltin)
             case SIRType.FreeUnificator =>
                 TypeVarRepresentation(false)
+            case SIRType.TypeLambda(params, body) =>
+                defaultRepresentation(body)
             case _ =>
                 throw IllegalStateException(
                   s"TypeVarSirTypeGenerator can't be used for type ${tp.show}",

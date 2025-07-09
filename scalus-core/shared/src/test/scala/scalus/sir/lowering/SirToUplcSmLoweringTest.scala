@@ -97,7 +97,7 @@ class SirToUplcSmLoweringTest
         val x = SIR.Var("x", TypeVar("X", Some(2), true), ae)
 
         val sir = SIR.Apply(
-          SIR.LamAbs(x, x, ae),
+          SIR.LamAbs(x, x, List.empty, ae),
           SIR.Const(Constant.Unit, Unit, ae),
           Unit,
           ae
@@ -113,7 +113,7 @@ class SirToUplcSmLoweringTest
         val x = SIR.Var("x", TypeVar("X", Some(2), false), ae)
 
         val sir = SIR.Apply(
-          SIR.LamAbs(x, x, ae),
+          SIR.LamAbs(x, x, List.empty, ae),
           SIR.Const(Constant.Unit, Unit, ae),
           Unit,
           ae
@@ -286,7 +286,8 @@ class SirToUplcSmLoweringTest
         def withLambda(f: => SIR): SIR = {
             SIR.LamAbs(
               SIR.Var("a", SIRType.Boolean, ae),
-              SIR.LamAbs(SIR.Var("b", SIRType.Boolean, ae), f, ae),
+              SIR.LamAbs(SIR.Var("b", SIRType.Boolean, ae), f, List.empty, ae),
+              List.empty,
               ae
             )
         }
@@ -335,7 +336,7 @@ class SirToUplcSmLoweringTest
         )
 
         // SIR.Not(a, ae) lowersTo !(!IfThenElse $ vr"a" $ ~false $ ~true)
-        val nonLambda1 = SIR.LamAbs(a, SIR.Not(a, ae), ae)
+        val nonLambda1 = SIR.LamAbs(a, SIR.Not(a, ae), List.empty, ae)
         val nonLambdaUplc1 = lower(nonLambda1)
         val expectedNon1 = lam("a")(!(!IfThenElse $ vr"a" $ ~false $ ~true))
         assert(
@@ -456,6 +457,7 @@ class SirToUplcSmLoweringTest
               SIRType.Integer,
               ae
             ),
+            List.empty,
             ae
           )
         )
@@ -598,6 +600,7 @@ class SirToUplcSmLoweringTest
               SIRType.Integer,
               ae
             ),
+            List.empty,
             ae
           )
         )

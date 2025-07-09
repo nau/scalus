@@ -182,14 +182,18 @@ object PrettyPrinter:
                 ) & pretty(inExpr, style)
             // TODO: support multiple bindings
             case Let(_, _, inExpr, _) => sys.error(s"Multiple bindings not supported: $sir")
-            case LamAbs(name, term, anns) =>
+            case LamAbs(name, term, typeParams, anns) =>
                 val (args, body1) = SirDSL.lamAbsToList(sir)
                 val prettyArgs = stack(args.map(text))
                 val decl =
                     (text("{λ") + (line + prettyArgs & text("->")).nested(4)).grouped
-                ((decl + (line + pretty(body1, style)).nested(2)).grouped / text(
+                val declBody = ((decl + (line + pretty(body1, style)).nested(2)).grouped / text(
                   "}"
                 )).grouped.aligned
+                if typeParams.isEmpty then declBody
+                else
+                    (text("∀") + intercalate(text(",") + space, typeParams.map(p => text(p.name))) +
+                        text(".") + line + declBody).grouped.aligned
             case a @ Apply(f, arg, tp, anns) =>
                 val (t, args) = SirDSL.applyToList(a)
                 val prettyArgs = args match
@@ -244,7 +248,11 @@ object PrettyPrinter:
             case Builtin(bn, _, _) => pretty(bn).styled(Fg.colorCode(176))
             case Error(msg, _, _)  => text(s"ERROR '$msg'").styled(Fg.colorCode(124))
             case Cast(expr, tp, anns) =>
-                (kw("cast") & pretty(expr, style) + char(':') & typ(pretty(tp))).grouped.aligned
+                (kw("cast") & (lineOrSpace + inParens(pretty(expr, style))).nested(4) + char(
+                  ':'
+                ) & typ(
+                  pretty(tp)
+                )).grouped.aligned
 
     def pretty(sirType: SIRType): Doc =
         sirType match

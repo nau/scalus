@@ -242,7 +242,7 @@ class SimpleSirToUplcV3Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.Let(Rec, bindings, body, anns) =>
                 // TODO: implement mutual recursion
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
-            case SIR.LamAbs(name, term, anns) => Term.LamAbs(name.name, lowerInner(term))
+            case SIR.LamAbs(name, term, tps, anns) => Term.LamAbs(name.name, lowerInner(term))
             // f(arg)
             case SIR.Apply(f, arg, _, _) => Term.Apply(lowerInner(f), lowerInner(arg))
             // record.field

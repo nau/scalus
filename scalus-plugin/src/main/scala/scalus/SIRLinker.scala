@@ -96,8 +96,8 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
                 bindings.map(b => Binding(b.name, b.tp, traverseAndLink(b.value, srcPos)))
             val nBody = traverseAndLink(body, srcPos)
             SIR.Let(recursivity, nBingings, nBody, anns)
-        case SIR.LamAbs(param, term, anns) =>
-            SIR.LamAbs(param, traverseAndLink(term, srcPos), anns)
+        case SIR.LamAbs(param, term, typeParams, anns) =>
+            SIR.LamAbs(param, traverseAndLink(term, srcPos), typeParams, anns)
         case SIR.Apply(f, arg, tp, anns) =>
             val fReplaced =
                 if options.useUniversalDataConversion then
@@ -163,7 +163,7 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
     private def findAndLinkDefinition(
         defs: collection.Map[FullName, SIR],
         fullName: FullName,
-        tp: SIRType,
+        @unused tp: SIRType,
         srcPos: SrcPos
     ): Boolean = {
         val found = defs.get(fullName)

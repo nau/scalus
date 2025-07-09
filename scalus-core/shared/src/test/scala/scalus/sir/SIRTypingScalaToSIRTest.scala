@@ -102,7 +102,7 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
         }
         val lSir = findLastLetBody(sir)
         lSir match {
-            case SIR.LamAbs(a, SIR.LamAbs(b, body, _), _) =>
+            case SIR.LamAbs(a, SIR.LamAbs(b, body, _, _), _, _) =>
                 body match {
                     case SIR.Apply(
                           SIR.Apply(

@@ -128,7 +128,9 @@ object Lowering {
                     bindings.filterNot(b => isFromDataName(b.name) || (isToDataName(b.name)))
                 if nBindings.isEmpty then lowerSIR(body)
                 else lowerLet(sirLet.copy(bindings = nBindings))
-            case SIR.LamAbs(param, term, anns) =>
+            case SIR.LamAbs(param, term, typeParams, anns) =>
+                // TODO: add type params to context.  Now we do all computations in
+                // new context, so type params are assumed implicitly
                 lvLamAbs(
                   param,
                   lctx.typeGenerator(param.tp).defaultRepresentation(param.tp),
@@ -339,8 +341,11 @@ object Lowering {
                 throw LoweringException(
                   s"Unification failure for matching arg and in of f ${app.pretty.render(100)}\n" +
                       s"  path: ${path.mkString(" -> ")}\n" +
-                      s"  f.tp = ${app.f.tp.show}\n" +
-                      s"  app.arg.tp: ${app.arg.tp.show}",
+                      s"  l=$l, r=$r\n" +
+                      s"  app.f.tp = ${app.f.tp.show}\n" +
+                      s"  app.arg.tp: ${app.arg.tp.show}\n" +
+                      s"  f=: ${app.f.pretty.render(100)}\n" +
+                      s"  arg=: ${app.arg.pretty.render(100)}\n",
                   app.anns.pos
                 )
         }

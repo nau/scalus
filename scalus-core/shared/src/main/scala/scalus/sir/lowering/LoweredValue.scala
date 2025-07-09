@@ -1036,7 +1036,12 @@ object LoweredValue {
             f: IdentifiableLoweredValue => LoweringContext ?=> LoweredValue,
             inPos: SIRPosition
         )(using lctx: LoweringContext): LoweredValue = {
-            lvLamAbs(SIR.Var(name, tp, AnnotationsDecl(inPos)), inputRepresentation, f, inPos)
+            lvLamAbs(
+              SIR.Var(name, tp, AnnotationsDecl(inPos)),
+              inputRepresentation,
+              f,
+              inPos
+            )
         }
 
         def lvLamAbs(
