@@ -1,6 +1,5 @@
 package scalus.cardano.ledger
 
-import scalus.bloxbean.SlotConfig
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*

@@ -6,7 +6,7 @@ import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.bloxbean.BlocksValidation.apiKey
-import scalus.cardano.ledger.{SlotConfig as _, *}
+import scalus.cardano.ledger.*
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.eval.ExBudget
 
@@ -43,7 +43,7 @@ class BlockDeserializationTest extends AnyFunSuite {
         val costMdls = com.bloxbean.cardano.client.plutus.spec.CostMdls()
         costMdls.add(CostModelUtil.PlutusV1CostModel)
         costMdls.add(CostModelUtil.PlutusV2CostModel)
-        val evaluator = NewTxEvaluator(
+        val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
           protocolMajorVersion = MajorProtocolVersion.plominPV,

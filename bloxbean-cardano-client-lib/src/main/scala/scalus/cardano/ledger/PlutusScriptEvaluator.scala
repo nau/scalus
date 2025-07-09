@@ -3,7 +3,7 @@ package scalus.cardano.ledger
 import com.bloxbean.cardano.client.plutus.spec.CostMdls
 import org.slf4j.LoggerFactory
 import scalus.bloxbean.Interop.translateMachineParamsFromCostMdls
-import scalus.bloxbean.{EvaluatorMode, RestrictingBudgetSpenderWithScripDump, SlotConfig, TxEvaluationException}
+import scalus.bloxbean.{EvaluatorMode, RestrictingBudgetSpenderWithScripDump, TxEvaluationException}
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*
@@ -21,7 +21,7 @@ import scalus.uplc.{Constant, DeBruijnedProgram, Term}
 import java.nio.file.{Files, Paths}
 import scala.collection.immutable
 
-private[scalus] class NewTxEvaluator(
+private[scalus] class PlutusScriptEvaluator(
     val slotConfig: SlotConfig,
     val initialBudget: ExBudget,
     val protocolMajorVersion: MajorProtocolVersion,

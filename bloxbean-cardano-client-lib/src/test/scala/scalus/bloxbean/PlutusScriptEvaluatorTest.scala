@@ -10,13 +10,13 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.ShelleyDelegationPart.Null
 import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
-import scalus.cardano.ledger.{SlotConfig as _, *}
+import scalus.cardano.ledger.*
 import scalus.examples.PubKeyValidator
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
 
-class NewTxEvaluatorTest extends AnyFunSuite:
+class PlutusScriptEvaluatorTest extends AnyFunSuite {
     val senderMnemonic: String =
         "drive useless envelope shine range ability time copper alarm museum near flee wrist live type device meadow allow churn purity wisdom praise drop code"
     val sender1 = new Account(Networks.testnet(), senderMnemonic)
@@ -26,14 +26,16 @@ class NewTxEvaluatorTest extends AnyFunSuite:
         val costMdls = com.bloxbean.cardano.client.plutus.spec.CostMdls()
         costMdls.add(CostModelUtil.PlutusV1CostModel)
         costMdls.add(CostModelUtil.PlutusV2CostModel)
-        val evaluator = NewTxEvaluator(
+        val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
           protocolMajorVersion = MajorProtocolVersion.plominPV,
           costMdls = costMdls
         )
+
         inline def requiredPubKeyHash =
             hex"e1ac75d278929abc5e113cd1cd611a35af2520e7b3056ecac3da186b"
+
         val pubKeyValidator =
             compile(PubKeyValidator.validatorV2(requiredPubKeyHash))
                 .toUplc()
@@ -87,3 +89,4 @@ class NewTxEvaluatorTest extends AnyFunSuite:
         assert(redeemerResult.exUnits.memory == 13375L)
         assert(redeemerResult.exUnits.steps == 3732764L)
     }
+}
