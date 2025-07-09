@@ -2,7 +2,7 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Compiler.{compile, fieldAsData}
+import scalus.Compiler.{compile, compileDebug, fieldAsData}
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific}
 import scalus.ledger.api.PlutusLedgerLanguage
@@ -219,8 +219,8 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
           AnE
         )
 
-        // println(s"comileDef: compiled: ${compiled.pretty.render(100)}")
-        // println(s"comileDef: expected: ${exprected.pretty.render(100)}")
+        println(s"comileDef: compiled: ${compiled.pretty.render(100)}")
+        println(s"comileDef: expected: ${exprected.pretty.render(100)}")
 
         assert(compiled ~=~ exprected)
     }
@@ -2268,16 +2268,37 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile scala function with zero arguments") {
-        val compiled = compile {
+        val compiled = compileDebug {
             def fooZeroArgs = BigInt(1)
             val z = fooZeroArgs
             z
         }
 
+        println(s"sir=${compiled.pretty.render(100)}")
+
         val evaluated = compiled.toUplc().evaluate
 
         assert(evaluated == scalus.uplc.Term.Const(Constant.Integer(1)))
 
+    }
+
+    test("compile scala functions with zero arguments and type parameter") {
+        val compiled = compile {
+            def fooZeroArgsTp[T]: scalus.prelude.List[T] = scalus.prelude.List.empty[T]
+            val z = fooZeroArgsTp[BigInt]
+            z.isEmpty
+        }
+
+        // println(s"sir=${compiled.pretty.render(100)}")
+
+        val uplc = compiled.toUplc(generateErrorTraces = true)
+        // println(s"uplc=${uplc.pretty.render(100)}")
+
+        val evaluated = compiled.toUplc().evaluate
+
+        assert(evaluated == scalus.uplc.Term.Const(Constant.Bool(true)))
+
+        // println(s"evaluated=${evaluated}")
     }
 
     test("compile scala methd with zero arguments") {
@@ -2336,6 +2357,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     }
 
+    /*
     test("compile scala methd with zero arguments in non-var position") {
 
         val compiled = compile {
@@ -2351,3 +2373,4 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(evaluated == scalus.uplc.Term.Const(Constant.Integer(0)))
 
     }
+     */

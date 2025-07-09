@@ -959,7 +959,11 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         else
             // TODO store comments in the SIR
             // dd.rawComment
-            val debug = dd.symbol.fullName.toString == "scalus.prelude.List$.foldLeft"
+            val debug = env.debug || dd.symbol.fullName.toString == "b"
+            if debug then
+                println(
+                  s"compileDefDef: ${dd.symbol.fullName.toString}, params: ${dd.paramss.map(_.map(_.show))}, type: ${dd.tpe.show}, rhs: ${dd.rhs.show}"
+                )
             val params = dd.paramss.flatten.collect { case vd: ValDef => vd }
             val typeParams = dd.paramss.flatten.collect { case td: TypeDef => td }
             val sirTypeParams = typeParams.map { td =>
@@ -1002,34 +1006,58 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   s"compileDefDef: ${dd.symbol.fullName.toString}, btype0: ${funBodyExpr.tp.show}"
                 )
             val (tpFromBody, bodyExpr) = {
-                try
-                    assembleMethodWithTypeFromBody(
-                      dd.paramss,
-                      sirTypeParams,
-                      paramVars,
-                      funBodyExpr,
-                      selfTypeFromDef,
-                      dd.srcPos,
-                      Map.empty,
-                      typeFromDefMismatchWasFound = false
+                val (tp0, body0) = assembleMethodWithTypeFromBody(
+                  dd.paramss,
+                  sirTypeParams,
+                  paramVars,
+                  funBodyExpr,
+                  selfTypeFromDef,
+                  dd.srcPos,
+                  Map.empty,
+                  typeFromDefMismatchWasFound = false,
+                  debug = debug
+                )
+                if params.isEmpty then
+                    val unitVar = SIR.Var(
+                      "_",
+                      SIRType.Unit,
+                      AnnotationsDecl.fromSrcPos(dd.srcPos)
                     )
-                catch
-                    case NonFatal(ex) =>
-                        if ex.getMessage == "QQQ" then
-                            println("QQQ cathed, return again with debug")
-                            assembleMethodWithTypeFromBody(
-                              dd.paramss,
-                              sirTypeParams,
-                              paramVars,
-                              funBodyExpr,
-                              selfTypeFromDef,
-                              dd.srcPos,
-                              Map.empty,
-                              typeFromDefMismatchWasFound = false,
-                              debug = true
+                    tp0 match
+                        case SIRType.TypeLambda(tp0TypeParams, tp0Body) =>
+                            val tp = SIRType.TypeLambda(
+                              tp0TypeParams,
+                              SIRType.Fun(SIRType.Unit, tp0Body)
                             )
-                        throw ex
+                            val body = body0 match
+                                case SIR.Cast(
+                                      sir,
+                                      SIRType.TypeLambda(tp1TypeParams, tp1Body),
+                                      anns
+                                    ) =>
+                                    val body1 = SIR.Cast(sir, tp1Body, anns)
+                                    SIR.LamAbs(unitVar, body1, tp1TypeParams, anns)
+                                case _ =>
+                                    // impossible, but we should handle it
+                                    SIR.LamAbs(
+                                      unitVar,
+                                      body0,
+                                      tp0TypeParams,
+                                      AnnotationsDecl.fromSrcPos(dd.srcPos)
+                                    )
+                            (tp, body)
+                        case _ =>
+                            val tp = SIRType.Fun(SIRType.Unit, tp0)
+                            val body = SIR.LamAbs(
+                              unitVar,
+                              body0,
+                              List.empty,
+                              AnnotationsDecl.fromSrcPos(dd.srcPos)
+                            )
+                            (tp, body)
+                else (tp0, body0)
             }
+            val selfType = tpFromBody
             if debug then
                 println(
                   s"compileDefDef: tpFromBody: ${tpFromBody.show}\n" +
@@ -1037,9 +1065,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                       s"bodyExpr.tp: ${bodyExpr.tp.show}\n" +
                       s"bodyExpr: ${bodyExpr}\n"
                 )
-            val selfType =
-                if params.isEmpty then SIRType.Fun(SIRType.Unit, tpFromBody)
-                else tpFromBody
+
             val lbFlags = tryMethodResultType(dd) match {
                 case Some(rtp) => calculateLocalBindingFlags(rtp)
                 case None      => LocalBindingFlags.None
@@ -1062,7 +1088,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
       */
     private def assembleMethodWithTypeFromBody(
         paramss: List[ParamClause],
-        typeParams: List[SIRType.TypeVar],
+        sirTypeParams: List[SIRType.TypeVar],
         paramVars: List[SIR.Var],
         bodyExpr: AnnotatedSIR,
         typeFromDef: SIRType,
@@ -1074,7 +1100,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
 
         if debug then {
             println(
-              s"assembleMethodWithTypeFromBody: paramss = ${paramss.map(_.map(_.show))}, typeParams = ${typeParams.map(_.show)}, typeFromDef: ${typeFromDef.show}"
+              s"assembleMethodWithTypeFromBody: paramss = ${paramss.map(_.map(_.show))}, sirTypeParams = ${sirTypeParams.map(_.show)}, typeFromDef: ${typeFromDef.show}"
             )
             println("bodyExpr: " + bodyExpr)
         }
@@ -1128,25 +1154,47 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     case SIRUnify.UnificationSuccess(env, r) =>
                         (retType, bodyExpr)
                     case SIRUnify.UnificationFailure(_, _, _) =>
+                        if debug then
+                            println(
+                              s"assembleMethodWithTypeFromBody: last step, failure to unify: ${retType.show} and ${bodyExpr.tp.show}, casting body to type"
+                            )
                         (retType, SIR.Cast(bodyExpr, retType, AnnotationsDecl.fromSrcPos(pos)))
             else (bodyExpr.tp, bodyExpr)
         } else
             val firstList = paramss.head
             val next = paramss.tail
-            val isTypeList = firstList.forall {
+            val isTypeList = firstList.exists {
                 case td: TypeDef => true
                 case _           => false
             }
             val isVarList =
                 if isTypeList then false
                 else
-                    firstList.forall {
+                    firstList.exists {
                         case vd: ValDef => true
                         case _          => false
                     }
-            if isTypeList then {
+            if firstList.isEmpty then {
+                // empty parameter lists, in UPLC represented as Unit argument
+                // we adding hangling of empty parameters later (in compileDefDef), so here just skip.
+                assembleMethodWithTypeFromBody(
+                  next,
+                  sirTypeParams,
+                  paramVars,
+                  bodyExpr,
+                  typeFromDef,
+                  pos,
+                  typeParamsMapping,
+                  typeFromDefMismatchWasFound,
+                  debug
+                )
+                // val tp = SIRType.Fun(SIRType.Unit, nextTp)
+                // val unused = SIR.Var("_", SIRType.Unit, AnnotationsDecl.fromSrcPos(pos))
+                // val body = SIR.LamAbs(unused, nextBody, List.empty, AnnotationsDecl.fromSrcPos(pos))
+                // (tp, body)
+            } else if isTypeList then {
                 // type lambda
-                val (currentTps, nextTps) = typeParams.splitAt(firstList.size)
+                val (currentTps, nextTps) = sirTypeParams.splitAt(firstList.size)
                 val (nextTypeFromDef, nextTypeVarMap, mismatchWasFound) = typeFromDef match {
                     case SIRType.TypeLambda(tvs, nextTypeFromDef) =>
                         if tvs.length != currentTps.length then {
@@ -1224,7 +1272,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 val (outTp, outSIR) =
                     assembleMethodWithTypeFromBody(
                       next,
-                      typeParams,
+                      sirTypeParams,
                       nextVars,
                       bodyExpr,
                       nextTypeFromDef,
@@ -1244,7 +1292,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   GenericError("Parameter list should be either type or value", pos),
                   assembleMethodWithTypeFromBody(
                     next,
-                    typeParams,
+                    sirTypeParams,
                     paramVars,
                     bodyExpr,
                     typeFromDef,
