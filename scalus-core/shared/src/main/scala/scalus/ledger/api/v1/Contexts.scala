@@ -3,8 +3,8 @@ package scalus.ledger.api.v1
 import scalus.Compile
 import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
-import scalus.builtin.Data.{fromData, toData}
 import scalus.prelude.{===, AssocMap, Eq, List, Option, Ord, given}
+import scalus.builtin.ByteString.*
 
 type Hash = ByteString
 type ValidatorHash = Hash
@@ -559,6 +559,19 @@ case class TxInfo(
 
 @Compile
 object TxInfo {
+    val placeholder: TxInfo = TxInfo(
+      inputs = List.empty,
+      outputs = List.empty,
+      fee = Value.zero,
+      mint = Value.zero,
+      dcert = List.empty,
+      withdrawals = List.empty,
+      validRange = Interval.always,
+      signatories = List.empty,
+      data = List.empty,
+      id = TxId(hex"0000000000000000000000000000000000000000000000000000000000000000")
+    )
+
     given ToData[TxInfo] = ToData.derived
     given FromData[TxInfo] = FromData.derived
 }

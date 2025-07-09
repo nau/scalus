@@ -11,6 +11,7 @@ import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.prelude.Option
 import scalus.prelude.Eq
+import scalus.builtin.ByteString.*
 
 @deprecated("Don't need anymore, use companion objects of appropriative types instead")
 object FromDataInstances {
@@ -148,6 +149,20 @@ case class TxInfo(
 
 @Compile
 object TxInfo {
+    val placeholder: TxInfo = TxInfo(
+      inputs = List.empty,
+      referenceInputs = List.empty,
+      outputs = List.empty,
+      fee = Value.zero,
+      mint = Value.zero,
+      dcert = List.empty,
+      withdrawals = AssocMap.empty,
+      validRange = Interval.always,
+      signatories = List.empty,
+      redeemers = AssocMap.empty,
+      data = AssocMap.empty,
+      id = TxId(hex"0000000000000000000000000000000000000000000000000000000000000000")
+    )
 
     given ToData[TxInfo] = ToData.derived
 
