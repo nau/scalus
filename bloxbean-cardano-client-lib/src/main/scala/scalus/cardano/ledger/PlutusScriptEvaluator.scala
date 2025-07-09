@@ -37,6 +37,7 @@ private[scalus] class PlutusScriptEvaluator(
       */
     case class LookupTable(
         scripts: Map[ScriptHash, Script],
+        // cache of `getDatum`
         datums: Map[DataHash, Data]
     )
 
@@ -247,6 +248,7 @@ private[scalus] class PlutusScriptEvaluator(
         val purpose = getScriptPurposeV1(tx, redeemer)
         val scriptContext = v1.ScriptContext(txInfoV1, purpose)
         val ctxData = scriptContext.toData
+        val txhash = tx.id.toHex
 
         if log.isDebugEnabled() then
             log.debug(s"Evaluating PlutusV1 script, purpose: $purpose")
@@ -255,7 +257,7 @@ private[scalus] class PlutusScriptEvaluator(
             log.debug(s"Script context: ${ctxData.toJson}")
 
         // Apply script arguments based on whether datum is present
-        evalScript(redeemer, plutusV1VM, script, datum.toSeq :+ redeemer.data :+ ctxData*)
+        evalScript(redeemer, txhash, plutusV1VM, script, datum.toSeq :+ redeemer.data :+ ctxData*)
     }
 
     /** Evaluate a Plutus V2 script with the V2 script context.
@@ -273,6 +275,7 @@ private[scalus] class PlutusScriptEvaluator(
         val purpose = getScriptPurposeV2(tx, redeemer)
         val scriptContext = v2.ScriptContext(txInfoV2, purpose)
         val ctxData = scriptContext.toData
+        val txhash = tx.id.toHex
 
         if log.isDebugEnabled() then
             log.debug(s"Evaluating PlutusV2 script, purpose: $purpose")
@@ -281,7 +284,7 @@ private[scalus] class PlutusScriptEvaluator(
             log.debug(s"Script context: ${ctxData.toJson}")
 
         // Apply script arguments
-        evalScript(redeemer, plutusV2VM, script, datum.toSeq :+ redeemer.data :+ ctxData*)
+        evalScript(redeemer, txhash, plutusV2VM, script, datum.toSeq :+ redeemer.data :+ ctxData*)
     }
 
     /** Evaluate a Plutus V3 script with the V3 script context.
@@ -299,6 +302,7 @@ private[scalus] class PlutusScriptEvaluator(
         val scriptInfo = getScriptInfoV3(tx, redeemer, datum)
         val scriptContext = v3.ScriptContext(txInfoV3, redeemer.data, scriptInfo)
         val ctxData = scriptContext.toData
+        val txhash = tx.id.toHex
 
         if log.isDebugEnabled() then
             log.debug(s"Evaluating PlutusV3 script, scriptInfo: $scriptInfo")
@@ -307,7 +311,7 @@ private[scalus] class PlutusScriptEvaluator(
             log.debug(s"Script context: ${ctxData.toJson}")
 
         // V3 scripts only take the script context as argument
-        evalScript(redeemer, plutusV3VM, script, ctxData)
+        evalScript(redeemer, txhash, plutusV3VM, script, ctxData)
     }
 
     /** Execute a UPLC script with the given arguments.
@@ -321,6 +325,7 @@ private[scalus] class PlutusScriptEvaluator(
       */
     private def evalScript(
         redeemer: Redeemer,
+        txhash: String,
         vm: PlutusVM,
         script: ByteString,
         args: Data*
@@ -333,7 +338,8 @@ private[scalus] class PlutusScriptEvaluator(
             acc $ Const(Constant.Data(arg))
 
         // Optional debug dumping
-        if debugDumpFilesForTesting then dumpScriptForDebugging(applied, redeemer)
+        if debugDumpFilesForTesting then
+            dumpScriptForDebugging(applied, redeemer, txhash, vm.language.toLanguage)
 
         // Create budget spender based on evaluation mode
         val spender = mode match
@@ -358,9 +364,14 @@ private[scalus] class PlutusScriptEvaluator(
 
     /** Dump script information for debugging purposes.
       */
-    private def dumpScriptForDebugging(program: DeBruijnedProgram, redeemer: Redeemer): Unit = {
+    private def dumpScriptForDebugging(
+        program: DeBruijnedProgram,
+        redeemer: Redeemer,
+        txhash: String,
+        language: Language
+    ): Unit = {
         Files.write(
-          Paths.get(s"script-${redeemer.tag}-${redeemer.index}.flat"),
+          Paths.get(s"script-$txhash-$language-${redeemer.tag}-${redeemer.index}.flat"),
           program.flatEncoded,
           java.nio.file.StandardOpenOption.CREATE,
           java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
@@ -385,9 +396,12 @@ private[scalus] class PlutusScriptEvaluator(
         val redeemers = tx.witnessSet.redeemers
             .getOrElse(throw new IllegalStateException("Transaction does not contain redeemers"))
             .value
-            .toIndexedSeq // FIXME: should be sorted?
+            .toIndexedSeq
 
         // Build datum lookup table with hash mapping
+        // According to Babbage spec, we lookup datums only in witness set
+        // and do not consider reference input inline datums
+        // (getDatum, Figure 3: Functions related to scripts)
         val datumsMapping = tx.witnessSet.plutusData.value.view.map { datum =>
             datum.dataHash -> datum.value
         }.toSeq
