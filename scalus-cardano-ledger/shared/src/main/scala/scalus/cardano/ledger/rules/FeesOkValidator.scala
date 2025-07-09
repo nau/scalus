@@ -100,13 +100,20 @@ object FeesOkValidator extends STS.Validator {
                           )
                         )
 
+                    // Collateral inputs can contain multi-assets, as long all of them are returned to the
+                    // `collateralReturnTxBodyL`. This design decision was also intentional, in order to
+                    // simplify utxo selection for collateral.
                     val collateralReturnOutputValue = collateralReturnOutput
                         .map(_.value)
                         .getOrElse(Value.zero)
 
                     if !(
                           totalSumOfCollaterals.assets.isEmpty && collateralReturnOutputValue.assets.isEmpty ||
-                              totalSumOfCollaterals.assets == collateralReturnOutputValue.assets
+                              MultiAsset
+                                  .-(totalSumOfCollaterals.assets)(
+                                    collateralReturnOutputValue.assets
+                                  )
+                                  .isEmpty
                         )
                     then
                         break(
