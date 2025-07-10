@@ -52,7 +52,9 @@ class SirToUplcV3Lowering(
                         val uplc = retV.termWithNeededVars(debugGtx)
                         println(s"generated uplc: ${uplc.pretty.render(100)}")
                         throw LoweringException(
-                          s"Error generating term for value ${retV} of type ${retV.sirType.show}, value:\n${retV.show}",
+                          s"Error generating term of type ${retV.sirType.show}\n" +
+                              s"value: ${retV.show}\n" +
+                              s"uplc: ${uplc.pretty.render(100)}",
                           retV.pos,
                           e
                         )

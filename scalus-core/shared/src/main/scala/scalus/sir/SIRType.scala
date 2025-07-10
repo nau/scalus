@@ -517,8 +517,10 @@ object SIRType {
           f,
           arg,
           new CalculateApplyTypeContext(
-            SIRUnify.Env.empty.copy(filledTypes = env, debug = debug),
-            createMinimalTypeVarGenerationContext(maxTypeVarIdInEnv, scala.List(f, arg))
+            SIRUnify.Env.empty.copy(filledTypes = env),
+            createMinimalTypeVarGenerationContext(maxTypeVarIdInEnv, scala.List(f, arg)),
+            reportUngrounded = debug,
+            debug = debug
           )
         )
     }
@@ -528,7 +530,8 @@ object SIRType {
         val tvGen: SetBasedTypeVarGenerationContext,
         var tvSubst: Map[SIRType.TypeVar, SIRType.TypeVar] = Map.empty,
         val tvAlreadyUnique: Boolean = false,
-        val paranoid: Boolean = true
+        val reportUngrounded: Boolean = false,
+        val debug: Boolean = false
     )
 
     /** Calculate the type of the application of function f to argument arg.
@@ -607,16 +610,19 @@ object SIRType {
                           Map.empty
                         )
                         val resParams0 = argTpsRest ++ inTpsRest ++ fTvRest ++ outTps
-                        val resParams =
-                            if ctx.paranoid then
-                                val (ground, unground) = partitionGround(resParams0, resBody)
-                                if unground.nonEmpty then
-                                    println(
-                                      "warnings: type parameters are not ground in the result type: " +
-                                          s"${unground.map(_.show).mkString(", ")} in $resBody"
-                                    )
-                                ground
-                            else resParams0
+                        if ctx.debug then {
+                            println(s"calcuatedApplyType: resParams0=${resParams0.map(_.show)}")
+                            println(
+                              s"calcuatedApplyType: resBody=${resBody.show}"
+                            )
+                        }
+                        val (ground, unground) = partitionGround(resParams0, resBody)
+                        if unground.nonEmpty && ctx.reportUngrounded then
+                            println(
+                              "type parameters are not ground in the result type: " +
+                                  s"${unground.map(_.show).mkString(", ")} in ${resBody.show}"
+                            )
+                        val resParams = ground
                         if resParams.isEmpty then resBody
                         else SIRType.TypeLambda(resParams, resBody)
             case tv: TypeVar =>
@@ -1054,9 +1060,16 @@ object SIRType {
 
         val stack = scala.collection.mutable.Stack[(SIRType, Set[TypeVar])]()
 
+        val debug =
+            tvs.exists(x => x.optId.getOrElse(0L) == 240216L || x.optId.getOrElse(0L) == 240221L)
+
         @tailrec
         def advance(tp: SIRType, unshadowedSet: Set[TypeVar]): Unit = {
-            if unshadowedSet.nonEmpty && ungrounded.isEmpty then
+            if debug then
+                println(
+                  s"advance: ${tp.show}, unshadowedSet=${unshadowedSet.map(_.show).mkString(", ")}"
+                )
+            if unshadowedSet.nonEmpty && ungrounded.nonEmpty then
                 tp match
                     case TypeLambda(params, body) =>
                         val unshadowed = unshadowedSet -- params

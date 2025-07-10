@@ -33,50 +33,29 @@ trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
             case (PrimitiveRepresentation.PackedData, PrimitiveRepresentation.PackedData) =>
                 input
             case (PrimitiveRepresentation.Constant, PrimitiveRepresentation.PackedData) =>
-                new RepresentationProxyLoweredValue(input, outputRepresentation, pos) {
-                    override def termInternal(gctx: TermGenerationContext): Term =
-                        uplcToData(input.termInternal(gctx))
-                }
+                new RepresentationProxyLoweredValue(input, outputRepresentation, pos)
             case (PrimitiveRepresentation.PackedData, PrimitiveRepresentation.Constant) =>
-                new RepresentationProxyLoweredValue(input, outputRepresentation, pos) {
-                    override def termInternal(gctx: TermGenerationContext): Term =
-                        dataToUplc(input.termInternal(gctx))
-                }
+                new RepresentationProxyLoweredValue(input, outputRepresentation, pos)
             case (TypeVarRepresentation(isBuiltin), PrimitiveRepresentation.Constant) =>
                 if isBuiltin then input
-                else
-                    new RepresentationProxyLoweredValue(
-                      input,
-                      outputRepresentation,
-                      pos
-                    ) {
-                        override def termInternal(gctx: TermGenerationContext): Term =
-                            dataToUplc(input.termInternal(gctx))
-                    }
+                else dataToUplcValue(input, pos)
             case (TypeVarRepresentation(isBuiltin), PrimitiveRepresentation.PackedData) =>
                 RepresentationProxyLoweredValue(input, outputRepresentation, pos)
             case (PrimitiveRepresentation.Constant, TypeVarRepresentation(isBuiltin)) =>
                 if isBuiltin then input
-                else
-                    new RepresentationProxyLoweredValue(
-                      input,
-                      outputRepresentation,
-                      pos
-                    ) {
-                        override def termInternal(gctx: TermGenerationContext): Term =
-                            uplcToData(input.termInternal(gctx))
-                    }
+                else uplcToDataValue(input, pos)
             case (PrimitiveRepresentation.PackedData, TypeVarRepresentation(isBuiltin)) =>
                 input
             case (TypeVarRepresentation(inBuiltin), TypeVarRepresentation(outBuiltin)) =>
                 if outBuiltin then input
-                else if inBuiltin then
+                else if inBuiltin then {
                     // impossible, but let it will be here
-                    new RepresentationProxyLoweredValue(input, outputRepresentation, pos) {
-                        override def termInternal(gctx: TermGenerationContext): Term =
-                            uplcToData(input.termInternal(gctx))
-                    }
-                else input
+                    RepresentationProxyLoweredValue(
+                      uplcToDataValue(input, pos),
+                      outputRepresentation,
+                      pos
+                    )
+                } else input
             case (_, _) =>
                 throw LoweringException(
                   s"Unsupported conversion for ${input.sirType.show} from ${input.representation} to $outputRepresentation",
@@ -90,9 +69,9 @@ trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
         throw new LoweringException("Primitive value can't be upcasted", pos)
     }
 
-    def uplcToData(input: Term): Term
+    def uplcToDataValue(input: LoweredValue, pos: SIRPosition)(using LoweringContext): LoweredValue
 
-    def dataToUplc(input: Term)(using LoweringContext): Term
+    def dataToUplcValue(input: LoweredValue, pos: SIRPosition)(using LoweringContext): LoweredValue
 
     override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue =
         throw LoweringException("Constr can generated for primitive type", constr.anns.pos)
@@ -114,138 +93,152 @@ trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
 
 object SIRTypeUplcBooleanGenerator extends PrimitiveSirTypeGenerator {
 
-    override def uplcToData(input: Term): Term = {
-        DefaultFun.IfThenElse.tpf $ input $
-            (DefaultFun.IData.tpf $ Term.Const(Constant.Integer(1))) $
-            (DefaultFun.IData.tpf $ Term.Const(Constant.Integer(0)))
-    }
+    override def uplcToDataValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue =
+        lvIfThenElse(
+          input,
+          lvBuiltinApply(
+            SIRBuiltins.iData,
+            lvIntConstant(1, pos),
+            SIRType.Data,
+            PrimitiveRepresentation.PackedData,
+            pos
+          ),
+          lvBuiltinApply(
+            SIRBuiltins.iData,
+            lvIntConstant(0, pos),
+            SIRType.Data,
+            PrimitiveRepresentation.PackedData,
+            pos
+          ),
+          pos
+        )
 
-    override def dataToUplc(input: Term)(using LoweringContext): Term = {
-        DefaultFun.IfThenElse.tpf $ (
-          DefaultFun.EqualsInteger.tpf $ (DefaultFun.UnIData.tpf $ input) $ Term
-              .Const(Constant.Integer(0))
-        ) $ Term.Const(Constant.Bool(false)) $ Term.Const(Constant.Bool(true))
-
-    }
+    override def dataToUplcValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue =
+        lvIfThenElse(
+          lvEqualsInteger(
+            lvBuiltinApply(
+              SIRBuiltins.unIData,
+              input,
+              SIRType.Integer,
+              PrimitiveRepresentation.Constant,
+              pos
+            ),
+            lvIntConstant(0, pos),
+            pos
+          ),
+          lvBoolConstant(false, pos),
+          lvBoolConstant(true, pos),
+          pos
+        )
 
 }
 
 object SIRTypeUplcIntegerGenerator extends PrimitiveSirTypeGenerator {
 
-    override def uplcToData(input: Term): Term = {
-        DefaultFun.IData.tpf $ input
-    }
+    override def uplcToDataValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue =
+        lvBuiltinApply(
+          SIRBuiltins.iData,
+          input,
+          SIRType.Data,
+          PrimitiveRepresentation.PackedData,
+          pos
+        )
 
-    override def dataToUplc(input: Term)(using LoweringContext): Term = {
-        DefaultFun.UnIData.tpf $ input
-    }
+    override def dataToUplcValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue =
+        lvBuiltinApply(
+          SIRBuiltins.unIData,
+          input,
+          SIRType.Integer,
+          PrimitiveRepresentation.Constant,
+          pos
+        )
 
 }
 
 object SIRTypeUplcByteStringGenerator extends PrimitiveSirTypeGenerator {
 
-    override def uplcToData(input: Term): Term = {
-        DefaultFun.BData.tpf $ input
-    }
+    override def uplcToDataValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue =
+        lvBuiltinApply(
+          SIRBuiltins.bData,
+          input,
+          SIRType.Data,
+          PrimitiveRepresentation.PackedData,
+          pos
+        )
 
-    override def dataToUplc(input: Term)(using LoweringContext): Term = {
-        DefaultFun.UnBData.tpf $ input
-    }
+    override def dataToUplcValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue =
+        lvBuiltinApply(
+          SIRBuiltins.unBData,
+          input,
+          SIRType.ByteString,
+          PrimitiveRepresentation.Constant,
+          pos
+        )
 
 }
 
 object SIRTypeUplcStringGenerator extends PrimitiveSirTypeGenerator {
 
-    override def uplcToData(input: Term): Term = {
-        DefaultFun.BData.tpf $ (DefaultFun.EncodeUtf8.tpf $ input)
+    override def uplcToDataValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        lvBuiltinApply(
+          SIRBuiltins.bData,
+          lvBuiltinApply(
+            SIRBuiltins.encodeUtf8,
+            input,
+            SIRType.ByteString,
+            PrimitiveRepresentation.Constant,
+            pos
+          ),
+          SIRType.Data,
+          PrimitiveRepresentation.PackedData,
+          pos
+        )
     }
 
-    override def dataToUplc(input: Term)(using LoweringContext): Term = {
-        DefaultFun.DecodeUtf8.tpf $ (DefaultFun.UnBData.tpf $ input)
-    }
-
-}
-
-object SIRTypeUplcUnit1Generator extends PrimitiveSirTypeGenerator {
-
-    override def defaultRepresentation(
-        tp: SIRType
-    )(using lctx: LoweringContext): LoweredValueRepresentation =
-        PrimitiveRepresentation.Constant
-
-    override def defaultDataRepresentation(
-        tp: SIRType
-    )(using LoweringContext): LoweredValueRepresentation =
-        throw IllegalStateException("unit type can't be represented as packed data")
-
-    override def defaultTypeVarReperesentation(
-        tp: SIRType
-    )(using lctx: LoweringContext): LoweredValueRepresentation =
-        PrimitiveRepresentation.Constant
-
-    override def isDataSupported(tp: SIRType)(using LoweringContext): Boolean =
-        false
-
-    override def toRepresentation(
-        input: LoweredValue,
-        outputRepresentation: LoweredValueRepresentation,
-        pos: SIRPosition
-    )(using lctx: LoweringContext): LoweredValue = {
-        (input.representation, outputRepresentation) match
-            case (PrimitiveRepresentation.Constant, PrimitiveRepresentation.Constant) =>
-                input
-            case (PrimitiveRepresentation.Constant, PrimitiveRepresentation.PackedData) =>
-                throw LoweringException(
-                  "Unit type can't be converted to packed data",
-                  pos
-                )
-            case (PrimitiveRepresentation.PackedData, _) =>
-                throw LoweringException(
-                  "Unit type have no packed data representation",
-                  pos
-                )
-            case (PrimitiveRepresentation.PackedData, PrimitiveRepresentation.PackedData) =>
-                // impossible, but let it be here
-                input
-            case (TypeVarRepresentation(isBuiltin), PrimitiveRepresentation.Constant) =>
-                input
-            case (TypeVarRepresentation(isBuiltin), PrimitiveRepresentation.PackedData) =>
-                throw LoweringException(
-                  "Unit type can't be converted to packed data",
-                  pos
-                )
-            case (PrimitiveRepresentation.Constant, TypeVarRepresentation(isBuiltin)) =>
-                input
-            case (PrimitiveRepresentation.PackedData, TypeVarRepresentation(isBuiltin)) =>
-                // impossible, but let it be here
-                throw LoweringException(
-                  "Unit have no packed data representation",
-                  pos
-                )
-
-    }
-
-    override def uplcToData(input: Term): Term = {
-
-        ???
-    }
-
-    override def dataToUplc(input: Term)(using lctx: LoweringContext): Term = {
-
-        ???
+    override def dataToUplcValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        lvBuiltinApply(
+          SIRBuiltins.decodeUtf8,
+          lvBuiltinApply(
+            SIRBuiltins.unBData,
+            input,
+            SIRType.ByteString,
+            PrimitiveRepresentation.Constant,
+            pos
+          ),
+          SIRType.String,
+          PrimitiveRepresentation.Constant,
+          pos
+        )
     }
 
 }
 
 object SIRTypeUplcDataGenerator extends PrimitiveSirTypeGenerator {
 
-    // data is invariant.
-    override def uplcToData(input: Term): Term = {
-        input
-    }
+    override def uplcToDataValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue =
+        RepresentationProxyLoweredValue(input, PrimitiveRepresentation.PackedData, pos)
 
-    override def dataToUplc(input: Term)(using LoweringContext): Term = {
-        input
-    }
+    override def dataToUplcValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue =
+        RepresentationProxyLoweredValue(input, PrimitiveRepresentation.Constant, pos)
 
 }

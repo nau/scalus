@@ -98,9 +98,7 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
             case SumCaseClassRepresentation.SumDataList |
                 SumCaseClassRepresentation.PackedSumDataList =>
                 // no changes
-                new RepresentationProxyLoweredValue(input, input.representation, pos) {
-                    override def sirType: SIRType = targetType
-                }
+                TypeRepresentationProxyLoweredValue(input, targetType, input.representation, pos)
             case _ =>
                 // we need to upcast to PackedSumDataList
                 upcastOne(
@@ -169,52 +167,31 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
         )
         sel.field match {
             case "head" =>
-                new ProxyLoweredValue(scrutineeDataRepr) {
-                    override def sirType: SIRType = sel.tp
-
-                    override def pos: SIRPosition = sel.anns.pos
-
-                    override def termInternal(gctx: TermGenerationContext): Term = {
-                        val listTerm = scrutineeDataRepr.termWithNeededVars(gctx)
-                        DefaultFun.HeadList.tpf $ listTerm
-                    }
-
-                    override def representation: LoweredValueRepresentation = {
-                        lctx.typeGenerator(sel.tp).defaultDataRepresentation(sel.tp)
-                    }
-
-                }
+                lvBuiltinApply(
+                  SIRBuiltins.headList,
+                  scrutineeDataRepr,
+                  sel.tp,
+                  lctx.typeGenerator(sel.tp).defaultDataRepresentation(sel.tp),
+                  sel.anns.pos
+                )
             case "tail" =>
-                new ProxyLoweredValue(scrutineeDataRepr) {
-                    override def sirType: SIRType = sel.tp
+                lvBuiltinApply(
+                  SIRBuiltins.tailList,
+                  scrutineeDataRepr,
+                  sel.tp,
+                  SumCaseClassRepresentation.SumDataList,
+                  sel.anns.pos
+                )
 
-                    override def pos: SIRPosition = sel.anns.pos
-
-                    override def termInternal(gctx: TermGenerationContext): Term = {
-                        val listTerm = scrutineeDataRepr.termWithNeededVars(gctx)
-                        DefaultFun.TailList.tpf $ listTerm
-                    }
-
-                    override def representation: LoweredValueRepresentation =
-                        SumCaseClassRepresentation.SumDataList
-
-                }
             case "isNull" =>
                 // isNull is not a field, but a method, that returns true if list is empty
-                new ProxyLoweredValue(scrutineeDataRepr) {
-                    override def sirType: SIRType = SIRType.Boolean
-
-                    override def pos: SIRPosition = sel.anns.pos
-
-                    override def termInternal(gctx: TermGenerationContext): Term = {
-                        val listTerm = scrutineeDataRepr.termWithNeededVars(gctx)
-                        DefaultFun.NullList.tpf $ listTerm
-                    }
-
-                    override def representation: LoweredValueRepresentation =
-                        PrimitiveRepresentation.Constant
-
-                }
+                lvBuiltinApply(
+                  SIRBuiltins.nullList,
+                  scrutineeDataRepr,
+                  SIRType.Boolean,
+                  PrimitiveRepresentation.Constant,
+                  sel.anns.pos
+                )
             case _ =>
                 throw LoweringException(
                   s"Unknown field ${sel.field} for List, which have 'head' and 'tail' fields and isNull method",
@@ -360,18 +337,13 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
           ),
           representation = consHeadRepresentation,
           optRhs = Some(
-            new ProxyLoweredValue(listInput) {
-                override def sirType: SIRType = elementType
-
-                override def pos: SIRPosition = matchData.anns.pos
-
-                override def termInternal(gctx: TermGenerationContext): Term =
-                    DefaultFun.HeadList.tpf $ listInput.termWithNeededVars(gctx)
-
-                override def representation: LoweredValueRepresentation =
-                    consHeadRepresentation
-
-            }
+            lvBuiltinApply(
+              SIRBuiltins.headList,
+              listInput,
+              elementType,
+              consHeadRepresentation,
+              matchData.anns.pos
+            )
           )
         )
 
@@ -385,18 +357,13 @@ object SumDataListSirTypeGenerator extends SirTypeUplcGenerator {
           ),
           representation = SumCaseClassRepresentation.SumDataList,
           optRhs = Some(
-            new ProxyLoweredValue(listInput) {
-                override def sirType: SIRType = listType
-
-                override def pos: SIRPosition = matchData.anns.pos
-
-                override def termInternal(gctx: TermGenerationContext): Term =
-                    DefaultFun.TailList.tpf $ listInput.termWithNeededVars(gctx)
-
-                override def representation: LoweredValueRepresentation =
-                    SumCaseClassRepresentation.SumDataList
-
-            }
+            lvBuiltinApply(
+              SIRBuiltins.tailList,
+              listInput,
+              listType,
+              SumCaseClassRepresentation.SumDataList,
+              matchData.anns.pos
+            )
           )
         )
 

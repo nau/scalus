@@ -1,8 +1,7 @@
 package scalus.sir.lowering
 
-import scalus.sir.{SIRType, *}
+import scalus.sir.*
 import scalus.sir.lowering.Lowering.tpf
-import scalus.sir.lowering.typegens.RepresentationProxyLoweredValue
 import scalus.uplc.*
 import org.typelevel.paiges.Doc
 import scalus.sir.PrettyPrinter.pretty
@@ -357,6 +356,7 @@ trait ProxyLoweredValue(val origin: LoweredValue) extends LoweredValue {
     override def addDependent(value: IdentifiableLoweredValue): Unit =
         origin.addDependent(value)
 
+    /*
     override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
         (Doc.text("proxy") + PrettyPrinter.inParens(
           origin.docDef(style) + Doc.text(":") + Doc.text(sirType.show) + PrettyPrinter.inBrackets(
@@ -365,8 +365,10 @@ trait ProxyLoweredValue(val origin: LoweredValue) extends LoweredValue {
         )).grouped
     }
 
+     */
+
     override def docRef(style: PrettyPrinter.Style): Doc =
-        Doc.text("proxy") + PrettyPrinter.inParens(origin.docRef(style))
+        this.docDef(style)
 
 }
 
@@ -413,11 +415,6 @@ case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, 
     override def pos: SIRPosition = inPos
 
     override def termInternal(gctx: TermGenerationContext): Term = {
-        if newVar.id == "x$1341" then {
-            println(
-              "printinq termInternal for lvLamAbs with newVar.id = x$1341"
-            )
-        }
         Term.LamAbs(newVar.id, body.termWithNeededVars(gctx.addGeneratedVar(newVar.id)))
     }
 
@@ -576,10 +573,10 @@ case class LetNonRecLoweredValue(
         val bindingsDoc = bindings.map { case (v, rhs) =>
             (v.docRef(style) + Doc.text("=") + rhs.docRef(style).nested(2)).grouped
         }
-        val left = Doc.text("let") + Doc.intercalate(
+        val left = Doc.text("let") & Doc.intercalate(
           Doc.lineOrSpace,
           bindingsDoc
-        ) + Doc.text("in")
+        ) + Doc.text("in") + Doc.lineOrSpace
         val right = Doc.empty
         body.docRef(style).bracketBy(left, right)
     }
@@ -778,7 +775,7 @@ object LoweredValue {
             def argType(tp: SIRType): SIRType = tp match {
                 case SIRType.Fun(argTp, _) => argTp
                 case SIRType.TypeLambda(params, body) =>
-                    argType(body)
+                    SIRType.TypeLambda(params, argType(body))
                 case SIRType.TypeProxy(ref) =>
                     if ref != null then argType(ref.asInstanceOf[SIRType])
                     else
@@ -845,25 +842,6 @@ object LoweredValue {
                 lctx.log(
                   s"lvApply: arg = ${arg.pretty.render(80)}"
                 )
-
-            }
-
-            // TODO: add to to
-            @tailrec
-            def isSumCaseClass(tp: SIRType): Boolean = {
-                tp match {
-                    case x: SIRType.SumCaseClass          => true
-                    case SIRType.TypeLambda(params, body) => isSumCaseClass(body)
-                    case tv: SIRType.TypeVar =>
-                        lctx.typeUnifyEnv.filledTypes.get(tv) match {
-                            case Some(filledType) => isSumCaseClass(filledType)
-                            case None             => false
-                        }
-                    case SIRType.TypeProxy(ref) =>
-                        if ref != null then isSumCaseClass(ref.asInstanceOf[SIRType])
-                        else false
-                    case _ => false
-                }
             }
 
             val (argTypevarResolved, typeAligned) = arg.sirType match {
@@ -875,34 +853,30 @@ object LoweredValue {
                             val targetArgRepr =
                                 if isBuiltin then targetArgGen.defaultRepresentation(targetArgType)
                                 else targetArgGen.defaultTypeVarReperesentation(targetArgType)
-                            val argTyped = new ProxyLoweredValue(arg) {
-                                override def sirType: SIRType = targetArgType
-                                override def representation: LoweredValueRepresentation =
-                                    targetArgRepr
-                                override def pos: SIRPosition = inPos
-                                override def termInternal(gctx: TermGenerationContext): Term =
-                                    arg.termInternal(gctx)
-                            }
+                            val argTyped = new TypeRepresentationProxyLoweredValue(
+                              arg,
+                              targetArgType,
+                              targetArgRepr,
+                              inPos
+                            )
                             (argTyped, true)
                         case other =>
                             val gen = lctx.typeGenerator(other)
                             val targetArgRepr =
                                 if isBuiltin then gen.defaultRepresentation(other)
                                 else gen.defaultTypeVarReperesentation(other)
-                            val argTyped = new ProxyLoweredValue(arg) {
-                                override def sirType: SIRType = other
-                                override def representation: LoweredValueRepresentation =
-                                    targetArgRepr
-                                override def pos: SIRPosition = inPos
-                                override def termInternal(gctx: TermGenerationContext): Term =
-                                    arg.termInternal(gctx)
-                            }
+                            val argTyped = new TypeRepresentationProxyLoweredValue(
+                              arg,
+                              other,
+                              targetArgRepr,
+                              inPos
+                            )
                             (argTyped, false)
                 case _ => (arg, false)
             }
 
             val argInTargetRepresentation =
-                if !typeAligned && isSumCaseClass(targetArgType) then
+                if !typeAligned && SIRType.isSum(targetArgType) then
                     arg
                         .maybeUpcast(targetArgType, inPos)
                         .toRepresentation(
@@ -927,10 +901,66 @@ object LoweredValue {
             val calculatedResType = SIRType.calculateApplyType(
               f.sirType,
               argInTargetRepresentation.sirType,
-              Map.empty
+              Map.empty,
+              debug = lctx.debug
             )
 
-            val resType = resTp.getOrElse(calculatedResType)
+            val resType = resTp match {
+                case Some(tp) =>
+                    val tvGen = new SIRType.SetBasedTypeVarGenerationContext(Set.empty, 0L)
+                    val ctOverlapp = tvGen.importSetFromType(calculatedResType)
+                    val (resTps, resBody) = tp match {
+                        case tl @ SIRType.TypeLambda(resTps, resBody) =>
+                            val resOverlapp = tvGen.importSetFromType(tp)
+                            if resOverlapp then {
+                                val nResTps = resTps.map(x => tvGen.freshCopy(x))
+                                val renames = resTps.zip(nResTps).toMap
+                                val renamingContext = RenamingTypeVars.makeContext(renames, tvGen)
+                                val nResBody = RenamingTypeVars.inType(resBody, renamingContext)
+                                (nResTps, nResBody)
+                            } else (resTps, resBody)
+                        case other => (Seq.empty, other)
+                    }
+                    val (ctRes, ctBody) = calculatedResType match {
+                        case SIRType.TypeLambda(tps, body) => (tps, body)
+                        case other                         => (List.empty, other)
+                    }
+                    SIRUnify.unifyType(ctBody, resBody, SIRUnify.Env.empty.withUpcasting) match {
+                        case SIRUnify.UnificationSuccess(env, tp) =>
+                            // tp is ok, now try get typevars only from resultedSize
+                            val ctResTree = ctRes.filterNot(env.filledTypes.contains)
+                            val resTpsFree = resTps.filterNot(tv =>
+                                env.filledTypes.contains(tv) || env.eqTypes.contains(tv)
+                            )
+                            val resEqSubst = resTpsFree
+                                .flatMap(tv =>
+                                    env.eqTypes
+                                        .get(tv)
+                                        .flatMap { s =>
+                                            s.find(v =>
+                                                ctResTree.contains(v)
+                                                    ||
+                                                        !resTps.contains(v)
+                                            ).map(x => (tv, x))
+                                        }
+                                )
+                                .toMap
+                            val renamingContext =
+                                RenamingTypeVars.makeContext(resEqSubst, tvGen)
+                            val ntp = RenamingTypeVars.inType(tp, renamingContext)
+                            val (grounded, ungrounded) =
+                                SIRType.partitionGround(ctResTree ++ resTpsFree, ntp)
+                            if grounded.nonEmpty then SIRType.TypeLambda(grounded, ntp) else ntp
+                        case failure @ SIRUnify.UnificationFailure(path, l, r) =>
+                            throw LoweringException(
+                              s"Cannot unify result type of apply: ${tp.show} and ${calculatedResType.show}.\n" +
+                                  s"Unification failure: path=${path}, left=${l}, right=${r}",
+                              inPos
+                            )
+                    }
+                case None =>
+                    calculatedResType
+            }
 
             val calculatedResRepr = f.representation match
                 case LambdaRepresentation(inRepr, outRepr) =>
@@ -940,8 +970,12 @@ object LoweredValue {
 
             if lctx.debug then {
                 lctx.log(
+                  s"lvApply: f.sirType = ${f.sirType.show}, argInTargetRepresentation.sirType = ${argInTargetRepresentation.sirType.show}"
+                )
+                lctx.log(
                   s"lvApply: resType = ${resType.show}, calculatedResType=${calculatedResType.show}"
                 )
+
                 // resTp match {
                 //    case Some(SIRType.Fun(resIn, resOut)) =>
                 //        if resIn.show == "scalus.ledger.api.v1.Credential$.PubKeyCredential" && resOut == SIRType.Boolean
@@ -1124,6 +1158,16 @@ object LoweredValue {
             )
         }
 
+        def lvBoolConstant(value: Boolean, pos: SIRPosition)(using
+            lctx: LoweringContext
+        ): ConstantLoweredValue = {
+            ConstantLoweredValue(
+              SIR.Const(Constant.Bool(value), SIRType.Boolean, AnnotationsDecl(pos)),
+              Term.Const(Constant.Bool(value)),
+              PrimitiveRepresentation.Constant
+            )
+        }
+
         def lvBuiltinApply0(
             fun: SIR.Builtin,
             tp: SIRType,
@@ -1198,17 +1242,12 @@ object LoweredValue {
                           inPos
                         )
                     else value
-                new RepresentationProxyLoweredValue(tvRepr, tvRepr.representation, inPos) {
-                    override def sirType: SIRType = targetType
-
-                    override def docDef(style: PrettyPrinter.Style): Doc =
-                        tvRepr
-                            .docRef(style)
-                            .bracketBy(
-                              Doc.text("cast") + Doc.text("("),
-                              Doc.text(":") + Doc.text(targetType.show) + Doc.text(")")
-                            )
-                }
+                TypeRepresentationProxyLoweredValue(
+                  tvRepr,
+                  targetType,
+                  tvRepr.representation,
+                  inPos
+                )
             }
 
             SIRUnify.unifyType(
@@ -1254,7 +1293,7 @@ object LoweredValue {
         // arg
 
         if lctx.debug then {
-            println(
+            lctx.log(
               s"alignTypeArgumentsAndRepresentations: arg.sirType = ${arg.sirType.show}, targetType = ${targetType.show}, arg.representation = ${arg.representation}  targetRepresentation = $targetRepresentation"
             )
         }

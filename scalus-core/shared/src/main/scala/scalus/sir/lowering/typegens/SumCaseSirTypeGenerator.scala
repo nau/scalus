@@ -119,33 +119,22 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
         val inPos = pos
 
-        val constrProduct = new ProxyLoweredValue(inputDataRepr) {
-
-            override def sirType: SIRType =
-                targetDataDecl.constrType(constrName)
-
-            override def representation: LoweredValueRepresentation =
-                ProductCaseClassRepresentation.OneElementWrapper(inputDataRepr.representation)
-
-            override def pos: SIRPosition = inPos
-
-            override def termInternal(gctx: TermGenerationContext): Term =
-                inputDataRepr.termInternal(gctx)
-        }
+        val constrProduct = new TypeRepresentationProxyLoweredValue(
+          inputDataRepr,
+          targetDataDecl.constrType(constrName),
+          ProductCaseClassRepresentation.OneElementWrapper(inputDataRepr.representation),
+          inPos
+        )
 
         val constrProductDataConstr =
             constrProduct.toRepresentation(ProductCaseClassRepresentation.ProdDataConstr, pos)
 
-        val retval = new ProxyLoweredValue(constrProductDataConstr) {
-            override def sirType: SIRType = targetType
-            override def representation: LoweredValueRepresentation =
-                SumCaseClassRepresentation.DataConstr
-
-            override def pos: SIRPosition = inPos
-
-            override def termInternal(gctx: TermGenerationContext): Term =
-                constrProductDataConstr.termInternal(gctx)
-        }
+        val retval = new TypeRepresentationProxyLoweredValue(
+          constrProductDataConstr,
+          targetType,
+          SumCaseClassRepresentation.DataConstr,
+          inPos
+        )
 
         retval
     }

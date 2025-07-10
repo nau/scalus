@@ -241,13 +241,12 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
                         val repr =
                             if tv.isBuiltin then gen.defaultRepresentation(resolvedType)
                             else gen.defaultTypeVarReperesentation(resolvedType)
-                        val proxy = new RepresentationProxyLoweredValue(
+                        val proxy = new TypeRepresentationProxyLoweredValue(
                           input,
+                          resolvedType,
                           repr,
                           inPos
-                        ) {
-                            override def sirType: SIRType = resolvedType
-                        }
+                        )
                         Some(proxy)
                     case None =>
                         None

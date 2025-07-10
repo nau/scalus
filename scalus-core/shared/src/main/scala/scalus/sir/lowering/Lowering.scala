@@ -3,7 +3,7 @@ package scalus.sir.lowering
 import org.typelevel.paiges.Doc
 import scalus.sir.*
 import scalus.sir.Recursivity.NonRec
-import scalus.sir.lowering.typegens.{ProductCaseUplcOnlySirTypeGenerator, RepresentationProxyLoweredValue, SirTypeUplcGenerator}
+import scalus.sir.lowering.typegens.{ProductCaseUplcOnlySirTypeGenerator, SirTypeUplcGenerator}
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.*
 
@@ -78,13 +78,12 @@ object Lowering {
                                             if tv.isBuiltin then
                                                 gen.defaultRepresentation(resolvedType)
                                             else gen.defaultTypeVarReperesentation(resolvedType)
-                                        new RepresentationProxyLoweredValue(
+                                        TypeRepresentationProxyLoweredValue(
                                           value,
+                                          resolvedType,
                                           representation,
                                           anns.pos
-                                        ) {
-                                            override def sirType: SIRType = resolvedType
-                                        }
+                                        )
                                     case None =>
                                         // TODO!!!: find, hiow this can be possible and insert cheks there
                                         //  [throw]
@@ -92,13 +91,12 @@ object Lowering {
                                         val repr =
                                             if tv.isBuiltin then gen.defaultRepresentation(tp)
                                             else gen.defaultTypeVarReperesentation(tp)
-                                        new RepresentationProxyLoweredValue(
+                                        TypeRepresentationProxyLoweredValue(
                                           value,
+                                          tp,
                                           repr,
                                           anns.pos
-                                        ) {
-                                            override def sirType: SIRType = tp
-                                        }
+                                        )
                             case _ => value
 
                         }
@@ -299,57 +297,14 @@ object Lowering {
     }
 
     private def lowerNormalApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
-        val svTypeUnifyEnv = lctx.typeUnifyEnv
-        val (typeVars, fIn, fOut) = SIRType
-            .collectPolyOrFun(app.f.tp)
-            .getOrElse(
-              throw LoweringException(
-                s"""|
-                    |Function type ${app.f.tp.show} is not a function or type lambda.
-                    |app = ${app.pretty.render(100)}
-                    |f = ${app.f.pretty.render(100)}
-                    """.stripMargin('|'),
-                app.anns.pos
-              )
-            )
         if lctx.debug then
-            println(
+            lctx.log(
               s"Lowering app: ${app.pretty.render(100)}\n" +
+                  s"  app.tp = ${app.tp.show}\n" +
                   s"  f.tp = ${app.f.tp.show}\n" +
-                  s"  f = ${app.f}\n" +
-                  s"  typeVars = ${typeVars.map(_.show).mkString(", ")}"
+                  s"  arg.tp = ${app.arg.tp.show}\n" +
+                  s"  f = ${app.f.pretty.render(100)}\n"
             )
-        val newEnv = SIRUnify.unifyType(
-          app.arg.tp,
-          fIn,
-          SIRUnify.Env.empty.withUpcasting
-        ) match {
-            case SIRUnify.UnificationSuccess(env, _) =>
-                // SIRUnify.unifyType(app.tp, fOut, env) match
-                //    case SIRUnify.UnificationSuccess(env, _) =>
-                //        env
-                //    case SIRUnify.UnificationFailure(path, l, r) =>
-                //        throw LoweringException(
-                //          s"Unification failure for matchng result and out of f ${app.pretty.render(100)}\n" +
-                //              s"  path: ${path.mkString(" -> ")}, l=$l, r=$r\n" +
-                //              s"  f.tp = ${app.f.tp.show}\n" +
-                //              s"  app.tp: ${app.tp.show}",
-                //          app.anns.pos
-                //        )
-                env
-            case SIRUnify.UnificationFailure(path, l, r) =>
-                throw LoweringException(
-                  s"Unification failure for matching arg and in of f ${app.pretty.render(100)}\n" +
-                      s"  path: ${path.mkString(" -> ")}\n" +
-                      s"  l=$l, r=$r\n" +
-                      s"  app.f.tp = ${app.f.tp.show}\n" +
-                      s"  app.arg.tp: ${app.arg.tp.show}\n" +
-                      s"  f=: ${app.f.pretty.render(100)}\n" +
-                      s"  arg=: ${app.arg.pretty.render(100)}\n",
-                  app.anns.pos
-                )
-        }
-        lctx.typeUnifyEnv = newEnv
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
         val result =
@@ -375,7 +330,6 @@ object Lowering {
                       Some(app.tp),
                       None // representation can depend from fun, so should be calculated.
                     )
-        lctx.typeUnifyEnv = svTypeUnifyEnv
         result
     }
 
@@ -484,7 +438,7 @@ object Lowering {
             catch
                 case NonFatal(ex) =>
                     println(
-                      s"Error generating term for value ${value} of type ${value.sirType.show} at ${value.pos.file}:${value.pos.startLine + 1}\n" +
+                      s"Error generating term of type ${value.sirType.show} at ${value.pos.file}:${value.pos.startLine + 1}\n" +
                           s"value:\n${value.show}\n" +
                           s"generatedVars: ${gctx.generatedVars.mkString(", ")}\n" +
                           s"newVars: ${newVars.map(_.id).mkString(", ")}"

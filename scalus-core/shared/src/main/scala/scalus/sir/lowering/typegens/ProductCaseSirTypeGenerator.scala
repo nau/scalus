@@ -200,13 +200,12 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 if constrDecl.name == "scalus.prelude.List$.Cons" || constrDecl.name == "scalus.prelude.List$.Nil"
                 then
                     val inputR = input.toRepresentation(ProdDataList, pos)
-                    new ProxyLoweredValue(inputR) {
-                        override def sirType: SIRType = targetType
-                        override def representation: LoweredValueRepresentation =
-                            SumCaseClassRepresentation.SumDataList
-                        override def termInternal(gctx: TermGenerationContext): Term =
-                            inputR.termInternal(gctx)
-                    }
+                    new TypeRepresentationProxyLoweredValue(
+                      inputR,
+                      targetType,
+                      SumCaseClassRepresentation.SumDataList,
+                      pos
+                    )
                 else
                     throw LoweringException(
                       s"Unkonow constructor name for data-list: ${constrDecl.name}",
@@ -218,16 +217,12 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                   ProductCaseClassRepresentation.ProdDataConstr,
                   pos
                 )
-                new ProxyLoweredValue(asDataConstr) {
-                    override def sirType: SIRType = targetType
-
-                    override def representation: LoweredValueRepresentation =
-                        SumCaseClassRepresentation.DataConstr
-
-                    override def termInternal(gctx: TermGenerationContext): Term = {
-                        asDataConstr.termInternal(gctx)
-                    }
-                }
+                new TypeRepresentationProxyLoweredValue(
+                  asDataConstr,
+                  targetType,
+                  SumCaseClassRepresentation.DataConstr,
+                  pos
+                )
 
         }
     }

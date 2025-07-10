@@ -61,10 +61,7 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
                       LambdaRepresentation(inRepr2, outRepr2)
                     ) =>
                     if inRepr1.isCompatible(inRepr2) && outRepr1.isCompatible(outRepr2) then
-                        new RepresentationProxyLoweredValue(input, outputRepresentation, pos) {
-                            override def termInternal(gctx: TermGenerationContext): Term =
-                                input.termInternal(gctx)
-                        }
+                        new RepresentationProxyLoweredValue(input, outputRepresentation, pos)
                     else
                         val newInName = lctx.uniqueVarName("x")
                         lvLamAbs(
