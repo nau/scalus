@@ -574,6 +574,16 @@ object TxInfo {
 
     given ToData[TxInfo] = ToData.derived
     given FromData[TxInfo] = FromData.derived
+
+    extension (self: TxInfo) {
+        def findOwnInput(outRef: TxOutRef): Option[TxInInfo] = {
+            Utils.findInput(self.inputs, outRef)
+        }
+
+        def findOwnScriptOutputs(scriptHash: ValidatorHash): List[TxOut] = {
+            Utils.findScriptOutputs(self.outputs, scriptHash)
+        }
+    }
 }
 
 enum ScriptPurpose:
@@ -620,3 +630,37 @@ object ScriptContext:
     given ToData[ScriptContext] = ToData.derived
 
 end ScriptContext
+
+@Compile
+object Utils {
+
+    /** Finds an input in the list of inputs by its out reference.
+      *
+      * @param inputs
+      *   The list of inputs to search in.
+      * @param outRef
+      *   The output reference to find.
+      * @return
+      *   An `Option` containing the found input, or `None` if not found.
+      */
+    def findInput(inputs: List[TxInInfo], outRef: TxOutRef): Option[TxInInfo] = {
+        inputs.find(_.outRef === outRef)
+    }
+
+    /** Finds all outputs that match a given script hash.
+      *
+      * @param outputs
+      *   The list of outputs to search in.
+      * @param scriptHash
+      *   The script hash to match against the outputs' addresses.
+      * @return
+      *   A list of outputs that match the script hash.
+      */
+    def findScriptOutputs(outputs: List[TxOut], scriptHash: ValidatorHash): List[TxOut] = {
+        outputs.filter { output =>
+            output.address.credential match
+                case Credential.ScriptCredential(hash) => hash === scriptHash
+                case _                                 => false
+        }
+    }
+}

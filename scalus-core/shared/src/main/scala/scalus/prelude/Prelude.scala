@@ -594,7 +594,7 @@ object List:
                                 val newAcc = acc.insert(key, newLst)
                                 go(tail, newAcc)
 
-            go(self, AssocMap.empty).map { (key, list) => (key, list.reverse) }
+            go(self, AssocMap.empty).mapValues { _.reverse }
         }
 
         /** Groups elements by the keys returned by the key extractor function, transforms each
@@ -713,6 +713,8 @@ object List:
                 if predicate(head) then Cons(head, tail) else tail
             }
 
+        def filterNot(predicate: A => Boolean): List[A] = filter(!predicate(_))
+
         def filterMap[B](predicate: A => Option[B]): List[B] =
             foldRight(List.empty[B]) { (head, tail) =>
                 predicate(head) match
@@ -741,6 +743,30 @@ object List:
         def find(predicate: A => Boolean): Option[A] = self match
             case Nil              => None
             case Cons(head, tail) => if predicate(head) then Some(head) else tail.find(predicate)
+
+        /** Finds the first element in the list that, when passed to the provided mapper function,
+          * returns a `Some` value.
+          *
+          * @param mapper
+          *   A function that takes an element of type `A` and returns an `Option[B]`.
+          * @return
+          *   An `Option[B]` containing the first non-`None` result from applying the mapper to the
+          *   elements of the list, or `None` if no such element exists.
+          * @example
+          *   {{{
+          *   List.empty[String].findMap(str => if str.length >= 3 then Some(str.length) else None) === None
+          *
+          *   val list: List[String] = Cons("a", Cons("bb", Cons("ccc", Nil)))
+          *   list.findMap(str => if str.length >= 2 then Some(str.length) else None) === Some(2)
+          *   list.findMap(str => if str.length >= 4 then Some(str.length) else None) === None
+          *   }}}
+          */
+        @tailrec
+        def findMap[B](mapper: A => Option[B]): Option[B] = self match
+            case Nil => None
+            case Cons(head, tail) =>
+                val result = mapper(head)
+                if result.isDefined then result else tail.findMap(mapper)
 
         /** Performs a left fold on the list.
           *
@@ -901,11 +927,12 @@ object List:
             case Cons(_, rest) => rest
 
         @tailrec
-        def drop(skip: BigInt): List[A] = self match
-            case Nil => Nil
-            case Cons(_, tail) =>
-                if skip <= 0 then self
-                else tail.drop(skip - 1)
+        def drop(skip: BigInt): List[A] =
+            if skip <= 0 then self
+            else
+                self match
+                    case Nil           => Nil
+                    case Cons(_, tail) => tail.drop(skip - 1)
 
         def dropRight(skip: BigInt): List[A] =
             if skip <= 0 then self
@@ -914,6 +941,53 @@ object List:
                     if acc._2 > 0 then (Nil, acc._2 - 1)
                     else (Cons(head, acc._1), acc._2)
                 }._1
+
+        def deleteFirst[B >: A](elem: B)(using eq: Eq[B]): List[A] = {
+            def go(lst: List[A]): List[A] = lst match
+                case Nil => Nil
+                case Cons(head, tail) =>
+                    if head === elem then tail
+                    else Cons(head, go(tail))
+
+            go(self)
+        }
+
+        def take(count: BigInt): List[A] =
+            if count <= 0 then Nil
+            else
+                self match
+                    case Nil              => Nil
+                    case Cons(head, tail) => Cons(head, tail.take(count - 1))
+
+        def takeRight(count: BigInt): List[A] =
+            if count <= 0 then Nil
+            else
+                self.foldRight((List.empty[A], BigInt(0))) { (head, acc) =>
+                    if acc._2 > count then acc
+                    else (Cons(head, acc._1), acc._2 + 1)
+                }._1
+
+        def takeWhile(predicate: A => Boolean): List[A] = self match
+            case Nil => Nil
+            case Cons(head, tail) =>
+                if predicate(head) then Cons(head, tail.takeWhile(predicate))
+                else Nil
+
+        def unique[B >: A](using eq: Eq[B]): List[A] =
+            foldLeft(List.empty[A]) { (acc, elem) =>
+                if acc.exists(_ === elem) then acc
+                else Cons(elem, acc)
+            }.reverse
+
+        // @tailrec
+        def difference[B >: A](other: List[B])(using eq: Eq[B]): List[A] = {
+            if self.isEmpty then Nil
+            else
+                other match
+                    case Nil => self
+                    case Cons(head, tail) =>
+                        (self.deleteFirst(head): List[A]).difference(tail)
+        }
 
         inline def init: List[A] = dropRight(1)
 
@@ -1213,8 +1287,41 @@ object AssocMap {
         inline def size: BigInt = length
         def keys: List[A] = self.toList.map { case (k, _) => k }
         def values: List[B] = self.toList.map { case (_, v) => v }
-        def map[C](f: ((A, B)) => (A, C)): AssocMap[A, C] = AssocMap(self.toList.map(f))
-        def all(f: ((A, B)) => Boolean): Boolean = self.toList.forall(f)
+        def mapValues[C](f: B => C): AssocMap[A, C] = AssocMap(self.toList.map((k, v) => (k, f(v))))
+        def forall(f: ((A, B)) => Boolean): Boolean = self.toList.forall(f)
+        def exists(f: ((A, B)) => Boolean): Boolean = self.toList.exists(f)
+
+        def filterKeys(predicate: A => Boolean): AssocMap[A, B] = AssocMap(self.toList.filter {
+            case (k, _) => predicate(k)
+        })
+
+        def filter(predicate: ((A, B)) => Boolean): AssocMap[A, B] =
+            AssocMap(self.toList.filter(predicate))
+
+        def filterNot(predicate: ((A, B)) => Boolean): AssocMap[A, B] =
+            AssocMap(self.toList.filterNot(predicate))
+
+        def find(predicate: ((A, B)) => Boolean): Option[(A, B)] = {
+            @tailrec
+            def go(lst: List[(A, B)]): Option[(A, B)] = lst match
+                case Nil => Option.None
+                case Cons(pair, tail) =>
+                    if predicate(pair) then Option.Some(pair) else go(tail)
+
+            go(self.toList)
+        }
+
+        inline def findOrFail(
+            predicate: ((A, B)) => Boolean,
+            inline message: String = "None.findOrFail"
+        ): (A, B) =
+            find(predicate).getOrFail(message)
+
+        def foldLeft[C](init: C)(combiner: (C, (A, B)) => C): C =
+            self.toList.foldLeft(init) { (acc, pair) => combiner(acc, pair) }
+
+        def foldRight[C](init: C)(combiner: ((A, B), C) => C): C =
+            self.toList.foldRight(init) { (pair, acc) => combiner(pair, acc) }
 
     extension [A: Eq, B](self: AssocMap[A, B])
         /** Optionally returns the value associated with a key.
@@ -1235,6 +1342,11 @@ object AssocMap {
 
             go(self.toList)
         }
+
+        inline def getOrFail(key: A, inline message: String = "None.getOrFail"): B =
+            get(key).getOrFail(message)
+
+        def contains(key: A): Boolean = self.get(key).isDefined
 
         @deprecated("Use `get` instead")
         def lookup(key: A): Option[B] = get(key)

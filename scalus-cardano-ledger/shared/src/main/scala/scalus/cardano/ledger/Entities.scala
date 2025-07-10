@@ -2,6 +2,7 @@ package scalus.cardano.ledger
 
 import scalus.ledger.api.ValidityInterval
 
+// TODO: maybe replace on enum
 sealed abstract class TransactionException(message: String, cause: Throwable)
     extends RuntimeException(message, cause) {
     def this(message: String) = this(message, null)
