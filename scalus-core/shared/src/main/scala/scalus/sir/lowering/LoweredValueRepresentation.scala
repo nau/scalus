@@ -164,6 +164,11 @@ case class TypeVarRepresentation(isBuiltin: Boolean) extends LoweredValueReprese
     override def isPackedData: Boolean = !isBuiltin
 
     override def isDataCentric: Boolean = isPackedData
+
+    override def doc: Doc = {
+        Doc.text("TypeVar") + (if isBuiltin then Doc.text("(B)") else Doc.empty)
+    }
+
 }
 
 case object ErrorRepresentation extends LoweredValueRepresentation {
