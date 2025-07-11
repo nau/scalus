@@ -38,7 +38,7 @@ class BlockDeserializationTest extends AnyFunSuite {
     }
 
     test("evaluate block 11544748") {
-//        pending
+        pending
         val bytes = getClass.getResourceAsStream(s"/blocks/block-11544748.cbor").readAllBytes()
         given OriginalCborByteArray = OriginalCborByteArray(bytes)
         val block = readBlock(bytes).block

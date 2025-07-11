@@ -28,12 +28,13 @@ import upickle.default.read
 
 import java.math.BigInteger
 import java.nio.channels.FileChannel
-import java.nio.file.{Files, Path, Paths, StandardOpenOption}
+import java.nio.file.{Files, Path, Paths, StandardCopyOption, StandardOpenOption}
 import java.util
 import java.util.stream.Collectors
 import scala.collection.immutable.TreeSet
 import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
+import scala.util.Using
 
 /** Setup BLOCKFROST_API_KEY environment variable before running this test. In SBT shell:
   *   - set `scalus-bloxbean-cardano-client-lib`/envVars := Map("BLOCKFROST_API_KEY" -> "apikey")
@@ -241,6 +242,22 @@ object BlocksValidation:
             BlockTx(transaction, datumsCbor, txHashFromBytes)
     }
 
+    private def getAllBlocks(): IndexedSeq[Path] = {
+        val cwd = Paths.get(".")
+        val blocksDir = cwd.resolve("blocks")
+        if !Files.exists(blocksDir) then
+            sys.error(
+              s"Blocks directory $blocksDir does not exist. Please run `sbt bloxbean-cardano-client-lib/test` first."
+            )
+        Using(Files.list(blocksDir)) {
+            _.filter(f => f.getFileName.toString.endsWith(".cbor"))
+                .iterator()
+                .asScala
+                .toIndexedSeq
+                .sorted
+        }.get
+    }
+
     @main
     def validateNativeScriptEvaluation(): Unit = {
         case class Res(
@@ -249,17 +266,10 @@ object BlocksValidation:
             blocks: mutable.ArrayBuffer[Int] = mutable.ArrayBuffer.empty
         )
 
-        val cwd = Paths.get(".")
-        val blocksDir = cwd.resolve("blocks")
         val stats = mutable.HashMap.empty[ByteString, Res].withDefaultValue(Res(0, 0))
         val start = System.currentTimeMillis()
 
-        val blocks = Files
-            .list(blocksDir)
-            .filter(f => f.getFileName.toString.endsWith(".cbor"))
-            .sorted()
-            .iterator()
-            .asScala
+        val blocks = getAllBlocks()
 
         for path <- blocks do
             try
@@ -329,12 +339,7 @@ object BlocksValidation:
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
         )(using ProtocolParams.blockfrostParamsRW)
 
-        val blocks = Files
-            .list(blocksDir)
-            .filter(f => f.getFileName.toString.endsWith(".cbor"))
-            .sorted()
-            .iterator()
-            .asScala
+        val blocks = getAllBlocks()
 
         for path <- blocks do
             try
@@ -453,6 +458,31 @@ object BlocksValidation:
           costMdls
         )
         bbgenerated
+    }
+
+    @main
+    def findInterestingBlocks(): Unit = {
+        val blocks = getAllBlocks()
+        println(s"Found ${blocks.size} blocks")
+        val interestingBlocks = blocks.filter { path =>
+            val blockBytes = Files.readAllBytes(path)
+            val block = BlockFile.fromCborArray(blockBytes).block
+            block.transactionWitnessSets.exists { _.plutusV1Scripts.nonEmpty } &&
+            block.transactionWitnessSets.exists { _.plutusV2Scripts.nonEmpty } &&
+            block.transactionWitnessSets.exists { _.plutusV3Scripts.nonEmpty } &&
+            block.transactionWitnessSets.exists { _.nativeScripts.nonEmpty } &&
+            block.transactionWitnessSets.exists { _.vkeyWitnesses.nonEmpty } &&
+            block.transactionWitnessSets.exists { _.plutusData.value.nonEmpty }
+        }
+        println(s"Interesting blocks ${interestingBlocks.size} of ${blocks.size}")
+        interestingBlocks.foreach { p =>
+            // copy  to resources
+            Files.copy(
+              p,
+              Paths.get("src", "test", "resources", p.getFileName.toString),
+              StandardCopyOption.REPLACE_EXISTING
+            )
+        }
     }
 
     @main
