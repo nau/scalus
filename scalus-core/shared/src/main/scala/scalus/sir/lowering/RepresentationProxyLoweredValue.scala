@@ -26,6 +26,13 @@ final class RepresentationProxyLoweredValue(
     override val pos: SIRPosition
 ) extends BaseRepresentationProxyLoweredValue(input, representation, pos) {
 
+    if input.representation == PrimitiveRepresentation.Constant && representation == PrimitiveRepresentation.PackedData
+    then
+        throw LoweringException(
+          s"invalid conversion of constant value ${input.show} to packed data representation",
+          pos
+        )
+
     override def termInternal(gctx: TermGenerationContext): Term =
         input.termInternal(gctx)
 

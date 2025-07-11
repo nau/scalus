@@ -50,20 +50,19 @@ object Lowering {
                 val typeGenerator = lctx.typeGenerator(resolvedType)
                 typeGenerator.genConstr(constr)
             case sirMatch @ SIR.Match(scrutinee, cases, rhsType, anns) =>
+                if lctx.debug then
+                    lctx.log(
+                      s"Lowering match: ${sir.pretty.render(100)}\n" +
+                          s"  scrutinee.tp = ${scrutinee.tp.show}\n"
+                    )
                 val loweredScrutinee = lowerSIR(scrutinee)
-                (scrutinee.tp, loweredScrutinee.sirType) match {
-                    case (tv1: SIRType.TypeVar, tv2: SIRType.TypeVar) =>
-                        println("both scrutinee and loweredScrutinee are type variables")
-                    case (_, tv2: SIRType.TypeVar) =>
-                        println("loweredScrutinee is typed as type variable, but scrutinee is not")
-                        println(s"scrutinee: ${scrutinee.pretty.render(100)}")
-                        println(s"loweredScrutinee: ${loweredScrutinee.pretty.render(100)}")
-                        println(s"lowering scrutinee in debug:")
-                        lctx.debug = true
-                        @unused val unused = lowerSIR(scrutinee)
-                    case _ =>
-                }
-                lctx.typeGenerator(scrutinee.tp).genMatch(sirMatch, loweredScrutinee)
+                val retval = lctx.typeGenerator(scrutinee.tp).genMatch(sirMatch, loweredScrutinee)
+                if lctx.debug then
+                    lctx.log(
+                      s"Lowered match: ${sir.pretty.render(100)}\n" +
+                          s"  retval = ${retval.pretty.render(100)}\n"
+                    )
+                retval
             case SIR.Var(name, tp, anns) =>
                 lctx.scope.getByName(name) match
                     case Some(value) =>
@@ -129,12 +128,24 @@ object Lowering {
             case SIR.LamAbs(param, term, typeParams, anns) =>
                 // TODO: add type params to context.  Now we do all computations in
                 // new context, so type params are assumed implicitly
-                lvLamAbs(
+                if lctx.debug then
+                    lctx.log(
+                      s"Lowering lamAbs: ${sir.pretty.render(100)}\n" +
+                          s"  param.tp = ${param.tp.show}\n" +
+                          s"  term.tp = ${term.tp.show}\n"
+                    )
+                val retval = lvLamAbs(
                   param,
                   lctx.typeGenerator(param.tp).defaultRepresentation(param.tp),
                   _id => summon[LoweringContext].lower(term),
                   anns.pos
                 )
+                if lctx.debug then
+                    lctx.log(
+                      s"Lowered lamAbs: ${sir.pretty.render(100)}\n" +
+                          s"  retval = ${retval.pretty.render(100)}\n"
+                    )
+                retval
             case app: SIR.Apply =>
                 lowerApp(app)
             case sel @ SIR.Select(scrutinee, field, tp, anns) =>
@@ -272,9 +283,6 @@ object Lowering {
                             val prevScope = lctx.scope
                             lctx.scope = lctx.scope.add(newVar)
                             val loweredRhs = lowerSIR(rhs).maybeUpcast(tp, anns.pos)
-                            println(
-                              s"added let binding, name=${newVar.name}, id=${newVar.id}, tp=${tp.show}, rhs.tp=${loweredRhs.sirType.show}"
-                            )
                             val loweredBody = lowerSIR(body)
                             lctx.scope = prevScope
                             LetRecLoweredValue(newVar, loweredRhs, loweredBody, sirLet.anns.pos)
@@ -441,18 +449,9 @@ object Lowering {
                       s"Error generating term of type ${value.sirType.show} at ${value.pos.file}:${value.pos.startLine + 1}\n" +
                           s"value:\n${value.show}\n" +
                           s"generatedVars: ${gctx.generatedVars.mkString(", ")}\n" +
-                          s"newVars: ${newVars.map(_.id).mkString(", ")}"
+                          s"newVars: ${newVars.map(_.id).mkString(", ")}\n" +
+                          s"dominatingUplevelVars: ${value.dominatingUplevelVars.map(_.id).mkString(", ")}"
                     )
-                    value match
-                        case lambda: LambdaLoweredValue if lambda.newVar.name == "param" =>
-                            println(
-                              s"Lambda with param name 'param' at ${value.pos.file}:${value.pos.startLine + 1}"
-                            )
-                            println(
-                              "lambda body created at:" + lambda.body.createdEx.getStackTrace
-                                  .mkString("\n")
-                            )
-                        case _ =>
                     throw ex
 
         val topSortedNewVars = topologicalSort(newVars)

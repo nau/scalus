@@ -14,7 +14,7 @@ class SirToUplcV3Lowering(
     representation: LoweredValueRepresentation = TypeVarRepresentation(true),
     debug: Boolean = false
 ) {
-
+    
     def lower(): Term = {
         val lctx = LoweringContext(
           zCombinatorNeeded = false,

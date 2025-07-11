@@ -11,6 +11,7 @@ sealed trait LoweredValueRepresentation {
     def isCompatible(repr: LoweredValueRepresentation): Boolean =
         this == repr
     def doc: Doc = Doc.text(this.toString)
+    def show = doc.render(80)
 }
 
 sealed trait SumCaseClassRepresentation(

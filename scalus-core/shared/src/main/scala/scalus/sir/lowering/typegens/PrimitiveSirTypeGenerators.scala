@@ -33,19 +33,21 @@ trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
             case (PrimitiveRepresentation.PackedData, PrimitiveRepresentation.PackedData) =>
                 input
             case (PrimitiveRepresentation.Constant, PrimitiveRepresentation.PackedData) =>
-                new RepresentationProxyLoweredValue(input, outputRepresentation, pos)
+                uplcToDataValue(input, pos)
             case (PrimitiveRepresentation.PackedData, PrimitiveRepresentation.Constant) =>
-                new RepresentationProxyLoweredValue(input, outputRepresentation, pos)
+                dataToUplcValue(input, pos)
             case (TypeVarRepresentation(isBuiltin), PrimitiveRepresentation.Constant) =>
                 if isBuiltin then input
                 else dataToUplcValue(input, pos)
             case (TypeVarRepresentation(isBuiltin), PrimitiveRepresentation.PackedData) =>
-                RepresentationProxyLoweredValue(input, outputRepresentation, pos)
+                if isBuiltin then uplcToDataValue(input, pos)
+                else input
             case (PrimitiveRepresentation.Constant, TypeVarRepresentation(isBuiltin)) =>
                 if isBuiltin then input
                 else uplcToDataValue(input, pos)
             case (PrimitiveRepresentation.PackedData, TypeVarRepresentation(isBuiltin)) =>
-                input
+                if isBuiltin then dataToUplcValue(input, pos)
+                else input
             case (TypeVarRepresentation(inBuiltin), TypeVarRepresentation(outBuiltin)) =>
                 if outBuiltin then input
                 else if inBuiltin then {

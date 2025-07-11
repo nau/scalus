@@ -610,12 +610,6 @@ object SIRType {
                           Map.empty
                         )
                         val resParams0 = argTpsRest ++ inTpsRest ++ fTvRest ++ outTps
-                        if ctx.debug then {
-                            println(s"calcuatedApplyType: resParams0=${resParams0.map(_.show)}")
-                            println(
-                              s"calcuatedApplyType: resBody=${resBody.show}"
-                            )
-                        }
                         val (ground, unground) = partitionGround(resParams0, resBody)
                         if unground.nonEmpty && ctx.reportUngrounded then
                             println(

@@ -78,6 +78,8 @@ trait LoweredValue {
                     }
     }
 
+    def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue]
+
     /** Uplevel variables, that shoule be generated before generation of term
       */
     def dominatingUplevelVars: Set[IdentifiableLoweredValue]
@@ -132,6 +134,10 @@ case class ConstantLoweredValue(
 
     override def docRef(style: PrettyPrinter.Style): Doc = PrettyPrinter.pretty(term, style)
 
+    override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] = {
+        Some(this).filter(p)
+    }
+
 }
 
 case class StaticLoweredValue(
@@ -146,9 +152,11 @@ case class StaticLoweredValue(
     def usedUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
     def termInternal(gctx: TermGenerationContext): Term = term
     def addDependent(value: IdentifiableLoweredValue): Unit = {}
-    def print: String = {
-        s"StaticLoweredValue($term, $representation) at $pos"
+
+    def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] = {
+        Some(this).filter(p)
     }
+
     def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
         import PrettyPrinter.*
         Doc.text("static") + inParens(
@@ -182,13 +190,34 @@ sealed trait IdentifiableLoweredValue extends LoweredValue {
     }
 
     /** Set of variables, which this value are directly used in. (i.e. the have this value in rhs).
-      * non-transitive.
-      * @return
+      * non-transitive (i.e. if your want to find all depended set you should run transitive closure
+      * on this)
       */
     def directDepended: MutableSet[IdentifiableLoweredValue]
 
+    /** Set of variables, which this value are directly depended on.
+      */
+    def directDependFrom: MutableSet[IdentifiableLoweredValue]
+
     override def addDependent(value: IdentifiableLoweredValue): Unit = {
         directDepended.add(value)
+        value.directDependFrom.add(this)
+    }
+
+    def isDependFrom(value: IdentifiableLoweredValue): Boolean = {
+        directDependFrom.exists { c =>
+            c.id == value.id || c.isDependFrom(value)
+        }
+    }
+
+    def isDependFromOneOf(values: Set[IdentifiableLoweredValue]): Boolean = {
+        directDependFrom.exists { c =>
+            values.exists(v => c.id == v.id) || c.isDependFromOneOf(values)
+        }
+    }
+
+    override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] = {
+        Some(this).filter(p).orElse(optRhs.flatMap(_.findSelfOrSubtems(p)))
     }
 
 }
@@ -203,18 +232,9 @@ class VariableLoweredValue(
       DependendVariableLoweredValue
     ] = MutableMap.empty,
     val optRhs: Option[LoweredValue] = None,
-    val directDepended: MutableSet[IdentifiableLoweredValue] = MutableSet.empty
+    val directDepended: MutableSet[IdentifiableLoweredValue] = MutableSet.empty,
+    val directDependFrom: MutableSet[IdentifiableLoweredValue] = MutableSet.empty
 ) extends IdentifiableLoweredValue {
-
-    if id == "x$126" then {
-        println(
-          s"VariableLoweredValue created with id = $id,  representation = $representation, sirType=${sir.tp.show}"
-        )
-        println(
-          s"SIR=${sir} at ${sir.anns.pos.file}:${sir.anns.pos.startLine + 1}"
-        )
-        // throw RuntimeException("QQQ")
-    }
 
     optRhs.foreach { rhs =>
         rhs.addDependent(this)
@@ -275,20 +295,30 @@ class VariableLoweredValue(
     def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
         import PrettyPrinter.*
         val head = (Doc.text("var") + inParens(
-          Doc.text(id) + Doc.text(":") + Doc.text(sirType.show) + inBrackets(
-            Doc.text(representation.toString)
-          )
+          Doc.text(id) + Doc.text(":") + Doc.text(sirType.show) + inBrackets(representation.doc)
         )).grouped
         optRhs match {
             case Some(rhs) =>
-                head + Doc.text("=") + rhs.docDef(style)
+                val left = head + Doc.text("(=")
+                val right = Doc.text(")")
+                rhs.docDef(style).bracketBy(left, right)
             case None =>
                 head
         }
     }
 
     def docRef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
-        Doc.text(id)
+        // TODO: get from context (?)
+        val printFullDef = true
+        if !printFullDef then Doc.text(id)
+        else
+            optRhs match {
+                case None => Doc.text(id)
+                case Some(rhs) =>
+                    val left = Doc.text(id) + Doc.text("(=")
+                    val right = Doc.text(")")
+                    rhs.docDef(style).bracketBy(left, right)
+            }
     }
 
 }
@@ -302,7 +332,8 @@ case class DependendVariableLoweredValue(
     sir: SIR.Var,
     representation: LoweredValueRepresentation,
     rhs: LoweredValue,
-    directDepended: MutableSet[IdentifiableLoweredValue] = MutableSet.empty
+    directDepended: MutableSet[IdentifiableLoweredValue] = MutableSet.empty,
+    directDependFrom: MutableSet[IdentifiableLoweredValue] = MutableSet.empty
 ) extends IdentifiableLoweredValue {
 
     rhs.addDependent(this)
@@ -327,9 +358,7 @@ case class DependendVariableLoweredValue(
     override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
         import PrettyPrinter.*
         (Doc.text("depvar") + inParens(
-          Doc.text(id) + Doc.text(":") + Doc.text(sirType.show) + inBrackets(
-            Doc.text(representation.toString)
-          )
+          Doc.text(id) + Doc.text(":") + Doc.text(sirType.show) + inBrackets(representation.doc)
         )).grouped + Doc.text("=") + rhs.docDef(style)
     }
 
@@ -370,6 +399,9 @@ trait ProxyLoweredValue(val origin: LoweredValue) extends LoweredValue {
     override def docRef(style: PrettyPrinter.Style): Doc =
         this.docDef(style)
 
+    override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] =
+        origin.findSelfOrSubtems(p)
+
 }
 
 /** ComplexLoweredValue is a base trait for lowered values that consist of multiple subvalues.
@@ -379,15 +411,19 @@ trait ProxyLoweredValue(val origin: LoweredValue) extends LoweredValue {
 trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: LoweredValue*)
     extends LoweredValue {
 
-    lazy val usedVarsCount = Lowering.filterAndCountVars(
-      v => !ownVars.contains(v),
+    // TODO: calculate dependency set in one pass
+    val usedVarsCount = Lowering.filterAndCountVars(
+      v => !ownVars.contains(v) && !ownVars.exists(o => v.isDependFrom(o)),
       subvalues*
     )
 
     lazy val cUsedVars = usedVarsCount.keySet
 
-    override def dominatingUplevelVars: Set[IdentifiableLoweredValue] =
-        usedVarsCount.filter { case (v, c) => c > 1 && v.directDepended.size > 1 }.keySet
+    val dominatingUplevelVars: Set[IdentifiableLoweredValue] = {
+        usedVarsCount.filter { case (v, c) =>
+            c > 1 && v.directDepended.size > 1
+        }.keySet
+    }
 
     override def usedUplevelVars: Set[IdentifiableLoweredValue] =
         cUsedVars
@@ -400,6 +436,17 @@ trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: Low
 
     override def docRef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
         this.docDef(style)
+    }
+
+    override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] = {
+        Some(this).filter(p).orElse {
+            var found: Option[LoweredValue] = None
+            subvalues.find { sub =>
+                found = sub.findSelfOrSubtems(p)
+                found.isDefined
+            }
+            found
+        }
     }
 
 }
@@ -428,6 +475,13 @@ case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, 
             ) + Doc.text(".")
         val right = Doc.text(")")
         body.docRef(style).bracketBy(left, right)
+    }
+
+    override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] = {
+        Some(this).filter(p).orElse {
+            if p(newVar) then Some(newVar)
+            else body.findSelfOrSubtems(p)
+        }
     }
 
 }
@@ -828,9 +882,9 @@ object LoweredValue {
                 lctx.log(
                   s"lvApply: f = ${f.pretty.render(100)}"
                 )
-                lctx.log(
-                  s"lvApply: f.representation = ${f.representation.doc.render(100)}, arg.representation = ${arg.representation.doc.render(100)}"
-                )
+                // lctx.log(
+                //  s"lvApply: f.representation = ${f.representation.doc.render(100)}, arg.representation = ${arg.representation.doc.render(100)}"
+                // )
                 // println("f.createdAt:")
                 // f.createdEx.printStackTrace()
                 lctx.log(
@@ -968,31 +1022,6 @@ object LoweredValue {
                 case _ =>
                     throw LoweringException("Expected that f have function representation", inPos)
 
-            if lctx.debug then {
-                lctx.log(
-                  s"lvApply: f.sirType = ${f.sirType.show}, argInTargetRepresentation.sirType = ${argInTargetRepresentation.sirType.show}"
-                )
-                lctx.log(
-                  s"lvApply: resType = ${resType.show}, calculatedResType=${calculatedResType.show}"
-                )
-
-                // resTp match {
-                //    case Some(SIRType.Fun(resIn, resOut)) =>
-                //        if resIn.show == "scalus.ledger.api.v1.Credential$.PubKeyCredential" && resOut == SIRType.Boolean
-                //        then throw new RuntimeException("QQQQ")
-                //    case _ =>
-                // }
-            }
-
-            // if (SIRType.isPolyFunOrFun(resType)) then {
-            //    val alignTypeArgumentsAndRepresentations(
-            //        arg,
-            //        targetArgType,
-            //        targetArgRepresentation,
-            //        inPos
-            //    )
-            // }
-
             lctx.debug = prevDebug
 
             val applied = ApplyLoweredValue(
@@ -1003,7 +1032,7 @@ object LoweredValue {
               inPos
             )
 
-            val retval =
+            val retval = {
                 if SIRType.isPolyFunOrFun(resType) then
                     if lctx.debug then {
                         lctx.log(
@@ -1037,12 +1066,18 @@ object LoweredValue {
                             applied.toRepresentation(repr, inPos)
                         case None =>
                             applied
+            }
 
-            if lctx.debug then {
+            if lctx.debug then
                 lctx.log(
                   s"lvApply: retval = ${retval.pretty.render(100)}"
                 )
-            }
+                lctx.log(
+                  s"lvApply: retval dominatedUplevelVars = ${retval.dominatingUplevelVars.map(_.id).mkString(", ")}"
+                )
+                lctx.log(
+                  s"lvApply: retval usedUplevelVars = ${retval.usedUplevelVars.map(_.id).mkString(", ")}"
+                )
 
             retval
 
@@ -1294,7 +1329,7 @@ object LoweredValue {
 
         if lctx.debug then {
             lctx.log(
-              s"alignTypeArgumentsAndRepresentations: arg.sirType = ${arg.sirType.show}, targetType = ${targetType.show}, arg.representation = ${arg.representation}  targetRepresentation = $targetRepresentation"
+              s"alignTypeArgumentsAndRepresentations: arg.sirType = ${arg.sirType.show}, targetType = ${targetType.show}, arg.representation = ${arg.representation.show}  targetRepresentation = ${targetRepresentation.show}"
             )
         }
 
@@ -1401,16 +1436,14 @@ object LoweredValue {
 
         }
 
-        alignWithChange(arg, targetType, targetRepresentation) match {
-            case (alignedArg, changed) =>
-                if lctx.debug then {
-                    println(
-                      s"alignTypeArgumentsAndRepresentations: alignedArg.type = ${alignedArg.sirType.show}, changed = $changed"
-                    )
-                }
-                if changed then alignedArg
-                else arg
+        val (alignedArg, changed) = alignWithChange(arg, targetType, targetRepresentation)
+        if lctx.debug then {
+            lctx.log(
+              s"alignTypeArgumentsAndRepresentations: alignedArg.type = ${alignedArg.sirType.show}, changed = $changed"
+            )
         }
+        if changed then alignedArg
+        else arg
 
     }
 

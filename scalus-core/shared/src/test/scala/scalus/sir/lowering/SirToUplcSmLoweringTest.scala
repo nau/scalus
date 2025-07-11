@@ -38,7 +38,8 @@ class SirToUplcSmLoweringTest
           sir,
           generateErrorTraces = generateErrorTraces,
           upcastTo = upcastTo,
-          representation = representation
+          representation = representation,
+          debug = false,
         ).lower()
 
     extension (term: Term)

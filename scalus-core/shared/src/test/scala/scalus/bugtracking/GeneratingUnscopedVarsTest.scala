@@ -45,8 +45,9 @@ class GeneratingUnscopedVarsTest extends AnyFunSuite {
         val sir = compile {
             Min20250702.validate
         }
-        println(sir.pretty.render(100))
-        val uplc = sir.toUplc(generateErrorTraces = true, debug = true)
+        // println(sir.pretty.render(100))
+        val uplc = sir.toUplc(generateErrorTraces = true)
+        // println(uplc.pretty.render(100))
         // val result = script.evaluateDebug
         // assert(result.isSuccess)
     }
