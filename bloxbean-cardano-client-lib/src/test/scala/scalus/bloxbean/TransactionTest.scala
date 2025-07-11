@@ -5,8 +5,8 @@ import com.bloxbean.cardano.client.transaction.util.TransactionUtil.getTxHash
 import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
-import scalus.cardano.ledger.*
 import scalus.cardano.address.Address
+import scalus.cardano.ledger.*
 
 import java.math.BigInteger
 
@@ -83,4 +83,32 @@ class TransactionTest extends AnyFunSuite {
 
         assert(scalusTransactionHash == cclTransactionHash)
     }
+    /*
+
+    enum Intent {
+        case Input()
+        case Output(address: String, value: Value)
+        case FromScript(redeemer: Data, script: Script)
+    }
+
+    class Tx extends Selectable {
+        def apply(intents: Intent*)
+    }
+
+    val tx = Tx(Input(???), Output(addr, Value.lovelace(1000)), FeeFrom(???))
+
+    object TxBuilder {
+        def payToAddress(
+            address: String,
+            amount: Value
+        ): Transaction = ???
+        def send(tx: Transaction): Transaction = ???
+        def sign(tx: Transaction) = ???
+    }
+
+    val tx = TxBuilder.payToAddress("", Value.lovelace(1000))
+    TxBuilder.sign(tx)
+    TxBuilder.send(tx)
+     */
+
 }

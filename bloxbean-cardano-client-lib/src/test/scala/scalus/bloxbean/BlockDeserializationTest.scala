@@ -38,8 +38,17 @@ class BlockDeserializationTest extends AnyFunSuite {
     }
 
     test("evaluate block 11544748") {
-        pending
+//        pending
         val bytes = getClass.getResourceAsStream(s"/blocks/block-11544748.cbor").readAllBytes()
+        given OriginalCborByteArray = OriginalCborByteArray(bytes)
+        val block = readBlock(bytes).block
+        val txn = block.transactions.find(tx => tx.witnessSet.redeemers.nonEmpty).get
+        validateTransaction(txn)
+    }
+
+    test("evaluate block 11544518") {
+        pending
+        val bytes = getClass.getResourceAsStream(s"/blocks/block-11544518.cbor").readAllBytes()
         given OriginalCborByteArray = OriginalCborByteArray(bytes)
         val block = readBlock(bytes).block
         val txn = block.transactions.find(tx => tx.witnessSet.redeemers.nonEmpty).get
@@ -80,8 +89,8 @@ class BlockDeserializationTest extends AnyFunSuite {
 
         val redeemers = evaluator.evalPhaseTwo(tx, utxos)
         for (actual, expected) <- redeemers.zip(tx.witnessSet.redeemers.get.value.toIndexedSeq) do
-            assert(actual.exUnits.memory <= expected.exUnits.memory)
-            assert(actual.exUnits.steps <= expected.exUnits.steps)
+            assert(actual.exUnits.memory == expected.exUnits.memory)
+            assert(actual.exUnits.steps == expected.exUnits.steps)
     }
 
     private def dumpTxInfo(
