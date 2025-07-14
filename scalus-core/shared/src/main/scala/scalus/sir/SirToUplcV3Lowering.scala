@@ -14,33 +14,28 @@ class SirToUplcV3Lowering(
     representation: LoweredValueRepresentation = TypeVarRepresentation(true),
     debug: Boolean = false
 ) {
-    
+
+    private var _lastLoweredValue: Option[LoweredValue] = None
+
+    def toLoweredValue(lctx: LoweringContext = newLoweringContext): LoweredValue = {
+        given LoweringContext = lctx
+        val v0 = Lowering.lowerSIR(sir)
+        val v1 =
+            if upcastTo != SIRType.FreeUnificator then v0.upcastOne(upcastTo, v0.pos)
+            else v0
+        val targetRepresentation =
+            if representation == TypeVarRepresentation(true) then
+                lctx.typeGenerator(v1.sirType).defaultRepresentation(v1.sirType)
+            else representation
+        val retV = v1.toRepresentation(targetRepresentation, v1.pos)
+        retV
+    }
+
     def lower(): Term = {
-        val lctx = LoweringContext(
-          zCombinatorNeeded = false,
-          decls = MutableMap.empty,
-          plutusVersion = 3,
-          generateErrorTraces = generateErrorTraces,
-          debug = debug
-        )
+        val lctx = newLoweringContext
         try
-            given LoweringContext = lctx
-            val v0 = Lowering.lowerSIR(sir)
-            // transfer to default term representation
-            // println(s"v representation: ${v.representation} of type ${v.sirType.show} ")
-            val v1 =
-                if upcastTo != SIRType.FreeUnificator then v0.upcastOne(upcastTo, v0.pos)
-                else v0
-            val retV = v1.toRepresentation(
-              if representation == TypeVarRepresentation(true) then
-                  lctx.typeGenerator(v1.sirType).defaultRepresentation(v1.sirType)
-              else representation,
-              v1.pos
-            )
-            if debug then
-                lctx.log(
-                  s"Lowered value: ${retV.show}"
-                )
+            val retV = toLoweredValue(lctx)
+            _lastLoweredValue = Some(retV)
             val gctx = TermGenerationContext(
               generatedVars = Set.empty
             )
@@ -64,6 +59,20 @@ class SirToUplcV3Lowering(
         catch
             case e: LoweringException =>
                 throw e
+    }
+
+    def lastLoweredValue: Option[LoweredValue] = _lastLoweredValue
+
+    def newLoweringContext: LoweringContext = {
+        val retval = LoweringContext(
+          zCombinatorNeeded = false,
+          decls = MutableMap.empty,
+          plutusVersion = 3,
+          generateErrorTraces = generateErrorTraces,
+          debug = debug
+        )
+        ScalusRuntime.initContext(retval)
+        retval
     }
 
 }

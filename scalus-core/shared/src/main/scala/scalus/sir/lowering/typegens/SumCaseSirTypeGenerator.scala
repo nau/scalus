@@ -418,14 +418,14 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                       ),
                       sirCase.anns.pos
                     )
-                    val tailId = s"${dataListId}_b${}"
+                    val nextTailId = s"${currentTail.id}_t"
                     // mb we already have this id in the scope
-                    val tailVar =
-                        lctx.scope.get(tailId, SumCaseClassRepresentation.SumDataList) match
+                    val nextTailVar =
+                        lctx.scope.get(nextTailId, SumCaseClassRepresentation.SumDataList) match
                             case Some(v) => v
                             case None =>
                                 lvNewLazyIdVar(
-                                  tailId,
+                                  nextTailId,
                                   listDataType,
                                   SumCaseClassRepresentation.SumDataList,
                                   lvBuiltinApply(
@@ -437,7 +437,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                                   ),
                                   sirCase.anns.pos
                                 )
-                    (tailVar, idx + 1)
+                    (nextTailVar, idx + 1)
             }
 
         // now with the all named variable in the scope we can generate the body

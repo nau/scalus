@@ -139,30 +139,6 @@ object SIRType {
 
     }
 
-    object Pair {
-
-        val constrDecl = {
-            val A = TypeVar("A", None, true)
-            val B = TypeVar("B", None, true)
-            ConstrDecl(
-              "Pair",
-              scala.List(TypeBinding("fst", A), TypeBinding("snd", B)),
-              scala.List(A, B),
-              scala.Nil,
-              AnnotationsDecl.empty
-            )
-        }
-
-        def apply(a: SIRType, b: SIRType): SIRType =
-            CaseClass(constrDecl, scala.List(a, b), None)
-
-        def unapply(x: SIRType): Option[(SIRType, SIRType)] = x match {
-            case CaseClass(`constrDecl`, scala.List(a, b), None) => Some((a, b))
-            case _                                               => None
-        }
-
-    }
-
     /** Type variable have two forms: when id is not set, that means that for each instantiation of
       * type-lambda, a new set of type-variables with fresh id-s are created. when id is set, that
       * means that computations are situated in the process of instantiation of some type-lambda,
@@ -375,6 +351,57 @@ object SIRType {
             )
 
         val Nil = CaseClass(NilConstr, scala.Nil, Some(List.apply(SIRType.TypeNothing)))
+
+    }
+
+    object Pair {
+
+        val constrDecl = {
+            val A = TypeVar("A", None, true)
+            val B = TypeVar("B", None, true)
+            ConstrDecl(
+              "scalus.builtin.Pair",
+              scala.List(TypeBinding("fst", A), TypeBinding("snd", B)),
+              scala.List(A, B),
+              scala.Nil,
+              AnnotationsDecl.empty
+            )
+        }
+
+        def apply(a: SIRType, b: SIRType): SIRType =
+            CaseClass(constrDecl, scala.List(a, b), None)
+
+        def unapply(x: SIRType): Option[(SIRType, SIRType)] = x match {
+            case CaseClass(`constrDecl`, scala.List(a, b), None) => Some((a, b))
+            case _                                               => None
+        }
+
+    }
+
+    object Tuple2 {
+
+        val name = "scala.Tuple2"
+
+        val constrDecl = {
+            val tuple2Hash = name.hashCode
+            val A = TypeVar("A", Some(tuple2Hash), true)
+            val B = TypeVar("B", Some(tuple2Hash + 1), true)
+            ConstrDecl(
+              name,
+              scala.List(TypeBinding("_1", A), TypeBinding("_2", B)),
+              scala.List(A, B),
+              scala.Nil,
+              AnnotationsDecl.empty
+            )
+        }
+
+        def apply(a: SIRType, b: SIRType): SIRType =
+            CaseClass(constrDecl, scala.List(a, b), None)
+
+        def unapply(x: SIRType): Option[(SIRType, SIRType)] = x match {
+            case CaseClass(`constrDecl`, scala.List(a, b), None) => Some((a, b))
+            case _                                               => None
+        }
 
     }
 
@@ -753,6 +780,28 @@ object SIRType {
                 else retrieveConstrDecl(ref)
             case TypeLambda(_, body) => retrieveConstrDecl(body)
             case _ => Left(s"Expected CaseClass, got ${tp.show} (${tp.getClass.getSimpleName}")
+        }
+    }
+
+    def collectProd(tp: SIRType): Option[(scala.List[TypeVar], ConstrDecl, scala.List[SIRType])] = {
+        tp match {
+            case CaseClass(constrDecl, typeArgs, _) =>
+                Some(
+                  (
+                    scala.List.empty,
+                    constrDecl,
+                    typeArgs
+                  )
+                )
+            case TypeProxy(ref) =>
+                if ref == null then None
+                else collectProd(ref)
+            case TypeLambda(tps, body) =>
+                collectProd(body) match
+                    case Some((accTps, constrDecl, typeArgs)) =>
+                        Some((tps ++ accTps, constrDecl, typeArgs))
+                    case None => None
+            case _ => None
         }
     }
 

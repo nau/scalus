@@ -88,8 +88,11 @@ object SirTypeUplcGenerator {
                 else SumCaseUplcOnlySirTypeGenerator
             case SIRType.CaseClass(constrDecl, typeArgs, optParent) =>
                 // TODO: retrieve annotation
-                if constrDecl.name == "scalus.ledger.api.v1.PubKeyHash" then
-                    ProductCaseOneElementSirTypeGenerator(SIRTypeUplcByteStringGenerator)
+                if constrDecl.name == "scalus.ledger.api.v1.PubKeyHash"
+                    || constrDecl.name == "scalus.ledger.api.v3.TxId"
+                then ProductCaseOneElementSirTypeGenerator(SIRTypeUplcByteStringGenerator)
+                else if constrDecl.name == "scalus.prelude.AssocMap"
+                then MapSirTypeGenerator
                 else
                     val hasFun = containsFun(constrDecl, new IdentityHashMap[SIRType, SIRType]())
                     if constrDecl.name == "scalus.prelude.List$.Nil" || constrDecl.name == "scalus.prelude.List$.Cons"
@@ -114,6 +117,18 @@ object SirTypeUplcGenerator {
                 TypeNothingSirTypeGenerator
     }
 
+    def isPairOrTuple2(tp: SIRType): Boolean =
+        tp match
+            case SIRType.CaseClass(decl, typeArgs, _) =>
+                decl.name == "scalus.builtin.Pair" 
+                ||
+                decl.name == "scala.Tuple2" 
+            case SIRType.TypeLambda(params, body) =>
+                isPairOrTuple2(body)
+            case SIRType.TypeProxy(ref)  =>  
+                isPairOrTuple2(ref)
+            case _ => false
+    
     private def containsFun(
         types: List[SIRType],
         trace: IdentityHashMap[SIRType, SIRType]

@@ -314,6 +314,13 @@ object Lowering {
                   s"  f = ${app.f.pretty.render(100)}\n"
             )
         val fun = lowerSIR(app.f)
+        if fun.sirType.show == "B#238929 -> (B#491 -> scalus.ledger.api.v3.TxInInfo -> B#491) -> B#238929"
+        then {
+            println("discowered strange output type when lowering f")
+            lctx.debug = true
+            println(s"app.f = ${app.f.pretty.render(100)}")
+            val fun1 = lowerSIR(app.f)
+        }
         val arg = lowerSIR(app.arg)
         val result =
             try
@@ -327,8 +334,10 @@ object Lowering {
             catch
                 case NonFatal(ex) =>
                     println(
-                      s"errorl lowering app: ${app.pretty.render(100)} at ${app.anns.pos.file}:${app.anns.pos.startLine + 1}"
+                      s"Error lowering app: ${app.pretty.render(100)} at ${app.anns.pos.file}:${app.anns.pos.startLine + 1}"
                     )
+                    println(s"f.tp=${app.f.tp.show}")
+                    println(s"fun.sirType=${fun.sirType.show}")
                     lctx.debug = true
                     // redu with debug mode to see the error
                     lvApply(
@@ -390,16 +399,16 @@ object Lowering {
             override def termInternal(gctx: TermGenerationContext): Term =
                 data.termInternal(gctx)
 
-            override def docDef(style: PrettyPrinter.Style): Doc = {
+            override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
                 val left = Doc.text("FromData(")
                 val right = Doc.text(s", ${app.tp.show})")
-                data.docRef(style).bracketBy(left, right)
+                data.docRef(ctx).bracketBy(left, right)
             }
 
-            override def docRef(style: PrettyPrinter.Style): Doc = {
+            override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
                 val left = Doc.text("FromData(")
                 val right = Doc.text(")")
-                data.docRef(style).bracketBy(left, right)
+                data.docRef(ctx).bracketBy(left, right)
             }
 
         }
@@ -420,16 +429,16 @@ object Lowering {
             override def termInternal(gctx: TermGenerationContext): Term =
                 value.termInternal(gctx)
 
-            override def docDef(style: PrettyPrinter.Style): Doc = {
+            override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
                 val left = Doc.text("FromData(")
                 val right = Doc.text(s", ${app.tp.show})")
-                value.docRef(style).bracketBy(left, right)
+                value.docRef(ctx).bracketBy(left, right)
             }
 
-            override def docRef(style: PrettyPrinter.Style): Doc = {
+            override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
                 val left = Doc.text("FromData(")
                 val right = Doc.text(")")
-                value.docRef(style).bracketBy(left, right)
+                value.docRef(ctx).bracketBy(left, right)
             }
 
         }

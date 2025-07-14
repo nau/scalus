@@ -174,6 +174,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                         .toRepresentation(representation, pos)
             case (_, TypeVarRepresentation(isBuiltin)) =>
                 if isBuiltin then input else toRepresentation(input, ProdDataConstr, pos)
+                
             case _ =>
                 throw LoweringException(
                   s"Unsupported conversion for ${input.sirType.show} from ${input.representation} to $representation",
@@ -449,13 +450,13 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 dataList.termWithNeededVars(gctx)
             }
 
-            override def docDef(style: PrettyPrinter.Style): Doc = {
+            override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
                 val left = Doc.text("Constr(") + Doc.text(constr.tp.show) + Doc.comma
                 val right = Doc.text(")")
-                dataList.docRef(style).bracketBy(left, right)
+                dataList.docRef(ctx).bracketBy(left, right)
             }
 
-            override def docRef(style: PrettyPrinter.Style): Doc = docDef(style)
+            override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = docDef(ctx)
 
         }
         retval

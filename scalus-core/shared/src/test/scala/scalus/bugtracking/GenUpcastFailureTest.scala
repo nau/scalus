@@ -1,5 +1,7 @@
 package scalus.bugtracking
 
+import org.scalatest.funsuite.AnyFunSuite
+
 import scalus.Compiler.compile
 import scalus.*
 import scalus.prelude.{*, given}
@@ -11,22 +13,7 @@ import scalus.ledger.api.v3.*
 import scalus.prelude.{AssocMap, DataParameterizedValidator, List, Option}
 import scalus.prelude.Option.Some
 
-import org.scalatest.funsuite.AnyFunSuite
-
-@Compile
-object Min20250702 {
-
-    def validate(param: Data): Unit = {
-        val (q1, q2) = List
-            .empty[BigInt]
-            .foldLeft(BigInt(0), BigInt(0)) { case (a, value) =>
-                (BigInt(0), value)
-            }
-    }
-
-}
-
-class GeneratingUnscopedVarsTest extends AnyFunSuite {
+class GenUpcastFailureTest extends AnyFunSuite {
 
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
@@ -35,10 +22,11 @@ class GeneratingUnscopedVarsTest extends AnyFunSuite {
       debug = false
     )
 
-    test("Min20250702 should compile and transform to UPLC") {
+    test("Call of getLovelace should compile and transform to UPLC") {
         // pending
-        val sir = compile {
-            Min20250702.validate
+        val sir = compile { (value: Value) =>
+            val lv = value.getLovelace
+            if lv < 10 then scalus.prelude.fail("lv < 10")
         }
         // println(sir.pretty.render(100))
         val uplc = sir.toUplc(generateErrorTraces = true)

@@ -14,7 +14,8 @@ class LoweringContext(
     val uplcGeneratorPolicy: SIRType => SirTypeUplcGenerator = SirTypeUplcGenerator(_),
     var typeUnifyEnv: SIRUnify.Env = SIRUnify.Env.empty,
     var debug: Boolean = false,
-    var nestingLevel: Int = 0
+    var debugLevel: Int = 0,
+    var nestingLevel: Int = 0,
 ) {
 
     def uniqueVarName(prefix: String = "_v"): String = {

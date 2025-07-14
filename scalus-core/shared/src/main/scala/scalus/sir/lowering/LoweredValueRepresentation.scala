@@ -43,6 +43,14 @@ object SumCaseClassRepresentation {
       */
     case object SumDataList extends SumCaseClassRepresentation(false, true)
 
+    /** List of pairs of data elements. result of unMapData
+      */
+    case object SumDataPairList extends SumCaseClassRepresentation(false, true)
+
+    /** SumDataPairList packed as AssocMap
+      */
+    case object SumDataAssocMap extends SumCaseClassRepresentation(true, true)
+
     /** packed in data representation as a list of data elements. i.e. unListData for unpacking into
       * DataList
       */
@@ -69,6 +77,8 @@ object ProductCaseClassRepresentation {
 
     case object ProdDataList extends ProductCaseClassRepresentation(false, true)
 
+    case object PackedDataMap extends ProductCaseClassRepresentation(true, true)
+
     /** Data.Unconstr will give us a pair from data and index of the constructor.
       */
     case object ProdDataConstr extends ProductCaseClassRepresentation(true, true) {
@@ -82,6 +92,10 @@ object ProductCaseClassRepresentation {
     }
 
     case object PairIntDataList extends ProductCaseClassRepresentation(false, true)
+
+    /** Pair[Data, Data] ( unMapData will give us a pair of data elements. )
+      */
+    case object PairData extends ProductCaseClassRepresentation(false, true)
 
     case object UplcConstr extends ProductCaseClassRepresentation(false, false)
 

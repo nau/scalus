@@ -143,14 +143,15 @@ object SIRTypeUplcIntegerGenerator extends PrimitiveSirTypeGenerator {
 
     override def uplcToDataValue(input: LoweredValue, pos: SIRPosition)(using
         LoweringContext
-    ): LoweredValue =
+    ): LoweredValue = {
         lvBuiltinApply(
           SIRBuiltins.iData,
           input,
-          SIRType.Data,
+          SIRType.Integer,
           PrimitiveRepresentation.PackedData,
           pos
         )
+    }
 
     override def dataToUplcValue(input: LoweredValue, pos: SIRPosition)(using
         LoweringContext
@@ -173,7 +174,7 @@ object SIRTypeUplcByteStringGenerator extends PrimitiveSirTypeGenerator {
         lvBuiltinApply(
           SIRBuiltins.bData,
           input,
-          SIRType.Data,
+          SIRType.ByteString,
           PrimitiveRepresentation.PackedData,
           pos
         )
@@ -205,7 +206,7 @@ object SIRTypeUplcStringGenerator extends PrimitiveSirTypeGenerator {
             PrimitiveRepresentation.Constant,
             pos
           ),
-          SIRType.Data,
+          SIRType.String,
           PrimitiveRepresentation.PackedData,
           pos
         )

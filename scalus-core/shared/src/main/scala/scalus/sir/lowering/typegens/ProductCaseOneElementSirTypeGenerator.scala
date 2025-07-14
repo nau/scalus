@@ -319,10 +319,10 @@ object ProductCaseOneElementSirTypeGenerator {
         override def termInternal(gctx: TermGenerationContext): Term =
             arg.termInternal(gctx)
 
-        override def docDef(style: PrettyPrinter.Style): Doc = {
+        override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
             val left = Doc.text("ProduceCaseOneElement.Wrapped") + Doc.text("(")
             val arg1 = Doc.text(constr.name)
-            val arg2 = arg.docRef(style)
+            val arg2 = arg.docRef(ctx)
             val args = Doc.intercalate(Doc.text(", "), List(arg1, arg2)).grouped
             val right = Doc.text(")")
             args.bracketBy(left, right)
@@ -346,9 +346,9 @@ object ProductCaseOneElementSirTypeGenerator {
         override def termInternal(gctx: TermGenerationContext): Term =
             wrapper.termInternal(gctx)
 
-        override def docDef(style: PrettyPrinter.Style): Doc = {
+        override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
             val left = Doc.text("ProduceCaseOneElement.ArgProxy") + Doc.text("(")
-            val arg = wrapper.docRef(style)
+            val arg = wrapper.docRef(ctx)
             val right =
                 Doc.text(")") + Doc.text(":") + Doc.text(sirType.show) + PrettyPrinter.inBrackets(
                   repr.doc

@@ -5,6 +5,7 @@ import scalus.sir.lowering.Lowering.tpf
 import scalus.uplc.*
 import org.typelevel.paiges.Doc
 import scalus.sir.PrettyPrinter.pretty
+import scalus.sir.lowering.SumCaseClassRepresentation.SumDataList
 
 import scala.annotation.tailrec
 import scala.collection.mutable.Set as MutableSet
@@ -99,40 +100,44 @@ trait LoweredValue {
       * @param style - style of printing
       * @return
       */
-    def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc
+    def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc
 
     /** Pretty print reference to value
       * @param style - style of printing
       * @return
       */
-    def docRef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc
+    def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc
 
     def pretty: Doc = {
-        docDef(PrettyPrinter.Style.Normal)
+        val ctx = new LoweredValue.PrettyPrintingContext()
+        docDef(ctx)
     }
 
 }
 
 case class ConstantLoweredValue(
     sir: SIR.Const,
-    term: Term.Const,
     representation: LoweredValueRepresentation
 ) extends LoweredValue {
     override def sirType: SIRType = sir.tp
     override def pos: SIRPosition = sir.anns.pos
     override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
     override def usedUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
-    override def termInternal(gctx: TermGenerationContext): Term = term
+    override def termInternal(gctx: TermGenerationContext): Term =
+        Term.Const(sir.uplcConst)
     override def addDependent(value: IdentifiableLoweredValue): Unit = {
         // constants are not depended on any variables
     }
 
-    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
-        (PrettyPrinter.pretty(term, style) + Doc.text(":") + Doc.text(sirType.show) + PrettyPrinter
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+        (PrettyPrinter.pretty(Term.Const(sir.uplcConst), ctx.style) + Doc.text(":") + Doc.text(
+          sirType.show
+        ) + PrettyPrinter
             .inBrackets(representation.doc)).grouped
     }
 
-    override def docRef(style: PrettyPrinter.Style): Doc = PrettyPrinter.pretty(term, style)
+    override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc =
+        PrettyPrinter.pretty(Term.Const(sir.uplcConst), ctx.style)
 
     override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] = {
         Some(this).filter(p)
@@ -157,17 +162,17 @@ case class StaticLoweredValue(
         Some(this).filter(p)
     }
 
-    def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+    def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         import PrettyPrinter.*
         Doc.text("static") + inParens(
-          PrettyPrinter.pretty(term, style) + Doc.text(":") + Doc.text(sir.tp.show) + inBrackets(
-            Doc.text(representation.toString)
-          )
+          PrettyPrinter.pretty(term, ctx.style) + Doc.text(":") + Doc.text(
+            sir.tp.show
+          ) + inBrackets(representation.doc)
         )
     }
 
-    def docRef(style: PrettyPrinter.Style): Doc = {
-        PrettyPrinter.pretty(term, style)
+    def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+        PrettyPrinter.pretty(term, ctx.style)
     }
 
 }
@@ -292,32 +297,33 @@ class VariableLoweredValue(
             }
     }
 
-    def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+    def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         import PrettyPrinter.*
         val head = (Doc.text("var") + inParens(
           Doc.text(id) + Doc.text(":") + Doc.text(sirType.show) + inBrackets(representation.doc)
         )).grouped
-        optRhs match {
+        ctx.printedIdentifiers += id
+        val retval = optRhs match {
             case Some(rhs) =>
                 val left = head + Doc.text("(=")
                 val right = Doc.text(")")
-                rhs.docDef(style).bracketBy(left, right)
+                rhs.docDef(ctx).bracketBy(left, right)
             case None =>
                 head
         }
+        retval
     }
 
-    def docRef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
-        // TODO: get from context (?)
-        val printFullDef = true
-        if !printFullDef then Doc.text(id)
+    def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+        if ctx.printedIdentifiers.contains(id) then Doc.text(id)
         else
             optRhs match {
                 case None => Doc.text(id)
                 case Some(rhs) =>
+                    ctx.printedIdentifiers += id
                     val left = Doc.text(id) + Doc.text("(=")
                     val right = Doc.text(")")
-                    rhs.docDef(style).bracketBy(left, right)
+                    rhs.docDef(ctx).bracketBy(left, right)
             }
     }
 
@@ -355,15 +361,22 @@ case class DependendVariableLoweredValue(
 
     }
 
-    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         import PrettyPrinter.*
+        ctx.printedIdentifiers += id
         (Doc.text("depvar") + inParens(
           Doc.text(id) + Doc.text(":") + Doc.text(sirType.show) + inBrackets(representation.doc)
-        )).grouped + Doc.text("=") + rhs.docDef(style)
+        )).grouped + Doc.text("=")
+            + rhs.docDef(ctx)
     }
 
-    override def docRef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
-        Doc.text(id)
+    override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+        if ctx.printedIdentifiers.contains(id) then Doc.text(id)
+        else
+            val left = Doc.text(id) + Doc.text("(=")
+            val right = Doc.text(")")
+            ctx.printedIdentifiers += id
+            rhs.docDef(ctx).bracketBy(left, right)
     }
 
 }
@@ -396,11 +409,41 @@ trait ProxyLoweredValue(val origin: LoweredValue) extends LoweredValue {
 
      */
 
-    override def docRef(style: PrettyPrinter.Style): Doc =
-        this.docDef(style)
+    override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc =
+        this.docDef(ctx)
 
     override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] =
         origin.findSelfOrSubtems(p)
+
+}
+
+case class DelayLoweredValue(input: LoweredValue, override val pos: SIRPosition)
+    extends ProxyLoweredValue(input) {
+
+    override def termInternal(gctx: TermGenerationContext): Term = {
+        Term.Delay(input.termWithNeededVars(gctx))
+    }
+
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+        val left = Doc.text("delay") + Doc.text("(")
+        val right = Doc.text(")")
+        input.docRef(ctx).bracketBy(left, right).grouped
+    }
+
+}
+
+case class ForceLoweredValue(input: LoweredValue, override val pos: SIRPosition)
+    extends ProxyLoweredValue(input) {
+
+    override def termInternal(gctx: TermGenerationContext): Term = {
+        Term.Force(input.termWithNeededVars(gctx))
+    }
+
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+        val left = Doc.text("force") + Doc.text("(")
+        val right = Doc.text(")")
+        input.docRef(ctx).bracketBy(left, right).grouped
+    }
 
 }
 
@@ -434,8 +477,8 @@ trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: Low
 
     def retrieveSubvalues: Seq[LoweredValue] = subvalues
 
-    override def docRef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
-        this.docDef(style)
+    override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+        this.docDef(ctx)
     }
 
     override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] = {
@@ -465,7 +508,7 @@ case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, 
         Term.LamAbs(newVar.id, body.termWithNeededVars(gctx.addGeneratedVar(newVar.id)))
     }
 
-    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         import PrettyPrinter.*
         val left = Doc.text("(") +
             Doc.text("lam") & Doc.text(newVar.id) + Doc.text(":") + Doc.text(
@@ -474,7 +517,7 @@ case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, 
               representation.doc
             ) + Doc.text(".")
         val right = Doc.text(")")
-        body.docRef(style).bracketBy(left, right)
+        body.docRef(ctx).bracketBy(left, right)
     }
 
     override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] = {
@@ -516,11 +559,11 @@ case class BuilinApply1LoweredVale(
           arg.termWithNeededVars(gctx)
         )
 
-    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         import PrettyPrinter.*
         val left = Doc.text(fun.bn.name) + Doc.text("(")
         val right = Doc.text(")")
-        arg.docRef(style).bracketBy(left, right).grouped
+        arg.docRef(ctx).bracketBy(left, right).grouped
     }
 
 }
@@ -543,11 +586,11 @@ case class BuilinApply2LoweredVale(
           arg2.termWithNeededVars(gctx)
         )
 
-    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         import PrettyPrinter.*
         import Doc.*
         text(fun.bn.name) + inParens(
-          intercalate(lineOrSpace, List(arg1.docRef(style), arg2.docRef(style)))
+          intercalate(lineOrSpace, List(arg1.docRef(ctx), arg2.docRef(ctx)))
         )
     }
 
@@ -570,22 +613,20 @@ case class ApplyLoweredValue(
         )
     }
 
-    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         import PrettyPrinter.*
         import Doc.*
         ((text("App") + inParens(
-          f.docRef(style).nested(2) + lineOrSpace + arg.docRef(
-            style
-          )
+          f.docRef(ctx).nested(2) + lineOrSpace + arg.docRef(ctx)
         )) + lineOrSpace +
             text(":") + text(sirType.show) + inBrackets(
               representation.doc.nested(2)
             ) + lineOrSpace).grouped.aligned
     }
 
-    override def docRef(style: PrettyPrinter.Style): Doc = {
+    override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         (Doc.text("App") + PrettyPrinter.inParens(
-          f.docRef(style).nested(2) + Doc.lineOrSpace + arg.docRef(style).nested(2)
+          f.docRef(ctx).nested(2) + Doc.lineOrSpace + arg.docRef(ctx).nested(2)
         )).grouped
     }
 
@@ -621,18 +662,18 @@ case class LetNonRecLoweredValue(
         }
     }
 
-    override def docDef(style: PrettyPrinter.Style): Doc = {
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         import PrettyPrinter.*
 
         val bindingsDoc = bindings.map { case (v, rhs) =>
-            (v.docRef(style) + Doc.text("=") + rhs.docRef(style).nested(2)).grouped
+            (v.docRef(ctx) + Doc.text("=") + rhs.docRef(ctx).nested(2)).grouped
         }
         val left = Doc.text("let") & Doc.intercalate(
           Doc.lineOrSpace,
           bindingsDoc
         ) + Doc.text("in") + Doc.lineOrSpace
         val right = Doc.empty
-        body.docRef(style).bracketBy(left, right)
+        body.docRef(ctx).bracketBy(left, right)
     }
 
     override def addDependent(value: IdentifiableLoweredValue): Unit = {
@@ -680,14 +721,14 @@ case class LetRecLoweredValue(
     override def representation: LoweredValueRepresentation =
         body.representation
 
-    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         import PrettyPrinter.*
         val left = Doc.text("(") + Doc.text("letrec") &
-            (newVar.docRef(style) + Doc.text("=") + rhs.docRef(style).nested(2)).grouped & Doc.text(
+            (newVar.docRef(ctx) + Doc.text("=") + rhs.docRef(ctx).nested(2)).grouped & Doc.text(
               "in"
             )
         val right = Doc.text(")")
-        body.docRef(style).bracketBy(left, right)
+        body.docRef(ctx).bracketBy(left, right)
     }
 
     override def addDependent(value: IdentifiableLoweredValue): Unit = {
@@ -719,12 +760,12 @@ case class IfThenElseLoweredValue(
             ~elseBranch.termWithNeededVars(gctx))
     }
 
-    override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         import PrettyPrinter.*
         import Doc.*
-        ((text("if") + (lineOrSpace + cond.docRef(style)).nested(2)).grouped
-            + (line + text("then") + (Doc.lineOrSpace + thenBranch.docRef(style)).nested(2)).grouped
-            + (line + text("else") + (Doc.lineOrSpace + thenBranch.docRef(style)).nested(
+        ((text("if") + (lineOrSpace + cond.docRef(ctx)).nested(2)).grouped
+            + (line + text("then") + (Doc.lineOrSpace + thenBranch.docRef(ctx)).nested(2)).grouped
+            + (line + text("else") + (Doc.lineOrSpace + thenBranch.docRef(ctx)).nested(
               2
             )).grouped).aligned
     }
@@ -733,6 +774,11 @@ case class IfThenElseLoweredValue(
 
 object LoweredValue {
 
+    class PrettyPrintingContext(
+        val style: PrettyPrinter.Style = PrettyPrinter.Style.Normal,
+        var printedIdentifiers: Set[String] = Set.empty
+    )
+
     def intConstant(value: Int, pos: SIRPosition): ConstantLoweredValue = {
         ConstantLoweredValue(
           SIR.Const(
@@ -740,7 +786,6 @@ object LoweredValue {
             SIRType.Integer,
             AnnotationsDecl(pos)
           ),
-          Term.Const(Constant.Integer(value)),
           PrimitiveRepresentation.Constant
         )
     }
@@ -891,10 +936,7 @@ object LoweredValue {
                   s"lvApply: targetArgType = ${targetArgType.show}, targetArgRepresentation = $targetArgRepresentation"
                 )
                 lctx.log(
-                  s"lvApply: resRepresentation = ${resRepr.getOrElse("None")}"
-                )
-                lctx.log(
-                  s"lvApply: arg = ${arg.pretty.render(80)}"
+                  s"lvApply: resTp=${resTp.map(_.show)} resRepresentation = ${resRepr.getOrElse("None")}"
                 )
             }
 
@@ -979,31 +1021,51 @@ object LoweredValue {
                         case SIRType.TypeLambda(tps, body) => (tps, body)
                         case other                         => (List.empty, other)
                     }
+                    if lctx.debug then {
+                        lctx.log(s"lvApply: calulatedResType = ${calculatedResType.show}")
+                        lctx.log(
+                          s"lvApply: resType = ${resTps.map(_.show).mkString(", ")} =>> ${resBody.show}))"
+                        )
+                    }
                     SIRUnify.unifyType(ctBody, resBody, SIRUnify.Env.empty.withUpcasting) match {
                         case SIRUnify.UnificationSuccess(env, tp) =>
                             // tp is ok, now try get typevars only from resultedSize
-                            val ctResTree = ctRes.filterNot(env.filledTypes.contains)
+                            if lctx.debug then {
+                                println(
+                                  s"lvApply: env filledTypes keys = ${env.filledTypes.keys.map(_.show)}"
+                                )
+                                println(
+                                  s"lvApply: env eqTypes keys = ${env.eqTypes.keys.map(_.show)}"
+                                )
+                            }
+
+                            val ctResFree = ctRes.filterNot(env.filledTypes.contains)
                             val resTpsFree = resTps.filterNot(tv =>
                                 env.filledTypes.contains(tv) || env.eqTypes.contains(tv)
                             )
-                            val resEqSubst = resTpsFree
+                            val resEqSubst = resTps
                                 .flatMap(tv =>
                                     env.eqTypes
                                         .get(tv)
-                                        .flatMap { s =>
-                                            s.find(v =>
-                                                ctResTree.contains(v)
-                                                    ||
-                                                        !resTps.contains(v)
-                                            ).map(x => (tv, x))
+                                        .flatMap { eqSet =>
+                                            eqSet
+                                                .find(v => ctResFree.contains(v))
+                                                .orElse(eqSet.find(v => !resTps.contains(v)))
+                                                .map(x => (tv, x))
                                         }
                                 )
                                 .toMap
+                            if lctx.debug then {
+                                lctx.log(
+                                  s"lvApply: resEqSubst = ${resEqSubst.map { case (k, v) => s"${k.show} -> ${v.show}" }.mkString(", ")}"
+                                )
+                            }
+
                             val renamingContext =
                                 RenamingTypeVars.makeContext(resEqSubst, tvGen)
                             val ntp = RenamingTypeVars.inType(tp, renamingContext)
                             val (grounded, ungrounded) =
-                                SIRType.partitionGround(ctResTree ++ resTpsFree, ntp)
+                                SIRType.partitionGround(ctResFree ++ resTpsFree, ntp)
                             if grounded.nonEmpty then SIRType.TypeLambda(grounded, ntp) else ntp
                         case failure @ SIRUnify.UnificationFailure(path, l, r) =>
                             throw LoweringException(
@@ -1027,7 +1089,7 @@ object LoweredValue {
             val applied = ApplyLoweredValue(
               f,
               argInTargetRepresentation,
-              calculatedResType,
+              resType,
               calculatedResRepr,
               inPos
             )
@@ -1036,8 +1098,18 @@ object LoweredValue {
                 if SIRType.isPolyFunOrFun(resType) then
                     if lctx.debug then {
                         lctx.log(
-                          s"lvApply: aligning type arguments and representations for resType = ${resType.show}"
+                          s"lvApply: aligning type arguments and representations for resType = ${resType.show} representation = ${resRepr.getOrElse("None")}"
                         )
+                        lctx.log(
+                          s"resTp=${resTp.map(_.show)}, calculatedResType = ${calculatedResType.show}"
+                        )
+                        lctx.log(
+                          s"lvApply: applied type = ${applied.sirType.show}, representation = ${applied.representation.doc.render(100)}"
+                        )
+                        lctx.log(
+                          s"lvApply: applied = ${applied.pretty.render(100)}"
+                        )
+
                     }
                     val resRepresentation = resRepr.getOrElse(
                       lctx.typeGenerator(resType).defaultRepresentation(resType)
@@ -1188,7 +1260,6 @@ object LoweredValue {
         )(using lctx: LoweringContext): ConstantLoweredValue = {
             ConstantLoweredValue(
               SIR.Const(Constant.Integer(value), SIRType.Integer, AnnotationsDecl(pos)),
-              Term.Const(Constant.Integer(value)),
               PrimitiveRepresentation.Constant
             )
         }
@@ -1198,7 +1269,15 @@ object LoweredValue {
         ): ConstantLoweredValue = {
             ConstantLoweredValue(
               SIR.Const(Constant.Bool(value), SIRType.Boolean, AnnotationsDecl(pos)),
-              Term.Const(Constant.Bool(value)),
+              PrimitiveRepresentation.Constant
+            )
+        }
+
+        def lvStringConstant(value: String, pos: SIRPosition)(using
+            lctx: LoweringContext
+        ): ConstantLoweredValue = {
+            ConstantLoweredValue(
+              SIR.Const(Constant.String(value), SIRType.String, AnnotationsDecl(pos)),
               PrimitiveRepresentation.Constant
             )
         }
@@ -1223,8 +1302,8 @@ object LoweredValue {
         ): LoweredValue = {
             lvBuiltinApply0(
               SIRBuiltins.mkNilData,
-              SIRType.Data,
-              PrimitiveRepresentation.PackedData,
+              SIRType.List(SIRType.Data),
+              SumDataList,
               inPos
             )
         }
@@ -1315,6 +1394,56 @@ object LoweredValue {
                         castedValue(printWarning = printWarning)
             }
 
+        }
+
+        def lvLetRec(
+            name: String,
+            tp: SIRType,
+            repr: LoweredValueRepresentation,
+            rhs: LoweringContext ?=> IdentifiableLoweredValue => LoweredValue,
+            body: LoweringContext ?=> IdentifiableLoweredValue => LoweredValue,
+            inPos: SIRPosition
+        )(using
+            lctx: LoweringContext
+        ): LetRecLoweredValue = {
+            val id = lctx.uniqueVarName(name)
+            val newVar = new VariableLoweredValue(
+              id = id,
+              name = name,
+              sir = SIR.Var(name, tp, AnnotationsDecl(inPos)),
+              representation = repr
+            )
+            LetRecLoweredValue(
+              newVar,
+              rhs(newVar),
+              body(newVar),
+              inPos
+            )
+        }
+
+        def lvDelay(
+            value: LoweredValue,
+            inPos: SIRPosition
+        )(using lctx: LoweringContext): LoweredValue = {
+            DelayLoweredValue(value, inPos)
+        }
+
+        def lvForce(
+            value: LoweredValue,
+            inPos: SIRPosition
+        )(using lctx: LoweringContext): LoweredValue = {
+            ForceLoweredValue(value, inPos)
+        }
+
+        def lvTrace(message: String, value: LoweredValue)(using LoweringContext): LoweredValue = {
+            lvBuiltinApply2(
+              SIRBuiltins.trace,
+              lvStringConstant(message, AnnotationsDecl.empty.pos),
+              value,
+              value.sirType,
+              value.representation,
+              AnnotationsDecl.empty.pos
+            )
         }
 
     }

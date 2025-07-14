@@ -237,19 +237,21 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
     }
 
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
-         targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
-         generateErrorTraces = true,
-         optimizeUplc = true,
-         debug = true
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+      debug = true
     )
-            
 
     private val script = {
         try {
             val sir = compile(PaymentSplitter.validate)
-            // println(s"sir=${sir.pretty.render(100)}")
-            val uplc = sir.toUplc(generateErrorTraces = true)
-            // println(s"uplc=${uplc.pretty.render(100)}")
+            println(s"sir=${sir.pretty.render(100)}")
+            val uplc = sir.toUplc(
+              generateErrorTraces = true,
+              backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
+            )   
+            println(s"uplc=${uplc.pretty.render(100)}")
             uplc.plutusV3
         } catch {
             case NonFatal(ex) =>

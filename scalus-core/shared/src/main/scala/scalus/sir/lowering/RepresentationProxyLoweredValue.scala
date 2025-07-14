@@ -12,8 +12,8 @@ abstract class BaseRepresentationProxyLoweredValue(
 
     override def sirType: SIRType = input.sirType
 
-    override def docRef(style: PrettyPrinter.Style): Doc = {
-        docDef(style)
+    override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+        docDef(ctx)
     }
 }
 
@@ -36,16 +36,12 @@ final class RepresentationProxyLoweredValue(
     override def termInternal(gctx: TermGenerationContext): Term =
         input.termInternal(gctx)
 
-    override def docDef(style: PrettyPrinter.Style): Doc = {
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         val left = Doc.text("repr.proxy") + Doc.text("(")
         val right = PrettyPrinter.inBrackets(
           representation.doc
         ) + Doc.text(")")
-        input.docRef(style).bracketBy(left, right)
-    }
-
-    override def docRef(style: PrettyPrinter.Style): Doc = {
-        docDef(style)
+        input.docRef(ctx).bracketBy(left, right)
     }
 
 }
@@ -66,16 +62,16 @@ final class TypeRepresentationProxyLoweredValue(
     override def termInternal(gctx: TermGenerationContext): Term =
         input.termInternal(gctx)
 
-    override def docDef(style: PrettyPrinter.Style): Doc = {
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
         val left = Doc.text("cast.repr.proxy") + Doc.text("(")
         val right = Doc.text(":") + Doc.text(sirType.show) + PrettyPrinter.inBrackets(
           representation.doc
         ) + Doc.text(")")
-        input.docRef(style).bracketBy(left, right)
+        input.docRef(ctx).bracketBy(left, right)
     }
 
-    override def docRef(style: PrettyPrinter.Style): Doc = {
-        docDef(style)
+    override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+        docDef(ctx)
     }
 
 }
