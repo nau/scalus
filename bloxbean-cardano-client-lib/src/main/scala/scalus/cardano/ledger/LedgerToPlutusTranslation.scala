@@ -278,7 +278,7 @@ object LedgerToPlutusTranslation {
                         assetName -> BigInt(amount)
                     }
                     .sortBy(_._1)
-                AssocMap(prelude.List.from(assetMap))
+                AssocMap.unsafeFromList(prelude.List.from(assetMap))
             }
             .toArray
             .sortBy(_._1)
@@ -292,7 +292,7 @@ object LedgerToPlutusTranslation {
             else Seq.empty
 
         val allEntries = adaEntry ++ policyMap.map((pid, assets) => (pid, assets))
-        prelude.AssocMap(prelude.List.from(allEntries))
+        prelude.AssocMap.unsafeFromList(prelude.List.from(allEntries))
     }
 
     /** Convert multi-asset values for minting context.
@@ -319,7 +319,7 @@ object LedgerToPlutusTranslation {
                     }
                     .toSeq
                     .sortBy(_._1.toHex)
-                AssocMap(prelude.List.from(assetMap))
+                AssocMap.unsafeFromList(prelude.List.from(assetMap))
             }
             .toSeq
             .sortBy(_._1.toHex)
@@ -328,7 +328,7 @@ object LedgerToPlutusTranslation {
         val adaEntry = (ByteString.empty, AssocMap.singleton(ByteString.empty, BigInt(0)))
         val allEntries = adaEntry +: policyMap.map((pid, assets) => (pid, assets))
 
-        prelude.AssocMap(prelude.List.from(allEntries))
+        prelude.AssocMap.unsafeFromList(prelude.List.from(allEntries))
     }
 
     /** Create TxOut for Plutus V1 script contexts.
@@ -653,7 +653,7 @@ object LedgerToPlutusTranslation {
           fee = v1.Value.lovelace(body.fee.value),
           mint = getMintValue(body.mint),
           dcert = prelude.List.from(body.certificates.toSeq.map(getDCert)),
-          withdrawals = AssocMap(getWithdrawals(body.withdrawals)),
+          withdrawals = AssocMap.unsafeFromList(getWithdrawals(body.withdrawals)),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
             body.requiredSigners
@@ -661,11 +661,11 @@ object LedgerToPlutusTranslation {
                 .sorted
                 .map(hash => v1.PubKeyHash(hash))
           ),
-          redeemers = AssocMap(prelude.List.from(redeemers.sorted.map { redeemer =>
+          redeemers = AssocMap.unsafeFromList(prelude.List.from(redeemers.sorted.map { redeemer =>
               val purpose = getScriptPurposeV2(tx, redeemer)
               purpose -> redeemer.data
           })),
-          data = AssocMap(prelude.List.from(datums.sortBy(_._1.toHex))),
+          data = AssocMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1.toHex))),
           id = v1.TxId(tx.id)
         )
     }
@@ -713,7 +713,7 @@ object LedgerToPlutusTranslation {
           fee = body.fee.value,
           mint = getMintValue(body.mint),
           certificates = prelude.List.from(body.certificates.toSeq.map(getTxCertV3)),
-          withdrawals = AssocMap(withdrawals),
+          withdrawals = AssocMap.unsafeFromList(withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
             body.requiredSigners
@@ -721,11 +721,11 @@ object LedgerToPlutusTranslation {
                 .sorted
                 .map(hash => v1.PubKeyHash(hash))
           ),
-          redeemers = AssocMap(prelude.List.from(redeemers.sorted.map { redeemer =>
+          redeemers = AssocMap.unsafeFromList(prelude.List.from(redeemers.sorted.map { redeemer =>
               val purpose = getScriptPurposeV3(tx, redeemer)
               purpose -> redeemer.data
           })),
-          data = AssocMap(prelude.List.from(datums.sortBy(_._1.toHex))),
+          data = AssocMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1.toHex))),
           id = v3.TxId(tx.id),
           votes = getVotingProcedures(body.votingProcedures),
           proposalProcedures =
@@ -902,7 +902,7 @@ object LedgerToPlutusTranslation {
                     getAddress(account.address).credential -> BigInt(coin.value)
                 }.toSeq
                 v3.GovernanceAction.TreasuryWithdrawals(
-                  withdrawals = AssocMap(prelude.List.from(wdwls)),
+                  withdrawals = AssocMap.unsafeFromList(prelude.List.from(wdwls)),
                   constitutionScript = policy
                       .map(p => prelude.Option.Some(p))
                       .getOrElse(prelude.Option.None)
@@ -924,8 +924,9 @@ object LedgerToPlutusTranslation {
                       .map(id => prelude.Option.Some(getGovActionId(id)))
                       .getOrElse(prelude.Option.None),
                   removedMembers = prelude.List.from(membersToRemove.toSeq.map(getCredential)),
-                  addedMembers = AssocMap(prelude.List.from(membersToAdd.map { case (cred, epoch) =>
-                      getCredential(cred) -> BigInt(epoch)
+                  addedMembers = AssocMap.unsafeFromList(prelude.List.from(membersToAdd.map {
+                      case (cred, epoch) =>
+                          getCredential(cred) -> BigInt(epoch)
                   }.toSeq)),
                   newQuorum =
                       prelude.Rational(BigInt(newQuorum.numerator), BigInt(newQuorum.denominator))
@@ -979,10 +980,10 @@ object LedgerToPlutusTranslation {
         votingProcs match
             case None => AssocMap.empty
             case Some(vp) =>
-                AssocMap(
+                AssocMap.unsafeFromList(
                   prelude.List.from(
                     vp.procedures.toArray.sortBy(_._1.toString).map { case (voter, procedures) =>
-                        getVoterV3(voter) -> AssocMap(
+                        getVoterV3(voter) -> AssocMap.unsafeFromList(
                           prelude.List.from(
                             procedures.toSeq.sortBy(_._1.toString).map {
                                 case (govActionId, procedure) =>

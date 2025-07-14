@@ -53,6 +53,8 @@ val Eq: EqCompanion.type = EqCompanion
 
 @Compile
 object EqCompanion:
+    def apply[A: Eq]: Eq[A] = summon[Eq[A]]
+
     def by[A, B: Eq](mapper: A => B): Eq[A] = (lhs: A, rhs: A) => mapper(lhs) === mapper(rhs)
 
     extension [A](self: Eq[A])
@@ -81,6 +83,8 @@ val Ord: OrdCompanion.type = OrdCompanion
 
 @Compile
 object OrdCompanion:
+    def apply[A: Ord]: Ord[A] = summon[Ord[A]]
+
     enum Order:
         case Less, Greater, Equal
 
@@ -468,6 +472,15 @@ object List:
             if ls.isEmpty then List.Nil
             else new List.Cons(fromData[A](ls.head), loop(ls.tail))
         loop(unListData(d))
+
+    extension [A: Ord](self: List[A])
+        def quicksort: List[A] =
+            self match
+                case List.Nil => List.Nil
+                case List.Cons(head, tail) =>
+                    val before = tail.filter { elem => (elem <=> head).isLess }.quicksort
+                    val after = tail.filter { elem => !(elem <=> head).isLess }.quicksort
+                    before ++ after.prepended(head)
 
     extension [A](self: List[A])
         inline def !!(idx: BigInt): A = self.at(idx)
@@ -979,7 +992,7 @@ object List:
                 else Cons(elem, acc)
             }.reverse
 
-        // @tailrec
+        @tailrec
         def difference[B >: A](other: List[B])(using eq: Eq[B]): List[A] = {
             if self.isEmpty then Nil
             else
@@ -1244,30 +1257,34 @@ case class AssocMap[A, B](toList: List[(A, B)])
 object AssocMap {
     import List.*
     import Option.*
+
+    def pairEq[A: Eq, B]: Eq[(A, B)] = (pair1, pair2) => summon[Eq[A]](pair1._1, pair2._1)
+
     def empty[A, B]: AssocMap[A, B] = AssocMap(List.empty[(A, B)])
     def singleton[A, B](key: A, value: B): AssocMap[A, B] = AssocMap(List.single((key, value)))
-    def fromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
+    inline def unsafeFromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
+    def fromList[A: Eq, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst.unique(using pairEq))
 
-    given AssocMapFromData[A: FromData, B: FromData]: FromData[AssocMap[A, B]] =
+    given AssocMapFromData[A: FromData: Eq, B: FromData]: FromData[AssocMap[A, B]] =
         (d: Data) =>
             def loop(
                 ls: scalus.builtin.List[scalus.builtin.Pair[Data, Data]]
             ): scalus.prelude.List[(A, B)] =
-                if ls.isEmpty then List.Nil
+                if ls.isEmpty then Nil
                 else
                     val pair = ls.head
-                    new List.Cons(
+                    Cons(
                       (fromData[A](pair.fst), fromData[B](pair.snd)),
                       loop(ls.tail)
                     )
-            AssocMap.fromList(loop(unMapData(d)))
+            AssocMap.unsafeFromList(loop(unMapData(d)))
 
     given assocMapToData[A: ToData, B: ToData]: ToData[AssocMap[A, B]] =
         (a: AssocMap[A, B]) => {
             def go(a: List[(A, B)]): scalus.builtin.List[scalus.builtin.Pair[Data, Data]] =
                 a match {
-                    case List.Nil => mkNilPairData()
-                    case List.Cons(tuple, tail) =>
+                    case Nil => mkNilPairData()
+                    case Cons(tuple, tail) =>
                         tuple match {
                             case (a, b) =>
                                 mkCons(
@@ -1304,9 +1321,9 @@ object AssocMap {
         def find(predicate: ((A, B)) => Boolean): Option[(A, B)] = {
             @tailrec
             def go(lst: List[(A, B)]): Option[(A, B)] = lst match
-                case Nil => Option.None
+                case Nil => None
                 case Cons(pair, tail) =>
-                    if predicate(pair) then Option.Some(pair) else go(tail)
+                    if predicate(pair) then Some(pair) else go(tail)
 
             go(self.toList)
         }
@@ -1335,10 +1352,10 @@ object AssocMap {
         def get(key: A): Option[B] = {
             @tailrec
             def go(lst: List[(A, B)]): Option[B] = lst match
-                case Nil => Option.None
+                case Nil => None
                 case Cons(pair, tail) =>
                     pair match
-                        case (k, v) => if k === key then Option.Some(v) else go(tail)
+                        case (k, v) => if k === key then Some(v) else go(tail)
 
             go(self.toList)
         }
@@ -1346,30 +1363,30 @@ object AssocMap {
         inline def getOrFail(key: A, inline message: String = "None.getOrFail"): B =
             get(key).getOrFail(message)
 
-        def contains(key: A): Boolean = self.get(key).isDefined
+        def contains(key: A): Boolean = get(key).isDefined
 
         @deprecated("Use `get` instead")
         def lookup(key: A): Option[B] = get(key)
 
         def insert(key: A, value: B): AssocMap[A, B] = {
             def go(lst: List[(A, B)]): List[(A, B)] = lst match
-                case Nil => List.Cons((key, value), List.Nil)
+                case Nil => Cons((key, value), Nil)
                 case Cons(pair, tail) =>
                     pair match
                         case (k, v) =>
-                            if k === key then List.Cons((key, value), tail)
-                            else List.Cons(pair, go(tail))
+                            if k === key then Cons((key, value), tail)
+                            else Cons(pair, go(tail))
 
             AssocMap(go(self.toList))
         }
 
         def delete(key: A): AssocMap[A, B] = {
             def go(lst: List[(A, B)]): List[(A, B)] = lst match
-                case Nil => List.Nil
+                case Nil => Nil
                 case Cons(pair, tail) =>
                     pair match
                         case (k, v) =>
-                            if k === key then tail else List.Cons(pair, go(tail))
+                            if k === key then tail else Cons(pair, go(tail))
 
             AssocMap(go(self.toList))
         }
@@ -1379,7 +1396,7 @@ object AssocMap {
         rhs: AssocMap[A, C]
     ): AssocMap[A, These[B, C]] = {
         def go(lst: List[(A, B)]): List[(A, These[B, C])] = lst match
-            case Nil => List.Nil
+            case Nil => Nil
             case Cons(pair, tail) =>
                 pair match
                     case (k, v) =>
@@ -1405,6 +1422,213 @@ object AssocMap {
                     case None           => false
                     case Some(rhsValue) => lhsValue === rhsValue
             }
+}
+
+case class SortedMap[A, B](toList: List[(A, B)])
+
+@Compile
+object SortedMap {
+    import List.*
+    import Option.*
+
+    def pairEq[A: Ord, B]: Eq[(A, B)] = (pair1, pair2) => pairOrd.compare(pair1, pair2).isEqual
+    def pairOrd[A: Ord, B]: Ord[(A, B)] = (pair1, pair2) => Ord[A].compare(pair1._1, pair2._1)
+
+    def empty[A, B]: SortedMap[A, B] = SortedMap(List.empty[(A, B)])
+    def singleton[A, B](key: A, value: B): SortedMap[A, B] = SortedMap(List.single((key, value)))
+    inline def unsafeFromList[A, B](lst: List[(A, B)]): SortedMap[A, B] = SortedMap(lst)
+
+    def fromList[A: Ord, B](lst: List[(A, B)]): SortedMap[A, B] = SortedMap(
+      lst.unique(using pairEq).quicksort(using pairOrd)
+    )
+
+    def union[A: Ord, B, C](
+        lhs: SortedMap[A, B],
+        rhs: SortedMap[A, C]
+    ): SortedMap[A, These[B, C]] = {
+        def go(
+            lhs: List[(A, B)],
+            rhs: List[(A, C)]
+        ): List[(A, These[B, C])] = lhs match
+            case Nil =>
+                rhs match
+                    case Nil => Nil
+                    case Cons(rhsPair, rhsTail) =>
+                        Cons((rhsPair._1, These.That(rhsPair._2)), go(Nil, rhsTail))
+            case Cons(lhsPair, lhsTail) =>
+                rhs match
+                    case Nil => Cons((lhsPair._1, These.This(lhsPair._2)), go(lhsTail, Nil))
+                    case Cons(rhsPair, rhsTail) =>
+                        lhsPair match
+                            case (lhsKey, lhsValue) =>
+                                rhsPair match
+                                    case (rhsKey, rhsValue) =>
+                                        lhsKey <=> rhsKey match
+                                            case Order.Equal =>
+                                                Cons(
+                                                  (lhsKey, These.These(lhsValue, rhsValue)),
+                                                  go(lhsTail, rhsTail)
+                                                )
+                                            case Order.Less =>
+                                                Cons(
+                                                  (lhsKey, These.This(lhsValue)),
+                                                  go(lhsTail, rhs)
+                                                )
+                                            case Order.Greater =>
+                                                Cons(
+                                                  (rhsKey, These.That(rhsValue)),
+                                                  go(lhs, rhsTail)
+                                                )
+
+        SortedMap(go(lhs.toList, rhs.toList))
+    }
+
+    given sortedMapEq[A: Ord, B: Eq]: Eq[SortedMap[A, B]] =
+        (lhs: SortedMap[A, B], rhs: SortedMap[A, B]) =>
+            import Eq.given
+            given Eq[A] = Ord[A].compare(_, _).isEqual
+            lhs.toList === rhs.toList
+
+    given sortedMapOrd[A: Ord, B: Ord]: Ord[SortedMap[A, B]] =
+        (lhs: SortedMap[A, B], rhs: SortedMap[A, B]) =>
+            import Ord.given
+            lhs.toList <=> rhs.toList
+
+    given sortedMapFromData[A: FromData, B: FromData]: FromData[SortedMap[A, B]] =
+        (d: Data) =>
+            def loop(
+                ls: scalus.builtin.List[scalus.builtin.Pair[Data, Data]]
+            ): scalus.prelude.List[(A, B)] =
+                if ls.isEmpty then Nil
+                else
+                    val pair = ls.head
+                    Cons(
+                      (fromData[A](pair.fst), fromData[B](pair.snd)),
+                      loop(ls.tail)
+                    )
+            SortedMap.unsafeFromList(loop(unMapData(d)))
+
+    given sortedMapToData[A: ToData, B: ToData]: ToData[SortedMap[A, B]] =
+        (a: SortedMap[A, B]) => {
+            def go(a: List[(A, B)]): scalus.builtin.List[scalus.builtin.Pair[Data, Data]] =
+                a match {
+                    case Nil => mkNilPairData()
+                    case Cons(tuple, tail) =>
+                        tuple match {
+                            case (a, b) =>
+                                mkCons(
+                                  scalus.builtin.Pair(summon[ToData[A]](a), summon[ToData[B]](b)),
+                                  go(tail)
+                                )
+                        }
+                }
+
+            mapData(go(a.toList))
+        }
+
+    extension [A, B](self: SortedMap[A, B])
+        inline def isEmpty: Boolean = self.toList.isEmpty
+        inline def nonEmpty: Boolean = self.toList.nonEmpty
+        inline def length: BigInt = self.toList.length
+        inline def size: BigInt = length
+        def keys: List[A] = self.toList.map { case (k, _) => k }
+        def values: List[B] = self.toList.map { case (_, v) => v }
+        def forall(f: ((A, B)) => Boolean): Boolean = self.toList.forall(f)
+        def exists(f: ((A, B)) => Boolean): Boolean = self.toList.exists(f)
+
+        def mapValues[C](f: B => C): SortedMap[A, C] = SortedMap(
+          self.toList.map((k, v) => (k, f(v)))
+        )
+
+        def filterKeys(predicate: A => Boolean): SortedMap[A, B] =
+            SortedMap(self.toList.filter { case (k, _) =>
+                predicate(k)
+            })
+
+        def filter(predicate: ((A, B)) => Boolean): SortedMap[A, B] =
+            SortedMap(self.toList.filter(predicate))
+
+        def filterNot(predicate: ((A, B)) => Boolean): SortedMap[A, B] =
+            SortedMap(self.toList.filterNot(predicate))
+
+        def find(predicate: ((A, B)) => Boolean): Option[(A, B)] = {
+            @tailrec
+            def go(lst: List[(A, B)]): Option[(A, B)] = lst match
+                case Nil => None
+                case Cons(pair, tail) =>
+                    if predicate(pair) then Some(pair) else go(tail)
+
+            go(self.toList)
+        }
+
+        inline def findOrFail(
+            predicate: ((A, B)) => Boolean,
+            inline message: String = "None.findOrFail"
+        ): (A, B) =
+            find(predicate).getOrFail(message)
+
+        def foldLeft[C](init: C)(combiner: (C, (A, B)) => C): C =
+            self.toList.foldLeft(init) { (acc, pair) => combiner(acc, pair) }
+
+        def foldRight[C](init: C)(combiner: ((A, B), C) => C): C =
+            self.toList.foldRight(init) { (pair, acc) => combiner(pair, acc) }
+
+    extension [A: Ord, B](self: SortedMap[A, B])
+        /** Optionally returns the value associated with a key.
+          *
+          * @param key
+          *   the key value
+          * @return
+          *   an option value containing the value associated with `key` in this map, or `None` if
+          *   none exists.
+          */
+        def get(key: A): Option[B] = {
+            @tailrec
+            def go(lst: List[(A, B)]): Option[B] = lst match
+                case Nil => None
+                case Cons(pair, tail) =>
+                    pair match
+                        case (k, v) =>
+                            k <=> key match
+                                case Order.Equal   => Some(v)
+                                case Order.Less    => go(tail)
+                                case Order.Greater => None
+
+            go(self.toList)
+        }
+
+        inline def getOrFail(key: A, inline message: String = "None.getOrFail"): B =
+            get(key).getOrFail(message)
+
+        def contains(key: A): Boolean = get(key).isDefined
+
+        def insert(key: A, value: B): SortedMap[A, B] = {
+            def go(lst: List[(A, B)]): List[(A, B)] = lst match
+                case Nil => single(key, value)
+                case Cons(pair, tail) =>
+                    pair match
+                        case (k, v) =>
+                            k <=> key match
+                                case Order.Equal   => Cons((key, value), tail)
+                                case Order.Less    => Cons(pair, go(tail))
+                                case Order.Greater => Cons((key, value), lst)
+
+            SortedMap(go(self.toList))
+        }
+
+        def delete(key: A): SortedMap[A, B] = {
+            def go(lst: List[(A, B)]): List[(A, B)] = lst match
+                case Nil => Nil
+                case Cons(pair, tail) =>
+                    pair match
+                        case (k, v) =>
+                            k <=> key match
+                                case Order.Equal   => tail
+                                case Order.Less    => Cons(pair, go(tail))
+                                case Order.Greater => lst
+
+            SortedMap(go(self.toList))
+        }
 }
 
 case class Rational(numerator: BigInt, denominator: BigInt)
