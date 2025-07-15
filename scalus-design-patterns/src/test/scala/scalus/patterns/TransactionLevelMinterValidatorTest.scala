@@ -12,11 +12,11 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
     test("success spend") {
         val minterScriptHash = genByteStringOfN(28).sample.get
         val minterRedeemerValidator = (redeemer: Redeemer) => true
-        val minterTokensValidator = (tokens: AssocMap[TokenName, BigInt]) => true
+        val minterTokensValidator = (tokens: SortedMap[TokenName, BigInt]) => true
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = AssocMap.singleton(minterScriptHash, AssocMap.empty),
+          mint = SortedMap.singleton(minterScriptHash, SortedMap.empty),
           redeemers = AssocMap.singleton(ScriptPurpose.Minting(minterScriptHash), Data.unit),
           id = random[TxId]
         )
@@ -34,11 +34,11 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
     test("failed spend with missing redeemer") {
         val minterScriptHash = genByteStringOfN(28).sample.get
         val minterRedeemerValidator = (redeemer: Redeemer) => true
-        val minterTokensValidator = (tokens: AssocMap[TokenName, BigInt]) => true
+        val minterTokensValidator = (tokens: SortedMap[TokenName, BigInt]) => true
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = AssocMap.singleton(minterScriptHash, AssocMap.empty),
+          mint = SortedMap.singleton(minterScriptHash, SortedMap.empty),
           redeemers = AssocMap.empty,
           id = random[TxId]
         )
@@ -58,11 +58,11 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
     test("failed spend with minter redeemer validator failed") {
         val minterScriptHash = genByteStringOfN(28).sample.get
         val minterRedeemerValidator = (redeemer: Redeemer) => false
-        val minterTokensValidator = (tokens: AssocMap[TokenName, BigInt]) => true
+        val minterTokensValidator = (tokens: SortedMap[TokenName, BigInt]) => true
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = AssocMap.singleton(minterScriptHash, AssocMap.empty),
+          mint = SortedMap.singleton(minterScriptHash, SortedMap.empty),
           redeemers = AssocMap.singleton(ScriptPurpose.Minting(minterScriptHash), Data.unit),
           id = random[TxId]
         )
@@ -84,11 +84,11 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
     test("failed spend with minter tokens validator failed") {
         val minterScriptHash = genByteStringOfN(28).sample.get
         val minterRedeemerValidator = (redeemer: Redeemer) => true
-        val minterTokensValidator = (tokens: AssocMap[TokenName, BigInt]) => false
+        val minterTokensValidator = (tokens: SortedMap[TokenName, BigInt]) => false
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = AssocMap.singleton(minterScriptHash, AssocMap.empty),
+          mint = SortedMap.singleton(minterScriptHash, SortedMap.empty),
           redeemers = AssocMap.singleton(ScriptPurpose.Minting(minterScriptHash), Data.unit),
           id = random[TxId]
         )
@@ -110,7 +110,7 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = AssocMap.singleton(minterScriptHash, AssocMap.empty),
+          mint = SortedMap.singleton(minterScriptHash, SortedMap.empty),
           redeemers = AssocMap.empty,
           id = random[TxId]
         )
@@ -128,7 +128,7 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = AssocMap.empty,
+          mint = SortedMap.empty,
           redeemers = AssocMap.empty,
           id = random[TxId]
         )

@@ -4,7 +4,8 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
 import scalus.builtin.ByteString
-import scalus.prelude.{AssocMap, List, Option, Ord, given}
+import scalus.prelude.{List, Option, Ord, SortedMap, given}
+import scalus.prelude.Ord.given
 import scalus.testutil.ArbitraryDerivation.autoDerived
 import scalus.uplc.test
 
@@ -67,8 +68,8 @@ trait ArbitraryInstances extends test.ArbitraryInstances {
         policyId <- genPolicyId
         tokens <- Gen.listOf(genToken)
     yield
-        val assets = AssocMap.fromList(List.from(tokens))
-        AssocMap.fromList(List((policyId, assets)))
+        val assets = SortedMap.fromList(List.from(tokens))
+        SortedMap.fromList(List((policyId, assets)))
 
     def genLovelace: Gen[Value] = genAmount.map(Value.lovelace)
 

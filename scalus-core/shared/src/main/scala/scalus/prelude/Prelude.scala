@@ -135,6 +135,11 @@ object OrdCompanion:
 
     end extension
 
+    given Ord[ByteString] = (x: ByteString, y: ByteString) =>
+        if lessThanByteString(x, y) then Less
+        else if equalsByteString(x, y) then Equal
+        else Greater
+
     given Ord[BigInt] = (x: BigInt, y: BigInt) =>
         if lessThanInteger(x, y) then Less else if lessThanInteger(y, x) then Greater else Equal
 
