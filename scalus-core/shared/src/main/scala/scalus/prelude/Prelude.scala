@@ -1263,12 +1263,16 @@ object AssocMap {
     import List.*
     import Option.*
 
-    def pairEq[A: Eq, B]: Eq[(A, B)] = (pair1, pair2) => summon[Eq[A]](pair1._1, pair2._1)
-
     def empty[A, B]: AssocMap[A, B] = AssocMap(List.empty[(A, B)])
     def singleton[A, B](key: A, value: B): AssocMap[A, B] = AssocMap(List.single((key, value)))
     inline def unsafeFromList[A, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst)
-    def fromList[A: Eq, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(lst.unique(using pairEq))
+
+    def fromList[A: Eq, B](lst: List[(A, B)]): AssocMap[A, B] = AssocMap(
+      lst.foldLeft(List.empty) { (acc, elem) =>
+          if acc.exists(_._1 === elem._1) then acc
+          else Cons(elem, acc)
+      }
+    )
 
     given AssocMapFromData[A: FromData: Eq, B: FromData]: FromData[AssocMap[A, B]] =
         (d: Data) =>
@@ -1429,23 +1433,63 @@ object AssocMap {
             }
 }
 
-case class SortedMap[A, B](toList: List[(A, B)])
+/** Alternative to `scala.collection.immutable.SortedMap` in onchain code.
+  * @tparam A
+  *   the type of keys, must be an instance of `Ord`
+  * @tparam B
+  *   the type of values
+  */
+case class SortedMap[A, B] private (toList: List[(A, B)])
 
 @Compile
 object SortedMap {
     import List.*
     import Option.*
 
-    def pairEq[A: Ord, B]: Eq[(A, B)] = (pair1, pair2) => pairOrd.compare(pair1, pair2).isEqual
-    def pairOrd[A: Ord, B]: Ord[(A, B)] = (pair1, pair2) => Ord[A].compare(pair1._1, pair2._1)
-
+    /** Constructs an empty `SortedMap`.
+      */
     def empty[A, B]: SortedMap[A, B] = SortedMap(List.empty[(A, B)])
-    def singleton[A, B](key: A, value: B): SortedMap[A, B] = SortedMap(List.single((key, value)))
+
+    def singleton[A, B](key: A, value: B): SortedMap[A, B] = SortedMap(
+      List.single((key, value))
+    )
     inline def unsafeFromList[A, B](lst: List[(A, B)]): SortedMap[A, B] = SortedMap(lst)
 
-    def fromList[A: Ord, B](lst: List[(A, B)]): SortedMap[A, B] = SortedMap(
-      lst.unique(using pairEq).quicksort(using pairOrd)
-    )
+    def fromList[A: Ord, B](lst: List[(A, B)]): SortedMap[A, B] = {
+        def insertIfDoesNotExist(lst: List[(A, B)], key: A, value: B): List[(A, B)] = lst match
+            case Nil => single(key, value)
+            case Cons(pair, tail) =>
+                pair match
+                    case (k, v) =>
+                        key <=> k match
+                            case Order.Less    => Cons((key, value), lst)
+                            case Order.Greater => Cons(pair, insertIfDoesNotExist(tail, key, value))
+                            case Order.Equal   => lst
+
+        SortedMap(
+          lst.foldLeft(List.empty) { (acc, pair) => insertIfDoesNotExist(acc, pair._1, pair._2) }
+        )
+    }
+
+    def fromStrictlyAscendingList[A: Ord, B](
+        lst: List[(A, B)]
+    ): SortedMap[A, B] = {
+        @tailrec
+        def checkStrictlyAscendingOrder(
+            lst: List[(A, B)]
+        ): Boolean = lst match
+            case Nil => true
+            case Cons(pair1, tail) =>
+                tail match
+                    case Nil => true
+                    case Cons(pair2, _) =>
+                        pair1._1 <=> pair2._1 match
+                            case Order.Less => checkStrictlyAscendingOrder(tail)
+                            case _          => false
+
+        if checkStrictlyAscendingOrder(lst) then SortedMap(lst)
+        else fail("List is not strictly ascending")
+    }
 
     def union[A: Ord, B, C](
         lhs: SortedMap[A, B],
@@ -1459,21 +1503,23 @@ object SortedMap {
                 rhs match
                     case Nil => Nil
                     case Cons(rhsPair, rhsTail) =>
-                        Cons((rhsPair._1, These.That(rhsPair._2)), go(Nil, rhsTail))
+                        Cons(
+                          (rhsPair._1, These.That(rhsPair._2)),
+                          rhsTail.map { pair => (pair._1, These.That(pair._2)) }
+                        )
             case Cons(lhsPair, lhsTail) =>
                 rhs match
-                    case Nil => Cons((lhsPair._1, These.This(lhsPair._2)), go(lhsTail, Nil))
+                    case Nil =>
+                        Cons(
+                          (lhsPair._1, These.This(lhsPair._2)),
+                          lhsTail.map { pair => (pair._1, These.This(pair._2)) }
+                        )
                     case Cons(rhsPair, rhsTail) =>
                         lhsPair match
                             case (lhsKey, lhsValue) =>
                                 rhsPair match
                                     case (rhsKey, rhsValue) =>
                                         lhsKey <=> rhsKey match
-                                            case Order.Equal =>
-                                                Cons(
-                                                  (lhsKey, These.These(lhsValue, rhsValue)),
-                                                  go(lhsTail, rhsTail)
-                                                )
                                             case Order.Less =>
                                                 Cons(
                                                   (lhsKey, These.This(lhsValue)),
@@ -1483,6 +1529,11 @@ object SortedMap {
                                                 Cons(
                                                   (rhsKey, These.That(rhsValue)),
                                                   go(lhs, rhsTail)
+                                                )
+                                            case Order.Equal =>
+                                                Cons(
+                                                  (lhsKey, These.These(lhsValue, rhsValue)),
+                                                  go(lhsTail, rhsTail)
                                                 )
 
         SortedMap(go(lhs.toList, rhs.toList))
@@ -1510,7 +1561,7 @@ object SortedMap {
                       (fromData[A](pair.fst), fromData[B](pair.snd)),
                       loop(ls.tail)
                     )
-            SortedMap.unsafeFromList(loop(unMapData(d)))
+            SortedMap(loop(unMapData(d)))
 
     given sortedMapToData[A: ToData, B: ToData]: ToData[SortedMap[A, B]] =
         (a: SortedMap[A, B]) => {
@@ -1593,10 +1644,10 @@ object SortedMap {
                 case Cons(pair, tail) =>
                     pair match
                         case (k, v) =>
-                            k <=> key match
+                            key <=> k match
+                                case Order.Less    => None
+                                case Order.Greater => go(tail)
                                 case Order.Equal   => Some(v)
-                                case Order.Less    => go(tail)
-                                case Order.Greater => None
 
             go(self.toList)
         }
@@ -1612,10 +1663,10 @@ object SortedMap {
                 case Cons(pair, tail) =>
                     pair match
                         case (k, v) =>
-                            k <=> key match
+                            key <=> k match
+                                case Order.Less    => Cons((key, value), lst)
+                                case Order.Greater => Cons(pair, go(tail))
                                 case Order.Equal   => Cons((key, value), tail)
-                                case Order.Less    => Cons(pair, go(tail))
-                                case Order.Greater => Cons((key, value), lst)
 
             SortedMap(go(self.toList))
         }
@@ -1626,10 +1677,10 @@ object SortedMap {
                 case Cons(pair, tail) =>
                     pair match
                         case (k, v) =>
-                            k <=> key match
+                            key <=> k match
+                                case Order.Less    => lst
+                                case Order.Greater => Cons(pair, go(tail))
                                 case Order.Equal   => tail
-                                case Order.Less    => Cons(pair, go(tail))
-                                case Order.Greater => lst
 
             SortedMap(go(self.toList))
         }
