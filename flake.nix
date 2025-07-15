@@ -75,6 +75,7 @@
                 echo "${pkgs.secp256k1}"
                 echo "${pkgs.libsodium}"
                 echo "${tiny_keccak_wrapper}"
+                export DYLD_LIBRARY_PATH="${tiny_keccak_wrapper}/lib:${pkgs.secp256k1}/lib:${pkgs.libsodium}/lib:$LD_LIBRARY_PATH"
               '';
             };
           ci =
