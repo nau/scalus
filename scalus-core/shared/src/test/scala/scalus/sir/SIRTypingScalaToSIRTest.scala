@@ -1,7 +1,7 @@
 package scalus.sir
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.Compiler.{compile, compileDebug}
+import scalus.Compiler.compile
 import scalus.*
 import scalus.sir.SIRUnify.given
 import scalus.sir.SIRUnify.~=~
@@ -174,10 +174,7 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
 
     test("List.empty[B] should be a List with type B") {
         import scalus.prelude.List
-        val sir = compileDebug { (x: BigInt) => List.empty[BigInt] }
-        println(s"sir:${sir.pretty.render(100)} ")
-        println("sir.tp = " + sir.tp.show)
-        println("n=2")
+        val sir = compile { (x: BigInt) => List.empty[BigInt] }
         sir.tp match {
             case SIRType.Fun(SIRType.Integer, SIRType.SumCaseClass(dataDecl, typeArgs)) =>
                 assert(dataDecl.name == "scalus.prelude.List")

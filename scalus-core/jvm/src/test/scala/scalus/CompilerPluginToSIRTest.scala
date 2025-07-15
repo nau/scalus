@@ -2268,13 +2268,11 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     }
 
     test("compile scala function with zero arguments") {
-        val compiled = compileDebug {
+        val compiled = compile {
             def fooZeroArgs = BigInt(1)
             val z = fooZeroArgs
             z
         }
-
-        println(s"sir=${compiled.pretty.render(100)}")
 
         val evaluated = compiled.toUplc().evaluate
 
