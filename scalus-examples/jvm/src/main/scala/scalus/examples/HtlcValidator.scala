@@ -86,8 +86,8 @@ object HtlcValidator extends Validator:
     @Ignore
     val script: Program = {
         val sir = compile(HtlcValidator.validate)
-        //val lw = sir.toLoweredValue()
-        //println(lw.show)
+        // val lw = sir.toLoweredValue()
+        // println(lw.show)
         sir.toUplc(
           generateErrorTraces = true,
           backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
