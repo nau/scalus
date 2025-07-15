@@ -9,7 +9,6 @@ import scalus.builtin.ByteString.*
 import scalus.ledger.api.v1.*
 import scalus.prelude.Option.*
 import scalus.prelude.*
-import scalus.prelude.given
 import scalus.builtin.Data
 import scalus.builtin.Data.fromData
 
@@ -84,7 +83,7 @@ object MintingPolicy {
     def mintingPolicyScript(deserializer: Data => MintingContext)(
         txId: ByteString,
         txOutIdx: BigInt,
-        tokensToMint: AssocMap[ByteString, BigInt]
+        tokensToMint: SortedMap[ByteString, BigInt]
     ) = (redeemer: Unit, ctxData: Data) => {
         deserializer(ctxData) match
             case MintingContext(txOutRefs, minted, ownSymbol) =>

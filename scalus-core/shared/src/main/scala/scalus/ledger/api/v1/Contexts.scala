@@ -3,7 +3,7 @@ package scalus.ledger.api.v1
 import scalus.Compile
 import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
-import scalus.prelude.{===, AssocMap, Eq, List, Option, Ord, given}
+import scalus.prelude.{===, Eq, List, Option, Ord, SortedMap, given}
 import scalus.builtin.ByteString.*
 
 type Hash = ByteString
@@ -21,7 +21,7 @@ type PosixTime = BigInt
 @deprecated("Use `Interval` instead", "0.7.0")
 type POSIXTimeRange = Interval
 type PosixTimeRange = Interval
-type Value = AssocMap[CurrencySymbol, AssocMap[TokenName, BigInt]]
+type Value = SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]]
 
 @deprecated("Not needed, use companion object of appropriate type instead")
 object FromDataInstances {

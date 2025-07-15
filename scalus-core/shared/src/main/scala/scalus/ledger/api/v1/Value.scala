@@ -2,27 +2,27 @@ package scalus.ledger.api.v1
 
 import scalus.Compile
 import scalus.Ignore
-import scalus.prelude.AssocMap
+import scalus.prelude.SortedMap
 import scalus.builtin.ByteString
 import scalus.builtin.Builtins.*
 import scalus.prelude.List
 import scalus.prelude.These
 import scalus.prelude.These.*
 import scalus.prelude
-import scalus.prelude.Eq
-import scalus.prelude.given
+import scalus.prelude.{Eq, Ord}
+import scalus.prelude.Ord.given
 
 @Compile
 object Value:
-    val zero: Value = AssocMap.empty
+    val zero: Value = SortedMap.empty
     def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value =
-        AssocMap.singleton(cs, AssocMap.singleton(tn, v))
+        SortedMap.singleton(cs, SortedMap.singleton(tn, v))
     def lovelace(v: BigInt): Value =
-        AssocMap.singleton(ByteString.empty, AssocMap.singleton(ByteString.empty, v))
+        SortedMap.singleton(ByteString.empty, SortedMap.singleton(ByteString.empty, v))
 
     def equalsAssets(
-        a: AssocMap[TokenName, BigInt],
-        b: AssocMap[TokenName, BigInt]
+        a: SortedMap[TokenName, BigInt],
+        b: SortedMap[TokenName, BigInt]
     ): Boolean = checkBinRelTokens(equalsInteger)(a, b)
 
     def eq(a: Value, b: Value): Boolean = checkBinRel(equalsInteger)(a, b)
@@ -32,7 +32,7 @@ object Value:
     def gte(a: Value, b: Value): Boolean = checkBinRel(lessThanEqualsInteger)(b, a)
 
     def checkPred(l: Value, r: Value)(f: These[BigInt, BigInt] => Boolean): Boolean = {
-        def inner(m: AssocMap[TokenName, These[BigInt, BigInt]]): Boolean =
+        def inner(m: SortedMap[TokenName, These[BigInt, BigInt]]): Boolean =
             m.forall((_, v) => f(v))
         unionVal(l, r).forall((_, v) => inner(v))
     }
@@ -50,10 +50,10 @@ object Value:
     }
 
     def checkBinRelTokens(op: (BigInt, BigInt) => Boolean)(
-        a: AssocMap[TokenName, BigInt],
-        b: AssocMap[TokenName, BigInt]
+        a: SortedMap[TokenName, BigInt],
+        b: SortedMap[TokenName, BigInt]
     ): Boolean = {
-        val combined = AssocMap.union(a, b).toList
+        val combined = SortedMap.union(a, b).toList
         // all values are equal, absent values are 0
         combined.forall { case (k, v) =>
             v match
@@ -66,13 +66,13 @@ object Value:
     def unionVal(
         l: Value,
         r: Value
-    ): AssocMap[CurrencySymbol, AssocMap[TokenName, These[BigInt, BigInt]]] =
-        val combined: AssocMap[
+    ): SortedMap[CurrencySymbol, SortedMap[TokenName, These[BigInt, BigInt]]] =
+        val combined: SortedMap[
           CurrencySymbol,
-          prelude.These[AssocMap[TokenName, BigInt], AssocMap[TokenName, BigInt]]
-        ] = AssocMap.union(l, r)
+          prelude.These[SortedMap[TokenName, BigInt], SortedMap[TokenName, BigInt]]
+        ] = SortedMap.union(l, r)
         combined.mapValues {
-            case These.These(v1, v2) => AssocMap.union(v1, v2)
+            case These.These(v1, v2) => SortedMap.union(v1, v2)
             case This(v1)            => v1.mapValues { These.This(_) }
             case That(v2)            => v2.mapValues { These.That(_) }
         }
