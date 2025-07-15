@@ -3,67 +3,30 @@ package rules
 
 // allInputs = spendInputs txb ∪ collInputs txb ∪ refInputs txb
 // (spendInputs txb ∪ collInputs txb ∪ refInputs txb) ⊆ dom utxo
-// It's Shelley.validateBadInputsUTxO in cardano-ledger
+// It's Babbage.validateBadInputsUTxO in cardano-ledger
 object AllInputsMustBeInUtxoValidator extends STS.Validator {
+    override final type Error = TransactionException.BadAllInputsUTxOException
+
     override def validate(context: Context, state: State, event: Event): Result = {
-        for
-            _ <- validateInputs(context, state, event)
-            _ <- validateCollateralInputs(context, state, event)
-            _ <- validateReferenceInputs(context, state, event)
-        yield ()
+        val transactionId = event.id
+        val body = event.body.value
+        val utxo = state.utxo
+
+        val missingInputs = body.inputs.filterNot(utxo.contains)
+        val missingCollateralInputs = body.collateralInputs.filterNot(utxo.contains)
+        val missingReferenceInputs = body.referenceInputs.filterNot(utxo.contains)
+
+        if missingInputs.nonEmpty || missingCollateralInputs.nonEmpty || missingReferenceInputs.nonEmpty
+        then
+            return failure(
+              TransactionException.BadAllInputsUTxOException(
+                transactionId,
+                missingInputs,
+                missingCollateralInputs,
+                missingReferenceInputs
+              )
+            )
+
+        success
     }
-
-    private def validateInputs(context: Context, state: State, event: Event): Result =
-        validateTransactionInputs(
-          event.id,
-          event.body.value.inputs,
-          state.utxo,
-          (transactionId, input, index) =>
-              IllegalArgumentException(
-                s"Missing input $input with index $index in UTxO state for transactionId $transactionId"
-              )
-        )
-
-    private def validateCollateralInputs(
-        context: Context,
-        state: State,
-        event: Event
-    ): Result =
-        validateTransactionInputs(
-          event.id,
-          event.body.value.collateralInputs,
-          state.utxo,
-          (transactionId, collateralInput, index) =>
-              IllegalArgumentException(
-                s"Missing collateralInput $collateralInput with index $index in UTxO state for transactionId $transactionId"
-              )
-        )
-
-    private def validateReferenceInputs(
-        context: Context,
-        state: State,
-        event: Event
-    ): Result =
-        validateTransactionInputs(
-          event.id,
-          event.body.value.referenceInputs,
-          state.utxo,
-          (transactionId, referenceInputs, index) =>
-              IllegalArgumentException(
-                s"Missing referenceInputs $referenceInputs with index $index in UTxO state for transactionId $transactionId"
-              )
-        )
-
-    private def validateTransactionInputs(
-        transactionId: TransactionHash,
-        inputs: Set[TransactionInput],
-        utxo: Utxo,
-        error: (TransactionHash, TransactionInput, Int) => IllegalArgumentException
-    ): Result =
-        val result = inputs.view.zipWithIndex.find { case (input, index) => !utxo.contains(input) }
-
-        result match
-            case None => success
-            case Some((input, index)) =>
-                failure(error(transactionId, input, index))
 }

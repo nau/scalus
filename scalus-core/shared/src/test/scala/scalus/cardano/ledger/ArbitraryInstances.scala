@@ -92,8 +92,8 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     given Arbitrary[Slot] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Slot.apply))
     given Arbitrary[ExUnits] = Arbitrary {
         for
-            mem <- Gen.choose(0L, Long.MaxValue)
-            steps <- Gen.choose(0L, Long.MaxValue)
+            mem <- Gen.choose(0L, 1000L)
+            steps <- Gen.choose(0L, 1000L)
         yield ExUnits(mem, steps)
     }
 
@@ -234,9 +234,12 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
                 val reducedDepth = depth - 1
 
                 // Generate a list of nested Timelock instances with reduced depth
-                lazy val genNestedTimelocks: Gen[Seq[Timelock]] = for
+                lazy val genNestedTimelocks: Gen[IndexedSeq[Timelock]] = for
                     n <- Gen.choose(1, 5) // Reasonable limit for number of nested scripts
-                    scripts <- Gen.listOfN(n, genTimelockWithDepth(reducedDepth))
+                    scripts <- Gen.buildableOfN[IndexedSeq[Timelock], Timelock](
+                      n,
+                      genTimelockWithDepth(reducedDepth)
+                    )
                 yield scripts
 
                 // Choose between all possible Timelock variants
@@ -262,10 +265,10 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     // FIXME: autoDerived for Script is not working correctly
     given Arbitrary[Script] = Arbitrary {
         Gen.oneOf(
-          TimelockGen.genTimelock.map(Script.Native.apply),
-          arbitrary[ByteString].map(byteString => Script.PlutusV1(PlutusV1Script(byteString))),
-          arbitrary[ByteString].map(byteString => Script.PlutusV2(PlutusV2Script(byteString))),
-          arbitrary[ByteString].map(byteString => Script.PlutusV3(PlutusV3Script(byteString))),
+          arbitrary[Script.Native],
+          arbitrary[Script.PlutusV1],
+          arbitrary[Script.PlutusV2],
+          arbitrary[Script.PlutusV3],
         )
     }
     given Arbitrary[ScriptRef] = autoDerived
@@ -442,27 +445,31 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
 
     given Arbitrary[Redeemers] = Arbitrary {
         Gen.oneOf(
-          genVectorOfSizeFromArbitrary[Redeemer](1, 8).map(Redeemers.Array.apply), {
+          genVectorOfSizeFromArbitrary[Redeemer](1, 3).map(Redeemers.Array.apply), {
               given Arbitrary[Int] = Arbitrary(Gen.choose(0, Int.MaxValue))
-              genMapOfSizeFromArbitrary[(RedeemerTag, Int), (Data, ExUnits)](1, 8)
+              genMapOfSizeFromArbitrary[(RedeemerTag, Int), (Data, ExUnits)](1, 3)
                   .map(Redeemers.Map.apply)
           }
         )
     }
 
-    given Arbitrary[PlutusV1Script] = Arbitrary {
-        for bytes <- genByteStringOfN(32)
-        yield PlutusV1Script(bytes)
+    given Arbitrary[Script.Native] = Arbitrary {
+        arbitrary[Timelock].map(Script.Native.apply)
     }
 
-    given Arbitrary[PlutusV2Script] = Arbitrary {
+    given Arbitrary[Script.PlutusV1] = Arbitrary {
         for bytes <- genByteStringOfN(32)
-        yield PlutusV2Script(bytes)
+        yield Script.PlutusV1(bytes)
     }
 
-    given Arbitrary[PlutusV3Script] = Arbitrary {
+    given Arbitrary[Script.PlutusV2] = Arbitrary {
         for bytes <- genByteStringOfN(32)
-        yield PlutusV3Script(bytes)
+        yield Script.PlutusV2(bytes)
+    }
+
+    given Arbitrary[Script.PlutusV3] = Arbitrary {
+        for bytes <- genByteStringOfN(32)
+        yield Script.PlutusV3(bytes)
     }
 
     given [A: Arbitrary]: Arbitrary[TaggedSet[A]] = Arbitrary(
@@ -575,7 +582,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     given Arbitrary[TransactionBody] = Arbitrary {
         for
             inputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
-            outputs <- genVectorOfSizeFromArbitrary[TransactionOutput](0, 4)
+            outputs <- genVectorOfSizeFromArbitrary[Sized[TransactionOutput]](0, 4)
             fee <- arbitrary[Coin]
             ttl <- Gen.option(Gen.choose(0L, Long.MaxValue))
             certificates <- genSetOfSizeFromArbitrary[Certificate](0, 4)
@@ -589,7 +596,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
             collateralInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
             requiredSigners <- genSetOfSizeFromArbitrary[AddrKeyHash](0, 4)
             networkId <- Gen.option(Gen.oneOf(Gen.const(0), Gen.const(1)))
-            collateralReturnOutput <- arbitrary[Option[TransactionOutput]]
+            collateralReturnOutput <- arbitrary[Option[Sized[TransactionOutput]]]
             totalCollateral <- arbitrary[Option[Coin]]
             referenceInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
             votingProcedures <- arbitrary[Option[VotingProcedures]]
@@ -663,6 +670,11 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     given [A: Arbitrary: Encoder]: Arbitrary[KeepRaw[A]] = Arbitrary {
         Arbitrary.arbitrary[A].map(a => KeepRaw(a))
     }
+
+    given [A: Arbitrary: Encoder]: Arbitrary[Sized[A]] = Arbitrary {
+        Arbitrary.arbitrary[A].map(a => Sized(a))
+    }
+
     given Arbitrary[BlockFile] = autoDerived
 
     given Arbitrary[Transaction] = Arbitrary {

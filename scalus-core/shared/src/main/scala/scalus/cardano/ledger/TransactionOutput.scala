@@ -28,6 +28,24 @@ object TransactionOutput:
         override val scriptRef: Option[ScriptRef] = None
     ) extends TransactionOutput
 
+    /** Creates a Babbage-era transaction output with the specified address, value, and optional
+      * datum.
+      *
+      * @param address
+      *   the destination address for this output
+      * @param value
+      *   the value (ADA and native tokens) contained in this output
+      * @param datumOption
+      *   optional datum associated with this output
+      * @return
+      *   a new Babbage transaction output with no script reference
+      */
+    def apply(
+        address: Address,
+        value: Value,
+        datumOption: Option[DatumOption] = None
+    ): TransactionOutput = Babbage(address, value, datumOption, None)
+
     /** CBOR encoder for TransactionOutput */
     given Encoder[TransactionOutput] with
         def write(w: Writer, value: TransactionOutput): Writer = value match

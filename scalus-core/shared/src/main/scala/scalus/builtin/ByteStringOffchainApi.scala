@@ -99,4 +99,9 @@ private trait ByteStringOffchainApi {
     given Decoder[ByteString] with
         def read(r: Reader): ByteString =
             ByteString.unsafeFromArray(r.readBytes())
+
+    given Ordering[ByteString] with
+        def compare(x: ByteString, y: ByteString): Int =
+            java.util.Arrays.compareUnsigned(x.bytes, y.bytes)
+
 }

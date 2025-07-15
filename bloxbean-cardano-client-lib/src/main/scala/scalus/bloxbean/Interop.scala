@@ -36,7 +36,7 @@ import scalus.builtin.Data
 import scalus.builtin.Data.ToData
 import scalus.builtin.Data.toData
 import scalus.builtin.Pair
-import scalus.builtin.given
+import scalus.cardano.ledger.Script
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.BuiltinSemanticsVariant
@@ -58,7 +58,7 @@ import scalus.uplc.eval.*
 
 import java.math.BigInteger
 import java.util
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
 import scala.math.BigInt
 
@@ -80,6 +80,7 @@ given Ordering[Redeemer] with
             case 0 => x.getIndex.compareTo(y.getIndex)
             case c => c
 
+@deprecated("Use Script instead", "0.10.1")
 case class ScriptInfo(hash: ByteString, scriptVersion: ScriptVersion)
 
 /** Interoperability between Cardano Client Lib and Scalus */
@@ -149,6 +150,7 @@ object Interop {
     /// Helper for null check
     extension [A](inline a: A) inline infix def ??(b: => A): A = if a != null then a else b
 
+    @deprecated("Use getScriptFromScriptRefBytes", "0.10.1")
     def getScriptInfoFromScriptRef(scriptRef: Array[Byte]): ScriptInfo = {
         // script_ref is encoded as CBOR Array
         val (scriptType, scriptCbor) = Cbor.decode(scriptRef).to[(Byte, Array[Byte])].value
@@ -167,6 +169,10 @@ object Interop {
             case 3 => // Plutus V3
                 val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
                 ScriptInfo(hash, ScriptVersion.PlutusV3(script))
+    }
+
+    private[bloxbean] def getScriptFromScriptRefBytes(scriptRefBytes: Array[Byte]): Script = {
+        Cbor.decode(scriptRefBytes).to[Script].value
     }
 
     /** Converts Cardano Client Lib's [[PlutusData]] to Scalus' [[Data]] */
@@ -246,27 +252,30 @@ object Interop {
         plutus: PlutusLedgerLanguage,
         protocolVersion: api.MajorProtocolVersion
     ): MachineParams = {
-        import upickle.default.*
-        val paramsMap = plutus match
+        import scalus.cardano.ledger.Language as L
+        val (lang, params) = plutus match
             case PlutusLedgerLanguage.PlutusV1 =>
                 val costs = costMdls.get(Language.PLUTUS_V1)
-                val params = PlutusV1Params.fromSeq(costs.getCosts.toSeq)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
+                L.PlutusV1 -> PlutusV1Params.fromSeq(
+                  immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
+                )
             case PlutusLedgerLanguage.PlutusV2 =>
                 val costs = costMdls.get(Language.PLUTUS_V2)
-                val params = PlutusV2Params.fromSeq(costs.getCosts.toSeq)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
+                L.PlutusV2 -> PlutusV2Params.fromSeq(
+                  immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
+                )
             case PlutusLedgerLanguage.PlutusV3 =>
                 val costs = costMdls.get(Language.PLUTUS_V3)
-                val params = PlutusV3Params.fromSeq(costs.getCosts.toSeq)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
+                L.PlutusV3 -> PlutusV3Params.fromSeq(
+                  immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
+                )
 
         val semvar = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
           protocolVersion,
           plutus
         )
-        val builtinCostModel = BuiltinCostModel.fromCostModelParams(plutus, semvar, paramsMap)
-        val machineCosts = CekMachineCosts.fromMap(paramsMap)
+        val builtinCostModel = BuiltinCostModel.fromPlutusParams(params, lang, semvar)
+        val machineCosts = CekMachineCosts.fromPlutusParams(params)
         MachineParams(
           machineCosts = machineCosts,
           builtinCostModel = builtinCostModel,
@@ -353,7 +362,7 @@ object Interop {
             getValue(out.getValue),
             getOutputDatum(out),
             if out.getScriptRef != null
-            then prelude.Option.Some(getScriptInfoFromScriptRef(out.getScriptRef).hash)
+            then prelude.Option.Some(getScriptFromScriptRefBytes(out.getScriptRef).scriptHash)
             else prelude.Option.None
           )
         )
@@ -363,7 +372,7 @@ object Interop {
         val ma = getValue(value.getMultiAssets)
         if value.getCoin != null then
             val lovelace = v1.Value.lovelace(value.getCoin)
-            prelude.AssocMap(
+            prelude.AssocMap.unsafeFromList(
               prelude.List.Cons(
                 (ByteString.empty, AssocMap.singleton(ByteString.empty, BigInt(value.getCoin))),
                 ma.toList
@@ -383,9 +392,9 @@ object Interop {
         // convert to AssocMap
         val am =
             for (policyId, assets) <- multi.iterator
-            yield policyId -> AssocMap(prelude.List.from(assets))
+            yield policyId -> AssocMap.unsafeFromList(prelude.List.from(assets))
 
-        prelude.AssocMap(prelude.List.from(am))
+        prelude.AssocMap.unsafeFromList(prelude.List.from(am))
     }
 
     def getMintValue(value: util.List[MultiAsset]): v1.Value = {
@@ -423,7 +432,7 @@ object Interop {
           getValue(out.getValue),
           getOutputDatum(out),
           if out.getScriptRef != null then
-              prelude.Option.Some(getScriptInfoFromScriptRef(out.getScriptRef).hash)
+              prelude.Option.Some(getScriptFromScriptRefBytes(out.getScriptRef).scriptHash)
           else prelude.Option.None
         )
     }
@@ -690,7 +699,8 @@ object Interop {
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
           mint = getMintValue(body.getMint ?? util.List.of()),
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
-          withdrawals = AssocMap(getWithdrawals(body.getWithdrawals ?? util.List.of())),
+          withdrawals =
+              AssocMap.unsafeFromList(getWithdrawals(body.getWithdrawals ?? util.List.of())),
           validRange = getInterval(tx, slotConfig, protocolVersion),
           signatories = prelude.List.from(
             body.getRequiredSigners.asScala
@@ -699,17 +709,18 @@ object Interop {
                 .map(v1.PubKeyHash.apply)
                 .toSeq
           ),
-          redeemers = AssocMap(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-              val purpose = getScriptPurposeV2(
-                redeemer,
-                body.getInputs,
-                body.getMint,
-                body.getCerts,
-                body.getWithdrawals
-              )
-              purpose -> toScalusData(redeemer.getData)
-          })),
-          data = AssocMap(prelude.List.from(datums.sortBy(_._1))),
+          redeemers =
+              AssocMap.unsafeFromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
+                  val purpose = getScriptPurposeV2(
+                    redeemer,
+                    body.getInputs,
+                    body.getMint,
+                    body.getCerts,
+                    body.getWithdrawals
+                  )
+                  purpose -> toScalusData(redeemer.getData)
+              })),
+          data = AssocMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
           id = v1.TxId(ByteString.fromHex(txhash))
         )
     }
@@ -943,12 +954,15 @@ object Interop {
                 )
             case a: TreasuryWithdrawalsAction =>
                 v3.GovernanceAction.TreasuryWithdrawals(
-                  withdrawals = AssocMap(prelude.List.from(a.getWithdrawals.asScala.map { w =>
-                      getCredential(Address(w.getRewardAddress).getPaymentCredential.get) -> BigInt(
-                        w.getCoin
-                      )
+                  withdrawals =
+                      AssocMap.unsafeFromList(prelude.List.from(a.getWithdrawals.asScala.map { w =>
+                          getCredential(
+                            Address(w.getRewardAddress).getPaymentCredential.get
+                          ) -> BigInt(
+                            w.getCoin
+                          )
 
-                  }.toList)),
+                      }.toList)),
                   constitutionScript = prelude.Option(ByteString.fromArray(a.getPolicyHash))
                 )
             case a: HardForkInitiationAction =>
@@ -983,10 +997,11 @@ object Interop {
                   removedMembers = prelude.List.from(a.getMembersForRemoval.asScala.map { m =>
                       getCredential(m)
                   }),
-                  addedMembers =
-                      AssocMap(prelude.List.from(a.getNewMembersAndTerms.asScala.map { (c, t) =>
-                          getCredential(c) -> BigInt(t)
-                      })),
+                  addedMembers = AssocMap.unsafeFromList(
+                    prelude.List.from(a.getNewMembersAndTerms.asScala.map { (c, t) =>
+                        getCredential(c) -> BigInt(t)
+                    })
+                  ),
                   newQuorum = prelude.Rational(
                     BigInt(a.getQuorumThreshold.getNumerator),
                     BigInt(a.getQuorumThreshold.getDenominator)
@@ -1023,12 +1038,12 @@ object Interop {
         voting: VotingProcedures
     ): AssocMap[v3.Voter, AssocMap[GovernanceActionId, v3.Vote]] = {
         if voting == null then return AssocMap.empty
-        AssocMap(
+        AssocMap.unsafeFromList(
           prelude.List.from(
             voting.getVoting.asScala.toSeq
                 .sortBy(_._1)
                 .map: (voter, procedures) =>
-                    getVoterV3(voter) -> AssocMap(
+                    getVoterV3(voter) -> AssocMap.unsafeFromList(
                       prelude.List.from(
                         procedures.asScala.toSeq
                             .sortBy(_._1)
@@ -1093,7 +1108,7 @@ object Interop {
           fee = body.getFee ?? BigInteger.ZERO,
           mint = getMintValue(body.getMint ?? util.List.of()),
           certificates = prelude.List.from(certs.asScala.map(getTxCertV3)),
-          withdrawals = AssocMap(withdrawals),
+          withdrawals = AssocMap.unsafeFromList(withdrawals),
           validRange = getInterval(tx, slotConfig, protocolVersion),
           signatories = prelude.List.from(
             body.getRequiredSigners.asScala
@@ -1102,11 +1117,12 @@ object Interop {
                 .map(v1.PubKeyHash.apply)
                 .toSeq
           ),
-          redeemers = AssocMap(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-              val purpose = getScriptPurposeV3(tx, redeemer)
-              purpose -> toScalusData(redeemer.getData)
-          })),
-          data = AssocMap(prelude.List.from(datums.sortBy(_._1))),
+          redeemers =
+              AssocMap.unsafeFromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
+                  val purpose = getScriptPurposeV3(tx, redeemer)
+                  purpose -> toScalusData(redeemer.getData)
+              })),
+          data = AssocMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
           id = v3.TxId(ByteString.fromHex(txhash)),
           votes = getVotingProcedures(body.getVotingProcedures),
           proposalProcedures = prelude.List

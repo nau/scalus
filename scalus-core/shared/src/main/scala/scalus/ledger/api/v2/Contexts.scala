@@ -7,10 +7,8 @@ import scalus.builtin.Data
 import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
-import scalus.prelude.AssocMap
-import scalus.prelude.List
-import scalus.prelude.Option
-import scalus.prelude.Eq
+import scalus.prelude.{===, AssocMap, Eq, List, Option, given}
+import scalus.builtin.ByteString.*
 
 @deprecated("Don't need anymore, use companion objects of appropriative types instead")
 object FromDataInstances {
@@ -148,11 +146,38 @@ case class TxInfo(
 
 @Compile
 object TxInfo {
+    val placeholder: TxInfo = TxInfo(
+      inputs = List.empty,
+      referenceInputs = List.empty,
+      outputs = List.empty,
+      fee = Value.zero,
+      mint = Value.zero,
+      dcert = List.empty,
+      withdrawals = AssocMap.empty,
+      validRange = Interval.always,
+      signatories = List.empty,
+      redeemers = AssocMap.empty,
+      data = AssocMap.empty,
+      id = TxId(hex"0000000000000000000000000000000000000000000000000000000000000000")
+    )
 
     given ToData[TxInfo] = ToData.derived
 
     given FromData[TxInfo] = FromData.derived
 
+    extension (self: TxInfo) {
+        def findOwnInput(outRef: TxOutRef): Option[TxInInfo] = {
+            Utils.findInput(self.inputs, outRef)
+        }
+
+        def findOwnDatum(datumHash: DatumHash): Option[Datum] = {
+            Utils.findDatum(self.outputs, self.data, datumHash)
+        }
+
+        def findOwnScriptOutputs(scriptHash: ValidatorHash): List[TxOut] = {
+            Utils.findScriptOutputs(self.outputs, scriptHash)
+        }
+    }
 }
 
 /** The context that the currently-executing script can access.
@@ -168,4 +193,66 @@ object ScriptContext {
     given ToData[ScriptContext] = ToData.derived
     given FromData[ScriptContext] = FromData.derived
 
+}
+
+@Compile
+object Utils {
+
+    /** Finds an input in the list of inputs by its out reference.
+      *
+      * @param inputs
+      *   The list of inputs to search in.
+      * @param outRef
+      *   The output reference to find.
+      * @return
+      *   An `Option` containing the found input, or `None` if not found.
+      */
+    def findInput(inputs: List[TxInInfo], outRef: TxOutRef): Option[TxInInfo] = {
+        inputs.find(_.outRef === outRef)
+    }
+
+    /** Finds a datum firstly in the datum map by its hash otherwise in the outputs.
+      *
+      * @param outputs
+      *   The list of outputs to search in.
+      * @param datum
+      *   The map of datum hashes to datums.
+      * @param datumHash
+      *   The hash of the datum to find.
+      * @return
+      *   An `Option` containing the found datum, or `None` if not found.
+      */
+    def findDatum(
+        outputs: List[TxOut],
+        datum: AssocMap[DatumHash, Datum],
+        datumHash: DatumHash
+    ): Option[Datum] = {
+        datum.get(datumHash) match
+            case Option.Some(datum) => Option.Some(datum)
+            case Option.None =>
+                outputs.findMap { output =>
+                    output.datum match
+                        case OutputDatum.OutputDatum(data) =>
+                            if data.dataHash === datumHash then Option.Some(data)
+                            else Option.None
+                        case _ => Option.None
+                }
+    }
+
+    /** Finds all outputs that match a given script hash.
+      *
+      * @param outputs
+      *   The list of outputs to search in.
+      * @param scriptHash
+      *   The script hash to match against the outputs' addresses.
+      * @return
+      *   A list of outputs that match the script hash.
+      */
+    def findScriptOutputs(outputs: List[TxOut], scriptHash: ValidatorHash): List[TxOut] = {
+        outputs.filter { output =>
+            output.address.credential match
+                case Credential.ScriptCredential(hash) => hash === scriptHash
+                case _                                 => false
+        }
+    }
 }

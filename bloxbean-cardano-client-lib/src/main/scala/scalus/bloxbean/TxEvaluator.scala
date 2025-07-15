@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory
 import scalus.bloxbean.Interop.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.cardano.ledger.Script
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.PlutusLedgerLanguage
@@ -26,7 +27,8 @@ import scalus.ledger.api.v1
 import scalus.ledger.api.v2
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3
-//import scalus.prelude.Option
+
+import java.nio.file.StandardOpenOption
 import scalus.uplc.Constant
 import scalus.uplc.DeBruijnedProgram
 import scalus.uplc.Term
@@ -79,6 +81,7 @@ class TxEvaluationException(
     @BeanProperty val logs: Array[String]
 ) extends Exception(message, cause)
 
+@deprecated("Use Script instead", "0.10.1")
 enum ScriptVersion:
     case Native
     case PlutusV1(flatScript: ByteString)
@@ -162,7 +165,7 @@ class TxEvaluator(
         // aiken tx simulate --cbor tx-$txhash.cbor ins.cbor outs.cbor > aiken.log"
         if debugDumpFilesForTesting then
             Files.write(Paths.get(s"tx-$txhash.cbor"), transaction.serialize())
-            Files.deleteIfExists(java.nio.file.Paths.get("scalus.log"))
+            Files.deleteIfExists(Paths.get("scalus.log"))
             storeInsOutsInCborFiles(inputUtxos, txhash)
 
         evalPhaseTwo(transaction, txhash, datums, inputUtxos, runPhaseOne = true)
@@ -188,7 +191,7 @@ class TxEvaluator(
         redeemer: Redeemer,
         lookupTable: LookupTable,
         utxos: Map[TransactionInput, TransactionOutput]
-    ): (ScriptVersion, Option[Data]) = {
+    ): (Script, Option[Data]) = {
         val index = redeemer.getIndex.intValue
         val inputs = tx.getBody.getInputs
         redeemer.getTag match
@@ -213,7 +216,7 @@ class TxEvaluator(
                         case OutputDatum.OutputDatum(datum) => Some(datum)
 
                     script match
-                        case ScriptVersion.PlutusV1(_) | ScriptVersion.PlutusV2(_) =>
+                        case _: Script.PlutusV1 | _: Script.PlutusV2 =>
                             datum match
                                 case None =>
                                     throw new IllegalStateException(
@@ -320,9 +323,9 @@ class TxEvaluator(
         import scalus.builtin.Data.toData
 
         val result = findScript(tx, redeemer, lookupTable, utxos) match
-            case (ScriptVersion.Native, _) =>
+            case (_: Script.Native, _) =>
                 throw new IllegalStateException("Native script not supported")
-            case (ScriptVersion.PlutusV1(script), datum) =>
+            case (Script.PlutusV1(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfoV1 =
                     getTxInfoV1(tx, txhash, datums, utxos, slotConfig, protocolMajorVersion)
@@ -338,6 +341,7 @@ class TxEvaluator(
                     case Some(datum) =>
                         evalScript(
                           redeemer,
+                          txhash,
                           plutusV1VM,
                           script,
                           datum,
@@ -345,9 +349,9 @@ class TxEvaluator(
                           ctxData
                         )
                     case None =>
-                        evalScript(redeemer, plutusV1VM, script, rdmr, ctxData)
+                        evalScript(redeemer, txhash, plutusV1VM, script, rdmr, ctxData)
 
-            case (ScriptVersion.PlutusV2(script), datum) =>
+            case (Script.PlutusV2(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo =
                     getTxInfoV2(tx, txhash, datums, utxos, slotConfig, protocolMajorVersion)
@@ -363,6 +367,7 @@ class TxEvaluator(
                     case Some(datum) =>
                         evalScript(
                           redeemer,
+                          txhash,
                           plutusV2VM,
                           script,
                           datum,
@@ -370,9 +375,9 @@ class TxEvaluator(
                           ctxData
                         )
                     case None =>
-                        evalScript(redeemer, plutusV2VM, script, rdmr, ctxData)
+                        evalScript(redeemer, txhash, plutusV2VM, script, rdmr, ctxData)
 
-            case (ScriptVersion.PlutusV3(script), datum) =>
+            case (Script.PlutusV3(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
                 val txInfo =
                     getTxInfoV3(tx, txhash, datums, utxos, slotConfig, protocolMajorVersion)
@@ -384,7 +389,7 @@ class TxEvaluator(
                     log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                evalScript(redeemer, plutusV3VM, script, ctxData)
+                evalScript(redeemer, txhash, plutusV3VM, script, ctxData)
 
         val cost = result.budget
         log.debug(s"Eval result: $result")
@@ -401,6 +406,7 @@ class TxEvaluator(
 
     private def evalScript(
         redeemer: Redeemer,
+        txhash: String,
         vm: PlutusVM,
         script: ByteString,
         args: Data*
@@ -409,20 +415,24 @@ class TxEvaluator(
           cpu = redeemer.getExUnits.getSteps.longValue,
           memory = redeemer.getExUnits.getMem.longValue
         )
-        val program = DeBruijnedProgram.fromFlatEncoded(script.bytes)
+        val program = DeBruijnedProgram.fromCbor(script.bytes)
         val applied = args.foldLeft(program) { (acc, arg) =>
             acc $ Const(scalus.uplc.DefaultUni.asConstant(arg))
         }
         if debugDumpFilesForTesting then
             Files.write(
-              java.nio.file.Paths.get(s"script-${redeemer.getTag}-${redeemer.getIndex}.flat"),
+              Paths.get(s"script-$txhash-${redeemer.getTag}-${redeemer.getIndex}.flat"),
               applied.flatEncoded,
-              java.nio.file.StandardOpenOption.CREATE,
-              java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
+              StandardOpenOption.CREATE,
+              StandardOpenOption.TRUNCATE_EXISTING
             )
         val spender = mode match
             case EvaluatorMode.EVALUATE_AND_COMPUTE_COST => CountingBudgetSpender()
-            case EvaluatorMode.VALIDATE => RestrictingBudgetSpenderWithScripDump(budget)
+            case EvaluatorMode.VALIDATE =>
+                scalus.bloxbean.RestrictingBudgetSpenderWithScripDump(
+                  budget,
+                  debugDumpFilesForTesting
+                )
 
         val logger = Log()
         val r =
@@ -492,36 +502,12 @@ class TxEvaluator(
         collectedRedeemers
     }
 
-    final class RestrictingBudgetSpenderWithScripDump(val maxBudget: ExBudget)
-        extends BudgetSpender {
-        private var cpuLeft: Long = maxBudget.cpu
-        private var memoryLeft: Long = maxBudget.memory
-
-        def spendBudget(cat: ExBudgetCategory, budget: ExBudget, env: CekValEnv): Unit = {
-            if debugDumpFilesForTesting then
-                cat match
-                    case ExBudgetCategory.BuiltinApp(fun) =>
-                        Files.write(
-                          java.nio.file.Paths.get("scalus.log"),
-                          s"fun $$${fun}, cost: ExBudget { mem: ${budget.memory}, cpu: ${budget.cpu} }\n".getBytes,
-                          java.nio.file.StandardOpenOption.CREATE,
-                          java.nio.file.StandardOpenOption.APPEND
-                        )
-                    case _ =>
-            cpuLeft -= budget.cpu
-            memoryLeft -= budget.memory
-            if cpuLeft < 0 || memoryLeft < 0 then throw new OutOfExBudgetError(maxBudget, env)
-        }
-
-        def getSpentBudget: ExBudget =
-            ExBudget.fromCpuAndMemory(maxBudget.cpu - cpuLeft, maxBudget.memory - memoryLeft)
-
-        def reset(): Unit = {
-            cpuLeft = maxBudget.cpu
-            memoryLeft = maxBudget.memory
-        }
-    }
-
+    @deprecated("Use scalus.bloxbean.RestrictingBudgetSpenderWithScripDump instead", "0.10.1")
+    class RestrictingBudgetSpenderWithScripDump(maxBudget: ExBudget)
+        extends scalus.bloxbean.RestrictingBudgetSpenderWithScripDump(
+          maxBudget,
+          debugDumpFilesForTesting
+        )
 }
 
 object TxEvaluator {
@@ -529,47 +515,48 @@ object TxEvaluator {
     type Hash = ByteString
 
     case class LookupTable(
-        scripts: collection.Map[ScriptHash, ScriptVersion],
+        scripts: collection.Map[ScriptHash, Script],
         datums: collection.Map[Hash, Data]
     )
 
     def getAllResolvedScripts(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput]
-    ): Map[ScriptHash, ScriptVersion] = {
+    ): Map[ScriptHash, Script] = {
         val scripts =
-            def decodeToFlat(script: PlutusScript) =
+            def decodeToSingleCbor(script: PlutusScript) =
                 // unwrap the outer CBOR encoding
-                val decoded = Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
-                // and decode the inner CBOR encoding. Don't ask me why.
-                ByteString.fromArray(Cbor.decode(decoded).to[Array[Byte]].value)
+                ByteString.unsafeFromArray(
+                  Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
+                )
 
             val native = tx.getWitnessSet.getNativeScripts.asScala
                 .map: script =>
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.Native
+                    val bytes = script.serializeScriptBody()
+                    Cbor.decode(bytes).to[Script.Native].value
 
             val v1 = tx.getWitnessSet.getPlutusV1Scripts.asScala
                 .map: script =>
-                    val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV1(flatScript)
+                    val cborScript = decodeToSingleCbor(script)
+                    Script.PlutusV1(cborScript)
             val v2 = tx.getWitnessSet.getPlutusV2Scripts.asScala
                 .map: script =>
-                    val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV2(flatScript)
+                    val cborScript = decodeToSingleCbor(script)
+                    Script.PlutusV2(cborScript)
             val v3 = tx.getWitnessSet.getPlutusV3Scripts.asScala
                 .map: script =>
-                    val flatScript = decodeToFlat(script)
-                    ByteString.fromArray(script.getScriptHash) -> ScriptVersion.PlutusV3(flatScript)
+                    val cborScript = decodeToSingleCbor(script)
+                    Script.PlutusV3(cborScript)
             native ++ v1 ++ v2 ++ v3
 
-        val referenceScripts = ArrayBuffer.empty[(ScriptHash, ScriptVersion)]
+        val referenceScripts = ArrayBuffer.empty[Script]
 
         for output <- utxos.values do
             if output.getScriptRef != null then
-                val scriptInfo = Interop.getScriptInfoFromScriptRef(output.getScriptRef)
-                referenceScripts += scriptInfo.hash -> scriptInfo.scriptVersion
+                val script = Interop.getScriptFromScriptRefBytes(output.getScriptRef)
+                referenceScripts += script
 
-        (scripts ++ referenceScripts).toMap
+        (scripts ++ referenceScripts).view.map(s => s.scriptHash -> s).toMap
     }
 
     private def getScriptAndDatumLookupTable(
@@ -689,7 +676,7 @@ object TxEvaluator {
 
     private def validateMissingScripts(
         scripts: AlonzoScriptsNeeded,
-        txScripts: collection.Map[ScriptHash, ScriptVersion]
+        txScripts: collection.Map[ScriptHash, Script]
     ): Unit = {
         val received = txScripts.keySet
         val needed = scripts.toSet
@@ -700,7 +687,7 @@ object TxEvaluator {
     private def verifyExactSetOfRedeemers(
         @unused tx: Transaction,
         @unused scripts: AlonzoScriptsNeeded,
-        @unused txScripts: collection.Map[ScriptHash, ScriptVersion]
+        @unused txScripts: collection.Map[ScriptHash, Script]
     ): Unit = {
         // FIXME: implement
     }

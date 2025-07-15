@@ -7,7 +7,7 @@ import scalus.builtin.Data
 /** Represents a datum option in Cardano outputs */
 enum DatumOption:
     /** Reference to a datum by its hash */
-    case Hash(hash: Hash32)
+    case Hash(hash: DataHash)
 
     /** Inline datum value */
     case Inline(data: Data)
@@ -36,7 +36,7 @@ object DatumOption:
 
             val tag = r.readInt()
             tag match
-                case 0 => DatumOption.Hash(r.read[Hash32]())
+                case 0 => DatumOption.Hash(r.read[DataHash]())
                 case 1 =>
                     val tag = r.readTag()
                     if tag != EmbeddedCBOR then

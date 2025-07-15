@@ -5,6 +5,7 @@ import cats.syntax.group.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
+import scalus.cardano.ledger.Language
 import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.api.PlutusLedgerLanguage
@@ -101,6 +102,52 @@ object CekMachineCosts {
           caseCost = Try(get("cekCaseCost")).getOrElse(defaultMachineCosts.caseCost)
         )
     }
+
+    def fromPlutusParams(params: PlutusParams): CekMachineCosts = {
+        CekMachineCosts(
+          startupCost = ExBudget.fromCpuAndMemory(
+            cpu = params.`cekStartupCost-exBudgetCPU`,
+            memory = params.`cekStartupCost-exBudgetMemory`
+          ),
+          varCost = ExBudget.fromCpuAndMemory(
+            cpu = params.`cekVarCost-exBudgetCPU`,
+            memory = params.`cekVarCost-exBudgetMemory`
+          ),
+          constCost = ExBudget.fromCpuAndMemory(
+            cpu = params.`cekConstCost-exBudgetCPU`,
+            memory = params.`cekConstCost-exBudgetMemory`
+          ),
+          lamCost = ExBudget.fromCpuAndMemory(
+            cpu = params.`cekLamCost-exBudgetCPU`,
+            memory = params.`cekLamCost-exBudgetMemory`
+          ),
+          delayCost = ExBudget.fromCpuAndMemory(
+            cpu = params.`cekDelayCost-exBudgetCPU`,
+            memory = params.`cekDelayCost-exBudgetMemory`
+          ),
+          forceCost = ExBudget.fromCpuAndMemory(
+            cpu = params.`cekForceCost-exBudgetCPU`,
+            memory = params.`cekForceCost-exBudgetMemory`
+          ),
+          applyCost = ExBudget.fromCpuAndMemory(
+            cpu = params.`cekApplyCost-exBudgetCPU`,
+            memory = params.`cekApplyCost-exBudgetMemory`
+          ),
+          builtinCost = ExBudget.fromCpuAndMemory(
+            cpu = params.`cekBuiltinCost-exBudgetCPU`,
+            memory = params.`cekBuiltinCost-exBudgetMemory`
+          ),
+          constrCost = ExBudget.fromCpuAndMemory(
+            cpu = params.`cekConstrCost-exBudgetCPU`,
+            memory = params.`cekConstrCost-exBudgetMemory`
+          ),
+          caseCost = ExBudget.fromCpuAndMemory(
+            cpu = params.`cekCaseCost-exBudgetCPU`,
+            memory = params.`cekCaseCost-exBudgetMemory`
+          )
+        )
+    }
+
 }
 
 /** The Plutus CEK machine parameters.
@@ -224,31 +271,31 @@ object MachineParams {
     /** Creates [[MachineParams]] from a [[ProtocolParams]] and a [[PlutusLedgerLanguage]]
       */
     def fromProtocolParams(pparams: ProtocolParams, plutus: PlutusLedgerLanguage): MachineParams = {
-        import upickle.default.*
-        val paramsMap = plutus match
-            case PlutusLedgerLanguage.PlutusV1 =>
-                val costs = pparams.costModels("PlutusV1")
-                val params = PlutusV1Params.fromSeq(costs)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
-            case PlutusLedgerLanguage.PlutusV2 =>
-                val costs = pparams.costModels("PlutusV2")
-                val params = PlutusV2Params.fromSeq(costs)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
-            case PlutusLedgerLanguage.PlutusV3 =>
-                val costs = pparams.costModels("PlutusV3")
-                val params = PlutusV3Params.fromSeq(costs)
-                writeJs(params).obj.map { (k, v) => (k, v.num.toLong) }.toMap
+        fromProtocolParams(pparams, plutus.toLanguage)
+    }
 
-        val semvar =
-            BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(pparams.protocolVersion, plutus)
-        val builtinCostModel = BuiltinCostModel.fromCostModelParams(plutus, semvar, paramsMap)
-        val machineCosts = CekMachineCosts.fromMap(paramsMap)
+    /** Creates [[MachineParams]] from a [[ProtocolParams]] and a [[Language]]
+      */
+    def fromProtocolParams(pparams: ProtocolParams, language: Language): MachineParams = {
+        val costs = pparams.costModels(language.toString)
+        val params = language match
+            case Language.PlutusV1 => PlutusV1Params.fromSeq(costs)
+            case Language.PlutusV2 => PlutusV2Params.fromSeq(costs)
+            case Language.PlutusV3 => PlutusV3Params.fromSeq(costs)
+
+        val semvar = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
+          MajorProtocolVersion(pparams.protocolVersion.major),
+          language
+        )
+        val builtinCostModel = BuiltinCostModel.fromPlutusParams(params, language, semvar)
+        val machineCosts = CekMachineCosts.fromPlutusParams(params)
         MachineParams(
           machineCosts = machineCosts,
           builtinCostModel = builtinCostModel,
           semanticVariant = semvar
         )
     }
+
 }
 
 class MachineError(msg: String) extends RuntimeException(msg)

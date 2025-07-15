@@ -24,7 +24,7 @@ trait ScalusTest extends ArbitraryInstances {
         ): Result =
             // UPLC program: (ScriptContext as Data) -> ()
             val script = self.toUplc().plutusV3
-            println(s"uplc: ${script.pretty.render(100)}")
+//            println(s"uplc: ${script.pretty.render(100)}")
             val appliedScript = script $ scriptContext.toData
             appliedScript.evaluateDebug
 

@@ -23,7 +23,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(44802_366238L), ExMemory(247_925977L))
+        val scalusBudget = ExBudget(ExCPU(44783_358238L), ExMemory(247_807177L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -551,7 +551,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(115793_458834L), ExMemory(645_913142L))
+        val scalusBudget = ExBudget(ExCPU(115775_218834L), ExMemory(645_799142L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -1212,7 +1212,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(235841_132067L), ExMemory(1315_212979L))
+        val scalusBudget = ExBudget(ExCPU(235822_700067L), ExMemory(1315_097779L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -1349,16 +1349,6 @@ object KnightsTest:
         def canJumpFirst: Boolean = deleteFirst.canMoveTo(firstPiece)
 
         def descendants: List[ChessSet] = {
-            extension [A](self: List[A])
-                def quicksort[B >: A: Ord]: List[A] =
-                    self match
-                        case List.Nil => List.Nil
-                        case List.Cons(head, tail) =>
-                            val before = tail.filter { elem => (elem <=> head).isLess }.quicksort
-                            val after = tail.filter { elem => !(elem <=> head).isLess }.quicksort
-                            before ++ after.prepended(head)
-            end extension
-
             if canJumpFirst && addPiece(firstPiece).isDeadEnd then List.empty
             else
                 val singles = singleDescend
