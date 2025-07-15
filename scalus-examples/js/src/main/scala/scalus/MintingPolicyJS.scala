@@ -4,7 +4,7 @@ import scalus.Compiler.compile
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.examples.MintingPolicy
-import scalus.prelude.AssocMap
+import scalus.prelude.SortedMap
 import scalus.sir.SIR
 import scalus.uplc.Term
 import scalus.uplc.TermDSL.given
@@ -34,7 +34,7 @@ object MintingPolicyJS:
     ): String = {
         given PlutusVM = PlutusVM.makePlutusV1VM()
         val tokensSIR = compile((tokenNameHex: ByteString, amount: BigInt) =>
-            AssocMap.singleton(tokenNameHex, amount)
+            SortedMap.singleton(tokenNameHex, amount)
         )
         val evaledTokens = tokensSIR.toUplc().evaluate
         val txId = ByteString.fromHex(txIdHex)
