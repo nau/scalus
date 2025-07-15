@@ -42,6 +42,8 @@
             pkgs.mkShell {
               JAVA_HOME = "${jdk}";
               JAVA_OPTS = "-Xmx4g -Xss512m -XX:+UseG1GC";
+              CARGO_NET_GIT_FETCH_WITH_CLI = "true";
+              CARGO_REGISTRIES_CRATES_IO_PROTOCOL = "sparse";
               # Fixes issues with Node.js 20+ and OpenSSL 3 during webpack build
               NODE_OPTIONS="--openssl-legacy-provider";
               # This fixes bash prompt/autocomplete issues with subshells (i.e. in VSCode) under `nix develop`/direnv
@@ -76,6 +78,8 @@
                 echo "${pkgs.libsodium}"
                 echo "${tiny_keccak_wrapper}"
                 export DYLD_LIBRARY_PATH="${tiny_keccak_wrapper}/lib:$DYLD_LIBRARY_PATH"
+                export LIBRARY_PATH="${tiny_keccak_wrapper}/lib:${pkgs.secp256k1}/lib:${pkgs.libsodium}/lib:$LIBRARY_PATH"
+                export LD_LIBRARY_PATH="${tiny_keccak_wrapper}/lib:${pkgs.secp256k1}/lib:${pkgs.libsodium}/lib:$LD_LIBRARY_PATH"
               '';
             };
           ci =
