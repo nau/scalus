@@ -221,9 +221,10 @@ object Lowering {
                 )
             case SIR.IfThenElse(cond, t, f, tp, anns) =>
                 val loweredCond =
-                    lowerSIR(cond).toRepresentation(PrimitiveRepresentation.Constant, cond.anns.pos)
-                val loweredT = lowerSIR(t)
-                val loweredF = lowerSIR(f)
+                    lowerSIR(cond, Some(SIRType.Boolean))
+                        .toRepresentation(PrimitiveRepresentation.Constant, cond.anns.pos)
+                val loweredT = lowerSIR(t, optTargetType)
+                val loweredF = lowerSIR(f, optTargetType)
                 lvIfThenElse(loweredCond, loweredT, loweredF, anns.pos)
             case SIR.Cast(expr, tp, anns) =>
                 val loweredExpr = lowerSIR(expr, Some(tp))
@@ -233,8 +234,8 @@ object Lowering {
                         println(
                           s"Error lowering cast: ${sir.pretty.render(100)} at ${anns.pos.file}:${anns.pos.startLine + 1}"
                         )
-                        lctx.debug = true
-                        lvCast(loweredExpr, tp, anns.pos)
+                        // lctx.debug = true
+                        // lvCast(loweredExpr, tp, anns.pos)
                         throw ex
             case sirBuiltin @ SIR.Builtin(bn, tp, anns) =>
                 StaticLoweredValue(
@@ -323,13 +324,6 @@ object Lowering {
                   s"  f = ${app.f.pretty.render(100)}\n"
             )
         val fun = lowerSIR(app.f)
-        if fun.sirType.show == "B#238929 -> (B#491 -> scalus.ledger.api.v3.TxInInfo -> B#491) -> B#238929"
-        then {
-            println("discowered strange output type when lowering f")
-            lctx.debug = true
-            println(s"app.f = ${app.f.pretty.render(100)}")
-            val fun1 = lowerSIR(app.f)
-        }
         val arg = lowerSIR(app.arg)
         val result =
             try

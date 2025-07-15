@@ -121,7 +121,6 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
                           _
                         ) =>
                         assert(name == "scalus.prelude.List$.contains")
-                        println(s"tpf=${tpf.show}")
                         val aTp = new SIRType.TypeVar("A", None, false)
                         val bTp = new SIRType.TypeVar("B", None, false)
                         val tpf1 = tpf match {

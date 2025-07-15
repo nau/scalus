@@ -578,10 +578,6 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
         else
 
             val resType = matchData.tp
-            resType match
-                case tv: SIRType.TypeVar =>
-                    println(s"typevar in List match at ${matchData.anns.pos.show}")
-                case _ =>
 
             if resType == SIRType.FreeUnificator then
                 throw LoweringException(

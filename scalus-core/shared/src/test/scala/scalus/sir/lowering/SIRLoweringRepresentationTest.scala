@@ -3,7 +3,6 @@ package scalus.sir.lowering
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.sir.*
 import scalus.sir.SIRType.{ByteString, TypeVar}
-import scalus.sir.lowering.*
 import scalus.sir.lowering.typegens.*
 
 object SIRLoweringRepresentationTest {
@@ -20,6 +19,13 @@ object SIRLoweringRepresentationTest {
 }
 
 class SIRLoweringRepresentationTest extends AnyFunSuite {
+
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
+    )
 
     test("Get default representation for List") {
         val listType = SIRType.List(SIRType.Integer)
@@ -92,8 +98,6 @@ class SIRLoweringRepresentationTest extends AnyFunSuite {
             AnnotationsDecl.empty
           )
         )
-
-        println(s"nilConstr.sirType = ${nilConstr.sirType}")
 
     }
 

@@ -846,23 +846,9 @@ object LoweredValue {
         )(using
             lctx: LoweringContext
         ): LoweredValue = {
+            // if lctx.debug then Thread.dumpStack()
 
             val prevDebug = lctx.debug
-            f match
-                case vlv: VariableLoweredValue
-                    if vlv.id == "scalus.ledger.api.v1.Credential$.given_Eq_Credential252" =>
-                    lctx.debug = true
-                    lctx.log(
-                      "applying function with id scalus.ledger.api.v1.Credential$.given_Eq_Credential252"
-                    )
-                    // println(s"resTp = ${resTp.map(_.show)}, resRepresentation = $resRepr")
-                    // resTp match {
-                    //    case Some(SIRType.Fun(resIn, resOut)) =>
-                    //        if resIn.show == "scalus.ledger.api.v1.Credential$.PubKeyCredential" && resOut == SIRType.Boolean
-                    //        then throw new RuntimeException("QQQQ")
-                    //    case _ =>
-                    // }
-                case _ =>
 
             def argType(tp: SIRType): SIRType = tp match {
                 case SIRType.Fun(argTp, _) => argTp

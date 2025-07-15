@@ -640,5 +640,3 @@ class SirToUplcSmLoweringTest
         }
 
     }
-    
-    

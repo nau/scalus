@@ -15,7 +15,7 @@ class FromDataEraseLinkerTest extends AnyFunSuite {
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = false,
-      debug = true
+      debug = false
     )
 
     def containsSubterm(sir: SIR)(p: SIR => Boolean): Boolean = {

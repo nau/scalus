@@ -2541,13 +2541,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                             println(
                               s"virtual call: ${qualifierSym.show} ${qualifierTypeSym.show} ${member.symbol.fullName} is method"
                             )
-                    if member.symbol.fullName.toString == "scalus.prelude.Validator.validate" then
-                        println(
-                          s"validate: ${qualifierSym.show} ${qualifierTypeSym.show} ${member.symbol.fullName}, isMethod=${member.symbol.flags.is(Flags.Method)}"
-                        )
-                        val emptyParams0 =
-                            member.symbol.paramSymss.filterNot(_.exists(_.isType)).isEmpty
-                        println(s"mtp = ${mtp.show}, emptyParams0 = ${emptyParams0}")
                     SIR.ExternalVar(
                       qualifierTypeSym.fullName.toString,
                       member.symbol.fullName.toString,

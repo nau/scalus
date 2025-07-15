@@ -549,5 +549,4 @@ object SIRChecker {
             if throwOnFirst then throw CheckException(msg)
             else Seq(msg)
 
-
 }

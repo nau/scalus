@@ -21,14 +21,14 @@ object SIRUplcV3LoweringRandomSpec {
 
 }
 
-inline given scalus.Compiler.Options = scalus.Compiler.Options(
-  targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
-  generateErrorTraces = true,
-  optimizeUplc = false,
-  debug = true
-)
-
 class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
+
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
+    )
 
     import SIRUplcV3LoweringRandomSpec.*
 
@@ -115,7 +115,7 @@ class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
         val lv = lowering.lastLoweredValue.getOrElse {
             this.fail("No lowered value found")
         }
-        println(s"lv=${lv.show}")
+        // println(s"lv=${lv.show}")
         val result = term.evaluateDebug
         result match {
             case Result.Success(term, budget, costs, log) =>

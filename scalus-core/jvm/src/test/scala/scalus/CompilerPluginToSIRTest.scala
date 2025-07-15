@@ -219,8 +219,8 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
           AnE
         )
 
-        println(s"comileDef: compiled: ${compiled.pretty.render(100)}")
-        println(s"comileDef: expected: ${exprected.pretty.render(100)}")
+        // println(s"comileDef: compiled: ${compiled.pretty.render(100)}")
+        // println(s"comileDef: expected: ${exprected.pretty.render(100)}")
 
         assert(compiled ~=~ exprected)
     }

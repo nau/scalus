@@ -248,7 +248,7 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
             val sir = compile(PaymentSplitter.validate)
             // println(s"sir=${sir.pretty.render(100)}")
             val lw = sir.toLoweredValue(generateErrorTraces = true)
-            println(s"lw=${lw.pretty.render(100)}")
+            // println(s"lw=${lw.pretty.render(100)}")
             val uplc = sir.toUplc(
               generateErrorTraces = true,
               backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering

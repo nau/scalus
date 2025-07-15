@@ -5,7 +5,7 @@ case class TermGenerationContext(
     processUndefinedValues: Boolean = false,
     debug: Boolean = false,
 ) {
-    
+
     def addGeneratedVar(name: String): TermGenerationContext = {
         copy(generatedVars = generatedVars + name)
     }

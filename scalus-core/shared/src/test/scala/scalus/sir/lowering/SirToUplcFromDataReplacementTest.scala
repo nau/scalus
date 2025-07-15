@@ -15,6 +15,13 @@ import scalus.uplc.eval.Result
 
 class SirToUplcFromDataReplacementTest extends AnyFunSuite {
 
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
+    )
+
     given PlutusVM = PlutusVM.makePlutusV3VM()
 
     test("Import ScriptContext from Data and look on tx") {
@@ -90,7 +97,6 @@ class SirToUplcFromDataReplacementTest extends AnyFunSuite {
         // pending
     }
 
-    /*
     test("Import Option[PubkeyHash] from Data and look on it") {
         import scalus.prelude.*
         val sir = compile { (data: Data) =>
@@ -125,8 +131,6 @@ class SirToUplcFromDataReplacementTest extends AnyFunSuite {
         // println(l)
         // pending
     }
-    
-     */
 
     test("run Hello World") {
         import scalus.prelude.*
