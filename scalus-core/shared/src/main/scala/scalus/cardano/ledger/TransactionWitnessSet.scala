@@ -1,8 +1,7 @@
 package scalus.cardano.ledger
 
-import io.bullet.borer.{Encoder, *}
+import io.bullet.borer.*
 import scalus.builtin.Data
-import scalus.ledger.api.Timelock
 
 opaque type TaggedSet[A] <: Set[A] = Set[A]
 object TaggedSet {
@@ -35,25 +34,30 @@ case class TransactionWitnessSet(
     vkeyWitnesses: Set[VKeyWitness] = Set.empty,
 
     /** Native scripts */
-    nativeScripts: Set[Timelock] = Set.empty,
+    nativeScripts: Set[Script.Native] = Set.empty,
 
     /** Bootstrap witnesses (for Byron addresses) */
     bootstrapWitnesses: Set[BootstrapWitness] = Set.empty,
 
     /** Plutus V1 scripts */
-    plutusV1Scripts: Set[PlutusV1Script] = Set.empty,
+    plutusV1Scripts: Set[Script.PlutusV1] = Set.empty,
 
-    /** Plutus data values */
-    plutusData: KeepRaw[TaggedSet[Data]] = KeepRaw(TaggedSet(Set.empty)),
+    /** Plutus data values
+      *
+      * @note
+      *   We need raw CBOR bytes of all `plutusData` for [[ScriptDataHash]] calculation. Also, we
+      *   need raw bytes for each datum for [[DataHash]] calculation.
+      */
+    plutusData: KeepRaw[TaggedSet[KeepRaw[Data]]] = KeepRaw(TaggedSet(Set.empty)),
 
     /** Redeemers */
     redeemers: Option[KeepRaw[Redeemers]] = None,
 
     /** Plutus V2 scripts */
-    plutusV2Scripts: Set[PlutusV2Script] = Set.empty,
+    plutusV2Scripts: Set[Script.PlutusV2] = Set.empty,
 
     /** Plutus V3 scripts */
-    plutusV3Scripts: Set[PlutusV3Script] = Set.empty
+    plutusV3Scripts: Set[Script.PlutusV3] = Set.empty
 ):
     /** Check if the witness set is empty */
     def isEmpty: Boolean =
@@ -145,13 +149,13 @@ object TransactionWitnessSet:
             val mapSize = r.readMapHeader()
 
             var vkeyWitnesses = Set.empty[VKeyWitness]
-            var nativeScripts = Set.empty[Timelock]
+            var nativeScripts = Set.empty[Script.Native]
             var bootstrapWitnesses = Set.empty[BootstrapWitness]
-            var plutusV1Scripts = Set.empty[PlutusV1Script]
-            var plutusData = KeepRaw(TaggedSet(Set.empty[Data]))
+            var plutusV1Scripts = Set.empty[Script.PlutusV1]
+            var plutusData = KeepRaw(TaggedSet(Set.empty[KeepRaw[Data]]))
             var redeemers: Option[KeepRaw[Redeemers]] = None
-            var plutusV2Scripts = Set.empty[PlutusV2Script]
-            var plutusV3Scripts = Set.empty[PlutusV3Script]
+            var plutusV2Scripts = Set.empty[Script.PlutusV2]
+            var plutusV3Scripts = Set.empty[Script.PlutusV3]
 
             for _ <- 0L until mapSize do
                 val key = r.readInt()
@@ -170,7 +174,7 @@ object TransactionWitnessSet:
                         plutusV1Scripts = readSet(r)
 
                     case 4 => // Plutus data
-                        plutusData = r.read[KeepRaw[TaggedSet[Data]]]()
+                        plutusData = r.read[KeepRaw[TaggedSet[KeepRaw[Data]]]]()
 
                     case 5 => // Redeemers
                         redeemers = Some(r.read[KeepRaw[Redeemers]]())

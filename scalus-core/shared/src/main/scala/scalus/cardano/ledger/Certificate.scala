@@ -9,9 +9,12 @@ import scala.collection.mutable
 /** Represents a certificate for stake operations on the blockchain
   */
 enum Certificate {
+    // Legacy Shelley certificates
     case StakeRegistration(credential: Credential)
     case StakeDeregistration(credential: Credential)
+    // delegate to a stake pool
     case StakeDelegation(credential: Credential, poolKeyHash: PoolKeyHash)
+
     case PoolRegistration(
         operator: AddrKeyHash,
         vrfKeyHash: VrfKeyHash,
@@ -24,18 +27,26 @@ enum Certificate {
         poolMetadata: Option[PoolMetadata]
     )
     case PoolRetirement(poolKeyHash: PoolKeyHash, epochNo: Long)
-    case RegCert(credential: Credential, coin: Coin)
-    case UnregCert(credential: Credential, coin: Coin)
+    // register staking credential and pay deposit
+    case RegCert(credential: Credential, coin: Coin) // old StakeRegistration
+    // deregister staking credential and pay deposit
+    case UnregCert(credential: Credential, coin: Coin) // old StakeDeregistration
+    // delegate to dRep
     case VoteDelegCert(credential: Credential, drep: DRep)
+    // delegate to stake pool and dRep
     case StakeVoteDelegCert(credential: Credential, poolKeyHash: PoolKeyHash, drep: DRep)
+    // register staking credential and delegate to stake pool
     case StakeRegDelegCert(credential: Credential, poolKeyHash: PoolKeyHash, coin: Coin)
+    // register voting credential and delegate to dRep
     case VoteRegDelegCert(credential: Credential, drep: DRep, coin: Coin)
+    // register staking credential, delegate to stake pool and dRep
     case StakeVoteRegDelegCert(
         credential: Credential,
         poolKeyHash: PoolKeyHash,
         drep: DRep,
         coin: Coin
     )
+
     case AuthCommitteeHotCert(
         committeeColdCredential: Credential,
         committeeHotCredential: Credential

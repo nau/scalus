@@ -4,11 +4,14 @@ package rules
 // txins txb ≠ ∅
 // It's Shelley.validateInputSetEmptyUTxO in cardano-ledger
 object EmptyInputsValidator extends STS.Validator {
+    override final type Error = TransactionException.EmptyInputsException
+
     override def validate(context: Context, state: State, event: Event): Result = {
-        if event.body.value.inputs.isEmpty then
-            return failure(
-              IllegalArgumentException(s"Empty transaction inputs for transactionId ${event.id}")
-            )
+        val transactionId = event.id
+        val inputs = event.body.value.inputs
+
+        if inputs.isEmpty then
+            return failure(TransactionException.EmptyInputsException(transactionId))
 
         success
     }

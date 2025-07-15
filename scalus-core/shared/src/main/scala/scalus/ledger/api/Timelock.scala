@@ -30,15 +30,15 @@ case class ValidityInterval(
   */
 enum Timelock:
     case Signature(keyHash: AddrKeyHash)
-    case AllOf(scripts: Seq[Timelock])
-    case AnyOf(scripts: Seq[Timelock])
-    case MOf(m: Int, scripts: Seq[Timelock])
+    case AllOf(scripts: IndexedSeq[Timelock])
+    case AnyOf(scripts: IndexedSeq[Timelock])
+    case MOf(m: Int, scripts: IndexedSeq[Timelock])
     case TimeStart(lockStart: SlotNo)
     case TimeExpire(lockExpire: SlotNo)
 
     @transient lazy val scriptHash: ScriptHash = Hash(
       platform.blake2b_224(
-        ByteString.unsafeFromArray(Cbor.encode(this).toByteArray.prepended(0))
+        ByteString.unsafeFromArray(0 +: Cbor.encode(this).toByteArray)
       )
     )
 
@@ -148,14 +148,14 @@ object Timelock:
                 Timelock.Signature(r.read[AddrKeyHash]())
 
             case 1 => // AllOf
-                Timelock.AllOf(r.read[Seq[Timelock]]())
+                Timelock.AllOf(r.read[IndexedSeq[Timelock]]())
 
             case 2 => // AnyOf
-                Timelock.AnyOf(r.read[Seq[Timelock]]())
+                Timelock.AnyOf(r.read[IndexedSeq[Timelock]]())
 
             case 3 => // MOfN
                 val m = r.read[Int]()
-                val scripts = r.read[Seq[Timelock]]()
+                val scripts = r.read[IndexedSeq[Timelock]]()
                 Timelock.MOf(m, scripts)
 
             case 4 => // TimeStart

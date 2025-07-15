@@ -2062,7 +2062,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val appliedScript = term.plutusV1 $ scriptContext.toData
         assert(appliedScript.evaluate == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
         val flatBytesLength = appliedScript.flatEncoded.length
-        assert(flatBytesLength == 364)
+        assert(flatBytesLength == 348)
     }
 
     test("@Ignore annotation") {

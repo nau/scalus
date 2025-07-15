@@ -40,7 +40,7 @@ object ScriptDataHashGenerator {
     def computeScriptDataHash(
         era: Era,
         redeemers: Option[KeepRaw[Redeemers]],
-        datums: KeepRaw[TaggedSet[Data]],
+        datums: KeepRaw[TaggedSet[KeepRaw[Data]]],
         costModels: CostModels
     ): DataHash = {
         require(

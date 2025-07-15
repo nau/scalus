@@ -316,7 +316,7 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
             fee = fee,
             certificates = scalus.prelude.List(txCert),
             signatories = scalus.prelude.List(pkh),
-            redeemers = AssocMap.fromList(
+            redeemers = AssocMap.unsafeFromList(
               scalus.prelude.List((ScriptPurpose.Spending(txOutRef), redeemer))
             ),
             id = txId

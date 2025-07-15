@@ -112,6 +112,10 @@ object Network {
         case 0x00 => Testnet
         case 0x01 => Mainnet
         case v    => Other(v)
+
+    given Ordering[Network] with
+        def compare(x: Network, y: Network): Int = x.value - y.value
+
 }
 
 /** Type aliases for clarity - matching Rust implementation */
@@ -424,7 +428,7 @@ enum Address {
         case Shelley(addr) => addr.toBech32
         case Stake(addr)   => addr.toBech32
 
-    def keyHash: Option[Hash[Blake2b_224, HashPurpose.KeyHash | HashPurpose.StakeKeyHash]] = {
+    def keyHash: Option[AddrKeyHash | StakeKeyHash] = {
         this match
             case Address.Byron(_) =>
                 None // Byron addresses don't have staking credentials

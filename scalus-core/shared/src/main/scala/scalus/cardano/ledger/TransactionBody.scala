@@ -9,7 +9,7 @@ case class TransactionBody(
     inputs: Set[TransactionInput],
 
     /** Transaction outputs to create */
-    outputs: IndexedSeq[TransactionOutput],
+    outputs: IndexedSeq[Sized[TransactionOutput]],
 
     /** Transaction fee */
     fee: Coin,
@@ -45,7 +45,7 @@ case class TransactionBody(
     networkId: Option[Int] = None,
 
     /** Collateral return output */
-    collateralReturnOutput: Option[TransactionOutput] = None,
+    collateralReturnOutput: Option[Sized[TransactionOutput]] = None,
 
     /** Total collateral */
     totalCollateral: Option[Coin] = None,
@@ -234,12 +234,12 @@ object TransactionBody:
         w
 
     /** CBOR decoder for TransactionBody */
-    given Decoder[TransactionBody] with
+    given (using OriginalCborByteArray): Decoder[TransactionBody] with
         def read(r: Reader): TransactionBody =
             val mapSize = r.readMapHeader()
 
             var inputs = Set.empty[TransactionInput]
-            var outputs = IndexedSeq.empty[TransactionOutput]
+            var outputs = IndexedSeq.empty[Sized[TransactionOutput]]
             var fee: Option[Coin] = None
             var ttl: Option[Long] = None
             var certificates = Set.empty[Certificate]
@@ -251,7 +251,7 @@ object TransactionBody:
             var collateralInputs = Set.empty[TransactionInput]
             var requiredSigners = Set.empty[AddrKeyHash]
             var networkId: Option[Int] = None
-            var collateralReturnOutput: Option[TransactionOutput] = None
+            var collateralReturnOutput: Option[Sized[TransactionOutput]] = None
             var totalCollateral: Option[Coin] = None
             var referenceInputs = Set.empty[TransactionInput]
             var votingProcedures: Option[VotingProcedures] = None
@@ -268,7 +268,7 @@ object TransactionBody:
                         inputs = readSet[TransactionInput](r)
 
                     case 1 => // Outputs
-                        outputs = r.read[IndexedSeq[TransactionOutput]]()
+                        outputs = r.read[IndexedSeq[Sized[TransactionOutput]]]()
 
                     case 2 => // Fee
                         fee = Some(r.read[Coin]())
@@ -307,7 +307,7 @@ object TransactionBody:
                         networkId = Some(id)
 
                     case 16 => // Collateral return output
-                        collateralReturnOutput = Some(r.read[TransactionOutput]())
+                        collateralReturnOutput = Some(r.read[Sized[TransactionOutput]]())
 
                     case 17 => // Total collateral
                         totalCollateral = Some(r.read[Coin]())

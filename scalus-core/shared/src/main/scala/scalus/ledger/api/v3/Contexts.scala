@@ -516,6 +516,19 @@ object TxInfo {
       id = TxId(hex"0000000000000000000000000000000000000000000000000000000000000000")
     )
 
+    extension (self: TxInfo) {
+        def findOwnInput(outRef: TxOutRef): Option[TxInInfo] = {
+            Utils.findInput(self.inputs, outRef)
+        }
+
+        def findOwnDatum(datumHash: DatumHash): Option[Datum] = {
+            Utils.findDatum(self.outputs, self.data, datumHash)
+        }
+
+        def findOwnScriptOutputs(scriptHash: ValidatorHash): List[v2.TxOut] = {
+            Utils.findScriptOutputs(self.outputs, scriptHash)
+        }
+    }
 }
 
 case class ScriptContext(
@@ -546,4 +559,23 @@ object SpendingScriptContext {
     given FromData[SpendingScriptContext] = FromData.derived
     given ToData[SpendingScriptContext] = ToData.derived
 
+}
+
+@Compile
+object Utils {
+
+    /** Finds an input in the list of inputs by its out reference.
+      *
+      * @param inputs
+      *   The list of inputs to search in.
+      * @param outRef
+      *   The output reference to find.
+      * @return
+      *   An `Option` containing the found input, or `None` if not found.
+      */
+    def findInput(inputs: List[TxInInfo], outRef: TxOutRef): Option[TxInInfo] = {
+        inputs.find(_.outRef === outRef)
+    }
+
+    export scalus.ledger.api.v2.Utils.{findDatum, findScriptOutputs}
 }

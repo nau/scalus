@@ -15,6 +15,6 @@ case class VKeyWitness(
     require(vkey.size == 32, s"Verification key must be 32 bytes, got ${vkey.size}")
     require(signature.size == 64, s"Signature must be 64 bytes, got ${signature.size}")
 
-    @transient lazy val vkeyHash: StakeKeyHash = Hash(
+    @transient lazy val vkeyHash: AddrKeyHash = Hash(
       platform.blake2b_224(vkey)
     )

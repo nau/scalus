@@ -62,7 +62,7 @@ class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
         val term = lowering.lower()
         val aa = AA(true, BigInt(123))
         val termWithData = term $ Term.Const(Constant.Data(Data.toData(aa)))
-        println(term.showHighlighted)
+//        println(term.showHighlighted)
         val result = termWithData.evaluateDebug
         assert(result.isSuccess, s"Lowere dcode failed with result: $result")
     }

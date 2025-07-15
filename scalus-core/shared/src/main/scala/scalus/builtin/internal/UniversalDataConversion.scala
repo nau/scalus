@@ -3,8 +3,8 @@ package scalus.builtin.internal
 import scalus.Compile
 import scalus.builtin.*
 
-/** This module extists to make Linker happy about the existence of the internal data
-  * representation, where FromData/ToData become NoOps.
+/** This module exists to make Linker happy about the existence of the internal data representation,
+  * where FromData/ToData become NoOps.
   */
 @Compile
 object UniversalDataConversion {

@@ -5,6 +5,8 @@ import scalus.uplc.eval.{ExBudget, ExCPU, ExMemory}
 
 // It's Alonzo.validateExUnitsTooBigUTxO in cardano ledger
 object TransactionExecutionUnitsValidator extends STS.Validator {
+    override final type Error = TransactionException.IllegalArgumentException
+
     override def validate(context: Context, state: State, event: Event): Result = {
         val transactionExUnits = calculateTransactionExUnits(event)
         val maxTxExecutionUnits = context.env.params.maxTxExecutionUnits
@@ -12,7 +14,7 @@ object TransactionExecutionUnitsValidator extends STS.Validator {
             transactionExUnits.memory > maxTxExecutionUnits.memory
         then
             return failure(
-              IllegalArgumentException(
+              TransactionException.IllegalArgumentException(
                 s"Transaction execution units exceed the maximum allowed: " +
                     s"transaction: $transactionExUnits, " +
                     s"max allowed: $maxTxExecutionUnits"

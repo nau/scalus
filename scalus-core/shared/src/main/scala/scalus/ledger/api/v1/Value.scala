@@ -33,8 +33,8 @@ object Value:
 
     def checkPred(l: Value, r: Value)(f: These[BigInt, BigInt] => Boolean): Boolean = {
         def inner(m: AssocMap[TokenName, These[BigInt, BigInt]]): Boolean =
-            m.all((_, v) => f(v))
-        unionVal(l, r).all((_, v) => inner(v))
+            m.forall((_, v) => f(v))
+        unionVal(l, r).forall((_, v) => inner(v))
     }
 
     def checkBinRel(op: (BigInt, BigInt) => Boolean)(
@@ -71,11 +71,10 @@ object Value:
           CurrencySymbol,
           prelude.These[AssocMap[TokenName, BigInt], AssocMap[TokenName, BigInt]]
         ] = AssocMap.union(l, r)
-        AssocMap.map(combined) { case (cs, these) =>
-            these match
-                case These.These(v1, v2) => (cs, AssocMap.union(v1, v2))
-                case This(v1) => (cs, AssocMap.map(v1) { case (k, v) => (k, These.This(v)) })
-                case That(v2) => (cs, AssocMap.map(v2) { case (k, v) => (k, These.That(v)) })
+        combined.mapValues {
+            case These.These(v1, v2) => AssocMap.union(v1, v2)
+            case This(v1)            => v1.mapValues { These.This(_) }
+            case That(v2)            => v2.mapValues { These.That(_) }
         }
 
     def unionWith(op: (BigInt, BigInt) => BigInt)(a: Value, b: Value): Value =
@@ -85,9 +84,7 @@ object Value:
             case This(v1)            => op(v1, 0)
             case That(v2)            => op(0, v2)
         }
-        AssocMap.map(combined) { case (cs, v) =>
-            (cs, AssocMap.map(v) { case (tn, v) => (tn, unThese(v)) })
-        }
+        combined.mapValues { _.mapValues { unThese(_) } }
 
     val plus: (a: Value, b: Value) => Value = unionWith(addInteger)
     val minus: (a: Value, b: Value) => Value = unionWith(subtractInteger)

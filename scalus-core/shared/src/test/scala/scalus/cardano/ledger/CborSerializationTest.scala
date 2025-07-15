@@ -6,7 +6,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.Timelock
-import scalus.utils.Hex.toHex
 
 class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, ArbitraryInstances {
     test(s"Hash should serialize and deserialize correctly"):
@@ -146,15 +145,6 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
 
     test(s"Redeemers should serialize and deserialize correctly"):
         testSerializationRoundTrip[Redeemers]()
-
-    test(s"PlutusV1Script should serialize and deserialize correctly"):
-        testSerializationRoundTrip[PlutusV1Script]()
-
-    test(s"PlutusV2Script should serialize and deserialize correctly"):
-        testSerializationRoundTrip[PlutusV2Script]()
-
-    test(s"PlutusV3Script should serialize and deserialize correctly"):
-        testSerializationRoundTrip[PlutusV3Script]()
 
     test(s"TransactionWitnessSet should serialize and deserialize correctly"):
         testSerializationRoundTrip[TransactionWitnessSet]()

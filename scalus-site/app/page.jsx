@@ -1,4 +1,10 @@
 import Image from 'next/image'
+import Link from 'next/link'
+
+export const metadata = {
+  title: 'Scalus - DApps Development Platform for Cardano',
+  description: 'Write smart contracts, build transactions and application business logic — all in Scala 3, backed by industry-grade tools and great development experience.',
+}
 
 export default function IndexPage() {
   return (
@@ -9,17 +15,17 @@ export default function IndexPage() {
       {/* Left: Text */}
       <div className="lg:w-2/3 text-center lg:text-left lg:pr-16 mt-12 lg:mt-0">
         <h1 className="text-5xl font-semibold tracking-tight text-balance text-gray-900 sm:text-6xl">Accelerate innovation on Cardano with Scalus</h1>
-        <p className="mt-8 text-lg font-medium text-pretty text-gray-500 sm:text-xl/8">Write smart contracts, build transactions and application business logic — all in Scala 3, backed by industry-grade tools and great development experience.</p>
+        <p className="mt-8 text-lg font-medium text-pretty text-gray-500 sm:text-xl/8">With Scalus DApps development platofrm you can: Write smart contracts, build transactions and application business logic — all in Scala 3, backed by industry-grade tools and great development experience.</p>
         <div className="mt-10 flex items-center justify-center lg:justify-start gap-x-6">
-          <a href="/docs/get-started" className="rounded-md bg-black px-3.5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">Get started</a>
-          <a href="/docs" className="text-sm/6 font-semibold text-gray-900">Learn more <span aria-hidden="true">→</span></a>
+          <Link href="/docs/get-started" className="rounded-md bg-black px-3.5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">Get started</Link>
+          <Link href="/docs" className="text-sm/6 font-semibold text-gray-900">Learn more <span aria-hidden="true">→</span></Link>
         </div>
       </div>
       {/* Right: Image */}
       <div className="lg:w-1/3 flex justify-center">
         <Image
           src="/scalus-logo-vertical-dark.png"
-          alt="Hero illustration"
+          alt="Scalus logo"
           width={300}
           height={300}
           priority
@@ -30,7 +36,7 @@ export default function IndexPage() {
   {/* Features */}
   <div className="bg-gray-50 py-15 sm:py-22">
   <div className="mx-auto max-w-2xl px-6 lg:max-w-7xl lg:px-8">
-    
+    {/* <h2 className="text-center text-base/7 font-semibold text-indigo-600">Scalus - DApps development platform</h2> */}
     <h2 className="mx-auto text-center text-4xl font-semibold tracking-tight text-balance text-gray-950 sm:text-5xl">Everything you need to build on Cardano</h2>
     <div className="mt-10 grid gap-4 sm:mt-16 lg:grid-cols-3 lg:grid-rows-2">
       <div className="relative lg:row-span-2">
@@ -65,7 +71,7 @@ export default function IndexPage() {
         <div className="absolute inset-px rounded-lg bg-white"></div>
         <div className="relative flex h-full flex-col overflow-hidden rounded-[calc(var(--radius-lg)+1px)]">
           <div className="px-8 pt-8 sm:px-10 sm:pt-10">
-            <p className="mt-2 text-lg font-medium tracking-tight text-gray-950 max-lg:text-center">Security</p>
+            <p className="mt-2 text-lg font-medium tracking-tight text-gray-950 max-lg:text-center">L2 scaling solutions</p>
             <p className="mt-2 max-w-lg text-sm/6 text-gray-600 max-lg:text-center">Morbi viverra dui mi arcu sed. Tellus semper adipiscing suspendisse semper morbi.</p>
           </div>
           <div className="@container flex flex-1 items-center max-lg:py-6 lg:pb-2">
@@ -101,6 +107,8 @@ export default function IndexPage() {
   </div>
 </div>
 
+{/* Trusted by */}
+{/* Trusted by section - hidden for now
 <div className="bg-white py-15 sm:py-22">
   <div className="mx-auto max-w-7xl px-6 lg:px-8">
     <h2 className="text-center text-lg/8 font-semibold text-gray-900 sm:text-1xl ">Trusted by the world's most innovative teams</h2> <br />
@@ -114,6 +122,7 @@ export default function IndexPage() {
     </div>
   </div>
 </div>
+*/}
 
 </div>
   )

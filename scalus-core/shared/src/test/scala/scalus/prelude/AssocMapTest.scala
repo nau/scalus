@@ -12,10 +12,10 @@ import scalus.uplc.test.ArbitraryInstances
 
 @Compile
 private object AssocMapTest {
-    val m1 = AssocMap.fromList(
+    val m1 = AssocMap.unsafeFromList(
       Cons((BigInt(1), BigInt(2)), Cons((BigInt(0), BigInt(0)), List.Nil))
     )
-    val m2 = AssocMap.fromList(
+    val m2 = AssocMap.unsafeFromList(
       Cons((BigInt(1), BigInt(3)), Cons((BigInt(3), BigInt(4)), List.Nil))
     )
     def equalsAssets(
@@ -74,9 +74,9 @@ class AssocMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         }
     }
 
-    test("fromList(lst).toList == lst") {
+    test("fromList(lst).toList == lst.unique(using AssocMap.eq)") {
         check { (lst: List[(BigInt, Boolean)]) =>
-            AssocMap.fromList(lst).toList == lst
+            AssocMap.fromList(lst).toList == lst.unique(using AssocMap.pairEq)
         }
     }
 

@@ -5,9 +5,9 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.rules.ValidateValueNotConservedUTxO.validate
+import scalus.cardano.ledger.rules.ValueNotConservedUTxOValidator.validate
 
-class ValidateValueNotConservedUTxOTest extends AnyFunSuite, ArbitraryInstances {
+class ValueNotConservedUTxOValidatorTest extends AnyFunSuite, ArbitraryInstances {
 
     test("value is preserved in an empty transaction") {
         val context = Context()
@@ -47,7 +47,7 @@ class ValidateValueNotConservedUTxOTest extends AnyFunSuite, ArbitraryInstances 
               fee = Coin.zero,
               mint = None,
               inputs = Set(input),
-              outputs = IndexedSeq(output)
+              outputs = IndexedSeq(Sized(output))
             )
           )
         )

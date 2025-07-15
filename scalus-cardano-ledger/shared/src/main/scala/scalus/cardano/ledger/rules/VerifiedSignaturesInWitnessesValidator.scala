@@ -1,0 +1,67 @@
+package scalus.cardano.ledger
+package rules
+
+import scalus.builtin.{platform, ByteString}
+import scala.util.control.NonFatal
+
+// It's Shelley.validateVerifiedWits in cardano-ledger
+object VerifiedSignaturesInWitnessesValidator extends STS.Validator {
+    override final type Error = TransactionException.InvalidSignaturesInWitnessesException
+
+    override def validate(context: Context, state: State, event: Event): Result = {
+        val transactionId = event.id
+        val utxo = state.utxo
+
+        val invalidVkeyWitnessesSet = invalidVkeyWitnesses(event, utxo)
+        val invalidBootstrapWitnessesSet = invalidBootstrapWitnesses(event, utxo)
+
+        if invalidVkeyWitnessesSet.nonEmpty || invalidBootstrapWitnessesSet.nonEmpty
+        then
+            return failure(
+              TransactionException.InvalidSignaturesInWitnessesException(
+                transactionId,
+                invalidVkeyWitnessesSet,
+                invalidBootstrapWitnessesSet
+              )
+            )
+
+        success
+    }
+
+    private def invalidVkeyWitnesses(
+        event: Event,
+        utxo: UTxO
+    ): Set[VKeyWitness] = {
+        val transactionId = event.id
+        val vkeyWitnesses = event.witnessSet.vkeyWitnesses
+
+        vkeyWitnesses.filterNot(vkeyWitness =>
+            verifyWitnessSignature(transactionId, vkeyWitness.vkey, vkeyWitness.signature)
+        )
+    }
+
+    private def invalidBootstrapWitnesses(
+        event: Event,
+        utxo: UTxO
+    ): Set[BootstrapWitness] = {
+        val transactionId = event.id
+        val bootstrapWitnesses = event.witnessSet.bootstrapWitnesses
+
+        bootstrapWitnesses.filterNot(bootstrapWitness =>
+            verifyWitnessSignature(
+              transactionId,
+              bootstrapWitness.publicKey,
+              bootstrapWitness.signature
+            )
+        )
+    }
+
+    private def verifyWitnessSignature(
+        transactionId: TransactionHash,
+        key: ByteString,
+        signature: ByteString
+    ): Boolean = {
+        try platform.verifyEd25519Signature(key, transactionId, signature)
+        catch case NonFatal(exception) => false
+    }
+}

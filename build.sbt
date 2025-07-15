@@ -68,6 +68,24 @@ lazy val root: Project = project
       publish / skip := true
     )
 
+// all JVM projects are aggregated in the jvm project just for convenience
+lazy val jvm: Project = project
+    .in(file("jvm"))
+    .aggregate(
+      scalusPlugin,
+      scalus.jvm,
+      scalusPluginTests,
+      scalusCardanoLedger.jvm,
+      scalusTestkit.jvm,
+      scalusExamples.jvm,
+      scalusDesignPatterns,
+      bench,
+      `scalus-bloxbean-cardano-client-lib`,
+    )
+    .settings(
+      publish / skip := true
+    )
+
 lazy val commonScalacOptions = Seq(
   "-deprecation",
   "-feature",
@@ -321,6 +339,7 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform)
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
+      libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided",
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
@@ -357,7 +376,7 @@ lazy val scalusDesignPatterns = project
 // Bloxbean Cardano Client Lib integration and Tx Evaluator implementation
 lazy val `scalus-bloxbean-cardano-client-lib` = project
     .in(file("bloxbean-cardano-client-lib"))
-    .dependsOn(scalus.jvm)
+    .dependsOn(scalus.jvm, scalusCardanoLedger.jvm)
     .settings(
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
@@ -441,6 +460,10 @@ addCommandAlias(
   "scalus-bloxbean-cardano-client-lib/mimaReportBinaryIssues"
 )
 addCommandAlias(
+  "quick",
+  "scalafmtAll;scalafmtSbt;jvm/Test/compile;jvm/testQuick"
+)
+addCommandAlias(
   "precommit",
   "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
 )
@@ -464,6 +487,7 @@ logo :=
 
 usefulTasks := Seq(
   UsefulTask("~compile", "Compile with file-watch enabled"),
+  UsefulTask("quick", "Format all, compile and quick test everything on JVM"),
   UsefulTask("precommit", "Format all, clean compile and test everything"),
   UsefulTask("ci", "Clean compile, check formatting and test everything"),
   UsefulTask("mima", "Check binary compatibility with the previous version using MiMa"),

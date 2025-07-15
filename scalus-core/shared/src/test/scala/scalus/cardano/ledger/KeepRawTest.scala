@@ -7,6 +7,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.utils.Hex.*
 
 class KeepRawTest extends AnyFunSuite, ScalaCheckPropertyChecks {
+    // TODO not sure why this is needed, but it is
     test(s"KeepRaw should equal to itself") {
         case class Body(a: Int) derives Codec
         val body1 = Body(100)

@@ -3,8 +3,8 @@ package scalus.ledger.api.v1
 import scalus.Compile
 import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
-import scalus.builtin.Data.{fromData, toData}
 import scalus.prelude.{===, AssocMap, Eq, List, Option, Ord, given}
+import scalus.builtin.ByteString.*
 
 type Hash = ByteString
 type ValidatorHash = Hash
@@ -214,19 +214,9 @@ object IntervalBoundType {
                     case PosInf => Ord.Order.Equal
                     case _      => Ord.Order.Greater
 
-    given toData[T <: IntervalBoundType]: ToData[T] = (a: T) =>
-        a match
-            case IntervalBoundType.NegInf    => constrData(0, mkNilData())
-            case IntervalBoundType.Finite(a) => constrData(1, iData(a) :: mkNilData())
-            case IntervalBoundType.PosInf    => constrData(2, mkNilData())
+    given ToData[IntervalBoundType] = ToData.derived
 
-    given fromData: FromData[IntervalBoundType] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        if tag == BigInt(0) then IntervalBoundType.NegInf
-        else if tag == BigInt(1) then new IntervalBoundType.Finite(unIData(pair.snd.head))
-        else if tag == BigInt(2) then IntervalBoundType.PosInf
-        else throw new Exception("Unknown IntervalBoundType tag")
+    given FromData[IntervalBoundType] = FromData.derived
 
 }
 
@@ -263,23 +253,9 @@ object IntervalBound:
                             else Ord.Order.Less
                         else summon[Ord[IntervalBoundType]].compare(bound, bound2)
 
-    given ToData[IntervalBound] = (a: IntervalBound) =>
-        a match
-            case IntervalBound(a, b) =>
-                constrData(
-                  0,
-                  mkCons(
-                    a.toData,
-                    mkCons(b.toData, mkNilData())
-                  )
-                )
+    given ToData[IntervalBound] = ToData.derived
 
-    given FromData[IntervalBound] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new IntervalBound(
-          fromData[IntervalBoundType](args.head),
-          fromData[Closure](args.tail.head)
-        )
+    given FromData[IntervalBound] = FromData.derived
 
 end IntervalBound
 
@@ -301,23 +277,9 @@ object Interval:
                     case Interval(from2, to2) =>
                         from1 === from2 && to1 === to2
 
-    given ToData[Interval] = (a: Interval) =>
-        a match
-            case Interval(a, b) =>
-                constrData(
-                  0,
-                  mkCons(
-                    a.toData,
-                    mkCons(b.toData, mkNilData())
-                  )
-                )
+    given ToData[Interval] = ToData.derived
 
-    given FromData[Interval] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new Interval(
-          fromData[IntervalBound](args.head),
-          fromData[IntervalBound](args.tail.head)
-        )
+    given FromData[Interval] = FromData.derived
 
     /** Inclusive -∞ interval bound */
     val negInf: IntervalBound = new IntervalBound(IntervalBoundType.NegInf, true)
@@ -411,64 +373,9 @@ object DCert {
                     case DCert.Mir => true
                     case _         => false
 
-    given [T <: DCert]: ToData[T] = (a: T) =>
-        a match
-            case DCert.DelegRegKey(cred) =>
-                constrData(0, mkCons(cred.toData, mkNilData()))
-            case DCert.DelegDeRegKey(cred) =>
-                constrData(1, mkCons(cred.toData, mkNilData()))
-            case DCert.DelegDelegate(cred, delegatee) =>
-                constrData(
-                  2,
-                  mkCons(
-                    cred.toData,
-                    mkCons(delegatee.toData, mkNilData())
-                  )
-                )
-            case DCert.PoolRegister(poolId, vrf) =>
-                constrData(
-                  3,
-                  mkCons(
-                    poolId.toData,
-                    mkCons(vrf.toData, mkNilData())
-                  )
-                )
-            case DCert.PoolRetire(poolId, epoch) =>
-                constrData(
-                  4,
-                  mkCons(
-                    poolId.toData,
-                    mkCons(epoch.toData, mkNilData())
-                  )
-                )
-            case DCert.Genesis => constrData(5, mkNilData())
-            case DCert.Mir     => constrData(6, mkNilData())
+    given ToData[DCert] = ToData.derived
 
-    given FromData[DCert] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag == BigInt(0) then new DCert.DelegRegKey(fromData[StakingCredential](args.head))
-        else if tag == BigInt(1) then
-            new DCert.DelegDeRegKey(fromData[StakingCredential](args.head))
-        else if tag == BigInt(2) then
-            new DCert.DelegDelegate(
-              fromData[StakingCredential](args.head),
-              fromData[PubKeyHash](args.tail.head)
-            )
-        else if tag == BigInt(3) then
-            new DCert.PoolRegister(
-              fromData[PubKeyHash](args.head),
-              fromData[PubKeyHash](args.tail.head)
-            )
-        else if tag == BigInt(4) then
-            new DCert.PoolRetire(
-              fromData[PubKeyHash](args.head),
-              unIData(args.tail.head)
-            )
-        else if tag == BigInt(5) then DCert.Genesis
-        else if tag == BigInt(6) then DCert.Mir
-        else throw new Exception("Unknown DCert tag")
+    given FromData[DCert] = FromData.derived
 
 }
 
@@ -480,8 +387,8 @@ object TxId:
 
     given Eq[TxId] = (a: TxId, b: TxId) => a.hash === b.hash
 
-    given ToData[TxId] = (a: TxId) => constrData(0, mkCons(ToData.toData(a.hash), mkNilData()))
-    given FromData[TxId] = (d: Data) => new TxId(unBData(unConstrData(d).snd.head))
+    given ToData[TxId] = ToData.derived
+    given FromData[TxId] = FromData.derived
 
 end TxId
 
@@ -499,9 +406,7 @@ object TxOutRef {
 
     given ToData[TxOutRef] = ToData.derived
 
-    given FromData[TxOutRef] = (d: Data) =>
-        val args = unConstrData(d).snd
-        new TxOutRef(fromData[TxId](args.head), unIData(args.tail.head))
+    given FromData[TxOutRef] = FromData.derived
 
 }
 
@@ -538,21 +443,9 @@ object Credential {
                     case Credential.PubKeyCredential(hash2) => false
                     case Credential.ScriptCredential(hash2) => hash === hash2
 
-    given FromData[Credential] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag == BigInt(0) then new Credential.PubKeyCredential(fromData[PubKeyHash](args.head))
-        else if tag == BigInt(1) then new Credential.ScriptCredential(unBData(args.head))
-        else throw new Exception("Unknown Credential tag")
+    given FromData[Credential] = FromData.derived
 
-    given toData[T <: Credential]: ToData[T] = (a: T) =>
-        a match
-            case Credential.PubKeyCredential(hash) =>
-                constrData(0, mkCons(hash.toData, mkNilData()))
-            case Credential.ScriptCredential(hash) =>
-                constrData(1, hash.toData :: mkNilData())
-
+    given ToData[Credential] = ToData.derived
 }
 
 enum StakingCredential:
@@ -573,34 +466,9 @@ object StakingCredential {
                     case StakingCredential.StakingPtr(a2, b2, c2) =>
                         a === a2 && b === b2 && c === c2
 
-    given fromData: FromData[StakingCredential] =
-        (d: Data) =>
-            val pair = unConstrData(d)
-            val tag = pair.fst
-            val args = pair.snd
-            if tag == BigInt(0) then
-                new StakingCredential.StakingHash(Data.fromData[Credential](args.head))
-            else if tag == BigInt(1) then
-                new StakingCredential.StakingPtr(
-                  unIData(args.head),
-                  unIData(args.tail.head),
-                  unIData(args.tail.tail.head)
-                )
-            else throw new RuntimeException("Invalid tag")
+    given FromData[StakingCredential] = FromData.derived
 
-    given toData[T <: StakingCredential]: ToData[T] = (a: T) =>
-        a match
-            case StakingCredential.StakingHash(cred) =>
-                constrData(0, mkCons(cred.toData, mkNilData()))
-            case StakingCredential.StakingPtr(a, b, c) =>
-                constrData(
-                  1,
-                  mkCons(
-                    a.toData,
-                    mkCons(b.toData, mkCons(c.toData, mkNilData()))
-                  )
-                )
-
+    given ToData[StakingCredential] = ToData.derived
 }
 
 case class Address(
@@ -691,8 +559,31 @@ case class TxInfo(
 
 @Compile
 object TxInfo {
+    val placeholder: TxInfo = TxInfo(
+      inputs = List.empty,
+      outputs = List.empty,
+      fee = Value.zero,
+      mint = Value.zero,
+      dcert = List.empty,
+      withdrawals = List.empty,
+      validRange = Interval.always,
+      signatories = List.empty,
+      data = List.empty,
+      id = TxId(hex"0000000000000000000000000000000000000000000000000000000000000000")
+    )
+
     given ToData[TxInfo] = ToData.derived
     given FromData[TxInfo] = FromData.derived
+
+    extension (self: TxInfo) {
+        def findOwnInput(outRef: TxOutRef): Option[TxInInfo] = {
+            Utils.findInput(self.inputs, outRef)
+        }
+
+        def findOwnScriptOutputs(scriptHash: ValidatorHash): List[TxOut] = {
+            Utils.findScriptOutputs(self.outputs, scriptHash)
+        }
+    }
 }
 
 enum ScriptPurpose:
@@ -723,27 +614,9 @@ object ScriptPurpose {
                     case ScriptPurpose.Certifying(cert) => cert === cert
                     case _                              => false
 
-    given [T <: ScriptPurpose]: ToData[T] = (a: T) =>
-        a match
-            case ScriptPurpose.Minting(curSymbol) =>
-                constrData(0, mkCons(curSymbol.toData, mkNilData()))
-            case ScriptPurpose.Spending(txOutRef) =>
-                constrData(1, mkCons(txOutRef.toData, mkNilData()))
-            case ScriptPurpose.Rewarding(stakingCred) =>
-                constrData(2, mkCons(stakingCred.toData, mkNilData()))
-            case ScriptPurpose.Certifying(cert) =>
-                constrData(3, mkCons(cert.toData, mkNilData()))
+    given ToData[ScriptPurpose] = ToData.derived
 
-    given FromData[ScriptPurpose] = (d: Data) =>
-        val pair = unConstrData(d)
-        val tag = pair.fst
-        val args = pair.snd
-        if tag == BigInt(0) then new ScriptPurpose.Minting(fromData[TokenName](args.head))
-        else if tag == BigInt(1) then new ScriptPurpose.Spending(fromData[TxOutRef](args.head))
-        else if tag == BigInt(2) then
-            new ScriptPurpose.Rewarding(fromData[StakingCredential](args.head))
-        else if tag == BigInt(3) then new ScriptPurpose.Certifying(fromData[DCert](args.head))
-        else throw new Exception("Unknown ScriptPurpose tag")
+    given FromData[ScriptPurpose] = FromData.derived
 
 }
 
@@ -757,3 +630,37 @@ object ScriptContext:
     given ToData[ScriptContext] = ToData.derived
 
 end ScriptContext
+
+@Compile
+object Utils {
+
+    /** Finds an input in the list of inputs by its out reference.
+      *
+      * @param inputs
+      *   The list of inputs to search in.
+      * @param outRef
+      *   The output reference to find.
+      * @return
+      *   An `Option` containing the found input, or `None` if not found.
+      */
+    def findInput(inputs: List[TxInInfo], outRef: TxOutRef): Option[TxInInfo] = {
+        inputs.find(_.outRef === outRef)
+    }
+
+    /** Finds all outputs that match a given script hash.
+      *
+      * @param outputs
+      *   The list of outputs to search in.
+      * @param scriptHash
+      *   The script hash to match against the outputs' addresses.
+      * @return
+      *   A list of outputs that match the script hash.
+      */
+    def findScriptOutputs(outputs: List[TxOut], scriptHash: ValidatorHash): List[TxOut] = {
+        outputs.filter { output =>
+            output.address.credential match
+                case Credential.ScriptCredential(hash) => hash === scriptHash
+                case _                                 => false
+        }
+    }
+}

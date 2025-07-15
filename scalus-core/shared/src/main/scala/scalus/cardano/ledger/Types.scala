@@ -3,7 +3,7 @@ package scalus.cardano.ledger
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.*
-import scalus.builtin.ByteString
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
 import scalus.utils.Hex.toHex
 import upickle.default.ReadWriter as UpickleReadWriter
@@ -48,11 +48,11 @@ type MultiAsset = Map[PolicyId, Map[AssetName, Long]]
 object MultiAsset {
     val zero: MultiAsset = Map.empty
     def binOp(op: (Long, Long) => Long)(self: MultiAsset, other: MultiAsset): MultiAsset = {
-        (self.keySet ++ other.keySet).map { policyId =>
+        (self.keySet ++ other.keySet).view.map { policyId =>
             val selfAssets = self.getOrElse(policyId, Map.empty)
             val otherAssets = other.getOrElse(policyId, Map.empty)
 
-            val mergedAssets = (selfAssets.keySet ++ otherAssets.keySet).map { assetName =>
+            val mergedAssets = (selfAssets.keySet ++ otherAssets.keySet).view.map { assetName =>
                 val combinedValue =
                     op(selfAssets.getOrElse(assetName, 0L), otherAssets.getOrElse(assetName, 0L))
                 assetName -> combinedValue
@@ -345,6 +345,48 @@ object KeepRaw {
         }
 
     given [A: Encoder]: Encoder[KeepRaw[A]] = (w: Writer, value: KeepRaw[A]) => {
+        // FIXME: use w.writeValueAsRawBytes instead of re-encoding when it's supported:
+        // https://github.com/sirthias/borer/issues/764
+        summon[Encoder[A]].write(w, value.value)
+    }
+}
+
+extension (self: KeepRaw[Data]) {
+    def dataHash: DataHash = {
+        // We need to calculate the hash of the raw bytes, not the decoded data
+        Hash(platform.blake2b_256(ByteString.unsafeFromArray(self.raw)))
+    }
+}
+
+case class Sized[A](value: A, size: Int) {
+    override def hashCode: Int =
+        util.Arrays.hashCode(Array(value.hashCode(), size))
+
+    override def equals(obj: Any): Boolean = obj.asMatchable match {
+        case that: Sized[?] =>
+            this.value == that.value && this.size == that.size
+        case _ => false
+    }
+    override def toString: String = s"Sized(value=$value, size=$size)"
+}
+
+object Sized {
+    def apply[A: Encoder](value: A): Sized[A] =
+        new Sized(value, Cbor.encode(value).toByteArray.length)
+
+    given [A: Decoder](using OriginalCborByteArray): Decoder[Sized[A]] =
+        Decoder { r =>
+            // Here we need to call `dataItem()` to ensure the cursor is updated
+            // see https://github.com/sirthias/borer/issues/761#issuecomment-2919035884
+            r.dataItem()
+            val start = r.cursor
+            val value = r.read[A]()
+            val di = r.dataItem()
+            val end = if di == DataItem.EndOfInput then r.input.cursor else r.cursor
+            Sized(value, end.toInt - start.toInt)
+        }
+
+    given [A: Encoder]: Encoder[Sized[A]] = (w: Writer, value: Sized[A]) => {
         // FIXME: use w.writeValueAsRawBytes instead of re-encoding when it's supported:
         // https://github.com/sirthias/borer/issues/764
         summon[Encoder[A]].write(w, value.value)
