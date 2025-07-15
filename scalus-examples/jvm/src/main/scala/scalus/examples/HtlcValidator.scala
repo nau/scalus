@@ -76,8 +76,22 @@ object HtlcValidator extends Validator:
     inline val InvalidReceiverPreimage = "Invalid receiver preimage"
 
     @Ignore
-    val script: Program = compile(HtlcValidator.validate)
-        .toUplc(generateErrorTraces = true)
-        .plutusV3
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+      debug = false
+    )
+
+    @Ignore
+    val script: Program = {
+        val sir = compile(HtlcValidator.validate)
+        //val lw = sir.toLoweredValue()
+        //println(lw.show)
+        sir.toUplc(
+          generateErrorTraces = true,
+          backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
+        ).plutusV3
+    }
 
 end HtlcValidator
