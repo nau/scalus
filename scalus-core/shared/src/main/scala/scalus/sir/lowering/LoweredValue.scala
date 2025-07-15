@@ -972,14 +972,15 @@ object LoweredValue {
             }
 
             val argInTargetRepresentation =
-                if !typeAligned && SIRType.isSum(targetArgType) then
+                if !typeAligned && SIRType.isSum(targetArgType) then {
+                    if lctx.debug then lctx.log("targetArgType is sum, trying to upcast arg")
                     arg
                         .maybeUpcast(targetArgType, inPos)
                         .toRepresentation(
                           targetArgRepresentation,
                           inPos
                         )
-                else if SIRType.isPolyFunOrFun(arg.sirType) then {
+                } else if SIRType.isPolyFunOrFun(arg.sirType) then {
                     // if we have a function, we need check, are we need to upcast their arguments
                     //  because it can be a polymorphic function with covariant argumets.
                     //  like Eq[Credential],
@@ -992,7 +993,7 @@ object LoweredValue {
                 } else {
                     argTypevarResolved.toRepresentation(targetArgRepresentation, inPos)
                 }
-            // prin tln(s"argInTargetRepresentation = ${argInTargetRepresentation}")
+            if lctx.debug then lctx.log(s"argInTargetRepresentation = ${argInTargetRepresentation}")
 
             val calculatedResType = SIRType.calculateApplyType(
               f.sirType,
@@ -1075,6 +1076,7 @@ object LoweredValue {
                             )
                     }
                 case None =>
+
                     calculatedResType
             }
 
@@ -1083,6 +1085,12 @@ object LoweredValue {
                     outRepr
                 case _ =>
                     throw LoweringException("Expected that f have function representation", inPos)
+
+            if lctx.debug then {
+                lctx.log(
+                  s"lvApply: before applied calculatedResType = ${calculatedResType.show}, calculatedResRep=${calculatedResRepr.show} resType = ${resType.show}"
+                )
+            }
 
             lctx.debug = prevDebug
 
@@ -1093,6 +1101,12 @@ object LoweredValue {
               calculatedResRepr,
               inPos
             )
+
+            if lctx.debug then {
+                lctx.log(
+                  s"lvApply: applied = ${applied.pretty.render(100)}"
+                )
+            }
 
             val retval = {
                 if SIRType.isPolyFunOrFun(resType) then

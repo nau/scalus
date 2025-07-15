@@ -36,7 +36,10 @@ object Lowering {
         )
     }
 
-    def lowerSIR(sir: SIR)(using lctx: LoweringContext): LoweredValue = {
+    def lowerSIR(
+        sir: SIR,
+        optTargetType: Option[SIRType] = None
+    )(using lctx: LoweringContext): LoweredValue = {
         lctx.nestingLevel += 1
         val retval = sir match
             case SIR.Decl(data, term) =>
@@ -47,7 +50,14 @@ object Lowering {
                 lowerSIR(term)
             case constr @ SIR.Constr(name, decl, args, tp, anns) =>
                 val resolvedType = lctx.resolveTypeVarIfNeeded(tp)
-                val typeGenerator = lctx.typeGenerator(resolvedType)
+                val typeGenerator =
+                    if name == "scalus.prelude.List$.Nil" then
+                        optTargetType match
+                            case Some(targetType) =>
+                                lctx.typeGenerator(targetType)
+                            case None =>
+                                lctx.typeGenerator(resolvedType)
+                    else lctx.typeGenerator(resolvedType)
                 typeGenerator.genConstr(constr)
             case sirMatch @ SIR.Match(scrutinee, cases, rhsType, anns) =>
                 if lctx.debug then
@@ -217,7 +227,7 @@ object Lowering {
                 val loweredF = lowerSIR(f)
                 lvIfThenElse(loweredCond, loweredT, loweredF, anns.pos)
             case SIR.Cast(expr, tp, anns) =>
-                val loweredExpr = lowerSIR(expr)
+                val loweredExpr = lowerSIR(expr, Some(tp))
                 try lvCast(loweredExpr, tp, anns.pos)
                 catch
                     case NonFatal(ex) =>

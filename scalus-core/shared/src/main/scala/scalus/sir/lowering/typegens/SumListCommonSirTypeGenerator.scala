@@ -1,7 +1,8 @@
 package scalus.sir.lowering.typegens
 
+import scala.util.control.NonFatal
 import org.typelevel.paiges.Doc
-import scalus.sir.*
+import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.sir.lowering.*
 import scalus.sir.lowering.Lowering.tpf
@@ -59,7 +60,7 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                     .collectProd(elementType)
                     .getOrElse(
                       throw new LoweringException(
-                        s"Element type of pair-list should be a pair or tuple, but we have ${elementType.show}",
+                        s"Element type of pair-list should be a pair or tuple, but we have ${elementType.show} from ${input.sirType.show}",
                         pos
                       )
                     )
@@ -210,14 +211,27 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                       pos
                     )
                 else
-                    val alignedInput = input.toRepresentation(
-                      SumCaseClassRepresentation.SumDataList,
-                      pos
-                    )
+                    // and here is error:  we should noot change representation during upcast
+                    //  (becasue changing representation calls apply, apply call upcast...
+                    //
+                    // val alignedInput =
+                    //    try
+                    //        input.toRepresentation(
+                    //          SumCaseClassRepresentation.SumDataList,
+                    //          pos
+                    //        )
+                    //    catch
+                    //        case ex: StackOverflowError =>
+                    //            println("error in upcastOne for List: StackOverflowError")
+                    //            println(s"targetType: ${targetType.show}")
+                    //            println(s"inputType: ${input.sirType.show}")
+                    //            println(s"input: ${input.show}")
+                    //            // ex.printStackTrace()
+                    //            throw ex;
                     TypeRepresentationProxyLoweredValue(
-                      alignedInput,
+                      input,
                       targetType,
-                      SumCaseClassRepresentation.SumDataList,
+                      input.representation,
                       pos
                     )
             case TypeVarRepresentation(isBuiltin) =>
@@ -256,18 +270,34 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                     )
                 val head = lctx.lower(constr.args.head)
                 val tail = lctx.lower(constr.args.tail.head)
-                val elementType = head.sirType
+                val elementType = retrieveElementType(constr.tp, constr.anns.pos)
                 val headElementRepr = head.toRepresentation(
                   defaultElementRepresentation(elementType, constr.anns.pos),
                   constr.anns.pos
                 )
-                val tailElementRepr =
-                    tail.toRepresentation(defaultListRepresentation, constr.anns.pos)
+                // special case when tail is Nil, than have tyoe List[Nothing]
+                val fixedTail =
+                    if isNilType(tail.sirType) then
+                        fixNilInConstr(tail, constr.tp, defaultListRepresentation)
+                    else tail
+
+                val tailElementRepr = {
+                    try fixedTail.toRepresentation(defaultListRepresentation, constr.anns.pos)
+                    catch
+                        case NonFatal(ex) =>
+                            println(
+                              s"error in genConstr for List, head.sirType: ${head.sirType.show}, tail.sirType: ${tail.sirType.show}, constr.tp=${constr.tp.show}"
+                            )
+                            println(s"relementType: ${elementType.show}")
+                            println(s"defaultListRepresentation: ${defaultListRepresentation.show}")
+                            println(s"tail.sirType: ${tail.sirType.show}")
+                            throw ex
+                }
                 lvBuiltinApply2(
                   SIRBuiltins.mkCons,
                   headElementRepr,
                   tailElementRepr,
-                  SIRType.List.Cons(elementType),
+                  constr.tp,
                   defaultListRepresentation,
                   constr.anns.pos
                 )
@@ -276,6 +306,31 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                   s"Unknown constructor ${constr.name} for List",
                   constr.anns.pos
                 )
+    }
+
+    def isNilType(tp: SIRType): Boolean = {
+        SIRType.retrieveConstrDecl(tp) match {
+            case Left(r) => false
+            case Right(constrDecl) =>
+                constrDecl.name == "scalus.prelude.List$.Nil"
+        }
+    }
+
+    def fixNilInConstr(
+        input: LoweredValue,
+        targetListType: SIRType,
+        targetRepr: LoweredValueRepresentation
+    )(using lctx: LoweringContext): LoweredValue = {
+        if input.representation == targetRepr then input
+        else
+            input match
+                case st: StaticLoweredValue =>
+                    genNil(targetListType, input.pos)
+                case _ =>
+                    throw LoweringException(
+                      s"Implementation restriction: can't use non-standard expression of type Nil",
+                      input.pos
+                    )
     }
 
     override def genSelect(sel: SIR.Select, loweredScrutinee: LoweredValue)(using

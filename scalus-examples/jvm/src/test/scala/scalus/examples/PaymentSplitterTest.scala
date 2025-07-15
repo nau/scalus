@@ -61,7 +61,7 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
               "PaymentSplitterTest.success when payments are correctly split between 3 payees",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(290456791L), ExMemory(742305L)),
-          isPrintComparison = false
+          isPrintComparison = true
         )
     }
 
@@ -105,7 +105,7 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
           testName = "PaymentSplitterTest.failure when a one of the payee is not payed out",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(177206757L), ExMemory(476022L)),
-          isPrintComparison = false
+          isPrintComparison = true
         )
     }
 
@@ -240,18 +240,20 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,
-      debug = true
+      debug = false
     )
 
     private val script = {
         try {
             val sir = compile(PaymentSplitter.validate)
-            println(s"sir=${sir.pretty.render(100)}")
+            // println(s"sir=${sir.pretty.render(100)}")
+            val lw = sir.toLoweredValue(generateErrorTraces = true)
+            println(s"lw=${lw.pretty.render(100)}")
             val uplc = sir.toUplc(
               generateErrorTraces = true,
               backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-            )   
-            println(s"uplc=${uplc.pretty.render(100)}")
+            )
+            // println(s"uplc=${uplc.pretty.render(100)}")
             uplc.plutusV3
         } catch {
             case NonFatal(ex) =>

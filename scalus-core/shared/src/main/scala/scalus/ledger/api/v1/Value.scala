@@ -123,5 +123,9 @@ object Value:
             case List.Nil                   => 0
             case List.Cons((cs, tokens), _) =>
                 // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
-                if cs == ByteString.empty then tokens.toList.head._2
+                if cs == ByteString.empty then
+                    tokens.toList match {
+                        case List.Nil => throw RuntimeException("No Lovelace token found in Value")
+                        case List.Cons(head, tail) => head._2
+                    }
                 else 0

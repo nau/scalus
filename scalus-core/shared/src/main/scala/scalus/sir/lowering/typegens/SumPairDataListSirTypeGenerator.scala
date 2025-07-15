@@ -52,67 +52,6 @@ object SumPairDataListSirTypeGenerator extends SumListCommonSirTypeGenerator {
             )
     }
 
-    override def toRepresentation(
-        input: LoweredValue,
-        representation: LoweredValueRepresentation,
-        pos: SIRPosition
-    )(using
-        lctx: LoweringContext
-    ): LoweredValue = {
-        // we have only one representation, so
-        (input.representation, representation) match {
-            case (
-                  SumCaseClassRepresentation.SumDataPairList,
-                  SumCaseClassRepresentation.SumDataPairList
-                ) =>
-                input
-            case (
-                  SumCaseClassRepresentation.SumDataPairList,
-                  SumCaseClassRepresentation.SumDataAssocMap
-                ) =>
-                lvBuiltinApply(
-                  SIRBuiltins.mapData,
-                  input,
-                  input.sirType,
-                  SumCaseClassRepresentation.SumDataAssocMap,
-                  pos
-                )
-            case (
-                  SumCaseClassRepresentation.SumDataPairList,
-                  SumCaseClassRepresentation.SumDataList
-                ) =>
-                //   when it potenitallu can be used -- when one part of the program know, that element
-                //     is a list of pairs, but another part - does not know.
-                //     (pass to foldLeft, foldLeft expect List as dat)
-                // we should change stdlib, do not run such conversions
-                //  TODO: output performance warning during compilation.
-
-                ???
-            case (
-                  SumCaseClassRepresentation.SumDataPairList,
-                  SumCaseClassRepresentation.PackedSumDataList
-                ) =>
-                input
-                    .toRepresentation(SumCaseClassRepresentation.SumDataList, pos)
-                    .toRepresentation(SumCaseClassRepresentation.PackedSumDataList, pos)
-            case (SumCaseClassRepresentation.SumDataPairList, TypeVarRepresentation(_)) =>
-                // TODO: think, are we should convert to SumDataList ?
-                input
-            case (TypeVarRepresentation(_), SumCaseClassRepresentation.SumDataPairList) =>
-                RepresentationProxyLoweredValue(
-                  input,
-                  SumCaseClassRepresentation.SumDataPairList,
-                  pos
-                )
-            case _ =>
-                throw LoweringException(
-                  s"SumPairDataListSirTypeGenerator does not support ${input.representation} to $representation conversion",
-                  pos
-                )
-        }
-    }
-    
-   
     override def genNil(resType: SIRType, pos: SIRPosition)(using LoweringContext): LoweredValue = {
         lvBuiltinApply0(
           SIRBuiltins.mkNilPairData,

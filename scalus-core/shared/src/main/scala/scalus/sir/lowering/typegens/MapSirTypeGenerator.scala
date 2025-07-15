@@ -1,5 +1,6 @@
 package scalus.sir.lowering.typegens
 
+import scala.util.control.NonFatal
 import org.typelevel.paiges.Doc
 import scalus.sir.*
 import scalus.sir.lowering.*
@@ -80,9 +81,25 @@ object MapSirTypeGenerator extends SirTypeUplcGenerator {
         lctx: LoweringContext
     ): LoweredValue = {
         if constr.name == "scalus.prelude.AssocMap" then
-            val loweredArg = lctx
-                .lower(constr.args.head)
-                .toRepresentation(SumCaseClassRepresentation.SumDataPairList, constr.anns.pos)
+            // TODO: add 'target type' to lower
+            val loweredArg = lctx.lower(constr.args.head)
+            val loweredArgR =
+                try
+                    loweredArg
+                        .toRepresentation(
+                          SumCaseClassRepresentation.SumDataPairList,
+                          constr.anns.pos
+                        )
+                catch
+                    case NonFatal(ex) =>
+                        import scalus.pretty
+                        println(
+                          s"MapSirTypeGenerator.genConstr: constr.args.head: ${constr.args.head.pretty.render(100)}"
+                        )
+                        println(
+                          s"MapSirTypeGenerator.genConstr: loweredArg.tp: ${loweredArg.sirType.show}"
+                        )
+                        throw ex
             lvBuiltinApply(
               SIRBuiltins.mapData,
               loweredArg,

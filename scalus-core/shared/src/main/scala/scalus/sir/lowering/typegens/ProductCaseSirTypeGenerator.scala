@@ -6,7 +6,7 @@ import scala.util.control.NonFatal
 import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
-import scalus.sir.lowering.ProductCaseClassRepresentation.{PackedDataList, PairIntDataList, ProdDataConstr, ProdDataList, UplcConstr}
+import scalus.sir.lowering.ProductCaseClassRepresentation.*
 import scalus.sir.lowering.SumCaseClassRepresentation.SumDataList
 import scalus.uplc.*
 
@@ -64,6 +64,46 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 ???
             case (ProdDataList, outRep @ ProductCaseClassRepresentation.OneElementWrapper(_)) =>
                 lvBuiltinApply(SIRBuiltins.headList, input, input.sirType, outRep, pos)
+            case (ProdDataList, PairData) =>
+                val inputIdv = input match
+                    case idv: IdentifiableLoweredValue => idv
+                    case other =>
+                        lvNewLazyIdVar(
+                          lctx.uniqueVarName("dl_to_pair_input"),
+                          input.sirType,
+                          input.representation,
+                          other,
+                          pos
+                        )
+                val head = lvBuiltinApply(
+                  SIRBuiltins.headList,
+                  inputIdv,
+                  input.sirType,
+                  ProductCaseClassRepresentation.PairData,
+                  pos
+                )
+                val headTail = lvBuiltinApply(
+                  SIRBuiltins.tailList,
+                  inputIdv,
+                  SIRType.List(SIRType.Data),
+                  ProductCaseClassRepresentation.ProdDataList,
+                  pos
+                )
+                val headTailHead = lvBuiltinApply(
+                  SIRBuiltins.headList,
+                  headTail,
+                  SIRType.Data,
+                  ProductCaseClassRepresentation.ProdDataList,
+                  pos
+                )
+                lvBuiltinApply2(
+                  SIRBuiltins.mkPairData,
+                  head,
+                  headTailHead,
+                  input.sirType,
+                  ProductCaseClassRepresentation.PairData,
+                  pos
+                )
             case (PackedDataList, ProdDataList) =>
                 lvBuiltinApply(
                   SIRBuiltins.unListData,
@@ -85,6 +125,13 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 input
                     .toRepresentation(ProdDataList, pos)
                     .toRepresentation(outputRep, pos)
+            case (PackedDataList, PairData) =>
+                input
+                    .toRepresentation(ProdDataList, pos)
+                    .toRepresentation(
+                      PairData,
+                      pos
+                    )
             case (ProdDataConstr, ProdDataList) =>
                 val pairIntDataList = lvBuiltinApply(
                   SIRBuiltins.unConstrData,
@@ -118,6 +165,10 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 input
                     .toRepresentation(ProdDataList, pos)
                     .toRepresentation(UplcConstr, pos)
+            case (ProdDataConstr, PairData) =>
+                input
+                    .toRepresentation(ProdDataList, pos)
+                    .toRepresentation(PairData, pos)
             case (UplcConstr, ProdDataList) => ???
             case (UplcConstr, PackedDataList) =>
                 input
@@ -127,40 +178,71 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 input
                     .toRepresentation(ProdDataList, pos)
                     .toRepresentation(ProdDataConstr, pos)
+            case (UplcConstr, PairIntDataList) =>
+                ???
             case (UplcConstr, UplcConstr) =>
                 input
             case (
                   ProductCaseClassRepresentation.OneElementWrapper(internalInputRep),
-                  ProdDataList
+                  _
                 ) =>
-                if !internalInputRep.isPackedData then
+                // in theory never bin here, but let's delegate
+                val generator = lctx.typeGenerator(input.sirType)
+                if generator.isInstanceOf[ProductCaseOneElementSirTypeGenerator] then
+                    // delegate this to the generator
+                    generator.toRepresentation(input, representation, pos)
+                else
                     throw LoweringException(
-                      s"Expected packed data representation for one-element wrapper, got $internalInputRep",
+                      s"Can't use one-element=generator for type ${input.sirType.show}",
                       pos
                     )
-                lvBuiltinApply2(
-                  SIRBuiltins.mkCons,
-                  input,
-                  lvBuiltinApply0(
-                    SIRBuiltins.mkNilData,
-                    SIRType.List(SIRType.Data),
-                    PrimitiveRepresentation.Constant,
-                    pos
-                  ),
-                  input.sirType,
-                  ProdDataList,
+            case (PairData, ProdDataList) =>
+                val inputIdv = input match
+                    case idv: IdentifiableLoweredValue => idv
+                    case other =>
+                        lvNewLazyIdVar(
+                          lctx.uniqueVarName("pair_to_dl_input"),
+                          input.sirType,
+                          input.representation,
+                          other,
+                          pos
+                        )
+                val frs = lvBuiltinApply(
+                  SIRBuiltins.fstPair,
+                  inputIdv,
+                  SIRType.Data,
+                  PrimitiveRepresentation.PackedData,
                   pos
                 )
-            case (ProductCaseClassRepresentation.OneElementWrapper(_), PackedDataList) =>
+                val snd = lvBuiltinApply(
+                  SIRBuiltins.sndPair,
+                  inputIdv,
+                  SIRType.Data,
+                  PrimitiveRepresentation.PackedData,
+                  pos
+                )
+                val consSndNil =
+                    lvBuiltinApply2(
+                      SIRBuiltins.mkCons,
+                      snd,
+                      lvDataNil(pos),
+                      SIRType.List(SIRType.Data),
+                      ProductCaseClassRepresentation.ProdDataList,
+                      pos
+                    )
+                val retval = lvBuiltinApply2(
+                  SIRBuiltins.mkCons,
+                  frs,
+                  consSndNil,
+                  input.sirType,
+                  ProductCaseClassRepresentation.ProdDataList,
+                  pos
+                )
+                retval
+            case (PairData, _) =>
                 input
                     .toRepresentation(ProdDataList, pos)
-                    .toRepresentation(PackedDataList, pos)
-            case (ProductCaseClassRepresentation.OneElementWrapper(_), ProdDataConstr) =>
-                input
-                    .toRepresentation(ProdDataList, pos)
-                    .toRepresentation(ProdDataConstr, pos)
-            case (ProductCaseClassRepresentation.OneElementWrapper(_), UplcConstr) =>
-                ???
+                    .toRepresentation(representation, pos)
             case (
                   TypeVarRepresentation(isBuiltin),
                   ProductCaseClassRepresentation.ProdDataConstr
@@ -174,7 +256,6 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                         .toRepresentation(representation, pos)
             case (_, TypeVarRepresentation(isBuiltin)) =>
                 if isBuiltin then input else toRepresentation(input, ProdDataConstr, pos)
-                
             case _ =>
                 throw LoweringException(
                   s"Unsupported conversion for ${input.sirType.show} from ${input.representation} to $representation",

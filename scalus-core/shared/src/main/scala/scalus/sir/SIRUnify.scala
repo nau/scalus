@@ -592,10 +592,8 @@ object SIRUnify {
                             case failure @ UnificationFailure(path, left, right) => failure
                     case failure @ UnificationFailure(path, left, right) => failure
             case (SIRType.TypeLambda(params, body), right) =>
-                val nEnv = env.copy(filledTypes =
-                    env.filledTypes ++ params.map(_ -> SIRType.FreeUnificator)
-                )
-                unifyType(body, right, nEnv)
+                // TODO: check and rename vars
+                unifyType(body, right, env)
             case (left, SIRType.TypeLambda(params, body)) =>
                 val nEnv = env.copy(filledTypes =
                     env.filledTypes ++ params.map(_ -> SIRType.FreeUnificator)

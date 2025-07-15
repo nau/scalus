@@ -3,6 +3,7 @@ package scalus.sir.lowering.typegens
 import scalus.sir.*
 
 import java.util.IdentityHashMap
+import scala.annotation.tailrec
 //import scalus.sir.SIR.Pattern
 //import scalus.sir.SIRVarStorage.{DEFAULT, Data, ScottEncoding}
 //import scalus.sir.lowering.Lowering.{genError, lowerSIR, tpf}
@@ -82,8 +83,11 @@ object SirTypeUplcGenerator {
             case SIRType.SumCaseClass(decl, typeArgs) =>
                 val trace = new IdentityHashMap[SIRType, SIRType]()
                 if decl.name == "scalus.prelude.List" then
-                    if !containsFun(tp, trace) then SumDataListSirTypeGenerator
-                    else SumCaseUplcOnlySirTypeGenerator
+                    if !containsFun(tp, trace) then {
+                        if isPairOrTuple2(typeArgs.head)
+                        then SumPairDataListSirTypeGenerator
+                        else SumDataListSirTypeGenerator
+                    } else SumCaseUplcOnlySirTypeGenerator
                 else if !containsFun(tp, trace) then SumCaseSirTypeGenerator
                 else SumCaseUplcOnlySirTypeGenerator
             case SIRType.CaseClass(constrDecl, typeArgs, optParent) =>
@@ -98,11 +102,15 @@ object SirTypeUplcGenerator {
                     if constrDecl.name == "scalus.prelude.List$.Nil" || constrDecl.name == "scalus.prelude.List$.Cons"
                     then
                         if hasFun then SumCaseUplcOnlySirTypeGenerator
+                        else if constrDecl.name == "scalus.prelude.List$.Cons" && isPairOrTuple2(
+                              typeArgs.head
+                            )
+                        then SumPairDataListSirTypeGenerator
                         else SumDataListSirTypeGenerator
-                    else if hasFun then {
+                    else if hasFun then
                         println(s"hasFun for: ${constrDecl}")
                         ProductCaseUplcOnlySirTypeGenerator
-                    } else ProductCaseSirTypeGenerator
+                    else ProductCaseSirTypeGenerator
             case SIRType.TypeLambda(_, body) =>
                 SirTypeUplcGenerator(body)
             case SIRType.TypeProxy(ref) =>
@@ -117,18 +125,19 @@ object SirTypeUplcGenerator {
                 TypeNothingSirTypeGenerator
     }
 
+    @tailrec
     def isPairOrTuple2(tp: SIRType): Boolean =
         tp match
             case SIRType.CaseClass(decl, typeArgs, _) =>
-                decl.name == "scalus.builtin.Pair" 
+                decl.name == "scalus.builtin.Pair"
                 ||
-                decl.name == "scala.Tuple2" 
+                decl.name == "scala.Tuple2"
             case SIRType.TypeLambda(params, body) =>
                 isPairOrTuple2(body)
-            case SIRType.TypeProxy(ref)  =>  
+            case SIRType.TypeProxy(ref) =>
                 isPairOrTuple2(ref)
             case _ => false
-    
+
     private def containsFun(
         types: List[SIRType],
         trace: IdentityHashMap[SIRType, SIRType]

@@ -87,8 +87,6 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
     private def traverseAndLinkExpr(sir: AnnotatedSIR, srcPos: SrcPos): AnnotatedSIR = sir match
         case v @ SIR.ExternalVar(moduleName, name, tp, ann)
             if !globalDefs.contains(FullName(name)) =>
-            if name == "scalus.prelude.List$.foldLeft" then
-                println(s"sTrabereAndLinkExpr: foldLeft found, tp=${tp.show}")
             linkDefinition(moduleName, FullName(name), srcPos, tp, ann)
             v
         case v @ SIR.Let(recursivity, bindings, body, anns) =>
@@ -118,14 +116,7 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
                                       SIRType.Fun(arg.tp, SIRType.Data),
                                       AnnotationsDecl.empty.copy(pos = f.anns.pos)
                                     )
-                                case None =>
-                                    f match
-                                        case SIR.ExternalVar(moduleName, name, tp, anns) =>
-                                            if name == "scalus.ledger.api.v3.ScriptContext$.given_FromData_ScriptContext(scData)"
-                                            then throw RuntimeException("qqqq")
-                                            else f
-                                        case _ =>
-                                            f
+                                case None => f
                 else f
             val nF = traverseAndLinkExpr(fReplaced, srcPos)
             val nArg = traverseAndLinkExpr(arg, srcPos)

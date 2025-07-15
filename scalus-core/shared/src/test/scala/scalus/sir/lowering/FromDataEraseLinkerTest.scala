@@ -67,7 +67,7 @@ class FromDataEraseLinkerTest extends AnyFunSuite {
                     else BigInt(1)
             }
         }
-        println(sir.pretty.render(100))
+        // println(sir.pretty.render(100))
         val foundFromDate = containsSubterm(sir) {
             case SIR.ExternalVar(
                   _,
