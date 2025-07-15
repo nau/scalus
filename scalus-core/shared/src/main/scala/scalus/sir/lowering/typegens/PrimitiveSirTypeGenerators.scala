@@ -2,9 +2,7 @@ package scalus.sir.lowering.typegens
 
 import scalus.sir.*
 import scalus.sir.lowering.*
-import scalus.sir.lowering.Lowering.tpf
 import scalus.sir.lowering.LoweredValue.Builder.*
-import scalus.uplc.{Constant, DefaultFun, Term}
 
 trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
 

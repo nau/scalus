@@ -2,6 +2,7 @@ package scalus.sir.lowering.typegens
 
 import scalus.sir.*
 import scalus.sir.lowering.*
+import scalus.sir.lowering.ProductCaseClassRepresentation.*
 
 /** We assume that type variable can be converted to data, and it is impossible to do something
   * meaningful with it in the UPLC, except pass the value as an argument in unchanged form.
@@ -99,13 +100,27 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
                                       representation,
                                       pos
                                     )
+                                case SumCaseClassRepresentation.SumDataAssocMap =>
+                                    RepresentationProxyLoweredValue(input, representation, pos)
+                                case SumCaseClassRepresentation.SumDataPairList =>
+                                    input
+                                        .toRepresentation(
+                                          SumCaseClassRepresentation.SumDataAssocMap,
+                                          pos
+                                        )
+                                        .toRepresentation(
+                                          SumCaseClassRepresentation.SumDataPairList,
+                                          pos
+                                        )
                             }
                         case prodRepr: ProductCaseClassRepresentation =>
                             prodRepr match {
                                 case ProductCaseClassRepresentation.ProdDataConstr =>
                                     new RepresentationProxyLoweredValue(input, representation, pos)
                                 case ProductCaseClassRepresentation.PackedDataList |
-                                    ProductCaseClassRepresentation.ProdDataList =>
+                                    ProductCaseClassRepresentation.ProdDataList |
+                                    ProductCaseClassRepresentation.UplcConstr |
+                                    ProductCaseClassRepresentation.PairIntDataList =>
                                     val r1 = input.toRepresentation(
                                       ProductCaseClassRepresentation.ProdDataConstr,
                                       pos
@@ -115,6 +130,15 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
                                       representation,
                                       pos
                                     )
+                                case PackedDataMap =>
+                                    new RepresentationProxyLoweredValue(input, representation, pos)
+                                case PairData =>
+                                    input
+                                        .toRepresentation(ProdDataConstr, pos)
+                                        .toRepresentation(
+                                          PairData,
+                                          pos
+                                        )
                                 case ProductCaseClassRepresentation.OneElementWrapper(repr) =>
                                     SIRType.retrieveConstrDecl(input.sirType) match
                                         case Left(message) =>

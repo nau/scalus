@@ -3,7 +3,6 @@ package scalus.sir.lowering.typegens
 import scalus.sir.*
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
-import scalus.uplc.Term
 
 object FunSirTypeGenerator extends SirTypeUplcGenerator {
 
@@ -123,7 +122,7 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
                 collect(body).map { case (bTypeVars, input, output) =>
                     (typeVars.toSet ++ bTypeVars, input, output)
                 }
-            case SIRType.TypeProxy(ref) => None
+            case proxy: SIRType.TypeProxy => None
             case tv: SIRType.TypeVar =>
                 Some(Set.empty, SIRType.FreeUnificator, SIRType.FreeUnificator)
             case SIRType.TypeProxy(ref) => collect(ref)

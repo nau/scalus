@@ -1,12 +1,8 @@
 package scalus.sir.lowering.typegens
 
-import org.typelevel.paiges.Doc
-
-import scalus.sir.{SIRType, *}
+import scalus.sir.*
 import scalus.sir.lowering.*
-import scalus.sir.lowering.Lowering.tpf
 import scalus.sir.lowering.LoweredValue.Builder.*
-import scalus.uplc.{DefaultFun, Term}
 
 /** Internal representation - Plutus List, element type should be data-compatibe List[E] when E is
   * data-compatible type is mapped to this type.
@@ -47,7 +43,6 @@ object SumDataListSirTypeGenerator extends SumListCommonSirTypeGenerator {
           pos
         )
     }
-
 
     // def uplcToData(input: Term): Term = {
     //    DefaultFun.ListData.tpf $ input

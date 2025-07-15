@@ -1,6 +1,5 @@
 package scalus.sir
 
-import scala.collection.mutable.Map as MutableMap
 import scalus.sir.SIR.*
 
 object RenamingTypeVars {
@@ -287,8 +286,8 @@ object RenamingTypeVars {
             val renamedTypeParams = dataDecl.typeParams.map(tv =>
                 if ctx.tvGen.contains(tv) then ctx.tvGen.freshCopy(tv) else tv
             )
-            val localRenames =
-                dataDecl.typeParams.zip(renamedTypeParams).filter(x => x._1 != x._2).toMap
+            // val localRenames =
+            //    dataDecl.typeParams.zip(renamedTypeParams).filter(x => x._1 != x._2).toMap
             val renamed = DataDecl(
               dataDecl.name,
               renamedConstrs,

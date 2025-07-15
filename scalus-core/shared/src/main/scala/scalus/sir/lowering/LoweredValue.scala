@@ -4,10 +4,8 @@ import scalus.sir.*
 import scalus.sir.lowering.Lowering.tpf
 import scalus.uplc.*
 import org.typelevel.paiges.Doc
-import scalus.sir.PrettyPrinter.pretty
 import scalus.sir.lowering.SumCaseClassRepresentation.SumDataList
 
-import scala.annotation.tailrec
 import scala.collection.mutable.Set as MutableSet
 import scala.collection.mutable.Map as MutableMap
 
@@ -530,11 +528,11 @@ case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, 
 }
 
 abstract class BuiltinApplyLoweredValue(
-    fun: SIR.Builtin,
+    val fun: SIR.Builtin,
     tp: SIRType,
     repr: LoweredValueRepresentation,
     inPos: SIRPosition,
-    args: LoweredValue*
+    val args: LoweredValue*
 ) extends ComplexLoweredValue(Set.empty, args*) {
 
     override def sirType: SIRType = tp
@@ -546,7 +544,7 @@ abstract class BuiltinApplyLoweredValue(
 }
 
 case class BuilinApply1LoweredVale(
-    fun: SIR.Builtin,
+    override val fun: SIR.Builtin,
     tp: SIRType,
     repr: LoweredValueRepresentation,
     inPos: SIRPosition,
@@ -560,7 +558,6 @@ case class BuilinApply1LoweredVale(
         )
 
     override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
-        import PrettyPrinter.*
         val left = Doc.text(fun.bn.name) + Doc.text("(")
         val right = Doc.text(")")
         arg.docRef(ctx).bracketBy(left, right).grouped
@@ -569,7 +566,7 @@ case class BuilinApply1LoweredVale(
 }
 
 case class BuilinApply2LoweredVale(
-    fun: SIR.Builtin,
+    override val fun: SIR.Builtin,
     tp: SIRType,
     repr: LoweredValueRepresentation,
     inPos: SIRPosition,
@@ -663,8 +660,6 @@ case class LetNonRecLoweredValue(
     }
 
     override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
-        import PrettyPrinter.*
-
         val bindingsDoc = bindings.map { case (v, rhs) =>
             (v.docRef(ctx) + Doc.text("=") + rhs.docRef(ctx).nested(2)).grouped
         }
@@ -722,7 +717,6 @@ case class LetRecLoweredValue(
         body.representation
 
     override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
-        import PrettyPrinter.*
         val left = Doc.text("(") + Doc.text("letrec") &
             (newVar.docRef(ctx) + Doc.text("=") + rhs.docRef(ctx).nested(2)).grouped & Doc.text(
               "in"
@@ -761,7 +755,6 @@ case class IfThenElseLoweredValue(
     }
 
     override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
-        import PrettyPrinter.*
         import Doc.*
         ((text("if") + (lineOrSpace + cond.docRef(ctx)).nested(2)).grouped
             + (line + text("then") + (Doc.lineOrSpace + thenBranch.docRef(ctx)).nested(2)).grouped

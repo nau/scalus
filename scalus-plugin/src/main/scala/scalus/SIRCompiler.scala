@@ -162,18 +162,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         flags: LocalBingingFlags
     ) extends LocalBindingOrSubmodule:
 
-        if fullName.name == "scalus.prelude.List$.foldLeft" then {
-            body.tp match
-                case SIRType.TypeLambda(_, _) =>
-                case _ =>
-                    println(s"LocalBinding:foldLeft: tp     : ${tp.show}")
-                    println(s"LocalBinding:foldLeft: body.tp: ${body.tp.show}")
-                    throw new RuntimeException(
-                      s"LocalBinding for body ${name} should be a type lambda, but got ${body.tp.show}"
-                    )
-
-        }
-
         def fullName(using Context): FullName = FullName(symbol)
 
     end LocalBinding
@@ -601,30 +589,15 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 memberDef.rawComment.map(_.raw)
             case _ => None
         val anns = AnnotationsDecl(pos, comment)
-        try
-            scalus.sir.ConstrDecl(
-              constrSymbol.fullName.show,
-              params,
-              typeParams,
-              baseTypeArgs,
-              anns
-            )
-        catch
-            case NonFatal(ex) =>
-                println("Error in makeConstrDecl: " + constrSymbol.fullName.show)
-                println(s"optBaseClass: ${optBaseClass}, constrSymbol: ${constrSymbol.show}")
-                println(s"bs = ${optBaseClass.get}")
-                println(s"constrSymbol.info: ${constrSymbol.info.show}, row: ${constrSymbol.info}")
-                println(
-                  s"constrSymbol.info.baseClasses: ${constrSymbol.info.baseClasses.map(_.show).mkString(", ")}"
-                )
-                println(
-                  s"constrSymbol.info.baseType(bs) = ${constrSymbol.info.baseType(optBaseClass.get).show}"
-                )
-                println(s"constrType: ${constrType.show}")
-                println(s"constrTypeBaseClass: ${constrType.baseType(optBaseClass.get).show}")
-                println(s"baseTypeArgs: ${baseTypeArgs.map(_.show).mkString(", ")}")
-                throw ex
+
+        scalus.sir.ConstrDecl(
+          constrSymbol.fullName.show,
+          params,
+          typeParams,
+          baseTypeArgs,
+          anns
+        )
+
     }
 
     private def compileNewConstructor(
@@ -789,8 +762,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 )
             case (false, false) =>
                 // println( s"external var: module ${e.symbol.owner.fullName.toString()}, ${e.symbol.fullName.toString()}" )
-                if e.symbol.fullName.toString == "scalus.prelude.List$.contains" then
-                    println(s"e.tpe.widen.dealise = ${e.tpe.widen.dealias.show}")
                 val origType = sirTypeInEnv(e.tpe.widen.dealias, e.srcPos, env.copy(debug = true))
                 val valType =
                     if isNoArgsMethod(e.symbol) then SIRType.Fun(SIRType.Unit, origType)
@@ -849,9 +820,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             Thus, we need to ignore them here.
          */
         else if vd.symbol.flags.isAllOf(Flags.Lazy, butNot = Flags.Given) then
-            println(
-              s"!! unexpected laxy val: ${vd.show}, ${vd.symbol.flags.flagsString}, mode=${env.mode}, isModuleDef=$isModuleDef"
-            )
             error(LazyValNotSupported(vd, vd.srcPos), None)
             CompileMemberDefResult.NotSupported
         // ignore @Ignore annotated statements

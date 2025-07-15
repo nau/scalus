@@ -1,10 +1,8 @@
 package scalus.sir.lowering.typegens
 
 import scalus.sir.*
-import scalus.sir.SIRType.isProd
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
-import scalus.sir.lowering.SumCaseClassRepresentation.SumDataList
 
 /** List(Pair(List,List))
   */

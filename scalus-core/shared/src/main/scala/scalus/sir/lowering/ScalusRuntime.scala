@@ -1,9 +1,8 @@
 package scalus.sir.lowering
 
 import scalus.sir.*
-import scalus.sir.SIRType.{leastUpperBound, Data, TypeVar}
+import scalus.sir.SIRType.TypeVar
 import scalus.sir.lowering.LoweredValue.Builder.*
-import scalus.sir.lowering.typegens.SirTypeUplcGenerator
 
 object ScalusRuntime {
 
@@ -28,16 +27,16 @@ object ScalusRuntime {
         retrieveRuntimeFunction(PAIRS_LIST_TO_DATA_LIST_NAME)
     }
     def tuplesListToDataList(using lctx: LoweringContext): LoweredValue = {
-        //TODO: output performance warning.
-        //throw new RuntimeException(TUPLES_LIST_TO_DATA_LIST_NAME)
+        // TODO: output performance warning.
+        // throw new RuntimeException(TUPLES_LIST_TO_DATA_LIST_NAME)
         retrieveRuntimeFunction(TUPLES_LIST_TO_DATA_LIST_NAME)
     }
     def dataListToPairsList(using lctx: LoweringContext): LoweredValue = {
         retrieveRuntimeFunction(DATA_LIST_TO_PAIRS_LIST_NAME)
     }
     def dataListToTuplesList(using lctx: LoweringContext): LoweredValue = {
-        //TODO: output performance warning.
-        //throw new RuntimeException("DATA_LIST_TO_TUPLES_LIST_NAME")
+        // TODO: output performance warning.
+        // throw new RuntimeException("DATA_LIST_TO_TUPLES_LIST_NAME")
         retrieveRuntimeFunction(DATA_LIST_TO_TUPLES_LIST_NAME)
     }
 

@@ -218,14 +218,19 @@ object LoweredValueRepresentation {
                         TypeVarRepresentation(isBuiltin)
             case SIRType.FreeUnificator =>
                 TypeVarRepresentation(isBuiltin = false)
-            case SIRType.TypeProxy(ref) =>
-                constRepresentation(ref)
+            case proxy: SIRType.TypeProxy =>
+                constRepresentation(proxy.ref)
             case SIRType.TypeNothing => ErrorRepresentation
             case SIRType.TypeProxy(ref) =>
                 constRepresentation(ref)
             case SIRType.TypeNonCaseModule(name) =>
                 throw LoweringException(
                   "TypeNonCaseModule is not supported in lowered value representation",
+                  SIRPosition.empty
+                )
+            case null =>
+                throw LoweringException(
+                  "Type is null, this is a bug in the compiler",
                   SIRPosition.empty
                 )
     }

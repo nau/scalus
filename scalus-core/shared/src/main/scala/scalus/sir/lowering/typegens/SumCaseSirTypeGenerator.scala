@@ -5,7 +5,6 @@ import scalus.sir.{SIRType, *}
 import scalus.sir.SIR.Pattern
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
-import scalus.uplc.Term
 
 object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 

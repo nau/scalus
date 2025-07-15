@@ -3,11 +3,10 @@ package scalus.sir.lowering
 import org.typelevel.paiges.Doc
 import scalus.sir.*
 import scalus.sir.Recursivity.NonRec
-import scalus.sir.lowering.typegens.{ProductCaseUplcOnlySirTypeGenerator, SirTypeUplcGenerator}
+import scalus.sir.lowering.typegens.SirTypeUplcGenerator
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.*
 
-import scala.annotation.unused
 import scala.util.control.NonFatal
 import scalus.pretty
 

@@ -123,6 +123,9 @@ object SirTypeUplcGenerator {
                 TypeVarSirTypeGenerator
             case SIRType.TypeNothing =>
                 TypeNothingSirTypeGenerator
+            case _ =>
+                // TODO: imnplement
+                ???
     }
 
     @tailrec

@@ -194,7 +194,6 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         if debug then {
             // save the SIR to a file for debugging purposes
             val groupedBytes = bytes.grouped(45000).toList
-            println("groupedBytes.size: " + groupedBytes.size)
             val strings = groupedBytes.map { b =>
                 Literal(Constant(new String(b, StandardCharsets.ISO_8859_1))).withSpan(span)
             }
@@ -345,11 +344,14 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                     underTyped match
                         case tpd.Apply(obj, args) =>
                             // report.echo(s"defDefTree.rhs.apply, args=${args}")
-                            if obj.symbol == Symbols.requiredMethod(
+                            if obj.symbol != Symbols.requiredMethod(
                                   "scalus.Compiler.Options.apply"
                                 )
-                            then report.echo(s"it's a compiler options call")
-                            else println(s"obj symbol = ${obj.symbol.fullName.show}")
+                            then
+                                report.warning(
+                                  "expected scalus.Compiler.Options.apply",
+                                  posTree.srcPos
+                                )
                             args.zipWithIndex.foreach { case (arg, idx) =>
                                 parseArg(arg, idx)
                             }

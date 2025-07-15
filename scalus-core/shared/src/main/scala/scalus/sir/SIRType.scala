@@ -6,7 +6,6 @@ import scalus.sir.SIRType.TypeVar
 
 import java.util
 import scala.annotation.tailrec
-import scala.annotation.unused
 
 sealed trait SIRType {
 
@@ -646,6 +645,10 @@ object SIRType {
                         val resParams = ground
                         if resParams.isEmpty then resBody
                         else SIRType.TypeLambda(resParams, resBody)
+                    case SIRUnify.UnificationFailure(_, _, _) =>
+                        throw CaclulateApplyTypeException(
+                          s"Cannot calculate apply type for ${f.show} to ${arg.show}, function type does not match argument type"
+                        )
             case tv: TypeVar =>
                 ctx.env.filledTypes.get(tv) match
                     case Some(filledType) =>
@@ -927,16 +930,18 @@ object SIRType {
                     case SumCaseClass(dataDecl, typeArgs) =>
                         typeArgs.foreach(accept)
                         proxySet.put(tp, tp)
-                    case TypeProxy(ref) =>
-                        Option(proxySet.get(ref)) match {
+                    case proxy: TypeProxy =>
+                        Option(proxySet.get(proxy.ref)) match {
                             case Some(visited) =>
                             // do nothing, already visited
                             case None =>
-                                proxySet.put(ref, ref)
-                                accept(ref)
+                                proxySet.put(proxy.ref, proxy.ref)
+                                accept(proxy.ref)
                         }
-                    case TypeNothing | Unit | Integer | String | Boolean | ByteString | Data |
-                        BLS12_381_G1_Element | BLS12_381_G2_Element | BLS12_381_MlResult =>
+                    case TypeNonCaseModule(_) =>
+                    case FreeUnificator | TypeNothing | Unit | Integer | String | Boolean |
+                        ByteString | Data | BLS12_381_G1_Element | BLS12_381_G2_Element |
+                        BLS12_381_MlResult =>
                     // do nothing, these types are not type variables
                 }
             }

@@ -80,27 +80,24 @@ case class ProductCaseOneElementSirTypeGenerator(
                   outRepr @ TypeVarRepresentation(isBuiltin)
                 ) =>
                 if isBuiltin then input
+                else if argRepr.isCompatible(representation) then
+                    new RepresentationProxyLoweredValue(input, representation, pos)
                 else
-                    import ProductCaseOneElementSirTypeGenerator.*
-                    if argRepr.isCompatible(representation) then
-                        new RepresentationProxyLoweredValue(input, representation, pos)
-                    else
-                        val argValue = argLoweredValue(input)
-                        val newArg = argGenerator.toRepresentation(argValue, representation, pos)
-                        val inPos = pos
-                        new TypeRepresentationProxyLoweredValue(
-                          newArg,
-                          input.sirType,
-                          outRepr,
-                          inPos
-                        )
+                    val argValue = argLoweredValue(input)
+                    val newArg = argGenerator.toRepresentation(argValue, representation, pos)
+                    val inPos = pos
+                    new TypeRepresentationProxyLoweredValue(
+                      newArg,
+                      input.sirType,
+                      outRepr,
+                      inPos
+                    )
             case (
                   inRepr @ TypeVarRepresentation(isBuiltin),
                   outRepr @ ProductCaseClassRepresentation.OneElementWrapper(argRepr)
                 ) =>
                 if isBuiltin then new RepresentationProxyLoweredValue(input, representation, pos)
                 else
-                    import ProductCaseOneElementSirTypeGenerator.*
                     val argValue = argLoweredValue(input)
                     if argRepr.isCompatible(argValue.representation) then
                         new RepresentationProxyLoweredValue(input, representation, pos)
@@ -115,26 +112,6 @@ case class ProductCaseOneElementSirTypeGenerator(
                           inPos
                         )
                         retval
-            case (
-                  inRepr @ ProductCaseClassRepresentation.OneElementWrapper(argRepr),
-                  outRepr @ TypeVarRepresentation(isBuiltin)
-                ) =>
-                if isBuiltin then input
-                else
-                    import ProductCaseOneElementSirTypeGenerator.*
-                    val argValue = argLoweredValue(input)
-                    if argRepr.isCompatible(outRepr) then
-                        new RepresentationProxyLoweredValue(input, representation, pos)
-                    else
-                        // we need to convert the argument to the new representation
-                        val newArg = argGenerator.toRepresentation(argValue, outRepr, pos)
-                        val inPos = pos
-                        new TypeRepresentationProxyLoweredValue(
-                          newArg,
-                          input.sirType,
-                          outRepr,
-                          inPos
-                        )
             case (_, _) =>
                 ProductCaseSirTypeGenerator.toRepresentation(input, representation, pos)
 
@@ -263,12 +240,6 @@ case class ProductCaseOneElementSirTypeGenerator(
                             )
                     case SIR.Pattern.Wildcard =>
                         lctx.lower(body)
-                    case _ =>
-                        throw LoweringException(
-                          s"Expected single case with select on ${name}, got ${pattern}",
-                          anns.pos
-                        )
-
             case _ =>
                 throw LoweringException(
                   s"Expected single case with select on ${name}, got ${matchData.cases}",
