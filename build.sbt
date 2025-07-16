@@ -222,7 +222,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % "2.36.5" % "compile",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.16.1",
-        "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
+        "io.bullet" %%% "borer-derivation" % "1.16.1"
       ),
       PluginDependency,
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
@@ -342,7 +342,7 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform)
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
-      libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided",
+      libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1",
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
@@ -391,7 +391,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.6" % "test",
-      libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided",
+      libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )
@@ -441,7 +441,7 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.16.1",
-        "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
+        "io.bullet" %%% "borer-derivation" % "1.16.1"
       ),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6" % "test",
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
