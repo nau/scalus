@@ -17,3 +17,5 @@ addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.7")
 addSbtPlugin("com.github.sbt" % "sbt-unidoc" % "0.5.0")
 // Migration Manager for Scala
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.4")
+// buildinfo
+addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.11.0")
