@@ -1,9 +1,11 @@
 import org.scalajs.linker.interface.OutputPatterns
 import sbtwelcome.*
-import scala.scalanative.build._
+
+import scala.scalanative.build.*
 import com.typesafe.tools.mima.core.ProblemFilters
 import com.typesafe.tools.mima.core.IncompatibleResultTypeProblem
-import com.typesafe.tools.mima.core.ProblemFilters._
+import com.typesafe.tools.mima.core.ProblemFilters.*
+import sbt.internal.util.ManagedLogger
 
 import java.net.URI
 
@@ -13,7 +15,6 @@ autoCompilerPlugins := true
 val scalusStableVersion = "0.10.0"
 val scalusCompatibleVersion = scalusStableVersion
 ThisBuild / scalaVersion := "3.3.6"
-//ThisBuild / scalaVersion := "3.7.1-RC1-bin-SNAPSHOT"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
 ThisBuild / organizationHomepage := Some(url("https://scalus.org/"))
@@ -32,8 +33,6 @@ ThisBuild / licenses := List(
 )
 ThisBuild / homepage := Some(url("https://github.com/nau/scalus"))
 ThisBuild / versionScheme := Some("early-semver")
-ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
-sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 Test / publishArtifact := false
 
 ThisBuild / javaOptions += "-Xss64m"
@@ -64,6 +63,24 @@ lazy val root: Project = project
       bench,
       `scalus-bloxbean-cardano-client-lib`,
       docs
+    )
+    .settings(
+      publish / skip := true
+    )
+
+// all JVM projects are aggregated in the jvm project just for convenience
+lazy val jvm: Project = project
+    .in(file("jvm"))
+    .aggregate(
+      scalusPlugin,
+      scalus.jvm,
+      scalusPluginTests,
+      scalusCardanoLedger.jvm,
+      scalusTestkit.jvm,
+      scalusExamples.jvm,
+      scalusDesignPatterns,
+      bench,
+      `scalus-bloxbean-cardano-client-lib`,
     )
     .settings(
       publish / skip := true
@@ -219,7 +236,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.2.1",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.16.1",
-        "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
+        "io.bullet" %%% "borer-derivation" % "1.16.1"
       ),
       PluginDependency,
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
@@ -233,8 +250,9 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // that is needed by bitcoin-s-secp256k1jni, because it's an older fork of secp256k1
       Test / javaOptions += "-Djava.library.path=",
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
+      Test / testOptions += Tests.Argument("-oF"),
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "provided",
-      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.80",
+      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.81",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.10" % "test",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.10"
@@ -283,7 +301,7 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       }
     )
 
-lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform)
     .in(file("scalus-examples"))
     .dependsOn(scalus, scalusTestkit)
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
@@ -291,13 +309,15 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       PluginDependency,
       scalacOptions ++= commonScalacOptions,
       publish / skip := true,
+      libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1",
+      libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
     .configurePlatform(JVMPlatform)(_.dependsOn(`scalus-bloxbean-cardano-client-lib`))
     .jvmSettings(
       Test / fork := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.4"
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6"
     )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
@@ -331,24 +351,14 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
       mimaPreviousArtifacts := Set(organization.value %% name.value % scalusCompatibleVersion),
-      mimaBinaryIssueFilters ++= Seq(
-        ProblemFilters.exclude[IncompatibleResultTypeProblem](
-          "scalus.bloxbean.Interop.given_ToData_BigInteger"
-        ),
-        ProblemFilters
-            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Integer"),
-        ProblemFilters
-            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.given_ToData_Long"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem](
-          "scalus.bloxbean.Interop.given_ToData_ProtocolParamUpdate"
-        ),
-      ),
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4",
+      mimaBinaryIssueFilters ++= Seq(),
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.4" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.5" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.6" % "test",
+      libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )
@@ -398,9 +408,9 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.16.1",
-        "io.bullet" %%% "borer-derivation" % "1.16.1" % "provided"
+        "io.bullet" %%% "borer-derivation" % "1.16.1"
       ),
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.4" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6" % "test",
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
@@ -418,6 +428,10 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
 addCommandAlias(
   "mima",
   "scalus-bloxbean-cardano-client-lib/mimaReportBinaryIssues"
+)
+addCommandAlias(
+  "quick",
+  "scalafmtAll;scalafmtSbt;jvm/Test/compile;jvm/testQuick"
 )
 addCommandAlias(
   "precommit",
@@ -443,6 +457,7 @@ logo :=
 
 usefulTasks := Seq(
   UsefulTask("~compile", "Compile with file-watch enabled"),
+  UsefulTask("quick", "Format all, compile and quick test everything on JVM"),
   UsefulTask("precommit", "Format all, clean compile and test everything"),
   UsefulTask("ci", "Clean compile, check formatting and test everything"),
   UsefulTask("mima", "Check binary compatibility with the previous version using MiMa"),
