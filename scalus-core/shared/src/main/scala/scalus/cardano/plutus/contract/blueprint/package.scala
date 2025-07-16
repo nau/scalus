@@ -54,10 +54,11 @@ package object blueprint {
         val title = validator.getClass.getSimpleName
         // todo unsure if it makes a difference
         val uplc = {
+            val optimizedUplc = validatorUplc(validator.validate)
             version match {
-                case PlutusVersion.v1 => validatorUplc(validator.validate).plutusV1
-                case PlutusVersion.v2 => validatorUplc(validator.validate).plutusV2
-                case PlutusVersion.v3 => validatorUplc(validator.validate).plutusV3
+                case PlutusVersion.v1 => optimizedUplc.plutusV1
+                case PlutusVersion.v2 => optimizedUplc.plutusV2
+                case PlutusVersion.v3 => optimizedUplc.plutusV3
             }
         }
         val cboredFn = uplc.cborEncoded.toHex
