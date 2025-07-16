@@ -1,24 +1,17 @@
 package scalus.cardano.plutus.contract.blueprint
 import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{ByteString, Data, platform}
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.plutus.contract.blueprint.model.PlutusVersion.{v2, v3}
 import scalus.ledger.api.v3.{TxInfo, TxOutRef}
 import scalus.prelude.{Validator, *}
 import scalus.utils.Hex
+import scalus.cardano.plutus.contract.blueprint
 
 class BlueprintTest extends AnyFunSuite {
 
     test("should hash the script using the language tag") {
-        object FakeValidator extends Validator:
-            override def spend(
-                datum: Option[Data],
-                redeemer: Data,
-                tx: TxInfo,
-                ownRef: TxOutRef
-            ): Unit = ()
-
-        val bp = model.mkBlueprint("title", "description", v3, FakeValidator)
+        val bp = blueprint.mkBlueprint("title", "description", v3, FakeValidator)
         val validator = bp.validators.head
 
         val hash = validator.hash.get
@@ -35,4 +28,12 @@ class BlueprintTest extends AnyFunSuite {
 
         assert(expectedHash != v2Hash)
     }
+
+    object FakeValidator extends Validator:
+        override def spend(
+            datum: Option[Data],
+            redeemer: Data,
+            tx: TxInfo,
+            ownRef: TxOutRef
+        ): Unit = ()
 }
