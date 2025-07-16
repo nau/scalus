@@ -15,7 +15,7 @@ case class Transaction(
     witnessSet: TransactionWitnessSet,
 
     /** Is the transaction valid? */
-    isValid: Boolean,
+    isValid: Boolean = true,
 
     /** Optional auxiliary data */
     auxiliaryData: Option[AuxiliaryData] = None
@@ -30,6 +30,11 @@ case class Transaction(
 }
 
 object Transaction {
+    def apply(
+        body: TransactionBody,
+        witnessSet: TransactionWitnessSet,
+    ): Transaction =
+        new Transaction(KeepRaw(body), witnessSet, isValid = true, auxiliaryData = None)
 
     /** CBOR codec for Transaction */
     given Encoder[Transaction] = Encoder.derived

@@ -45,6 +45,19 @@ Compile / doc / scalacOptions ++= Seq(
   "Lantr.io"
 )
 
+lazy val commonScalacOptions = Seq(
+  "-deprecation",
+  "-feature",
+  "-explain",
+  "-Wunused:imports",
+  "-Wunused:params",
+  "-Xcheck-macros"
+  //  "-rewrite",
+  //  "-source:future-migration"
+)
+
+lazy val copySharedFiles = taskKey[Unit]("Copy shared files")
+
 lazy val root: Project = project
     .in(file("."))
     .aggregate(
@@ -85,19 +98,6 @@ lazy val jvm: Project = project
     .settings(
       publish / skip := true
     )
-
-lazy val commonScalacOptions = Seq(
-  "-deprecation",
-  "-feature",
-  "-explain",
-  "-Wunused:imports",
-  "-Wunused:params",
-  "-Xcheck-macros"
-//  "-rewrite",
-//  "-source:future-migration"
-)
-
-lazy val copySharedFiles = taskKey[Unit]("Copy shared files")
 
 // Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project

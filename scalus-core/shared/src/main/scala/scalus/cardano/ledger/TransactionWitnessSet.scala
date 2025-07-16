@@ -6,7 +6,20 @@ import scalus.builtin.Data
 opaque type TaggedSet[A] <: Set[A] = Set[A]
 object TaggedSet {
     inline def empty[A]: TaggedSet[A] = Set.empty[A]
+
     inline def apply[A](s: Set[A]): TaggedSet[A] = s
+
+    /** Creates a `TaggedSet` with the specified elements.
+      * @tparam A
+      *   the type of the `TaggedSet`'s elements
+      * @param elems
+      *   the elements of the created `TaggedSet`
+      * @return
+      *   a new `TaggedSet` with elements `elems`
+      */
+    def apply[A](elems: A*): TaggedSet[A] = Set(elems*)
+
+    def from[A](it: IterableOnce[A]): TaggedSet[A] = Set.from(it)
 
     given [A: Encoder]: Encoder[TaggedSet[A]] with
         def write(w: Writer, value: TaggedSet[A]): Writer = {
