@@ -53,7 +53,7 @@ val Eq: EqCompanion.type = EqCompanion
 
 @Compile
 object EqCompanion:
-    def apply[A: Eq]: Eq[A] = summon[Eq[A]]
+    inline def apply[A: Eq]: Eq[A] = summon[Eq[A]]
 
     def by[A, B: Eq](mapper: A => B): Eq[A] = (lhs: A, rhs: A) => mapper(lhs) === mapper(rhs)
 
@@ -83,7 +83,7 @@ val Ord: OrdCompanion.type = OrdCompanion
 
 @Compile
 object OrdCompanion:
-    def apply[A: Ord]: Ord[A] = summon[Ord[A]]
+    inline def apply[A: Ord]: Ord[A] = summon[Ord[A]]
 
     enum Order:
         case Less, Greater, Equal
@@ -1488,10 +1488,9 @@ object SortedMap {
         SortedMap(go(lhs.toList, rhs.toList))
     }
 
-    given sortedMapEq[A: Ord, B: Eq]: Eq[SortedMap[A, B]] =
+    given sortedMapEq[A: Eq, B: Eq]: Eq[SortedMap[A, B]] =
         (lhs: SortedMap[A, B], rhs: SortedMap[A, B]) =>
             import Eq.given
-            given Eq[A] = Ord[A].compare(_, _).isEqual
             lhs.toList === rhs.toList
 
     given sortedMapOrd[A: Ord, B: Ord]: Ord[SortedMap[A, B]] =
