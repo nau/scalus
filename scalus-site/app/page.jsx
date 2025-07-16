@@ -85,8 +85,8 @@ export default function IndexPage() {
         <div className="absolute inset-px rounded-lg bg-white"></div>
         <div className="relative flex h-full flex-col overflow-hidden rounded-[calc(var(--radius-lg)+1px)]">
           <div className="px-8 pt-8 sm:px-10 sm:pt-10">
-            <p className="mt-2 text-lg font-medium tracking-tight text-gray-950 max-lg:text-center">L2 scaling solutions</p>
-            <p className="mt-2 max-w-lg text-sm/6 text-gray-600 max-lg:text-center">The platform is well positioned for building and running protocols and Layer 2 solutions.</p>
+            <p className="mt-2 text-lg font-medium tracking-tight text-gray-950 max-lg:text-center">Cardano Layer 2 scaling solutions</p>
+            <p className="mt-2 max-w-lg text-sm/6 text-gray-600 max-lg:text-center">Scalus provides the reliable platform for scaling DApps on Cardano.</p>
           </div>
           <div className="@container flex flex-1 items-center max-lg:py-6 lg:pb-2">
             <img className="h-[min(152px,40cqw)] object-cover" src="https://tailwindcss.com/plus-assets/img/component-images/bento-03-security.png" alt="" />
