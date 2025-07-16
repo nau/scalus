@@ -11,7 +11,8 @@ import scala.collection.mutable
 import scalus.sir.SIRVersion
 
 case class SIRLinkerOptions(
-    useUniversalDataConversion: Boolean = false
+    useUniversalDataConversion: Boolean,
+    debugLevel: Int
 )
 
 /** Links SIR definitions and data declarations into a single SIR module.
@@ -39,6 +40,8 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
     }
 
     def link(sir: SIR, srcPos: SrcPos): SIR = {
+        if options.debugLevel > 1 then
+            println(s"Linking SIR at ${srcPos.sourcePos.source}:${srcPos.line}, options=$options")
         val processed = traverseAndLink(sir, srcPos)
         val full: SIR = globalDefs.values.foldRight(processed) {
             case (CompileDef.Compiled(b), acc) =>
@@ -91,8 +94,8 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
                 bindings.map(b => Binding(b.name, b.tp, traverseAndLink(b.value, srcPos)))
             val nBody = traverseAndLink(body, srcPos)
             SIR.Let(recursivity, nBingings, nBody, anns)
-        case SIR.LamAbs(param, term, anns) =>
-            SIR.LamAbs(param, traverseAndLink(term, srcPos), anns)
+        case SIR.LamAbs(param, term, typeParams, anns) =>
+            SIR.LamAbs(param, traverseAndLink(term, srcPos), typeParams, anns)
         case SIR.Apply(f, arg, tp, anns) =>
             val fReplaced =
                 if options.useUniversalDataConversion then
@@ -113,8 +116,7 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
                                       SIRType.Fun(arg.tp, SIRType.Data),
                                       AnnotationsDecl.empty.copy(pos = f.anns.pos)
                                     )
-                                case None =>
-                                    f
+                                case None => f
                 else f
             val nF = traverseAndLinkExpr(fReplaced, srcPos)
             val nArg = traverseAndLinkExpr(arg, srcPos)
@@ -145,11 +147,14 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
         case SIR.Select(scrutinee, field, tp, anns) =>
             val nScrutinee = traverseAndLink(scrutinee, srcPos)
             SIR.Select(nScrutinee, field, tp, anns)
+        case SIR.Cast(term, tp, anns) =>
+            SIR.Cast(traverseAndLinkExpr(term, srcPos), tp, anns)
         case other => other
 
     private def findAndLinkDefinition(
         defs: collection.Map[FullName, SIR],
         fullName: FullName,
+        @unused tp: SIRType,
         srcPos: SrcPos
     ): Boolean = {
         val found = defs.get(fullName)
@@ -169,7 +174,7 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
         moduleName: String,
         fullName: FullName,
         srcPos: SrcPos,
-        @unused tp: SIRType,
+        tp: SIRType,
         anns: AnnotationsDecl
     ): Unit = {
         // println(s"linkDefinition: ${fullName}")
@@ -180,7 +185,7 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
                   srcPos
                 )
             case Right(defs) =>
-                if !findAndLinkDefinition(defs, fullName, srcPos) then
+                if !findAndLinkDefinition(defs, fullName, tp, srcPos) then
                     error(
                       SymbolNotFound(
                         fullName.name,

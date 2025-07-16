@@ -1,6 +1,7 @@
 package scalus.sir.lowering
 
 import scalus.sir.*
+import org.typelevel.paiges.Doc
 
 /** representation, depends on the type of the value.
   */
@@ -9,6 +10,8 @@ sealed trait LoweredValueRepresentation {
     def isDataCentric: Boolean
     def isCompatible(repr: LoweredValueRepresentation): Boolean =
         this == repr
+    def doc: Doc = Doc.text(this.toString)
+    def show = doc.render(80)
 }
 
 sealed trait SumCaseClassRepresentation(
@@ -40,6 +43,14 @@ object SumCaseClassRepresentation {
       */
     case object SumDataList extends SumCaseClassRepresentation(false, true)
 
+    /** List of pairs of data elements. result of unMapData
+      */
+    case object SumDataPairList extends SumCaseClassRepresentation(false, true)
+
+    /** SumDataPairList packed as AssocMap
+      */
+    case object SumDataAssocMap extends SumCaseClassRepresentation(true, true)
+
     /** packed in data representation as a list of data elements. i.e. unListData for unpacking into
       * DataList
       */
@@ -66,6 +77,8 @@ object ProductCaseClassRepresentation {
 
     case object ProdDataList extends ProductCaseClassRepresentation(false, true)
 
+    case object PackedDataMap extends ProductCaseClassRepresentation(true, true)
+
     /** Data.Unconstr will give us a pair from data and index of the constructor.
       */
     case object ProdDataConstr extends ProductCaseClassRepresentation(true, true) {
@@ -79,6 +92,10 @@ object ProductCaseClassRepresentation {
     }
 
     case object PairIntDataList extends ProductCaseClassRepresentation(false, true)
+
+    /** Pair[Data, Data] ( unMapData will give us a pair of data elements. )
+      */
+    case object PairData extends ProductCaseClassRepresentation(false, true)
 
     case object UplcConstr extends ProductCaseClassRepresentation(false, false)
 
@@ -137,6 +154,8 @@ case class LambdaRepresentation(
             case _ => repr.isPackedData
         }
 
+    override def doc: Doc = PrettyPrinter.inParens(inRepr.doc + Doc.text(" -> ") + outRepr.doc)
+
 }
 
 sealed trait PrimitiveRepresentation(val isPackedData: Boolean, val isDataCentric: Boolean)
@@ -160,6 +179,11 @@ case class TypeVarRepresentation(isBuiltin: Boolean) extends LoweredValueReprese
     override def isPackedData: Boolean = !isBuiltin
 
     override def isDataCentric: Boolean = isPackedData
+
+    override def doc: Doc = {
+        Doc.text("TypeVar") + (if isBuiltin then Doc.text("(B)") else Doc.empty)
+    }
+
 }
 
 case object ErrorRepresentation extends LoweredValueRepresentation {
@@ -179,7 +203,8 @@ object LoweredValueRepresentation {
             case SIRType.TypeLambda(params, body) =>
                 constRepresentation(body)
             case SIRType.Integer | SIRType.Data | SIRType.ByteString | SIRType.String |
-                SIRType.Boolean | SIRType.Unit =>
+                SIRType.Boolean | SIRType.Unit | SIRType.BLS12_381_G1_Element |
+                SIRType.BLS12_381_G2_Element | SIRType.BLS12_381_MlResult =>
                 PrimitiveRepresentation.Constant
             case SIRType.Fun(in, out) =>
                 val inRepresentation = lc.typeGenerator(in).defaultRepresentation(in)
@@ -187,15 +212,27 @@ object LoweredValueRepresentation {
                 LambdaRepresentation(inRepresentation, outRepresentation)
             case tv @ SIRType.TypeVar(_, _, isBuiltin) =>
                 // for now we don't allow pass variables to type-lambda.
-                lc.typeVars.get(tv) match
+                lc.typeUnifyEnv.filledTypes.get(tv) match
                     case Some(tp) => constRepresentation(tp)
                     case None =>
                         TypeVarRepresentation(isBuiltin)
             case SIRType.FreeUnificator =>
                 TypeVarRepresentation(isBuiltin = false)
+            case proxy: SIRType.TypeProxy =>
+                constRepresentation(proxy.ref)
+            case SIRType.TypeNothing => ErrorRepresentation
             case SIRType.TypeProxy(ref) =>
                 constRepresentation(ref)
-            case SIRType.TypeNothing => ErrorRepresentation
+            case SIRType.TypeNonCaseModule(name) =>
+                throw LoweringException(
+                  "TypeNonCaseModule is not supported in lowered value representation",
+                  SIRPosition.empty
+                )
+            case null =>
+                throw LoweringException(
+                  "Type is null, this is a bug in the compiler",
+                  SIRPosition.empty
+                )
     }
 
 }

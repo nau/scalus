@@ -13,7 +13,7 @@ object SIRUnify {
         eqTypes: Map[SIRType.TypeVar, Set[SIRType.TypeVar]] = Map.empty,
         parentTypes: Map[SIRType, Set[SIRType]] = Map.empty,
         debug: Boolean = false,
-        upcasting: Boolean = false
+        upcasting: Boolean = false,
     ) {
         def withDebug: Env = this.copy(debug = true)
         def withoutUpcasting: Env = this.copy(upcasting = false)
@@ -151,20 +151,29 @@ object SIRUnify {
                         UnificationFailure(path, bindingsLeft, bindingsRight)
             case (v1: SIR.LamAbs, v2: SIR.LamAbs) =>
                 // note, that this is not semantic unification, but syntactic
-                //  so, different parametes means different lambda.
+                //  so, different parametes means different lambdas.
                 unifySIRExpr(v1.param, v2.param, env.copy()) match
                     case UnificationSuccess(env1, param) =>
                         val nParam = param.asInstanceOf[SIR.Var]
-                        unifySIR(v1.term, v2.term, env1.copy(path = "body" :: env.path)) match
-                            case UnificationSuccess(env2, term) =>
-                                UnificationSuccess(
-                                  env2.copy(path = env.path),
-                                  SIR.LamAbs(nParam, term, v1.anns)
-                                )
-                            case failure @ UnificationFailure(path, bodyLeft, bodyRight) =>
-                                failure
-                    case failure @ UnificationFailure(path, paramLeft, paramRight) =>
-                        failure
+                        unifyList(
+                          v1.typeParams,
+                          v2.typeParams,
+                          env1.copy(path = "typeParams" :: env.path)
+                        )(using TypeVarRelaxingUnify) match
+                            case UnificationSuccess(env2, typeParams) =>
+                                unifySIR(
+                                  v1.term,
+                                  v2.term,
+                                  env2.copy(path = "body" :: env.path)
+                                ) match
+                                    case UnificationSuccess(env2, term) =>
+                                        UnificationSuccess(
+                                          env2.copy(path = env.path),
+                                          SIR.LamAbs(nParam, term, typeParams, v1.anns)
+                                        )
+                                    case failure: UnificationFailure[?] => failure
+                            case failure: UnificationFailure[?] => failure
+                    case failure: UnificationFailure[?] => failure
             case (app1: SIR.Apply, app2: SIR.Apply) =>
                 unifySIRExpr(app1.f, app2.f, env.copy(path = "f" :: env.path)) match
                     case UnificationSuccess(env1, fun) =>
@@ -299,7 +308,19 @@ object SIRUnify {
                                         )
                                     case failure @ UnificationFailure(path, left, right) =>
                                         failure
-                            case failure @ UnificationFailure(path, left, right) => failure
+                            case failure: UnificationFailure[?] => failure
+                    case failure @ UnificationFailure(path, left, right) => failure
+            case (cLeft: SIR.Cast, cRight: SIR.Cast) =>
+                unifySIRExpr(cLeft.term, cRight.term, env.copy(path = "term" :: env.path)) match
+                    case UnificationSuccess(env1, term) =>
+                        unifyType(cLeft.tp, cRight.tp, env1.copy(path = "tp" :: env.path)) match
+                            case UnificationSuccess(env2, tp) =>
+                                UnificationSuccess(
+                                  env2.copy(path = env.path),
+                                  SIR.Cast(term, tp, cLeft.anns)
+                                )
+                            case failure @ UnificationFailure(path, left, right) =>
+                                failure
                     case failure @ UnificationFailure(path, left, right) => failure
             case _ =>
                 UnificationFailure(env.path, left, right)
@@ -427,27 +448,47 @@ object SIRUnify {
                             case UnificationSuccess(env2, typeArgs) =>
                                 ccLeft.parent match
                                     case None =>
-                                        UnificationSuccess(
-                                          env2.copy(path = env.path),
-                                          SIRType.CaseClass(constrDecl, typeArgs, None)
-                                        )
-                                    case Some(p) =>
-                                        unifyType(
-                                          p,
-                                          ccRight.parent.get,
-                                          env2.copy(path = "parent" :: env2.path)
-                                        ) match
-                                            case UnificationSuccess(env3, parent) =>
+                                        ccRight.parent match
+                                            case None =>
                                                 UnificationSuccess(
-                                                  env3.copy(path = env.path),
-                                                  SIRType.CaseClass(
-                                                    constrDecl,
-                                                    typeArgs,
-                                                    Some(parent)
-                                                  )
+                                                  env2.copy(path = env.path),
+                                                  SIRType.CaseClass(constrDecl, typeArgs, None)
                                                 )
-                                            case failure @ UnificationFailure(path, left, right) =>
-                                                failure
+                                            case Some(rightParent) =>
+                                                UnificationFailure(
+                                                  "parent" :: env.path,
+                                                  ccLeft.parent,
+                                                  ccRight.parent
+                                                )
+                                    case Some(leftParent) =>
+                                        ccRight.parent match
+                                            case None =>
+                                                UnificationFailure(
+                                                  "parent" :: env.path,
+                                                  ccLeft.parent,
+                                                  ccRight.parent
+                                                )
+                                            case Some(ccRightParent) =>
+                                                unifyType(
+                                                  leftParent,
+                                                  ccRightParent,
+                                                  env2.copy(path = "parent" :: env.path)
+                                                ) match
+                                                    case UnificationSuccess(env3, parent) =>
+                                                        UnificationSuccess(
+                                                          env3.copy(path = env.path),
+                                                          SIRType.CaseClass(
+                                                            constrDecl,
+                                                            typeArgs,
+                                                            Some(parent)
+                                                          )
+                                                        )
+                                                    case failure @ UnificationFailure(
+                                                          path,
+                                                          left,
+                                                          right
+                                                        ) =>
+                                                        failure
                             case failure @ UnificationFailure(path, left, right) => failure
                     case failure @ UnificationFailure(path, left, right) =>
                         // if we are in upcasting mode, then try to find common parent type
@@ -551,10 +592,8 @@ object SIRUnify {
                             case failure @ UnificationFailure(path, left, right) => failure
                     case failure @ UnificationFailure(path, left, right) => failure
             case (SIRType.TypeLambda(params, body), right) =>
-                val nEnv = env.copy(filledTypes =
-                    env.filledTypes ++ params.map(_ -> SIRType.FreeUnificator)
-                )
-                unifyType(body, right, nEnv)
+                // TODO: check and rename vars
+                unifyType(body, right, env)
             case (left, SIRType.TypeLambda(params, body)) =>
                 val nEnv = env.copy(filledTypes =
                     env.filledTypes ++ params.map(_ -> SIRType.FreeUnificator)
@@ -604,6 +643,18 @@ object SIRUnify {
                 UnificationFailure(env.path, left, right)
     }
 
+    /** return sequence, where the first element is the child type, the next elewent is the parent
+      * typeof child (if exists) with free type arguments (because we don't track
+      * covariance/contravariance in SIRType, so depeendencing can be any, and this up to
+      * parentCandidate.)
+      *
+      * (Nil, List[Int]) => List(Nil, List[FreeUnificator])
+      *
+      * @param childCandidate
+      * @param parentCandidate
+      * @param env0
+      * @return
+      */
     def subtypeSeq(childCandidate: SIRType, parentCandidate: SIRType, env0: Env): List[SIRType] = {
 
         @tailrec
@@ -673,10 +724,14 @@ object SIRUnify {
             case (p1: SIRType.Primitive, _) => List.empty
             case (_, p2: SIRType.Primitive) => List.empty
             case (cc1: SIRType.CaseClass, cc2: SIRType.CaseClass) =>
-                unifyType(cc1, cc2, env.withoutUpcasting) match
-                    case UnificationSuccess(_, _) =>
-                        List(cc1)
-                    case UnificationFailure(_, _, _) =>
+                unifyConstrDecl(cc1.constrDecl, cc2.constrDecl, env) match
+                    case UnificationSuccess(env, cc) =>
+                        // we don't want introduce of contrvairance/covariance here, so we just change typeargd
+                        // to FreeUnificator
+                        val freeTypeArgs = cc.typeParams.map(v => (v, SIRType.FreeUnificator)).toMap
+                        val u = SIRType.substitute(cc1, freeTypeArgs, Map.empty)
+                        List(u)
+                    case UnificationFailure(path, l, r) =>
                         List.empty
             case (cc1: SIRType.CaseClass, cc2: SIRType.SumCaseClass) =>
                 cc1.parent match
@@ -691,9 +746,20 @@ object SIRUnify {
             case (ccLeft: SIRType.SumCaseClass, tlRight: SIRType.CaseClass) =>
                 List.empty
             case (ccLeft: SIRType.SumCaseClass, ccRight: SIRType.SumCaseClass) =>
-                unifyType(ccLeft, ccRight, env.withoutUpcasting) match
-                    case UnificationSuccess(_, _) =>
-                        List(ccLeft)
+                unifyDataDecl(ccLeft.decl, ccRight.decl, env) match
+                    case UnificationSuccess(env, decl1) =>
+                        val freeTypeArgs =
+                            decl1.typeParams.map(v => (v, SIRType.FreeUnificator)).toMap
+                        val rt = decl1.tp match
+                            case sm: SIRType.SumCaseClass =>
+                                sm
+                            case tpl: SIRType.TypeLambda =>
+                                SIRType.substitute(tpl.body, freeTypeArgs, Map.empty)
+                            case other =>
+                                throw IllegalStateException(
+                                  s"type of decl can be only SumCaseClass or TypeLambda, we have ${other.show}"
+                                )
+                        List(rt)
                     case UnificationFailure(_, _, _) =>
                         val childName = SIRType.syntheticNarrowConstrDeclName(ccLeft.decl.name)
                         val decls = findChildConstrForSum(ccRight.decl, childName)
@@ -701,13 +767,35 @@ object SIRUnify {
                         else {
                             val headDecl = decls.head
                             unifyType(ccLeft, headDecl.tp, env.withoutUpcasting) match
-                                case UnificationSuccess(env, ccLeft1) =>
+                                case UnificationSuccess(env1, ccLeft1) =>
                                     // here is approximation,
-                                    // TODO:  track type arguments.
+                                    // types will be type-labda, mb substirute types with free unificator
                                     ccLeft1 :: decls.tail.map(d => d.tp)
-                                case UnificationFailure(_, _, _) =>
+                                case UnificationFailure(path, l, r) =>
+                                    if env.debug then
+                                        println(
+                                          s"subtypeSeq: UnificationFailure for ${ccLeft.decl.name} and ${ccRight.decl.name}"
+                                        )
                                     List.empty
                         }
+
+                // unifyType(ccLeft, ccRight, env.withoutUpcasting) match
+                //    case UnificationSuccess(_, _) =>
+                //        List(ccLeft)
+                //    case UnificationFailure(_, _, _) =>
+                //        val childName = SIRType.syntheticNarrowConstrDeclName(ccLeft.decl.name)
+                //        val decls = findChildConstrForSum(ccRight.decl, childName)
+                //        if decls.isEmpty then List.empty
+                //        else {
+                //            val headDecl = decls.head
+                //            unifyType(ccLeft, headDecl.tp, env.withoutUpcasting) match
+                //                case UnificationSuccess(env, ccLeft1) =>
+                //                    // here is approximation,
+                //                    // TODO:  track type arguments.
+                //                    ccLeft1 :: decls.tail.map(d => d.tp)
+                //                case UnificationFailure(_, _, _) =>
+                //                    List.empty
+                //        }
             case (SIRType.Fun(inLeft, outLeft), SIRType.Fun(inRight, outRight)) =>
                 // TODO: add covariance/contravariance to env upcasting.
                 unifyType(inLeft, inRight, env.withoutUpcasting) match

@@ -103,8 +103,8 @@ object BooleanOptimizer:
                 Let(recursivity, bindings, optimize(body), anns)
 
             // Recursive optimization for LamAbs
-            case LamAbs(param, term, anns) =>
-                LamAbs(param, optimize(term), anns)
+            case LamAbs(param, term, typeParams, anns) =>
+                LamAbs(param, optimize(term), typeParams, anns)
 
             // Other node types remain unchanged
             case _ => sir

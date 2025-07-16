@@ -1,11 +1,11 @@
 package scalus.sir.lowering.typegens
 
+import org.typelevel.paiges.Doc
 import scalus.sir.SIRType.Data
 import scalus.sir.{SIRType, *}
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.sir.lowering.ProductCaseClassRepresentation.{ProdDataConstr, ProdDataList}
-import scalus.sir.lowering.typegens.ProductCaseOneElementSirTypeGenerator.retrieveArgType
 import scalus.uplc.Term
 
 case class ProductCaseOneElementSirTypeGenerator(
@@ -49,14 +49,12 @@ case class ProductCaseOneElementSirTypeGenerator(
                 if argRepr == newArgRepr then input
                 else
                     val newArg = argLoweredValue(input).toRepresentation(newArgRepr, pos)
-                    new ProxyLoweredValue(newArg) {
-                        override def sirType: SIRType = input.sirType
-                        override def pos: SIRPosition = input.pos
-                        override def representation: LoweredValueRepresentation =
-                            ProductCaseClassRepresentation.OneElementWrapper(newArgRepr)
-                        override def termInternal(gctx: TermGenerationContext): Term =
-                            newArg.termInternal(gctx)
-                    }
+                    new TypeRepresentationProxyLoweredValue(
+                      newArg,
+                      input.sirType,
+                      ProductCaseClassRepresentation.OneElementWrapper(newArgRepr),
+                      input.pos
+                    )
             case (ProductCaseClassRepresentation.OneElementWrapper(argRepr), ProdDataList) =>
                 val argInData = argLoweredValue(input).toRepresentation(
                   argGenerator.defaultDataRepresentation(input.sirType),
@@ -82,28 +80,24 @@ case class ProductCaseOneElementSirTypeGenerator(
                   outRepr @ TypeVarRepresentation(isBuiltin)
                 ) =>
                 if isBuiltin then input
+                else if argRepr.isCompatible(representation) then
+                    new RepresentationProxyLoweredValue(input, representation, pos)
                 else
-                    import ProductCaseOneElementSirTypeGenerator.*
-                    if argRepr.isCompatible(representation) then
-                        new RepresentationProxyLoweredValue(input, representation, pos)
-                    else
-                        val argValue = argLoweredValue(input)
-                        val newArg = argGenerator.toRepresentation(argValue, representation, pos)
-                        val inPos = pos
-                        new ProxyLoweredValue(newArg) {
-                            override def sirType: SIRType = input.sirType
-                            override def representation: LoweredValueRepresentation = outRepr
-                            override def pos: SIRPosition = inPos
-                            override def termInternal(gctx: TermGenerationContext): Term =
-                                newArg.termInternal(gctx)
-                        }
+                    val argValue = argLoweredValue(input)
+                    val newArg = argGenerator.toRepresentation(argValue, representation, pos)
+                    val inPos = pos
+                    new TypeRepresentationProxyLoweredValue(
+                      newArg,
+                      input.sirType,
+                      outRepr,
+                      inPos
+                    )
             case (
                   inRepr @ TypeVarRepresentation(isBuiltin),
                   outRepr @ ProductCaseClassRepresentation.OneElementWrapper(argRepr)
                 ) =>
                 if isBuiltin then new RepresentationProxyLoweredValue(input, representation, pos)
                 else
-                    import ProductCaseOneElementSirTypeGenerator.*
                     val argValue = argLoweredValue(input)
                     if argRepr.isCompatible(argValue.representation) then
                         new RepresentationProxyLoweredValue(input, representation, pos)
@@ -111,35 +105,13 @@ case class ProductCaseOneElementSirTypeGenerator(
                         // we need to convert the argument to the new representation
                         val newArg = argGenerator.toRepresentation(argValue, argRepr, pos)
                         val inPos = pos
-                        val retval = new ProxyLoweredValue(newArg) {
-                            override def sirType = input.sirType
-                            override def representation: LoweredValueRepresentation = outRepr
-                            override def pos: SIRPosition = inPos
-                            override def termInternal(gctx: TermGenerationContext): Term =
-                                newArg.termInternal(gctx)
-                        }
+                        val retval = new TypeRepresentationProxyLoweredValue(
+                          newArg,
+                          input.sirType,
+                          outRepr,
+                          inPos
+                        )
                         retval
-            case (
-                  inRepr @ ProductCaseClassRepresentation.OneElementWrapper(argRepr),
-                  outRepr @ TypeVarRepresentation(isBuiltin)
-                ) =>
-                if isBuiltin then input
-                else
-                    import ProductCaseOneElementSirTypeGenerator.*
-                    val argValue = argLoweredValue(input)
-                    if argRepr.isCompatible(outRepr) then
-                        new RepresentationProxyLoweredValue(input, representation, pos)
-                    else
-                        // we need to convert the argument to the new representation
-                        val newArg = argGenerator.toRepresentation(argValue, outRepr, pos)
-                        val inPos = pos
-                        new ProxyLoweredValue(newArg) {
-                            override def sirType: SIRType = input.sirType
-                            override def representation: LoweredValueRepresentation = outRepr
-                            override def pos: SIRPosition = inPos
-                            override def termInternal(gctx: TermGenerationContext): Term =
-                                newArg.termInternal(gctx)
-                        }
             case (_, _) =>
                 ProductCaseSirTypeGenerator.toRepresentation(input, representation, pos)
 
@@ -268,12 +240,6 @@ case class ProductCaseOneElementSirTypeGenerator(
                             )
                     case SIR.Pattern.Wildcard =>
                         lctx.lower(body)
-                    case _ =>
-                        throw LoweringException(
-                          s"Expected single case with select on ${name}, got ${pattern}",
-                          anns.pos
-                        )
-
             case _ =>
                 throw LoweringException(
                   s"Expected single case with select on ${name}, got ${matchData.cases}",
@@ -324,6 +290,15 @@ object ProductCaseOneElementSirTypeGenerator {
         override def termInternal(gctx: TermGenerationContext): Term =
             arg.termInternal(gctx)
 
+        override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+            val left = Doc.text("ProduceCaseOneElement.Wrapped") + Doc.text("(")
+            val arg1 = Doc.text(constr.name)
+            val arg2 = arg.docRef(ctx)
+            val args = Doc.intercalate(Doc.text(", "), List(arg1, arg2)).grouped
+            val right = Doc.text(")")
+            args.bracketBy(left, right)
+        }
+
     }
 
     case class ArgProxyLoweredValue(
@@ -341,6 +316,16 @@ object ProductCaseOneElementSirTypeGenerator {
 
         override def termInternal(gctx: TermGenerationContext): Term =
             wrapper.termInternal(gctx)
+
+        override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+            val left = Doc.text("ProduceCaseOneElement.ArgProxy") + Doc.text("(")
+            val arg = wrapper.docRef(ctx)
+            val right =
+                Doc.text(")") + Doc.text(":") + Doc.text(sirType.show) + PrettyPrinter.inBrackets(
+                  repr.doc
+                )
+            arg.bracketBy(left, right)
+        }
 
     }
 

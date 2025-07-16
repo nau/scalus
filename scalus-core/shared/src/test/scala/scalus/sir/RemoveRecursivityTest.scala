@@ -69,6 +69,7 @@ class RemoveRecursivityTest extends AnyFunSuite:
                             Integer,
                             ae
                           ),
+                          List.empty,
                           ae
                         )
                       )
@@ -76,6 +77,7 @@ class RemoveRecursivityTest extends AnyFunSuite:
                     Apply(recursiveVar, xVar, Integer, ae),
                     ae
                   ),
+                  List.empty,
                   ae
                 )
               )

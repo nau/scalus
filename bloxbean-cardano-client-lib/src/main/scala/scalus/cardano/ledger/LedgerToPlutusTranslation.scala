@@ -14,6 +14,7 @@ import scalus.prelude.Option.asScalus
 import scalus.prelude.{AssocMap, List}
 import scalus.uplc.eval.*
 import scalus.{builtin, ledger, prelude}
+import scalus.prelude.Ord.given
 
 import scala.collection.{immutable, mutable}
 import scala.math.BigInt
@@ -278,7 +279,7 @@ object LedgerToPlutusTranslation {
                         assetName -> BigInt(amount)
                     }
                     .sortBy(_._1)
-                AssocMap.unsafeFromList(prelude.List.from(assetMap))
+                prelude.SortedMap.fromList(prelude.List.from(assetMap))
             }
             .toArray
             .sortBy(_._1)
@@ -287,12 +288,15 @@ object LedgerToPlutusTranslation {
         val adaEntry =
             if value.coin.value > 0 then
                 Seq(
-                  (ByteString.empty, AssocMap.singleton(ByteString.empty, BigInt(value.coin.value)))
+                  (
+                    ByteString.empty,
+                    prelude.SortedMap.singleton(ByteString.empty, BigInt(value.coin.value))
+                  )
                 )
             else Seq.empty
 
         val allEntries = adaEntry ++ policyMap.map((pid, assets) => (pid, assets))
-        prelude.AssocMap.unsafeFromList(prelude.List.from(allEntries))
+        prelude.SortedMap.fromList(prelude.List.from(allEntries))
     }
 
     /** Convert multi-asset values for minting context.
@@ -317,18 +321,17 @@ object LedgerToPlutusTranslation {
                     .map { case ((_, assetName), amount) =>
                         assetName -> BigInt(amount)
                     }
-                    .toSeq
                     .sortBy(_._1.toHex)
-                AssocMap.unsafeFromList(prelude.List.from(assetMap))
+                prelude.SortedMap.fromList(prelude.List.from(assetMap))
             }
             .toSeq
             .sortBy(_._1.toHex)
 
         // Always include ADA entry with zero value for minting
-        val adaEntry = (ByteString.empty, AssocMap.singleton(ByteString.empty, BigInt(0)))
+        val adaEntry = (ByteString.empty, prelude.SortedMap.singleton(ByteString.empty, BigInt(0)))
         val allEntries = adaEntry +: policyMap.map((pid, assets) => (pid, assets))
 
-        prelude.AssocMap.unsafeFromList(prelude.List.from(allEntries))
+        prelude.SortedMap.fromList(prelude.List.from(allEntries))
     }
 
     /** Create TxOut for Plutus V1 script contexts.

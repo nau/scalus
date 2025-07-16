@@ -2,7 +2,7 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.*
 
-import scala.collection.immutable.{ArraySeq, Set}
+import scala.collection.immutable.Set
 
 case class TransactionBody(
     /** Transaction inputs to spend */

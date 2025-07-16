@@ -275,7 +275,7 @@ object SIRBuiltins {
     val unIData: SIR.Builtin =
         SIR.Builtin(DefaultFun.UnIData, SIRType.Data ->: SIRType.Integer, AnnotationsDecl.empty)
     val unBData: SIR.Builtin =
-        SIR.Builtin(DefaultFun.UnBData, SIRType.Data ->: SIRType.Boolean, AnnotationsDecl.empty)
+        SIR.Builtin(DefaultFun.UnBData, SIRType.Data ->: SIRType.ByteString, AnnotationsDecl.empty)
     val equalsData: SIR.Builtin =
         SIR.Builtin(
           DefaultFun.EqualsData,

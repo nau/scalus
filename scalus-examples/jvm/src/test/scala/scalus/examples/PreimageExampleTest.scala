@@ -80,15 +80,27 @@ class PreimageExampleTest extends BaseValidatorTest {
 
     }
 
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+      debug = false
+    )
+
     test("Preimage Validator") {
         // compile to Scalus Intermediate Representation, SIR
         val compiled = compile(PreimageValidator.preimageValidator)
-//        println(compiled.showHighlighted)
+        // println(compiled.showHighlighted)
         // convert SIR to UPLC
         val validator = compiled.toUplc(generateErrorTraces = true).plutusV2
-//        println(validator.showHighlighted)
+        // println(validator.showHighlighted)
         val flatSize = validator.flatEncoded.length
-        assert(flatSize == 2230)
+        // V3 backend, optimizeUplc = true
+        assert(flatSize == 382)
+        // V3 backend, optimizeUplc = false
+        // assert(flatSize == 380)
+        // SimpleBackend
+        // assert(flatSize == 2230)
 
 //        performChecks(validator)
     }

@@ -3,7 +3,6 @@ package scalus.sir.lowering.typegens
 import scalus.sir.*
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
-import scalus.uplc.Term
 
 object FunSirTypeGenerator extends SirTypeUplcGenerator {
 
@@ -16,6 +15,7 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
                   lctx.typeGenerator(input).defaultRepresentation(input),
                   lctx.typeGenerator(output).defaultRepresentation(output)
                 )
+
             case None =>
                 throw IllegalStateException(
                   s"Function type generator can't be used for type ${tp.show}",
@@ -60,10 +60,7 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
                       LambdaRepresentation(inRepr2, outRepr2)
                     ) =>
                     if inRepr1.isCompatible(inRepr2) && outRepr1.isCompatible(outRepr2) then
-                        new RepresentationProxyLoweredValue(input, outputRepresentation, pos) {
-                            override def termInternal(gctx: TermGenerationContext): Term =
-                                input.termInternal(gctx)
-                        }
+                        new RepresentationProxyLoweredValue(input, outputRepresentation, pos)
                     else
                         val newInName = lctx.uniqueVarName("x")
                         lvLamAbs(
@@ -121,9 +118,11 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
         tp match {
             case SIRType.Fun(input, output) =>
                 Some((Set.empty, input, output))
-            case SIRType.TypeLambda(typeVars, SIRType.Fun(input, output)) =>
-                Some((typeVars.toSet, input, output))
-            case SIRType.TypeProxy(ref) => None
+            case SIRType.TypeLambda(typeVars, body) =>
+                collect(body).map { case (bTypeVars, input, output) =>
+                    (typeVars.toSet ++ bTypeVars, input, output)
+                }
+            case proxy: SIRType.TypeProxy => None
             case tv: SIRType.TypeVar =>
                 Some(Set.empty, SIRType.FreeUnificator, SIRType.FreeUnificator)
             case SIRType.TypeProxy(ref) => collect(ref)

@@ -9,6 +9,18 @@ case class Module(version: (Int, Int), defs: List[Binding])
 
 case class Binding(name: String, tp: SIRType, value: SIR) {
 
+    if name == "scalus.prelude.List$.foldLeft"
+    then {
+        tp match {
+            case SIRType.TypeLambda(tvars, _) =>
+            //
+            case _ =>
+                throw new RuntimeException(
+                  s"Binding: foldLeft must have type type-lambda, but got ${tp.show}"
+                )
+        }
+    }
+
     override def toString: String = s"Binding(\"$name\" [${tp.show}] : $value)"
 
 }
@@ -34,7 +46,16 @@ case class SIRPosition(
     startColumn: Int,
     endLine: Int,
     endColumn: Int
-)
+) {
+
+    def show: String = {
+        s"$file:${startLine + 1}:${startColumn} - ${endLine + 1}:${endColumn}"
+    }
+
+    def isEmpty: Boolean = file.isEmpty && startLine == 0 && startColumn == 0 &&
+        endLine == 0 && endColumn == 0
+
+}
 
 object SIRPosition {
 
@@ -111,6 +132,16 @@ case class ConstrDecl(
               "Some constructor must have exactly one parent type argument. (name=" + name + ")"
             )
 
+    if name == "scala.Tuple3" then
+        if params.head.name == "t1" then
+            throw new RuntimeException(
+              "Tuple3 constructor must have parameters _1, _2, _3. (name=" + name + ")"
+            )
+        if parentTypeArgs.nonEmpty then
+            throw new RuntimeException(
+              "Tuple3 constructor must not have parent type arguments. (name=" + name + ")"
+            )
+
 }
 
 //  Data~ Lost(Const)
@@ -130,6 +161,12 @@ case class DataDecl(
     annotations: AnnotationsDecl
 ) {
 
+    if constructors.isEmpty then
+        throw new RuntimeException(
+          s"Data declaration must have at least one constructor. (name=$name)"
+        )
+    // if (name == "")
+
     private var _tp: SIRType = null
     private var _constrs: Map[String, SIRType] = null
 
@@ -140,8 +177,9 @@ case class DataDecl(
                 case _   => SIRType.TypeLambda(typeParams, SIRType.SumCaseClass(this, typeParams))
         _tp
 
-    def constrType(constrName: String): SIRType =
-        if _constrs == null then
+    def constrType(constrName: String): SIRType = {
+        if _constrs == null then {
+            val nConstrs = constructors.length
             _constrs = constructors
                 .map { c =>
                     val parent = typeParams match
@@ -149,16 +187,18 @@ case class DataDecl(
                         case typeParams =>
                             val tpEnv = typeParams.zip(c.parentTypeArgs).toMap
                             SIRType.substitute(tp, tpEnv, Map.empty)
+                    val optParent = if nConstrs == 1 then None else Some(parent)
                     val sirType = c.typeParams match
-                        case Nil => SIRType.CaseClass(c, Nil, Some(parent))
+                        case Nil => SIRType.CaseClass(c, Nil, optParent)
                         case targs =>
                             SIRType.TypeLambda(
                               c.typeParams,
-                              SIRType.CaseClass(c, c.typeParams, Some(parent))
+                              SIRType.CaseClass(c, c.typeParams, optParent)
                             )
                     c.name -> sirType
                 }
                 .toMap[String, SIRType]
+        }
         _constrs.getOrElse(
           constrName,
           throw new IllegalArgumentException(
@@ -166,6 +206,7 @@ case class DataDecl(
           )
         )
 
+    }
 }
 
 //case class ExternalDataDecl(module: String, name: String)
@@ -205,11 +246,38 @@ object SIR:
     //  Var(x,  TypeRef(1))
 
     case class Var(name: String, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR {
+
+        if name == "scalus.prelude.List$.foldLeft"
+        then {
+            tp match {
+                case SIRType.TypeLambda(tvars, _) =>
+                //
+                case _ =>
+                    throw new RuntimeException(
+                      s"ExternalVar: foldLeft must have type type-lambda, but got ${tp.show} at ${anns.pos.show}"
+                    )
+            }
+
+        }
+
         override def toString: String = s"Var($name, ${tp.show})"
     }
 
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR {
+
+        if name == "scalus.prelude.List$.foldLeft"
+        then {
+            tp match {
+                case SIRType.TypeLambda(tvars, _) =>
+                //
+                case _ =>
+                    throw new RuntimeException(
+                      s"ExternalVar: foldLeft must have type type-lambda, but got ${tp.show} at ${anns.pos.show}"
+                    )
+            }
+
+        }
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"
 
@@ -224,19 +292,28 @@ object SIR:
         override def tp: SIRType = body.tp
     }
 
-    case class LamAbs(param: Var, term: SIR, anns: AnnotationsDecl) extends AnnotatedSIR {
+    case class LamAbs(
+        param: Var,
+        term: SIR,
+        typeParams: List[SIRType.TypeVar],
+        anns: AnnotationsDecl
+    ) extends AnnotatedSIR {
 
-        override def tp: SIRType =
-            term.tp match
-                case SIRType.TypeLambda(tvars, tpexpr) =>
-                    SIRType.TypeLambda(tvars, SIRType.Fun(param.tp, tpexpr))
-                case _ =>
-                    SIRType.Fun(param.tp, term.tp)
+        override def tp: SIRType = {
+            if typeParams.isEmpty then SIRType.Fun(param.tp, term.tp)
+            else SIRType.TypeLambda(typeParams, SIRType.Fun(param.tp, term.tp))
+        }
 
     }
 
     case class Apply(f: AnnotatedSIR, arg: AnnotatedSIR, tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR {
+
+        if f.tp == SIRType.Unit then
+            throw new RuntimeException(
+              s"Apply: f is Unit, cannot apply to Unit at ${anns.pos.show}.\n" +
+                  s"f: $f"
+            )
 
         // TODO: makr tp computable, not stored.  (implement subst at first).
         /*
@@ -348,6 +425,20 @@ object SIR:
     case class Match(scrutinee: AnnotatedSIR, cases: List[Case], tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR
 
+    case class Cast(term: AnnotatedSIR, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR {
+
+        if anns.pos.file.contains("GeneratingUnscopedVarsTest") then
+            tp match
+                case SIRType.Fun(SIRType.Integer, tuple2Constr) =>
+                    tuple2Constr match
+                        case SIRType.CaseClass(constr, List(SIRType.Integer, SIRType.Integer), _)
+                            if constr.name == "scala.Tuple2" =>
+                            throw RuntimeException("QQQ")
+                        case _ =>
+                case _ =>
+
+    }
+
     case class Decl(data: DataDecl, term: SIR) extends SIR {
 
         override def tp: SIRType = term.tp
@@ -399,7 +490,7 @@ object SIRChecker {
                   anns,
                   throwOnFirst
                 )
-            case SIR.LamAbs(param, term, anns) =>
+            case SIR.LamAbs(param, term, typeParams, anns) =>
                 checkType(param.tp, throwOnFirst) ++ checkSIR(
                   term,
                   throwOnFirst
@@ -435,6 +526,9 @@ object SIRChecker {
                   anns,
                   throwOnFirst
                 )
+            case SIR.Cast(term, tp, anns) =>
+                checkSIR(term, throwOnFirst) ++ checkType(tp, throwOnFirst) ++
+                    checkAnnotations(anns, throwOnFirst)
             case SIR.Decl(data, term) =>
                 checkData(data, throwOnFirst) ++ checkSIR(term, throwOnFirst)
         }

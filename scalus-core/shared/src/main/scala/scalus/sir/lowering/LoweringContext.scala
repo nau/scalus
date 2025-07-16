@@ -12,9 +12,10 @@ class LoweringContext(
     val plutusVersion: Int = 3,
     val generateErrorTraces: Boolean = false,
     val uplcGeneratorPolicy: SIRType => SirTypeUplcGenerator = SirTypeUplcGenerator(_),
-    val typeVars: Map[SIRType.TypeVar, SIRType] = Map.empty,
+    var typeUnifyEnv: SIRUnify.Env = SIRUnify.Env.empty,
     var debug: Boolean = false,
-    var nestingLevel: Int = 0
+    var debugLevel: Int = 0,
+    var nestingLevel: Int = 0,
 ) {
 
     def uniqueVarName(prefix: String = "_v"): String = {
@@ -28,6 +29,37 @@ class LoweringContext(
 
     def typeGenerator(sirType: SIRType): SirTypeUplcGenerator = {
         uplcGeneratorPolicy(sirType)
+    }
+
+    /** If this is typevariable, try get the value from context, else leave it as is.
+      * @param tp
+      * @return
+      */
+    def resolveTypeVarIfNeeded(tp: SIRType): SIRType = {
+        tp match {
+            case tv: SIRType.TypeVar =>
+                typeUnifyEnv.filledTypes.get(tv) match
+                    case Some(resolvedType) => resolvedType
+                    case None               => tp // leave as is
+            case _ =>
+                tp // leave as is
+        }
+    }
+
+    def tryResolveTypeVar(tp: SIRType.TypeVar): Option[SIRType] = {
+        typeUnifyEnv.filledTypes.get(tp)
+    }
+
+    def log(msg: String): Unit = {
+        val nestingPrefix = "  " * nestingLevel
+        val msgLines = msg.split("\n")
+        for line <- msgLines do {
+            println(s"${nestingPrefix}${line}")
+        }
+    }
+
+    def warn(msg: String, pos: SIRPosition): Unit = {
+        println(s"warning: ${msg} at ${pos.show}")
     }
 
 }

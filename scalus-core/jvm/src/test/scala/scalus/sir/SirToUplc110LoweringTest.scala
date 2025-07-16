@@ -46,7 +46,7 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
         val idType = TypeLambda(List(TypeVar("A", Some(1), false)), TypeVar("A", Some(1), false))
         val x = SIR.Var("x", TypeVar("X", Some(2), false), ae)
         SIR.Apply(
-          SIR.LamAbs(x, x, ae),
+          SIR.LamAbs(x, x, List.empty, ae),
           SIR.Const(Constant.Unit, Unit, ae),
           Unit,
           ae

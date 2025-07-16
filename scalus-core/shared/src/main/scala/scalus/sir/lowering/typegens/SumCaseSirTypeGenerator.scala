@@ -5,7 +5,6 @@ import scalus.sir.{SIRType, *}
 import scalus.sir.SIR.Pattern
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
-import scalus.uplc.Term
 
 object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
@@ -13,13 +12,15 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     override def defaultRepresentation(tp: SIRType)(using
         LoweringContext
-    ): LoweredValueRepresentation =
+    ): LoweredValueRepresentation = {
         SumCaseClassRepresentation.DataConstr
+    }
 
     override def defaultDataRepresentation(tp: SIRType)(using
         LoweringContext
-    ): LoweredValueRepresentation =
+    ): LoweredValueRepresentation = {
         SumCaseClassRepresentation.DataConstr
+    }
 
     override def defaultTypeVarReperesentation(tp: SIRType)(using
         lctx: LoweringContext
@@ -117,33 +118,22 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
         val inPos = pos
 
-        val constrProduct = new ProxyLoweredValue(inputDataRepr) {
-
-            override def sirType: SIRType =
-                targetDataDecl.constrType(constrName)
-
-            override def representation: LoweredValueRepresentation =
-                ProductCaseClassRepresentation.OneElementWrapper(inputDataRepr.representation)
-
-            override def pos: SIRPosition = inPos
-
-            override def termInternal(gctx: TermGenerationContext): Term =
-                inputDataRepr.termInternal(gctx)
-        }
+        val constrProduct = new TypeRepresentationProxyLoweredValue(
+          inputDataRepr,
+          targetDataDecl.constrType(constrName),
+          ProductCaseClassRepresentation.OneElementWrapper(inputDataRepr.representation),
+          inPos
+        )
 
         val constrProductDataConstr =
             constrProduct.toRepresentation(ProductCaseClassRepresentation.ProdDataConstr, pos)
 
-        val retval = new ProxyLoweredValue(constrProductDataConstr) {
-            override def sirType: SIRType = targetType
-            override def representation: LoweredValueRepresentation =
-                SumCaseClassRepresentation.DataConstr
-
-            override def pos: SIRPosition = inPos
-
-            override def termInternal(gctx: TermGenerationContext): Term =
-                constrProductDataConstr.termInternal(gctx)
-        }
+        val retval = new TypeRepresentationProxyLoweredValue(
+          constrProductDataConstr,
+          targetType,
+          SumCaseClassRepresentation.DataConstr,
+          inPos
+        )
 
         retval
     }
@@ -162,6 +152,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
     ): LoweredValue = {
         val caseClassType = constr.data.constrType(constr.name)
         lctx.typeGenerator(caseClassType).genConstr(constr.copy(tp = caseClassType))
+
     }
 
     override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
@@ -408,8 +399,9 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
         val (lastTail, n) =
             constrPattern.bindings.zip(constrDecl.params).foldLeft((dataListVar, 0)) {
                 case ((currentTail, idx), (name, typeBinding)) =>
-                    val tp = typeBinding.tp
+                    val tp0 = typeBinding.tp
                     val prevId = currentTail.id
+                    val tp = lctx.resolveTypeVarIfNeeded(tp0)
                     val tpDataRepresentation =
                         lctx.typeGenerator(tp).defaultDataRepresentation(tp)
                     val bindedVar = lvNewLazyNamedVar(
@@ -425,14 +417,14 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                       ),
                       sirCase.anns.pos
                     )
-                    val tailId = s"${dataListId}_b${}"
+                    val nextTailId = s"${currentTail.id}_t"
                     // mb we already have this id in the scope
-                    val tailVar =
-                        lctx.scope.get(tailId, SumCaseClassRepresentation.SumDataList) match
+                    val nextTailVar =
+                        lctx.scope.get(nextTailId, SumCaseClassRepresentation.SumDataList) match
                             case Some(v) => v
                             case None =>
                                 lvNewLazyIdVar(
-                                  tailId,
+                                  nextTailId,
                                   listDataType,
                                   SumCaseClassRepresentation.SumDataList,
                                   lvBuiltinApply(
@@ -444,7 +436,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                                   ),
                                   sirCase.anns.pos
                                 )
-                    (tailVar, idx + 1)
+                    (nextTailVar, idx + 1)
             }
 
         // now with the all named variable in the scope we can generate the body

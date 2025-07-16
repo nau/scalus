@@ -34,25 +34,22 @@ object SIRTypingScalaToSIRSpecScope {
 
 class SIRTypingScalaToSIRTest extends AnyFunSuite {
 
-    /*
     test("check that simple case class is mapped to case class in fun") {
         import SIRTypingScalaToSIRSpecScope.*
 
-        val sir = compile {
-            (x:BigInt) => new ClassA1(x)
+        val sir = compile { (x: BigInt) =>
+            new ClassA1(x)
         }
 
         sir.tp match {
-            case SIRType.Fun(SIRType.Integer, SIRType.CaseClass(constrDecl, Nil)) =>
-                assert(constrDecl.name == "ClassA1")
+            case SIRType.Fun(SIRType.Integer, SIRType.CaseClass(constrDecl, Nil, None)) =>
+                assert(constrDecl.name == "scalus.sir.SIRTypingScalaToSIRSpecScope$.ClassA1")
             case _ => fail(s"unexpected type ${sir.tp}")
         }
 
-        //println(sir.pretty.render(100))
+        // println(sir.pretty.render(100))
 
     }
-
-     */
 
     test("check that simple case class is mapped to case class") {
         import SIRTypingScalaToSIRSpecScope.*
@@ -105,7 +102,7 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
         }
         val lSir = findLastLetBody(sir)
         lSir match {
-            case SIR.LamAbs(a, SIR.LamAbs(b, body, _), _) =>
+            case SIR.LamAbs(a, SIR.LamAbs(b, body, _, _), _, _) =>
                 body match {
                     case SIR.Apply(
                           SIR.Apply(
@@ -124,7 +121,6 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
                           _
                         ) =>
                         assert(name == "scalus.prelude.List$.contains")
-                        println(s"tpf=${tpf.show}")
                         val aTp = new SIRType.TypeVar("A", None, false)
                         val bTp = new SIRType.TypeVar("B", None, false)
                         val tpf1 = tpf match {
@@ -172,6 +168,17 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
                     case _ => fail(s"unexpected type for first argument, should be Fun ${x1.show}")
                 }
             case _ => fail(s"functional type exprected ${sir.tp}")
+        }
+    }
+
+    test("List.empty[B] should be a List with type B") {
+        import scalus.prelude.List
+        val sir = compile { (x: BigInt) => List.empty[BigInt] }
+        sir.tp match {
+            case SIRType.Fun(SIRType.Integer, SIRType.SumCaseClass(dataDecl, typeArgs)) =>
+                assert(dataDecl.name == "scalus.prelude.List")
+                assert(typeArgs.head ~=~ SIRType.Integer)
+            case _ => fail(s"unexpected type ${sir.tp}")
         }
     }
 

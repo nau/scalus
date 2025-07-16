@@ -1,6 +1,7 @@
 import org.typelevel.paiges.Doc
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.sir.PrettyPrinter.Style
+import scalus.sir.lowering.*
 import scalus.sir.*
 import scalus.uplc.eval.*
 import scalus.uplc.transform.{CaseConstrApply, EtaReduce, ForcedBuiltinsExtractor, Inliner}
@@ -57,6 +58,20 @@ package object scalus {
                 |> Inliner.apply
                 |> CaseConstrApply.apply
                 |> ForcedBuiltinsExtractor.apply
+        }
+
+        def toLoweredValue(using
+            options: Compiler.Options = Compiler.Options()
+        )(
+            generateErrorTraces: Boolean = options.generateErrorTraces,
+            debug: Boolean = options.debug
+        ): LoweredValue = {
+            val retval = SirToUplcV3Lowering(
+              sir,
+              generateErrorTraces = options.generateErrorTraces,
+              debug = options.debug
+            ).toLoweredValue()
+            retval
         }
 
         def lowerToUplc(using options: Compiler.Options = Compiler.Options()): Term = {

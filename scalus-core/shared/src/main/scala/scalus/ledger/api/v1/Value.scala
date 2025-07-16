@@ -2,27 +2,52 @@ package scalus.ledger.api.v1
 
 import scalus.Compile
 import scalus.Ignore
-import scalus.prelude.AssocMap
+import scalus.prelude.SortedMap
 import scalus.builtin.ByteString
 import scalus.builtin.Builtins.*
 import scalus.prelude.List
+import scalus.prelude.Option
 import scalus.prelude.These
 import scalus.prelude.These.*
 import scalus.prelude
-import scalus.prelude.Eq
-import scalus.prelude.given
+import scalus.prelude.{Eq, Ord}
+import scalus.prelude.Ord.given
 
 @Compile
 object Value:
-    val zero: Value = AssocMap.empty
+    val zero: Value = SortedMap.empty
     def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value =
-        AssocMap.singleton(cs, AssocMap.singleton(tn, v))
+        SortedMap.singleton(cs, SortedMap.singleton(tn, v))
     def lovelace(v: BigInt): Value =
-        AssocMap.singleton(ByteString.empty, AssocMap.singleton(ByteString.empty, v))
+        SortedMap.singleton(adaCurrencySymbol, SortedMap.singleton(adaTokenName, v))
+
+    def unsafeFromList(
+        list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
+    ): Value =
+        SortedMap.unsafeFromList(
+          list.map { pair => (pair._1, SortedMap.unsafeFromList(pair._2)) }
+        )
+
+    def fromList(
+        list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
+    ): Value =
+        SortedMap.fromList(
+          list.map { pair => (pair._1, SortedMap.fromList(pair._2)) }
+        )
+
+    def fromStrictlyAscendingList(
+        list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
+    ): Value =
+        SortedMap.fromStrictlyAscendingList(
+          list.map { pair => (pair._1, SortedMap.fromStrictlyAscendingList(pair._2)) }
+        )
+
+    val adaCurrencySymbol: CurrencySymbol = ByteString.empty
+    val adaTokenName: TokenName = ByteString.empty
 
     def equalsAssets(
-        a: AssocMap[TokenName, BigInt],
-        b: AssocMap[TokenName, BigInt]
+        a: SortedMap[TokenName, BigInt],
+        b: SortedMap[TokenName, BigInt]
     ): Boolean = checkBinRelTokens(equalsInteger)(a, b)
 
     def eq(a: Value, b: Value): Boolean = checkBinRel(equalsInteger)(a, b)
@@ -32,7 +57,7 @@ object Value:
     def gte(a: Value, b: Value): Boolean = checkBinRel(lessThanEqualsInteger)(b, a)
 
     def checkPred(l: Value, r: Value)(f: These[BigInt, BigInt] => Boolean): Boolean = {
-        def inner(m: AssocMap[TokenName, These[BigInt, BigInt]]): Boolean =
+        def inner(m: SortedMap[TokenName, These[BigInt, BigInt]]): Boolean =
             m.forall((_, v) => f(v))
         unionVal(l, r).forall((_, v) => inner(v))
     }
@@ -50,10 +75,10 @@ object Value:
     }
 
     def checkBinRelTokens(op: (BigInt, BigInt) => Boolean)(
-        a: AssocMap[TokenName, BigInt],
-        b: AssocMap[TokenName, BigInt]
+        a: SortedMap[TokenName, BigInt],
+        b: SortedMap[TokenName, BigInt]
     ): Boolean = {
-        val combined = AssocMap.union(a, b).toList
+        val combined = SortedMap.union(a, b).toList
         // all values are equal, absent values are 0
         combined.forall { case (k, v) =>
             v match
@@ -66,13 +91,13 @@ object Value:
     def unionVal(
         l: Value,
         r: Value
-    ): AssocMap[CurrencySymbol, AssocMap[TokenName, These[BigInt, BigInt]]] =
-        val combined: AssocMap[
+    ): SortedMap[CurrencySymbol, SortedMap[TokenName, These[BigInt, BigInt]]] =
+        val combined: SortedMap[
           CurrencySymbol,
-          prelude.These[AssocMap[TokenName, BigInt], AssocMap[TokenName, BigInt]]
-        ] = AssocMap.union(l, r)
+          prelude.These[SortedMap[TokenName, BigInt], SortedMap[TokenName, BigInt]]
+        ] = SortedMap.union(l, r)
         combined.mapValues {
-            case These.These(v1, v2) => AssocMap.union(v1, v2)
+            case These.These(v1, v2) => SortedMap.union(v1, v2)
             case This(v1)            => v1.mapValues { These.This(_) }
             case That(v2)            => v2.mapValues { These.That(_) }
         }
@@ -86,6 +111,7 @@ object Value:
         }
         combined.mapValues { _.mapValues { unThese(_) } }
 
+    def negate(v: Value): Value = v.mapValues { _.mapValues { subtractInteger(0, _) } }
     val plus: (a: Value, b: Value) => Value = unionWith(addInteger)
     val minus: (a: Value, b: Value) => Value = unionWith(subtractInteger)
     val multiply: (a: Value, b: Value) => Value = unionWith(multiplyInteger)
@@ -105,6 +131,7 @@ object Value:
     given Eq[Value] = (a, b) => eq(a, b)
 
     extension (v: Value)
+        inline def unary_- : Value = Value.negate(v)
         inline def +(other: Value): Value = Value.plus(v, other)
         inline def -(other: Value): Value = Value.minus(v, other)
         inline def *(other: Value): Value = Value.multiply(v, other)
@@ -120,5 +147,27 @@ object Value:
             case List.Nil                   => 0
             case List.Cons((cs, tokens), _) =>
                 // Ada is always the first token. Only Ada can have empty CurrencySymbol. And its only token is Lovelace
-                if cs == ByteString.empty then tokens.toList.head._2
+                if cs == adaCurrencySymbol then
+                    tokens.toList match {
+                        case List.Nil => throw RuntimeException("No Lovelace token found in Value")
+                        case List.Cons(head, tail) => head._2
+                    }
                 else 0
+
+        inline def isZero: Boolean = v.isEmpty
+
+        def quantityOf(
+            cs: CurrencySymbol,
+            tn: TokenName
+        ): BigInt = v.get(cs) match
+            case Option.Some(tokens) => tokens.get(tn).getOrElse(0)
+            case Option.None         => 0
+
+        def withoutLovelace: Value = v.delete(adaCurrencySymbol)
+
+        def flatten: List[(CurrencySymbol, TokenName, BigInt)] =
+            v.foldRight(List.empty) { case (pair1, acc1) =>
+                pair1._2.foldRight(acc1) { case (pair2, acc2) =>
+                    List.Cons((pair1._1, pair2._1, pair2._2), acc2)
+                }
+            }

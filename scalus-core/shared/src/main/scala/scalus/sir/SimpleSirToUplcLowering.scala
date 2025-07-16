@@ -213,8 +213,8 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.Let(Rec, bindings, body, _) =>
                 // TODO: implement mutual recursion
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
-            case SIR.LamAbs(name, term, _) => Term.LamAbs(name.name, lowerInner(term))
-            case SIR.Apply(f, arg, _, _)   => Term.Apply(lowerInner(f), lowerInner(arg))
+            case SIR.LamAbs(name, term, tps, _) => Term.LamAbs(name.name, lowerInner(term))
+            case SIR.Apply(f, arg, _, _)        => Term.Apply(lowerInner(f), lowerInner(arg))
             case SIR.Select(scrutinee, field, _, anns) =>
                 @tailrec
                 def find(sirType: SIRType): ConstrDecl =
@@ -283,6 +283,8 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 !(builtinTerms(DefaultFun.IfThenElse) $ lowerInner(cond) $ ~lowerInner(
                   t
                 ) $ ~lowerInner(f))
+            case SIR.Cast(term, tp, anns) =>
+                lowerInner(term)
             case SIR.Builtin(bn, _, _) => builtinTerms(bn)
             case SIR.Error(msg, _, _) =>
                 if generateErrorTraces

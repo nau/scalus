@@ -37,7 +37,7 @@ class HelloCardanoTest extends AnyFunSuite with ScalusTest {
 
         // S3 lowering backend
         //  with traces
-        val scalusBudget = ExBudget(ExCPU(11750210L), ExMemory(37950))
+        val scalusBudget = ExBudget(ExCPU(11798210L), ExMemory(38250))
         //  without traces
         // val scalusBudget = ExBudget(ExCPU(11686210L), ExMemory(37550L))
 
