@@ -227,8 +227,15 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       PluginDependency,
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
+      buildInfoKeys ++= Seq[BuildInfoKey](
+        "scalusVersion" -> scalusStableVersion
+      ),
+      buildInfoPackage := "scalus.buildinfo"
     )
+    .configure { project =>
+        project.enablePlugins(BuildInfoPlugin)
+    }
     .jvmSettings(
       Test / fork := true,
       // needed for secp256k1jni. Otherwise, JVM loads secp256k1 library from LD_LIBRARY_PATH

@@ -4,7 +4,7 @@ import scalus.*
 import scalus.builtin.Builtins.{multiplyInteger, remainderInteger}
 import scalus.prelude.{*, given}
 import scalus.prelude.Eq.given
-import scalus.prelude.Ord.{*, given}
+import scalus.prelude.Ord.*
 import scalus.uplc.*
 import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite

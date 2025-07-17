@@ -71,6 +71,8 @@ object EqCompanion:
 
     given [A: Eq, B: Eq]: Eq[(A, B)] = Eq.by[(A, B), A](_._1).orElseBy(_._2)
 
+    def keyPairEq[A: Eq, B]: Eq[(A, B)] = Eq.by[(A, B), A](_._1)
+
 end EqCompanion
 
 extension [A](x: A)
@@ -111,7 +113,7 @@ object OrdCompanion:
             case Equal   => rhs.isEqual
 
     extension [A: Ord](self: A)
-        inline def <=>(inline other: A): Order = summon[Ord[A]].compare(self, other)
+        inline def <=>(inline other: A): Order = Ord[A].compare(self, other)
         def lt(other: A): Boolean = (self <=> other).isLess
         def lteq(other: A): Boolean = (self <=> other).isLessEqual
         def gt(other: A): Boolean = (self <=> other).isGreater
@@ -144,6 +146,8 @@ object OrdCompanion:
         if lessThanInteger(x, y) then Less else if lessThanInteger(y, x) then Greater else Equal
 
     given [A: Ord, B: Ord]: Ord[(A, B)] = Ord.by[(A, B), A](_._1).orElseBy(_._2)
+
+    def keyPairOrd[A: Ord, B]: Ord[(A, B)] = Ord.by[(A, B), A](_._1)
 
 end OrdCompanion
 
@@ -205,7 +209,7 @@ object Prelude {
             if b then () else fail(message)
 }
 
-/** Tests an expression, throwing an `IllegalArgumentException` if false.
+/** Tests an expression, throwing an `RequirementError` if false.
   * @param requirement
   *   the expression to test
   * @throws RequirementError
@@ -1256,6 +1260,25 @@ enum These[+A, +B]:
     case That(b: B)
     case These(a: A, b: B)
 
+@Compile
+object These {
+    given [A: Eq, B: Eq]: Eq[scalus.prelude.These[A, B]] =
+        (lhs: scalus.prelude.These[A, B], rhs: scalus.prelude.These[A, B]) =>
+            lhs match
+                case scalus.prelude.These.This(a) =>
+                    rhs match
+                        case scalus.prelude.These.This(b) => a === b
+                        case _                            => false
+                case scalus.prelude.These.That(b) =>
+                    rhs match
+                        case scalus.prelude.These.That(c) => b === c
+                        case _                            => false
+                case scalus.prelude.These.These(a, b) =>
+                    rhs match
+                        case scalus.prelude.These.These(c, d) => a === c && b === d
+                        case _                                => false
+}
+
 case class AssocMap[A, B](toList: List[(A, B)])
 
 @Compile
@@ -1484,7 +1507,7 @@ object SortedMap {
       *   SortedMap.unsafeFromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).toList === List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))
       *   }}}
       */
-    inline def unsafeFromList[A, B](lst: List[(A, B)]): SortedMap[A, B] = SortedMap(lst)
+    def unsafeFromList[A, B](lst: List[(A, B)]): SortedMap[A, B] = SortedMap(lst)
 
     /** Constructs a `SortedMap` from a list of key-value pairs, ordering it in strictly ascending
       * order, in case when a key is presented multiple times, the first occurrence prevails.
@@ -1524,12 +1547,12 @@ object SortedMap {
       * @return
       *   a `SortedMap` containing the key-value pairs from the list, or fails if the list is not in
       *   strictly ascending order
-      * @throws OnchainError
+      * @throws RequirementError
       *   if the list is not in strictly ascending order
       * @example
       *   {{{
       *   SortedMap.fromStrictlyAscendingList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).toList === List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))
-      *   SortedMap.fromStrictlyAscendingList(List.Cons(("a", 1), List.Cons(("a", 2), List.Nil))) // throws OnchainError
+      *   SortedMap.fromStrictlyAscendingList(List.Cons(("a", 1), List.Cons(("a", 2), List.Nil))) // throws RequirementError
       *   }}}
       */
     def fromStrictlyAscendingList[A: Ord, B](
@@ -1548,8 +1571,8 @@ object SortedMap {
                             case Order.Less => checkStrictlyAscendingOrder(tail)
                             case _          => false
 
-        if checkStrictlyAscendingOrder(lst) then SortedMap(lst)
-        else fail("List is not strictly ascending")
+        require(checkStrictlyAscendingOrder(lst), "List is not strictly ascending")
+        SortedMap(lst)
     }
 
     /** Merges two `SortedMap`s into a new `SortedMap` containing keys from both maps. if a key is
@@ -1633,9 +1656,7 @@ object SortedMap {
       * instances of `Ord`.
       */
     given sortedMapOrd[A: Ord, B: Ord]: Ord[SortedMap[A, B]] =
-        (lhs: SortedMap[A, B], rhs: SortedMap[A, B]) =>
-            import Ord.given
-            lhs.toList <=> rhs.toList
+        (lhs: SortedMap[A, B], rhs: SortedMap[A, B]) => lhs.toList <=> rhs.toList
 
     /** Provides a `FromData` instance for `SortedMap[A, B]` where both key and value types are
       * instances of `FromData`.
