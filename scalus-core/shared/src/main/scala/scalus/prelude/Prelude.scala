@@ -9,9 +9,8 @@ import scalus.macros.Macros
 
 import scala.annotation.{nowarn, tailrec}
 import scala.collection.mutable
+import Ord.*
 import scalus.cardano.onchain.{ImpossibleLedgerStateError, OnchainError, RequirementError}
-import scalus.prelude.OrdCompanion.Order
-import scalus.prelude.OrdCompanion.<=>
 
 extension [A](self: A)
     inline def let[B](inline fn: A => B): B = fn(self)
