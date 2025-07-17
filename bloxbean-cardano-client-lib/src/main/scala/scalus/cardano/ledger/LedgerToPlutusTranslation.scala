@@ -14,7 +14,6 @@ import scalus.prelude.Option.asScalus
 import scalus.prelude.{AssocMap, List}
 import scalus.uplc.eval.*
 import scalus.{builtin, ledger, prelude}
-import scalus.prelude.Ord.given
 
 import scala.collection.{immutable, mutable}
 import scala.math.BigInt

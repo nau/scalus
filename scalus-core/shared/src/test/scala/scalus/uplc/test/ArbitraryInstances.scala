@@ -9,7 +9,7 @@ import scalus.builtin.Data
 import scalus.builtin.Data.{B, Constr, I, List, Map}
 import scalus.uplc.DefaultUni.{ProtoList, ProtoPair}
 import scalus.uplc.Term.*
-import scalus.prelude.Eq
+import scalus.prelude.{Eq, Ord}
 
 import scala.collection.immutable
 import scala.annotation.nowarn
@@ -329,6 +329,12 @@ trait ArbitraryInstances:
 
     given arbAssocMap[A: Arbitrary: Eq, B: Arbitrary]: Arbitrary[scalus.prelude.AssocMap[A, B]] =
         Arbitrary {
-            for map <- Arbitrary.arbitrary[immutable.Map[A, B]]
-            yield scalus.prelude.AssocMap.unsafeFromList(scalus.prelude.List(map.toSeq*))
+            for list <- Arbitrary.arbitrary[scalus.prelude.List[(A, B)]]
+            yield scalus.prelude.AssocMap.fromList(list)
+        }
+
+    given arbSortedMap[A: Arbitrary: Ord, B: Arbitrary]: Arbitrary[scalus.prelude.SortedMap[A, B]] =
+        Arbitrary {
+            for list <- Arbitrary.arbitrary[scalus.prelude.List[(A, B)]]
+            yield scalus.prelude.SortedMap.fromList(list)
         }

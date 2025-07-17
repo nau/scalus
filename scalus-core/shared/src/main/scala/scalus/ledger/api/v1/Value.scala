@@ -11,7 +11,6 @@ import scalus.prelude.These
 import scalus.prelude.These.*
 import scalus.prelude
 import scalus.prelude.{Eq, Ord}
-import scalus.prelude.Ord.given
 
 @Compile
 object Value:

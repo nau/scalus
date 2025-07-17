@@ -52,7 +52,6 @@ import scalus.ledger.babbage.PlutusV1Params
 import scalus.ledger.babbage.PlutusV2Params
 import scalus.ledger.babbage.PlutusV3Params
 import scalus.prelude
-import scalus.prelude.Ord.given
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.uplc.eval.*
