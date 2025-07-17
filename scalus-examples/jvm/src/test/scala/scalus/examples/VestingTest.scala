@@ -1,13 +1,11 @@
 package scalus.examples
 
 import scalus.*
-import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data.toData
 import scalus.builtin.Builtins.blake2b_224
 import scalus.builtin.Builtins.appendByteString
-import scalus.builtin.{ByteString, Data, PlatformSpecific, given}
-import scalus.builtin.Data.{fromData, toData, FromData, ToData}
+import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v1.Value.getLovelace
 import scalus.ledger.api.v1.Address
@@ -15,18 +13,13 @@ import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
 import scalus.ledger.api.v1.IntervalBoundType.*
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.given
 import scalus.prelude.*
-import scalus.prelude.List
 import scalus.testkit.*
 import scalus.uplc.*
 import scalus.uplc.eval.*
 import scalus.prelude.Option.*
 
 import scala.language.implicitConversions
-import scala.compiletime.ops.boolean
-import scala.math.Ordering.Implicits.*
-import java.time.LocalDateTime
 import org.scalatest.funsuite.AnyFunSuite
 
 object Mock {
