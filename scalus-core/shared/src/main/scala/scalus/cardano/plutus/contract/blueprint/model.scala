@@ -3,14 +3,16 @@ package scalus.cardano.plutus.contract.blueprint
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.{CodecMakerConfig, JsonCodecMaker}
 import scalus.cardano.ledger.Language
-import scalus.cardano.plutus.contract.blueprint.model.PlutusVersion.{v1, v2, v3}
-import scalus.cardano.plutus.contract.blueprint.model.Purpose.*
+import scalus.cardano.ledger.Language.{PlutusV1, PlutusV2, PlutusV3}
 
 case class Blueprint(
     preamble: Preamble,
     validators: Seq[Validator] = Nil,
     //        definitions: Option[Map[String, PlutusDataSchema]] = None todo
-)
+) {
+    def show: String = writeToString(this)
+}
+
 object Blueprint {
     given JsonValueCodec[Blueprint] = JsonCodecMaker.make
 }
@@ -25,6 +27,23 @@ case class Preamble(
 )
 
 object Preamble {
+    given JsonValueCodec[Language] = new JsonValueCodec[Language] {
+        override def nullValue: Language = PlutusV3
+
+        override def decodeValue(in: JsonReader, default: Language): Language =
+            in.readString("") match {
+                case "v1" => PlutusV1
+                case "v2" => PlutusV2
+                case "v3" => PlutusV3
+                case x =>
+                    throw new RuntimeException(
+                      s"Error when reading blueprint plutus version. Expected one of [v1, v2, v3], got $x"
+                    )
+            }
+
+        override def encodeValue(x: Language, out: JsonWriter): Unit =
+            out.writeVal(x.show)
+    }
     given JsonValueCodec[Preamble] = JsonCodecMaker.make
 }
 

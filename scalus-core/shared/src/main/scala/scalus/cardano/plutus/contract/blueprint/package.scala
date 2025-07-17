@@ -1,13 +1,10 @@
 package scalus.cardano.plutus.contract
-import com.github.plokhotnyuk.jsoniter_scala.core.writeToString
-import scalus.Compiler
+import io.bullet.borer.Cbor
 import scalus.buildinfo.BuildInfo
-import scalus.builtin.{platform, ByteString, Data}
-import scalus.toUplcOptimized
-import scalus.cardano.plutus.contract.blueprint.model.*
-import scalus.prelude.Validator as ScalusValidator
+import scalus.builtin.{platform, ByteString}
+import scalus.cardano.ledger.Language
+import scalus.cardano.ledger.Language.languageId
 import scalus.utils.Hex.toHex
-import scalus.{plutusV1, plutusV2, plutusV3}
 
 package object blueprint {
 
@@ -21,28 +18,21 @@ package object blueprint {
       *   the description of the "blueprintee" contact
       * @param version
       *   the plutus version used in the contract
-      * @param validator
-      *   the validator that represents the contract logic
+      * @param validatorFnCbored
+      *   CBORed UPLC of the validator
       */
     def mkBlueprint(
         contractTitle: String,
         description: String,
-        version: PlutusVersion,
-        validator: ScalusValidator
+        version: Language,
+        validatorFnCbored: Array[Byte]
     ): Blueprint = {
         val preamble = mkPreamble(contractTitle, description, version)
-        val blueprintValidator = mkValidator(version, validator)
+        val blueprintValidator = mkValidator(version, validatorFnCbored)
         Blueprint(preamble, Seq(blueprintValidator))
     }
 
-    def blueprintString(
-        contractTitle: String,
-        description: String,
-        version: PlutusVersion,
-        validator: ScalusValidator
-    ): String = writeToString(mkBlueprint(contractTitle, description, version, validator))
-
-    private def mkPreamble(title: String, description: String, version: PlutusVersion) =
+    private def mkPreamble(title: String, description: String, version: Language) =
         Preamble(
           title = title,
           description = Some(description),
@@ -50,30 +40,16 @@ package object blueprint {
           plutusVersion = Some(version)
         )
 
-    private inline def mkValidator(version: PlutusVersion, validator: ScalusValidator) = {
-        val title = validator.getClass.getSimpleName
-        // todo unsure if it makes a difference
-        val uplc = {
-            val optimizedUplc = validatorUplc(validator.validate)
-            version match {
-                case PlutusVersion.v1 => optimizedUplc.plutusV1
-                case PlutusVersion.v2 => optimizedUplc.plutusV2
-                case PlutusVersion.v3 => optimizedUplc.plutusV3
-            }
-        }
-        val cboredFn = uplc.cborEncoded.toHex
-        val preimage = version.langTag.toByte +: uplc.flatEncoded
+    private inline def mkValidator(version: Language, cboredValidatorFn: Array[Byte]) = {
+        val decodedFn =
+            Cbor.decode(cboredValidatorFn).to[Array[Byte]].value // assumed to be flattened
+        val preimage = languageId(version).toByte +: decodedFn
         val hash = platform.blake2b_224(ByteString.fromArray(preimage)).toHex
 
         Validator(
-          title,
-          compiledCode = Some(cboredFn),
+          "validator",
+          compiledCode = Some(cboredValidatorFn.toHex),
           hash = Some(hash)
         )
     }
-
-    private type ValidatorFn = Data => Unit
-
-    private inline def validatorUplc(inline fn: ValidatorFn) =
-        Compiler.compileInline(fn).toUplcOptimized()
 }
