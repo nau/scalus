@@ -139,7 +139,7 @@ enum Purpose {
     case Mint
     case Withdraw
     case Publish
-    case Oneof(purposes: Seq[Purpose]) extends Purpose
+    case OneOf(purposes: Seq[Purpose]) extends Purpose
 }
 
 object Purpose {
@@ -153,7 +153,7 @@ object Purpose {
                 case "mint"     => Mint
                 case "withdraw" => Withdraw
                 case "publish"  => Publish
-                case "oneOf"    => Oneof(Seq.empty) // todo
+                case "oneOf"    => OneOf(Seq.empty) // todo
             }
 
         def encodeValue(x: Purpose, out: JsonWriter): Unit =
@@ -162,7 +162,7 @@ object Purpose {
                 case Mint            => out.writeVal("mint")
                 case Withdraw        => out.writeVal("withdraw")
                 case Publish         => out.writeVal("publish")
-                case Oneof(purposes) =>
+                case OneOf(purposes) =>
                     // todo
                     out.writeArrayStart()
                     out.writeArrayEnd()
