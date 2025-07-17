@@ -1,7 +1,7 @@
 package scalus.cardano.plutus.contract
 import scalus.buildinfo.BuildInfo
 import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
-import scalus.cardano.ledger.{Language, Script}
+import scalus.cardano.ledger.{Language, PlutusScript, Script}
 import scalus.utils.Hex.toHex
 
 package object blueprint {
@@ -20,19 +20,19 @@ package object blueprint {
     def mkBlueprint(
         contractTitle: String,
         description: String,
-        validatorScript: Script
+        validatorScript: PlutusScript
     ): Blueprint = {
         val preamble = mkPreamble(contractTitle, description, validatorScript.language)
         val blueprintValidator = mkValidator(validatorScript)
         Blueprint(preamble, Seq(blueprintValidator))
     }
 
-    private def mkPreamble(title: String, description: String, version: Option[Language]) =
+    private def mkPreamble(title: String, description: String, version: Language) =
         Preamble(
           title = title,
           description = Some(description),
           compiler = Some(CompilerInfo("scalus", Some(BuildInfo.scalusVersion))),
-          plutusVersion = version
+          plutusVersion = Some(version)
         )
 
     private def mkValidator(validatorScript: Script) = {
