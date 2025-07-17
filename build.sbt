@@ -227,8 +227,15 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       PluginDependency,
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
+      buildInfoKeys ++= Seq[BuildInfoKey](
+        "scalusVersion" -> scalusStableVersion
+      ),
+      buildInfoPackage := "scalus.buildinfo"
     )
+    .configure { project =>
+        project.enablePlugins(BuildInfoPlugin)
+    }
     .jvmSettings(
       Test / fork := true,
       // needed for secp256k1jni. Otherwise, JVM loads secp256k1 library from LD_LIBRARY_PATH
@@ -241,15 +248,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.81",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.10" % "test",
-      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.10",
-      buildInfoKeys ++= Seq[BuildInfoKey](
-        "scalusVersion" -> scalusStableVersion
-      ),
-      buildInfoPackage := "scalus.buildinfo"
+      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.10"
     )
-    .jvmConfigure { project =>
-        project.enablePlugins(BuildInfoPlugin)
-    }
     .jsSettings(
       // Add JS-specific settings here
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
