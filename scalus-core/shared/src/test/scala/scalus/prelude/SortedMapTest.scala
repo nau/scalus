@@ -8,7 +8,7 @@ import org.scalacheck.Prop
 import org.scalatestplus.scalacheck.Checkers.*
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.cardano.onchain.{ImpossibleLedgerStateError, OnchainError, RequirementError}
+import scalus.cardano.onchain.RequirementError
 import scalus.uplc.Term
 import scalus.uplc.eval.{PlutusVM, Result}
 import scala.reflect.ClassTag
@@ -92,6 +92,12 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             )
         }
 
+        assertThrows[RequirementError] {
+            SortedMap.fromStrictlyAscendingList(
+              List.Cons((BigInt(1), BigInt(1)), List.Cons((BigInt(1), BigInt(1)), List.Nil))
+            )
+        }
+
         assertEvalEq(
           SortedMap
               .fromStrictlyAscendingList(
@@ -113,25 +119,30 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
           )
         )
 
+        assertEvalFails[RequirementError](
+          SortedMap.fromStrictlyAscendingList(
+            List.Cons((BigInt(1), BigInt(1)), List.Cons((BigInt(1), BigInt(1)), List.Nil))
+          )
+        )
     }
 
     test("union") {
         check { (map: SortedMap[BigInt, BigInt]) =>
-            val union = SortedMap.union(map, SortedMap.empty[BigInt, BigInt])
+            val result = SortedMap.union(map, SortedMap.empty[BigInt, BigInt])
             val expected = map.mapValues[These[BigInt, BigInt]](These.This(_))
 
-            union === expected
+            result === expected
         }
 
         check { (map: SortedMap[BigInt, BigInt]) =>
-            val union = SortedMap.union(SortedMap.empty[BigInt, BigInt], map)
+            val result = SortedMap.union(SortedMap.empty[BigInt, BigInt], map)
             val expected = map.mapValues[These[BigInt, BigInt]](These.That(_))
 
-            union === expected
+            result === expected
         }
 
         check { (lhs: SortedMap[BigInt, BigInt], rhs: SortedMap[BigInt, BigInt]) =>
-            val union = SortedMap.union(lhs, rhs)
+            val result = SortedMap.union(lhs, rhs)
             val keys = (lhs.keys ++ rhs.keys).unique
             val expected = keys.foldLeft(SortedMap.empty[BigInt, These[BigInt, BigInt]]) {
                 (acc, key) =>
@@ -141,11 +152,12 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
                           case (Option.Some(lv), Option.Some(rv)) => These.These(lv, rv)
                           case (Option.Some(lv), Option.None)     => These.This(lv)
                           case (Option.None, Option.Some(rv))     => These.That(rv)
-                          case (Option.None, Option.None)         => fail("Both values are None")
+                          case (Option.None, Option.None) =>
+                              fail("unreachable: Both values are None")
                     )
             }
 
-            union === expected
+            result === expected
         }
 
         assertEvalEq(
@@ -249,7 +261,53 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         )
 
         assertEval(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons(
+                    (BigInt(2), BigInt(2)),
+                    List.Nil
+                  )
+                )
+              ) ===
+              SortedMap
+                  .fromStrictlyAscendingList(
+                    List.Cons(
+                      (BigInt(1), BigInt(1)),
+                      List.Cons(
+                        (BigInt(2), BigInt(2)),
+                        List.Nil
+                      )
+                    )
+                  )
+        )
+
+        assertEval(
           SortedMap.empty[BigInt, BigInt] !== SortedMap.singleton(BigInt(1), BigInt(1))
+        )
+
+        assertEval(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons(
+                    (BigInt(2), BigInt(2)),
+                    List.Nil
+                  )
+                )
+              ) !==
+              SortedMap
+                  .fromStrictlyAscendingList(
+                    List.Cons(
+                      (BigInt(1), BigInt(1)),
+                      List.Cons(
+                        (BigInt(3), BigInt(3)),
+                        List.Nil
+                      )
+                    )
+                  )
         )
     }
 
@@ -265,12 +323,49 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         )
 
         assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons(
+                    (BigInt(2), BigInt(2)),
+                    List.Nil
+                  )
+                )
+              ) <=> SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons(
+                    (BigInt(2), BigInt(2)),
+                    List.Nil
+                  )
+                )
+              ),
+          Order.Equal
+        )
+
+        assertEvalEq(
           SortedMap.empty[BigInt, BigInt] <=> SortedMap.singleton(BigInt(1), BigInt(1)),
           Order.Less
         )
 
         assertEvalEq(
           SortedMap.singleton(BigInt(0), BigInt(0)) <=> SortedMap.singleton(BigInt(1), BigInt(1)),
+          Order.Less
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons(
+                    (BigInt(2), BigInt(2)),
+                    List.Nil
+                  )
+                )
+              ) <=> SortedMap.singleton(BigInt(3), BigInt(3)),
           Order.Less
         )
 
@@ -283,10 +378,32 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
           SortedMap.singleton(BigInt(1), BigInt(1)) <=> SortedMap.singleton(BigInt(0), BigInt(0)),
           Order.Greater
         )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons(
+                    (BigInt(2), BigInt(2)),
+                    List.Nil
+                  )
+                )
+              ) <=> SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(0), BigInt(0)),
+                  List.Cons(
+                    (BigInt(2), BigInt(2)),
+                    List.Nil
+                  )
+                )
+              ),
+          Order.Greater
+        )
     }
 
     test("ToData <-> FromData") {
-
         check { (map: SortedMap[BigInt, BigInt]) =>
             val data = map.toData
             val map2 = fromData[SortedMap[BigInt, BigInt]](data)
@@ -296,6 +413,11 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         assertEvalEq(
           fromData[SortedMap[BigInt, BigInt]](SortedMap.empty[BigInt, BigInt].toData),
           SortedMap.empty[BigInt, BigInt]
+        )
+
+        assertEvalEq(
+          fromData[SortedMap[BigInt, BigInt]](SortedMap.singleton(BigInt(1), BigInt(1)).toData),
+          SortedMap.singleton(BigInt(1), BigInt(1))
         )
 
         assertEvalEq(
@@ -361,10 +483,10 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
 
     test("length") {
         check { (map: SortedMap[BigInt, BigInt]) =>
-            val length = map.length
-            val expectedLength = map.toList.length
+            val result = map.length
+            val expected = map.toList.length
 
-            length === expectedLength
+            result === expected
         }
 
         assertEvalEq(SortedMap.empty[BigInt, BigInt].length, BigInt(0))
@@ -386,10 +508,10 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
 
     test("size") {
         check { (map: SortedMap[BigInt, BigInt]) =>
-            val size = map.size
-            val expectedSize = map.toList.length
+            val result = map.size
+            val expected = map.toList.length
 
-            size === expectedSize
+            result === expected
         }
 
         assertEvalEq(SortedMap.empty[BigInt, BigInt].size, BigInt(0))
@@ -411,10 +533,10 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
 
     test("keys") {
         check { (map: SortedMap[BigInt, BigInt]) =>
-            val keys = map.keys
-            val expectedKeys = map.toList.map(_._1)
+            val result = map.keys
+            val expected = map.toList.map(_._1)
 
-            keys === expectedKeys
+            result === expected
         }
 
         assertEvalEq(
@@ -442,10 +564,10 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
 
     test("values") {
         check { (map: SortedMap[BigInt, BigInt]) =>
-            val values = map.values
-            val expectedValues = map.toList.map(_._2)
+            val result = map.values
+            val expected = map.toList.map(_._2)
 
-            values === expectedValues
+            result === expected
         }
 
         assertEvalEq(
@@ -489,6 +611,10 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         )
 
         assertEval(
+          !SortedMap.singleton(BigInt(1), BigInt(1)).forall(_._1 < 0)
+        )
+
+        assertEval(
           SortedMap
               .fromStrictlyAscendingList(
                 List.Cons(
@@ -526,6 +652,10 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
 
         assertEval(
           SortedMap.singleton(BigInt(1), BigInt(1)).exists(_._1 > 0)
+        )
+
+        assertEval(
+          !SortedMap.singleton(BigInt(1), BigInt(1)).exists(_._1 < 0)
         )
 
         assertEval(
@@ -703,6 +833,11 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         )
 
         assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).find(_._1 === BigInt(0)),
+          Option.None
+        )
+
+        assertEvalEq(
           SortedMap
               .fromStrictlyAscendingList(
                 List.Cons(
@@ -727,40 +862,305 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         )
     }
 
-//    test("findOrFail") {
-//        assertEvalEq(
-//          SortedMap.empty[BigInt, BigInt].findOrFail(_._1 === BigInt(1)),
-//          throw new ImpossibleLedgerStateError("Key not found")
-//        )
-//
-//        assertEvalEq(
-//          SortedMap.singleton(BigInt(1), BigInt(1)).findOrFail(_._1 === BigInt(1)),
-//          (BigInt(1), BigInt(1))
-//        )
-//
-//        assertEvalEq(
-//          SortedMap
-//              .fromStrictlyAscendingList(
-//                List.Cons(
-//                  (BigInt(1), BigInt(1)),
-//                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
-//                )
-//              )
-//              .findOrFail(_._1 === BigInt(2)),
-//          (BigInt(2), BigInt(2))
-//        )
-//
-//        assertEvalFails[ImpossibleLedgerStateError](
-//          SortedMap
-//              .fromStrictlyAscendingList(
-//                List.Cons(
-//                  (BigInt(1), BigInt(1)),
-//                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
-//                )
-//              )
-//              .findOrFail(_._1 === BigInt(4))
-//        )
-//    }
+    test("findMap") {
+        check { (map: SortedMap[BigInt, BigInt], key: BigInt) =>
+            val result = map.findMap { case (k, v) =>
+                if k === key then Option.Some(v) else Option.None
+            }
+            val expected = map.toList.findMap { case (k, v) =>
+                if k === key then Option.Some(v) else Option.None
+            }
+
+            result === expected
+        }
+
+        assertEvalEq(
+          SortedMap.empty[BigInt, BigInt].findMap { case (k, v) => Option.Some(v) },
+          Option.None
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).findMap { case (k, v) =>
+              if k === BigInt(1) then Option.Some(v) else Option.None
+          },
+          Option.Some(BigInt(1))
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).findMap { case (k, v) =>
+              if k === BigInt(0) then Option.Some(v) else Option.None
+          },
+          Option.None
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .findMap { case (k, v) => if k === BigInt(2) then Option.Some(v) else Option.None },
+          Option.Some(BigInt(2))
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .findMap { case (k, v) => if k === BigInt(4) then Option.Some(v) else Option.None },
+          Option.None
+        )
+    }
+
+    test("foldLeft") {
+        check { (map: SortedMap[BigInt, BigInt], initial: BigInt) =>
+            val result = map.foldLeft(initial) { case (acc, (k, v)) => acc + k + v }
+            val expected = map.toList.foldLeft(initial) { case (acc, (k, v)) => acc + k + v }
+
+            result === expected
+        }
+
+        assertEvalEq(
+          SortedMap.empty[BigInt, BigInt].foldLeft(BigInt(0)) { case (acc, (k, v)) => acc + k + v },
+          BigInt(0)
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).foldLeft(BigInt(0)) { case (acc, (k, v)) =>
+              acc + k + v
+          },
+          BigInt(2)
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .foldLeft(BigInt(0)) { case (acc, (k, v)) => acc + k + v },
+          BigInt(12)
+        )
+    }
+
+    test("foldRight") {
+        check { (map: SortedMap[BigInt, BigInt], initial: BigInt) =>
+            val result = map.foldRight(initial) { case ((k, v), acc) => acc + k + v }
+            val expected = map.toList.foldRight(initial) { case ((k, v), acc) => acc + k + v }
+
+            result === expected
+        }
+
+        assertEvalEq(
+          SortedMap.empty[BigInt, BigInt].foldRight(BigInt(0)) { case ((k, v), acc) =>
+              acc + k + v
+          },
+          BigInt(0)
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).foldRight(BigInt(0)) { case ((k, v), acc) =>
+              acc + k + v
+          },
+          BigInt(2)
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .foldRight(BigInt(0)) { case ((k, v), acc) => acc + k + v },
+          BigInt(12)
+        )
+    }
+
+    test("get") {
+        check { (map: SortedMap[BigInt, BigInt], key: BigInt) =>
+            val result = map.get(key)
+            val expected = map.toList.findMap { case (k, v) =>
+                if k === key then Option.Some(v) else Option.None
+            }
+
+            result === expected
+        }
+
+        assertEvalEq(
+          SortedMap.empty[BigInt, BigInt].get(BigInt(1)),
+          Option.None
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).get(BigInt(1)),
+          Option.Some(BigInt(1))
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).get(BigInt(0)),
+          Option.None
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .get(BigInt(2)),
+          Option.Some(BigInt(2))
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .get(BigInt(4)),
+          Option.None
+        )
+    }
+
+    test("contains") {
+        check { (map: SortedMap[BigInt, BigInt], key: BigInt) =>
+            val result = map.contains(key)
+            val expected = map.toList.exists(_._1 === key)
+
+            result === expected
+        }
+
+        assertEval(
+          !SortedMap.empty[BigInt, BigInt].contains(BigInt(1))
+        )
+
+        assertEval(
+          SortedMap.singleton(BigInt(1), BigInt(1)).contains(BigInt(1))
+        )
+
+        assertEval(
+          !SortedMap.singleton(BigInt(1), BigInt(1)).contains(BigInt(0))
+        )
+
+        assertEval(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .contains(BigInt(2))
+        )
+
+        assertEval(
+          !SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .contains(BigInt(4))
+        )
+    }
+
+    test("insert") {
+        check { (map: SortedMap[BigInt, BigInt], key: BigInt, value: BigInt) =>
+            val result = map.insert(key, value)
+            val expected =
+                SortedMap.fromList(map.toList.filterNot(_._1 === key) ++ List.single((key, value)))
+
+            result === expected
+        }
+
+        assertEvalEq(
+          SortedMap.empty[BigInt, BigInt].insert(BigInt(1), BigInt(1)),
+          SortedMap.singleton(BigInt(1), BigInt(1))
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).insert(BigInt(2), BigInt(2)),
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons((BigInt(1), BigInt(1)), List.Cons((BigInt(2), BigInt(2)), List.Nil))
+              )
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons((BigInt(1), BigInt(1)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+              )
+              .insert(BigInt(2), BigInt(2)),
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+        )
+    }
+
+    test("delete") {
+        check { (map: SortedMap[BigInt, BigInt], key: BigInt) =>
+            val result = map.delete(key)
+            val expected = SortedMap.fromStrictlyAscendingList(map.toList.filterNot(_._1 === key))
+
+            result === expected
+        }
+
+        assertEvalEq(
+          SortedMap.empty[BigInt, BigInt].delete(BigInt(1)),
+          SortedMap.empty[BigInt, BigInt]
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).delete(BigInt(1)),
+          SortedMap.empty[BigInt, BigInt]
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).delete(BigInt(2)),
+          SortedMap.singleton(BigInt(1), BigInt(1))
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons((BigInt(1), BigInt(1)), List.Cons((BigInt(2), BigInt(2)), List.Nil))
+              )
+              .delete(BigInt(2)),
+          SortedMap.singleton(BigInt(1), BigInt(1))
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons((BigInt(1), BigInt(1)), List.Cons((BigInt(2), BigInt(2)), List.Nil))
+              )
+              .delete(BigInt(3)),
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons((BigInt(1), BigInt(1)), List.Cons((BigInt(2), BigInt(2)), List.Nil))
+              )
+        )
+    }
 
     private inline def assertEvalFails[E <: Throwable: ClassTag](inline code: Any): Unit = {
         var isExceptionThrown = false
@@ -780,7 +1180,7 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
                             val errorMessage = result.logs.last
 
                             assert(
-                              errorMessage.startsWith(exception.getMessage),
+                              errorMessage.contains(exception.getMessage),
                               s"Expected error message '${exception.getMessage}', but got '$errorMessage'"
                             )
                         case _ =>

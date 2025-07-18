@@ -766,8 +766,8 @@ object List:
             case Nil              => None
             case Cons(head, tail) => if predicate(head) then Some(head) else tail.find(predicate)
 
-        /** Finds the first element in the list that, when passed to the provided mapper function,
-          * returns a `Some` value.
+        /** Finds the first element in the list that, when passed to the provided mapper function
+          * returns non-`None` or `None` otherwise.
           *
           * @param mapper
           *   A function that takes an element of type `A` and returns an `Option[B]`.
@@ -1360,12 +1360,6 @@ object AssocMap {
             go(self.toList)
         }
 
-        inline def findOrFail(
-            predicate: ((A, B)) => Boolean,
-            inline message: String = "None.findOrFail"
-        ): (A, B) =
-            find(predicate).getOrFail(message)
-
         def foldLeft[C](init: C)(combiner: (C, (A, B)) => C): C =
             self.toList.foldLeft(init) { (acc, pair) => combiner(acc, pair) }
 
@@ -1391,9 +1385,6 @@ object AssocMap {
 
             go(self.toList)
         }
-
-        inline def getOrFail(key: A, inline message: String = "None.getOrFail"): B =
-            get(key).getOrFail(message)
 
         def contains(key: A): Boolean = get(key).isDefined
 
@@ -1878,38 +1869,33 @@ object SortedMap {
           *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).find(_._1 === "c") === None
           *   }}}
           */
-        def find(predicate: ((A, B)) => Boolean): Option[(A, B)] = {
-            @tailrec
-            def go(lst: List[(A, B)]): Option[(A, B)] = lst match
-                case Nil => None
-                case Cons(pair, tail) =>
-                    if predicate(pair) then Some(pair) else go(tail)
+        def find(predicate: ((A, B)) => Boolean): Option[(A, B)] = self.toList.find(predicate)
 
-            go(self.toList)
-        }
-
-        /** Finds the first key-value pair that satisfies a predicate, or fails with a message if no
-          * such pair exists.
+        /** Finds the first key-value pair that satisfies a predicate and maps it to a new type.
           *
           * @param predicate
           *   the predicate function to apply to each key-value pair
-          * @param message
-          *   the error message to use if no pair is found
           * @return
-          *   the first key-value pair that satisfies the predicate
-          * @throws NoSuchElementException
-          *   if no such pair exists
+          *   an `Option` containing the result of mapping the first key-value pair that satisfies
+          *   the predicate, or `None` if no such pair exists
           * @example
           *   {{{
-          *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).findOrFail(_._1 === "b") === ("b", 2)
-          *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).findOrFail(_._1 === "c", "No pair found") // throws NoSuchElementException with message "No pair found"
+          *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).findMap {
+          *     case ("b", v) => Some(v + 1)
+          *     case _        => None
+          *   } === Some(3)
+          *
+          *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).findMap {
+          *     case ("c", v) => Some(v + 1)
+          *     case _        => None
+          *   } === None
+          *
+          *   SortedMap.empty.findMap(_ => Some(1)) === None
           *   }}}
           */
-        inline def findOrFail(
-            predicate: ((A, B)) => Boolean,
-            inline message: String = "None.findOrFail"
-        ): (A, B) =
-            find(predicate).getOrFail(message)
+        def findMap[C](
+            predicate: ((A, B)) => Option[C]
+        ): Option[C] = self.toList.findMap(predicate)
 
         /** Folds the `SortedMap` from the left, combining key-value pairs into a single value.
           *
@@ -1974,26 +1960,6 @@ object SortedMap {
             go(self.toList)
         }
 
-        /** Returns the value associated with a key, or fails with a message if the key is not
-          * found.
-          *
-          * @param key
-          *   the key value
-          * @param message
-          *   the error message to use if the key is not found
-          * @return
-          *   the value associated with `key` in this map
-          * @throws NoSuchElementException
-          *   if the key is not found in the map
-          * @example
-          *   {{{
-          *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).getOrFail("a") === 1
-          *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).getOrFail("c", "Key not found") // throws NoSuchElementException with message "Key not found"
-          *   }}}
-          */
-        inline def getOrFail(key: A, inline message: String = "None.getOrFail"): B =
-            get(key).getOrFail(message)
-
         /** Checks if the `SortedMap` contains a key.
           *
           * @param key
@@ -2045,6 +2011,7 @@ object SortedMap {
           *   a new `SortedMap` with the key-value pair removed, if it existed
           * @example
           *   {{{
+          *   SortedMap.empty[String, BigInt].delete("key") === SortedMap.empty
           *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).delete("a").toList === List.Cons(("b", 2), List.Nil)
           *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).delete("c").toList === List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))
           *   }}}
