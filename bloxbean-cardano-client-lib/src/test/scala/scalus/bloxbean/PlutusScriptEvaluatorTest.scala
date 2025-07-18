@@ -2,10 +2,15 @@ package scalus.bloxbean
 
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.api.util.CostModelUtil
+import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
+import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
+import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import com.bloxbean.cardano.client.common.model.Networks
+import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
+import scalus.bloxbean.BlocksValidation.apiKey
 import scalus.builtin.ByteString.*
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.ShelleyDelegationPart.Null
@@ -16,6 +21,8 @@ import scalus.examples.PubKeyValidator
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
+
+import java.nio.file.{Files, Path, Paths}
 
 class PlutusScriptEvaluatorTest extends AnyFunSuite {
     val senderMnemonic: String =
@@ -82,9 +89,9 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             )
           ),
           witnessSet = TransactionWitnessSet(
-            redeemers = Some(KeepRaw(Redeemers.from(Seq(redeemer)))),
+            redeemers = Some(KeepRaw(Redeemers(redeemer))),
             plutusV2Scripts = Set(s),
-            plutusData = KeepRaw(TaggedSet(Set(KeepRaw(datum)))),
+            plutusData = KeepRaw(TaggedSet(KeepRaw(datum))),
           ),
           isValid = true
         )
@@ -93,5 +100,97 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         val redeemerResult = redeemers.head
         assert(redeemerResult.exUnits.memory == 13375L)
         assert(redeemerResult.exUnits.steps == 3732764L)
+    }
+
+    test("evaluate block 11544748") {
+        //        pending
+        validateBlock(11544748)
+    }
+
+    test("evaluate block 11544518") {
+//        pending
+        validateBlock(11544518)
+    }
+
+    test("evaluate block 11553070") {
+//        pending
+        validateBlock(11553070)
+    }
+
+    private def validateBlock(num: Long): Unit = {
+        val bytes = getClass.getResourceAsStream(s"/blocks/block-$num.cbor").readAllBytes()
+        given OriginalCborByteArray = OriginalCborByteArray(bytes)
+        val block = readBlock(bytes).block
+        validateTransactions(block.transactions)
+    }
+
+    private def validateTransactions(txs: Seq[Transaction]): Unit = {
+        for tx <- txs do {
+            if tx.witnessSet.redeemers.nonEmpty then {
+                validateTransaction(tx)
+            }
+        }
+    }
+
+    private def validateTransaction(tx: Transaction): Unit = {
+        val cwd = Paths.get(".")
+        val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
+        val utxoSupplier = CachedUtxoSupplier(
+          cwd.resolve("utxos"),
+          DefaultUtxoSupplier(backendService.getUtxoService)
+        )
+        // memory and file cached script supplier using the script service
+        val scriptSupplier = InMemoryCachedScriptSupplier(
+          FileScriptSupplier(
+            cwd.resolve("scripts"),
+            ScriptServiceSupplier(backendService.getScriptService)
+          )
+        )
+        val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
+        val utxos = utxoResolver.resolveUtxos(tx)
+        val costModels = CostModels(models =
+            Map(
+              PlutusV1.ordinal -> CostModelUtil.PlutusV1CostModel.getCosts.toIndexedSeq,
+              PlutusV2.ordinal -> CostModelUtil.PlutusV2CostModel.getCosts.toIndexedSeq,
+              PlutusV3.ordinal -> CostModelUtil.PlutusV3CostModel.getCosts.toIndexedSeq,
+            )
+        )
+        val evaluator = PlutusScriptEvaluator(
+          SlotConfig.Mainnet,
+          initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
+          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          costModels = costModels,
+          debugDumpFilesForTesting = false
+        )
+        //        dumpTxInfo(tx, utxos)
+
+        val redeemers = evaluator.evalPhaseTwo(tx, utxos)
+        for (actual, expected) <- redeemers.zip(tx.witnessSet.redeemers.get.value.toIndexedSeq) do
+            assert(actual.exUnits.memory <= expected.exUnits.memory)
+            assert(actual.exUnits.steps <= expected.exUnits.steps, actual)
+    }
+
+    private def dumpTxInfo(
+        tx: Transaction,
+        utxos: Map[TransactionInput, TransactionOutput]
+    ): Unit = {
+        val txhash = tx.id.toHex
+        Files.write(Paths.get(s"tx-$txhash.cbor"), Cbor.encode(tx).toByteArray)
+        Files.deleteIfExists(Paths.get("scalus.log"))
+        storeInsOutsInCborFiles(utxos, txhash)
+    }
+
+    private def storeInsOutsInCborFiles(
+        utxos: Map[TransactionInput, TransactionOutput],
+        txhash: String
+    ): Unit = {
+        val ins = Cbor.encode(utxos.keys.toIndexedSeq).toByteArray
+        val outs = Cbor.encode(utxos.values.toIndexedSeq).toByteArray
+        Files.write(Path.of(s"ins-$txhash.cbor"), ins)
+        Files.write(Path.of(s"outs-$txhash.cbor"), outs)
+    }
+
+    private def readBlock(blockBytes: Array[Byte]): BlockFile = {
+        BlockFile.fromCborArray(blockBytes)
     }
 }
