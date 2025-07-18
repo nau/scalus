@@ -262,39 +262,19 @@ object LedgerToPlutusTranslation {
       * value format, which uses nested association maps for multi-asset representation.
       */
     def getValue(value: Value): v1.Value = {
-        // Create the multi-asset map
-        val multiAssetList = for
-            (policyId, assets) <- value.assets.toArray.sortBy(_._1)
-            (assetName, amount) <- assets.toArray.sortBy(_._1.bytes)
-        yield (policyId, assetName.bytes) -> amount
-
-        // Group by policy ID and create nested maps
-        val policyMap = multiAssetList
-            .groupBy(_._1._1)
-            .view
-            .mapValues { assets =>
-                val assetMap = assets
-                    .map { case ((_, assetName), amount) =>
-                        assetName -> BigInt(amount)
-                    }
-                    .sortBy(_._1)
-                prelude.SortedMap.fromList(prelude.List.from(assetMap))
-            }
-            .toArray
-            .sortBy(_._1)
-
         // Add ADA entry if not empty
         val adaEntry =
             if value.coin.value > 0 then
                 Seq(
-                  (
-                    ByteString.empty,
-                    prelude.SortedMap.singleton(ByteString.empty, BigInt(value.coin.value))
-                  )
+                  ByteString.empty -> prelude.SortedMap
+                      .singleton(ByteString.empty, BigInt(value.coin.value))
                 )
             else Seq.empty
-
-        val allEntries = adaEntry ++ policyMap.map((pid, assets) => (pid, assets))
+        val allEntries = adaEntry ++ value.assets.assets.view.map { case (policyId, assets) =>
+            val assetMap = prelude.SortedMap.fromList(prelude.List.from(assets.view.map:
+                (assetName, amount) => assetName.bytes -> BigInt(amount)))
+            policyId -> assetMap
+        }
         prelude.SortedMap.fromList(prelude.List.from(allEntries))
     }
 
@@ -304,32 +284,16 @@ object LedgerToPlutusTranslation {
       * even when no ADA is being minted.
       */
     def getMintValue(mint: Option[Mint]): v1.Value = {
-        val mintAssets = mint.map(_.toSeq).getOrElse(Seq.empty)
-
-        val multiAssetList = for
-            (policyId, assets) <- mintAssets.sortBy(_._1)
-            (assetName, amount) <- assets.toSeq.sortBy(_._1.bytes.toHex)
-        yield (policyId, assetName.bytes) -> amount
-
-        // Group by policy ID
-        val policyMap = multiAssetList
-            .groupBy(_._1._1)
-            .view
-            .mapValues { assets =>
-                val assetMap = assets
-                    .map { case ((_, assetName), amount) =>
-                        assetName -> BigInt(amount)
-                    }
-                    .sortBy(_._1.toHex)
-                prelude.SortedMap.fromList(prelude.List.from(assetMap))
-            }
-            .toSeq
-            .sortBy(_._1.toHex)
-
         // Always include ADA entry with zero value for minting
-        val adaEntry = (ByteString.empty, prelude.SortedMap.singleton(ByteString.empty, BigInt(0)))
-        val allEntries = adaEntry +: policyMap.map((pid, assets) => (pid, assets))
-
+        val assets = mint.getOrElse(MultiAsset.empty)
+        val adaEntry = Seq(
+          ByteString.empty -> prelude.SortedMap.singleton(ByteString.empty, BigInt(0))
+        )
+        val allEntries = adaEntry ++ assets.assets.view.map { case (policyId, assets) =>
+            val assetMap = prelude.SortedMap.fromList(prelude.List.from(assets.view.map:
+                (assetName, amount) => assetName.bytes -> BigInt(amount)))
+            policyId -> assetMap
+        }
         prelude.SortedMap.fromList(prelude.List.from(allEntries))
     }
 
@@ -763,7 +727,7 @@ object LedgerToPlutusTranslation {
             case RedeemerTag.Mint =>
                 val policyIds =
                     body.mint
-                        .map(_.keys.toArray[ByteString].sorted)
+                        .map(_.assets.keys.toArray)
                         .getOrElse(Array.empty[ByteString])
                 if policyIds.isDefinedAt(index) then v1.ScriptPurpose.Minting(policyIds(index))
                 else throw new IllegalStateException(s"Policy ID not found: $index")
@@ -814,7 +778,7 @@ object LedgerToPlutusTranslation {
             case RedeemerTag.Mint =>
                 val policyIds =
                     body.mint
-                        .map(_.keys.toArray[ByteString].sorted)
+                        .map(_.assets.keys.toArray[ByteString])
                         .getOrElse(Array.empty[ByteString])
                 if policyIds.isDefinedAt(index) then v3.ScriptPurpose.Minting(policyIds(index))
                 else throw new IllegalStateException(s"Policy ID not found: $index")

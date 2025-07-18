@@ -9,6 +9,7 @@ import scalus.utils.Hex.toHex
 import upickle.default.ReadWriter as UpickleReadWriter
 
 import java.util
+import scala.collection.immutable.{SortedMap, TreeMap}
 import scala.compiletime.asMatchable
 
 enum Era(val value: Int) extends Enumeration {
@@ -44,26 +45,50 @@ object Coin {
 }
 
 // TODO: this should be SortedMap as in Haskell
-type MultiAsset = Map[PolicyId, Map[AssetName, Long]]
-object MultiAsset {
-    val zero: MultiAsset = Map.empty
-    def binOp(op: (Long, Long) => Long)(self: MultiAsset, other: MultiAsset): MultiAsset = {
-        (self.keySet ++ other.keySet).view.map { policyId =>
-            val selfAssets = self.getOrElse(policyId, Map.empty)
-            val otherAssets = other.getOrElse(policyId, Map.empty)
+case class MultiAsset(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]) {
+    def isEmpty: Boolean = assets.isEmpty
+}
 
-            val mergedAssets = (selfAssets.keySet ++ otherAssets.keySet).view.map { assetName =>
-                val combinedValue =
-                    op(selfAssets.getOrElse(assetName, 0L), otherAssets.getOrElse(assetName, 0L))
-                assetName -> combinedValue
-            }.toMap
-            policyId -> mergedAssets
-        }.toMap
+object MultiAsset {
+    val zero: MultiAsset = MultiAsset(SortedMap.empty)
+    val empty: MultiAsset = zero
+    def binOp(op: (Long, Long) => Long)(self: MultiAsset, other: MultiAsset): MultiAsset = {
+        val assets: SortedMap[PolicyId, SortedMap[AssetName, Long]] =
+            (self.assets.keySet ++ other.assets.keySet).view
+                .map { policyId =>
+                    val selfAssets =
+                        self.assets.getOrElse(policyId, SortedMap.empty[AssetName, Long])
+                    val otherAssets =
+                        other.assets.getOrElse(policyId, SortedMap.empty[AssetName, Long])
+
+                    val mergedAssets: SortedMap[AssetName, Long] =
+                        (selfAssets.keySet ++ otherAssets.keySet).view
+                            .map { assetName =>
+                                val combinedValue =
+                                    op(
+                                      selfAssets.getOrElse(assetName, 0L),
+                                      otherAssets.getOrElse(assetName, 0L)
+                                    )
+                                assetName -> combinedValue
+                            }
+                            .to(TreeMap)
+                    policyId -> mergedAssets
+                }
+                .to(TreeMap)
+        MultiAsset(assets)
     }
 
     extension (self: MultiAsset) {
         def +(other: MultiAsset): MultiAsset = binOp(_ + _)(self, other)
         def -(other: MultiAsset): MultiAsset = binOp(_ - _)(self, other)
+    }
+
+    given Encoder[MultiAsset] =
+        Encoder.forMap[PolicyId, SortedMap[AssetName, Long], SortedMap].contramap(_.assets)
+
+    given Decoder[MultiAsset] = Decoder { r =>
+        given Decoder[TreeMap[AssetName, Long]] = Decoder.forTreeMap[AssetName, Long]
+        Decoder.forTreeMap[PolicyId, TreeMap[AssetName, Long]].map(MultiAsset.apply).read(r)
     }
 
 }
@@ -90,6 +115,10 @@ final case class AssetName(bytes: ByteString) derives Codec {
 }
 
 object AssetName {
+
+    given Ordering[AssetName] = (x: AssetName, y: AssetName) => {
+        Ordering[ByteString].compare(x.bytes, y.bytes)
+    }
 
     /** Empty asset name */
     val empty: AssetName = AssetName(ByteString.empty)

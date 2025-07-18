@@ -45,7 +45,7 @@ object AllNeededScriptHashes {
 
     def allNeededMintScriptHashes(
         transaction: Transaction
-    ): Set[PolicyId] = transaction.body.value.mint.getOrElse(Map.empty).keySet
+    ): Set[PolicyId] = transaction.body.value.mint.getOrElse(MultiAsset.empty).assets.keySet
 
     def allNeededVotingProceduresScriptHashes(
         transaction: Transaction

@@ -107,8 +107,24 @@ private[scalus] class PlutusScriptEvaluator(
             case RedeemerTag.Spend =>
                 findSpendScript(tx, index, lookupTable, utxos)
             case RedeemerTag.Mint =>
-                // FIXME:
-                findSpendScript(tx, index, lookupTable, utxos)
+                tx.body.value.mint match
+                    case Some(value) =>
+                        val mintingPolicies = value.assets.keys.toArray
+                        if !mintingPolicies.isDefinedAt(index) then
+                            throw new IllegalArgumentException(
+                              s"Minting policy not found: $index in ${mintingPolicies.mkString("[", ", ", "]")}"
+                            )
+                        val scriptHash = mintingPolicies(index)
+                        lookupTable.scripts.get(scriptHash) match
+                            case Some(script) => script -> None
+                            case None =>
+                                throw new IllegalStateException(
+                                  s"Script not found for minting policy: $scriptHash"
+                                )
+                    case None =>
+                        throw new IllegalArgumentException(
+                          s"Transaction does not contain minting value: $tx"
+                        )
             case RedeemerTag.Cert =>
                 // FIXME:
                 findSpendScript(tx, index, lookupTable, utxos)
@@ -124,10 +140,10 @@ private[scalus] class PlutusScriptEvaluator(
 
             case RedeemerTag.Voting =>
                 // FIXME:
-                findSpendScript(tx, index, lookupTable, utxos)
+                ???
             case RedeemerTag.Proposing =>
                 // FIXME:
-                findSpendScript(tx, index, lookupTable, utxos)
+                ???
 
     }
 

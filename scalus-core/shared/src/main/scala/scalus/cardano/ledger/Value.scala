@@ -3,6 +3,8 @@ package scalus.cardano.ledger
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 import scalus.cardano.ledger
 
+import scala.collection.immutable.SortedMap
+
 /** Represents a value in Cardano, which can be either pure ADA or ADA with multi-assets */
 case class Value(coin: Coin, assets: ledger.MultiAsset) {
     // Validate multi-asset map
@@ -20,12 +22,12 @@ case class Value(coin: Coin, assets: ledger.MultiAsset) {
     private def validateMultiAsset(multiAsset: ledger.MultiAsset): Unit = {
         // Validate that all policy maps are non-empty
         require(
-          multiAsset.forall { case (_, assets) => assets.nonEmpty },
+          multiAsset.assets.forall { case (_, assets) => assets.nonEmpty },
           "MultiAsset map cannot contain empty policy entries"
         )
 
         require(
-          multiAsset.values.forall(_.forall { case (_, amount) => amount != 0 }),
+          multiAsset.assets.values.forall(_.forall { case (_, amount) => amount != 0 }),
           "MultiAsset cannot contain zeros"
         )
     }
@@ -39,7 +41,7 @@ object Value:
     def lovelace(amount: Long): Value = Value(Coin(amount))
 
     /** Create a Value from coin and multi-asset */
-    def apply(coin: Coin, multiAsset: ledger.MultiAsset = Map.empty): Value =
+    def apply(coin: Coin, multiAsset: ledger.MultiAsset = MultiAsset.empty): Value =
         new Value(coin, multiAsset)
 
     /** CBOR encoder for Value */
@@ -52,29 +54,7 @@ object Value:
                 // Multi-asset value
                 w.writeArrayHeader(2) // 2 elements: coin and multi-asset
                 w.write(value.coin)
-                writeMultiAsset(w, value.assets)
-
-    /** Helper method to write MultiAsset as CBOR */
-    private def writeMultiAsset(
-        w: Writer,
-        multiAsset: ledger.MultiAsset
-    ): Writer =
-        // Write the map header with number of policies
-        w.writeMapHeader(multiAsset.size)
-
-        // Write each policy and its assets
-        multiAsset.foreach { case (policyId, assets) =>
-            // Write policy ID
-            w.write(policyId)
-
-            // Write asset map
-            w.writeMapHeader(assets.size)
-            assets.foreach { case (assetName, amount) =>
-                w.write(assetName)
-                w.writeLong(amount)
-            }
-        }
-        w
+                w.write(value.assets)
 
     /** CBOR decoder for Value */
     given Decoder[Value] with
