@@ -390,13 +390,61 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
         )
     }
 
-    override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         LoweringContext
     ): LoweredValue = {
-        genMatchDataList(matchData, loweredScrutinee)
+        loweredScrutinee.representation match
+            case ProdDataList | PackedDataList | ProdDataConstr | PairIntDataList =>
+                genMatchDataList(matchData, loweredScrutinee, optTargetType)
+            case PairData =>
+                genMatchPairData(matchData, loweredScrutinee, optTargetType)
+            case _ =>
+                genMatchDataList(matchData, loweredScrutinee, optTargetType)
     }
 
-    def genMatchDataList(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    def selectMatchCase(
+        matchData: SIR.Match,
+        loweredScroutine: LoweredValue,
+        constrDecl: ConstrDecl
+    )(using lctx: LoweringContext): SIR.Case = {
+        if matchData.cases.length > 1 then
+            lctx.warn(
+              s"More than one case for product ${loweredScroutine.sirType.show} in match, will shrink to one case",
+              matchData.anns.pos
+            )
+        val myCase = {
+            val constrCases = matchData.cases.filter { c =>
+                c.pattern match
+                    case SIR.Pattern.Constr(constrDecl1, args, typeArgs) =>
+                        constrDecl1.name == constrDecl.name
+                    case _ => false
+            }
+            if constrCases.length > 1 then
+                throw LoweringException(
+                  s"More than one case for ${constrDecl.name} found: ${constrCases.map(_.anns.pos).mkString(", ")}",
+                  matchData.anns.pos
+                )
+            constrCases.headOption.orElse(
+              matchData.cases.find { _.pattern == SIR.Pattern.Wildcard }
+            )
+        }
+        myCase.getOrElse(
+          throw LoweringException(
+            s"No applicable case found for ${constrDecl.name} match",
+            matchData.anns.pos
+          )
+        )
+    }
+
+    def genMatchDataList(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         lctx: LoweringContext
     ): LoweredValue = {
         val constrDecl = retrieveConstrDecl(loweredScrutinee.sirType, matchData.anns.pos)
@@ -428,41 +476,116 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                           other,
                           matchData.anns.pos
                         )
-                SumCaseSirTypeGenerator.genMatchDataConstrCase(matchCase, dataList)
+                SumCaseSirTypeGenerator.genMatchDataConstrCase(matchCase, dataList, optTargetType)
             case _ =>
-                val myPatternCases = matchData.cases.filter { c =>
-                    c.pattern match
-                        case SIR.Pattern.Constr(constrDecl1, args, typeArgs) =>
-                            constrDecl1.name == constrDecl.name
-                        case _ => false
-                }
-                val myCases =
-                    if myPatternCases.isEmpty then
-                        matchData.cases.find { c =>
-                            c.pattern match
-                                case SIR.Pattern.Wildcard => true
-                                case _                    => false
-
-                        }.toList
-                    else myPatternCases
-                if myCases.isEmpty then
-                    throw LoweringException(
-                      s"Can't find case for ${constrDecl.name}",
-                      matchData.anns.pos
-                    )
-                if myPatternCases.size > 1 then {
-                    val casesPositions = myPatternCases.map(_.anns.pos)
-                    throw LoweringException(
-                      s"More than one case for ${constrDecl.name} found: ${casesPositions.mkString(", ")}",
-                      casesPositions.head
-                    )
-                }
-                // TODO: add warnign API to LoweringContext
-                println(
-                  s"Product case class match should have only one case, but ${matchData.cases.length} found. Non-matched cases will be statically optimized out"
+                val myCase = selectMatchCase(
+                  matchData,
+                  loweredScrutinee,
+                  constrDecl
                 )
-                genMatchDataList(matchData.copy(cases = myCases), loweredScrutinee)
+                lctx.warn(
+                  s"Product case class match should have only one case, but ${matchData.cases.length} found. Non-matched cases will be statically optimized out",
+                  matchData.anns.pos
+                )
+                genMatchDataList(
+                  matchData.copy(cases = List(myCase)),
+                  loweredScrutinee,
+                  optTargetType
+                )
         }
+    }
+
+    class MatchPairDataLoweredValue(
+        frs: IdentifiableLoweredValue,
+        snd: IdentifiableLoweredValue,
+        scrutinee: LoweredValue,
+        body: LoweredValue,
+        inPos: SIRPosition
+    ) extends ComplexLoweredValue(Set(frs, snd), scrutinee, body) {
+
+        override def sirType: SIRType = body.sirType
+
+        override def representation: LoweredValueRepresentation = body.representation
+
+        override def pos: SIRPosition = inPos
+
+        override def termInternal(gctx: TermGenerationContext): Term = {
+            body.termWithNeededVars(gctx)
+        }
+
+        override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+            val left = Doc.text("MatchPairData(")
+            val right = Doc.text(")")
+            body.docRef(ctx).bracketBy(left, right)
+        }
+
+    }
+
+    def genMatchPairData(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
+        lctx: LoweringContext
+    ): LoweredValue = {
+        val (typeParams, constrDecl, typeArgs) = SIRType
+            .collectProd(loweredScrutinee.sirType)
+            .getOrElse(
+              throw LoweringException(
+                s"Expected product type, got ${loweredScrutinee.sirType.show}",
+                matchData.anns.pos
+              )
+            )
+        // val constrDecl = retrieveConstrDecl(loweredScrutinee.sirType, matchData.anns.pos)
+        val myCase = selectMatchCase(matchData, loweredScrutinee, constrDecl)
+        val prevScope = lctx.scope
+        val matchVal = loweredScrutinee match
+            case idv: IdentifiableLoweredValue =>
+                idv
+            case other =>
+                lvNewLazyIdVar(
+                  lctx.uniqueVarName("match_pair_data"),
+                  SIRType.List(SIRType.Data),
+                  SumCaseClassRepresentation.SumDataList,
+                  other,
+                  matchData.anns.pos
+                )
+        val (frsName, sndName) = myCase.pattern match {
+            case SIR.Pattern.Constr(constr, bindings, typeParamsBindinsg) =>
+                (bindings.head, bindings.tail.head)
+            case SIR.Pattern.Wildcard =>
+                ("_unused1", "_unused2")
+        }
+        val argsMapping = constrDecl.typeParams.zip(typeArgs).toMap
+        val frsTp = SIRType.substitute(constrDecl.params.head.tp, argsMapping, Map.empty)
+        val sndTp = SIRType.substitute(constrDecl.params.tail.head.tp, argsMapping, Map.empty)
+        // val SIRType.partitionGround()
+        val frsRepr = lctx.typeGenerator(frsTp).defaultDataRepresentation(frsTp)
+        val frs = lvNewLazyNamedVar(
+          frsName,
+          frsTp,
+          frsRepr,
+          lvBuiltinApply(SIRBuiltins.fstPair, matchVal, frsTp, frsRepr, myCase.anns.pos),
+          myCase.anns.pos
+        )
+        val sndRepr = lctx.typeGenerator(sndTp).defaultDataRepresentation(sndTp)
+        val snd = lvNewLazyNamedVar(
+          sndName,
+          sndTp,
+          sndRepr,
+          lvBuiltinApply(SIRBuiltins.sndPair, matchVal, sndTp, sndRepr, myCase.anns.pos),
+          myCase.anns.pos
+        )
+        val lwBody = lctx.lower(myCase.body, optTargetType)
+        // lwBody
+        MatchPairDataLoweredValue(
+          frs,
+          snd,
+          matchVal,
+          lwBody,
+          matchData.anns.pos
+        )
+
     }
 
     def genConstrDataConstr(

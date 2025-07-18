@@ -101,4 +101,12 @@ class SIRLoweringRepresentationTest extends AnyFunSuite {
 
     }
 
+    test("get default representation of BLS_12-381 G2") {
+        val g2Type = SIRType.BLS12_381_G2_Element
+        given LoweringContext = LoweringContext()
+        val generator = SirTypeUplcGenerator(g2Type)
+        // println(s"generator = ${generator} ")
+        assert(generator.defaultRepresentation(g2Type) == PrimitiveRepresentation.Constant)
+    }
+
 }

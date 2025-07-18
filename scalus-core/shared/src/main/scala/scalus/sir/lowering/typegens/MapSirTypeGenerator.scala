@@ -157,7 +157,11 @@ object MapSirTypeGenerator extends SirTypeUplcGenerator {
             body.docRef(ctx).bracketBy(left, right)
     }
 
-    override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         lctx: LoweringContext
     ): LoweredValue = {
         if matchData.cases.length != 1 then
@@ -190,7 +194,7 @@ object MapSirTypeGenerator extends SirTypeUplcGenerator {
           rhs,
           caseData.anns.pos
         )
-        val loweredBody = lctx.lower(caseData.body)
+        val loweredBody = lctx.lower(caseData.body, optTargetType)
         lctx.scope = prevScope
         MapMatchLoweredValue(
           matchedVar,

@@ -52,12 +52,19 @@ package object scalus {
             retval
         }
 
-        def toUplcOptimized(generateErrorTraces: Boolean = false): Term = {
-            SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
-                |> EtaReduce.apply
-                |> Inliner.apply
-                |> CaseConstrApply.apply
-                |> ForcedBuiltinsExtractor.apply
+        def toUplcOptimized(using
+            options: Compiler.Options = Compiler.defaultOptions
+        )(
+            generateErrorTraces: Boolean = options.generateErrorTraces,
+            backend: Compiler.TargetLoweringBackend = options.targetLoweringBackend,
+            debug: Boolean = options.debug
+        ): Term = {
+            toUplc(
+              generateErrorTraces = generateErrorTraces,
+              backend = backend,
+              optimizeUplc = true,
+              debug = debug
+            )
         }
 
         def toLoweredValue(using

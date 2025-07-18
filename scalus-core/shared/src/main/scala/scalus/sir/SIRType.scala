@@ -12,7 +12,7 @@ sealed trait SIRType {
     def show: String
 
     def ~=~(that: SIRType): Boolean =
-        SIRUnify.unifyType(this, that, SIRUnify.Env.empty).isSuccess
+        SIRUnify.topLevelUnifyType(this, that, SIRUnify.Env.empty).isSuccess
 
     def ->:(that: SIRType): SIRType.Fun =
         SIRType.Fun(that, this)
@@ -600,11 +600,17 @@ object SIRType {
         val (uniqueArg, argTps) = unrollTypeLambda(arg, argOverlapp)
         val (uniqueF, fTps) = unrollTypeLambda(f, fOverlapp)
 
+        if ctx.debug then
+            println(
+              s"calculateApplyTypeWithUnifyEnv: f=${uniqueF.show}, arg=${uniqueArg.show}, " +
+                  s"argTps=${argTps.map(_.show).mkString(",")}, fTps=${fTps.map(_.show).mkString(",")}"
+            )
+
         uniqueF match
             case SIRType.Fun(in, out) =>
                 val (uniqueIn, inTps) = unrollTypeLambda(in, true)
                 val (uniqueOut, outTps) = unrollTypeLambda(out, true)
-                SIRUnify.unifyType(uniqueIn, uniqueArg, ctx.env.withUpcasting) match
+                SIRUnify.topLevelUnifyType(uniqueIn, uniqueArg, ctx.env.withUpcasting) match
                     case SIRUnify.UnificationSuccess(env, unificator) =>
                         ctx.env = env
                         val argTpsRest = argTps.filterNot(ctx.env.filledTypes.contains)
@@ -755,10 +761,20 @@ object SIRType {
     }
 
     def leastUpperBound(left: SIRType, right: SIRType): SIRType = {
-        SIRUnify.unifyType(left, right, SIRUnify.Env.empty.withUpcasting) match {
+        SIRUnify.topLevelUnifyType(left, right, SIRUnify.Env.empty.withUpcasting) match {
             case SIRUnify.UnificationSuccess(env, res) => res
             case SIRUnify.UnificationFailure(_, _, _) =>
                 SIRType.FreeUnificator
+        }
+    }
+
+    def leastUpperBoundSeq(types: scala.List[SIRType]): SIRType = {
+        types match {
+            case Nil => SIRType.TypeNothing
+            case x :: xs =>
+                xs.foldLeft(x) { (acc, tp) =>
+                    leastUpperBound(acc, tp)
+                }
         }
     }
 
@@ -1158,6 +1174,10 @@ object SIRType {
             advance(tp, unshadowedSet)
         (grounded.toList, ungrounded.toList)
 
+    }
+
+    def isTypeVarsUsedIn(tvs: List[SIRType.TypeVar], tp: SIRType): Boolean = {
+        partitionGround(tvs, tp)._1.nonEmpty
     }
 
 }

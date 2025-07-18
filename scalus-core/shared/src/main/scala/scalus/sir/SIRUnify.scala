@@ -12,17 +12,26 @@ object SIRUnify {
         filledTypes: Map[SIRType.TypeVar, SIRType] = Map.empty,
         eqTypes: Map[SIRType.TypeVar, Set[SIRType.TypeVar]] = Map.empty,
         parentTypes: Map[SIRType, Set[SIRType]] = Map.empty,
+        topLevelTypes: Set[SIRType] = Set.empty,
         debug: Boolean = false,
         upcasting: Boolean = false,
+        var optTypeVarGenerationContext: Option[SIRType.SetBasedTypeVarGenerationContext] = None,
+        deepDeclCheck: Boolean = false
     ) {
         def withDebug: Env = this.copy(debug = true)
+        def setDebug(debug: Boolean): Env =
+            this.copy(debug = debug)
         def withoutUpcasting: Env = this.copy(upcasting = false)
         def withUpcasting: Env = this.copy(upcasting = true)
         def withPath(path: String): Env = this.copy(path = path :: this.path)
+        def withTopleveTypes(tps: SIRType*): Env =
+            this.copy(topLevelTypes = tps.toSet, optTypeVarGenerationContext = None)
+
     }
 
     object Env {
         def empty: Env = Env()
+        def topLevel(tps: SIRType*): Env = empty.withTopleveTypes(tps*)
     }
 
     sealed trait UnificationResult[+T] {
@@ -53,8 +62,13 @@ object SIRUnify {
     }
 
     case class UnificationSuccess[T](env: Env, unificator: T) extends UnificationResult[T]
-    case class UnificationFailure[S](path: List[String], left: S, right: S)
-        extends UnificationResult[Nothing]
+    case class UnificationFailure[S](
+        path: List[String],
+        left: S,
+        right: S,
+    ) extends UnificationResult[Nothing] {
+        val createEx = new RuntimeException("Unification failure created at")
+    }
 
     trait Unify[T] {
         def apply(left: T, right: T, env: Env): UnificationResult[T]
@@ -103,7 +117,7 @@ object SIRUnify {
             case (SIR.Var(name1, tp1, anns1), SIR.Var(name2, tp2, anns2)) =>
                 if env.debug then println(s"unifySIRExpr: vars: \nleft=$left\nright=$right")
                 if name1 == name2 then
-                    unifyType(tp1, tp2, env.copy(path = "tp" :: env.path)) match
+                    topLevelUnifyType(tp1, tp2, env.copy(path = "tp" :: env.path)) match
                         case UnificationSuccess(env1, tp) =>
                             UnificationSuccess(
                               env1.copy(path = env.path, parentTypes = Map.empty),
@@ -114,7 +128,7 @@ object SIRUnify {
                 else UnificationFailure("name" :: env.path, left, right)
             case (v1: SIR.ExternalVar, v2: SIR.ExternalVar) =>
                 if v1.name == v2.name && v1.moduleName == v2.moduleName then
-                    unifyType(v1.tp, v2.tp, env.copy(path = "tp" :: env.path)) match
+                    topLevelUnifyType(v1.tp, v2.tp, env.copy(path = "tp" :: env.path)) match
                         case UnificationSuccess(env1, tp) =>
                             UnificationSuccess(
                               env1.copy(path = env.path, parentTypes = Map.empty),
@@ -313,10 +327,18 @@ object SIRUnify {
             case (cLeft: SIR.Cast, cRight: SIR.Cast) =>
                 unifySIRExpr(cLeft.term, cRight.term, env.copy(path = "term" :: env.path)) match
                     case UnificationSuccess(env1, term) =>
-                        unifyType(cLeft.tp, cRight.tp, env1.copy(path = "tp" :: env.path)) match
+                        topLevelUnifyType(
+                          cLeft.tp,
+                          cRight.tp,
+                          env1.copy(path = "tp" :: env.path)
+                        ) match
                             case UnificationSuccess(env2, tp) =>
                                 UnificationSuccess(
-                                  env2.copy(path = env.path),
+                                  env2.copy(
+                                    path = env.path,
+                                    topLevelTypes = Set.empty,
+                                    optTypeVarGenerationContext = None
+                                  ),
                                   SIR.Cast(term, tp, cLeft.anns)
                                 )
                             case failure @ UnificationFailure(path, left, right) =>
@@ -373,9 +395,15 @@ object SIRUnify {
         }
     }
 
-    def unifyType(left: SIRType, right: SIRType, env: Env): UnificationResult[SIRType] = {
+    def topLevelUnifyType(left: SIRType, right: SIRType, env: Env): UnificationResult[SIRType] = {
+        unifyType(left, right, env.copy(topLevelTypes = Set(left, right)))
+    }
+
+    private def unifyType(left: SIRType, right: SIRType, env: Env): UnificationResult[SIRType] = {
         if env.debug then
-            println(s"unifyType: \nleft=$left\nright=$right, env.upcasting=${env.upcasting}")
+            println(
+              s"unifyType: \nleft=${left.show}\nright=${right.show}, env.upcasting=${env.upcasting}"
+            )
         val retval =
             if left eq right then UnificationSuccess(env, left)
             else
@@ -391,13 +419,32 @@ object SIRUnify {
                             )
                             unifyTypeNoRec(left, right, nEnv)
                     case None =>
-                        val nEnv = env.copy(parentTypes = env.parentTypes.updated(left, Set(right)))
-                        unifyTypeNoRec(left, right, nEnv)
+                        env.parentTypes.get(right) match
+                            case Some(parentsLeft) =>
+                                if parentsLeft.contains(left) then UnificationSuccess(env, left)
+                                else
+                                    val nEnv = env.copy(
+                                      parentTypes = env.parentTypes
+                                          .updated(left, Set(right))
+                                          .updated(right, parentsLeft + left)
+                                    )
+                                    unifyTypeNoRec(left, right, nEnv)
+                            case None =>
+                                val nEnv = env.copy(
+                                  parentTypes = env.parentTypes
+                                      .updated(left, Set(right))
+                                      .updated(right, Set(left))
+                                )
+                                unifyTypeNoRec(left, right, nEnv)
         if env.debug then println(s"return unifyType:\nleft=$left\nright=$right\nretval=$retval")
         retval
     }
 
-    def unifyTypeNoRec(left: SIRType, right: SIRType, env: Env): UnificationResult[SIRType] = {
+    private def unifyTypeNoRec(
+        left: SIRType,
+        right: SIRType,
+        env: Env
+    ): UnificationResult[SIRType] = {
         (left, right) match
             case (v1: SIRType.TypeVar, v2: SIRType.TypeVar) =>
                 if env.debug then
@@ -582,7 +629,7 @@ object SIRUnify {
                             UnificationSuccess(env, ccRight)
                         else if subtypeSeq(ccRight, ccLeft, env).nonEmpty then
                             UnificationSuccess(env, ccLeft)
-                        else UnificationFailure(env.path, left, right)
+                        else failure // UnificationFailure(env.path, left, right)
             case (SIRType.Fun(inLeft, outLef), SIRType.Fun(inRight, outRight)) =>
                 unifyType(inLeft, inRight, env.copy(path = "in" :: env.path)) match
                     case UnificationSuccess(env1, in) =>
@@ -592,13 +639,25 @@ object SIRUnify {
                             case failure @ UnificationFailure(path, left, right) => failure
                     case failure @ UnificationFailure(path, left, right) => failure
             case (SIRType.TypeLambda(params, body), right) =>
-                // TODO: check and rename vars
-                unifyType(body, right, env)
+                if SIRType.isTypeVarsUsedIn(params, right) || typeVarsInEnv(params, env) then
+                    val varGenerationContext =
+                        retrieveTypeVarGenerationContext(env)
+                    val renames = params.map(p => (p, varGenerationContext.freshCopy(p))).toMap
+                    val renamingContext =
+                        RenamingTypeVars.makeContext(renames, varGenerationContext)
+                    val renamedBody = RenamingTypeVars.inType(body, renamingContext)
+                    unifyType(renamedBody, right, env)
+                else unifyType(body, right, env)
             case (left, SIRType.TypeLambda(params, body)) =>
-                val nEnv = env.copy(filledTypes =
-                    env.filledTypes ++ params.map(_ -> SIRType.FreeUnificator)
-                )
-                unifyType(left, body, nEnv)
+                if SIRType.isTypeVarsUsedIn(params, left) || typeVarsInEnv(params, env) then
+                    val varGenerationContext: SIRType.SetBasedTypeVarGenerationContext =
+                        retrieveTypeVarGenerationContext(env)
+                    val renames = params.map(p => (p, varGenerationContext.freshCopy(p))).toMap
+                    val renamingContext =
+                        RenamingTypeVars.makeContext(renames, varGenerationContext)
+                    val renamedBody = RenamingTypeVars.inType(body, renamingContext)
+                    unifyType(left, renamedBody, env)
+                else unifyType(left, body, env)
             case (SIRType.FreeUnificator, right) =>
                 UnificationSuccess(env, right)
             case (left, SIRType.FreeUnificator) =>
@@ -891,7 +950,7 @@ object SIRUnify {
 
     def unifyBinding(left: Binding, right: Binding, env: Env): UnificationResult[Binding] = {
         if left.name == right.name then
-            unifyType(left.tp, right.tp, env.copy(path = "tp" :: env.path)) match
+            topLevelUnifyType(left.tp, right.tp, env.copy(path = "tp" :: env.path)) match
                 case UnificationSuccess(env1, tp) =>
                     unifySIR(left.value, right.value, env1.copy(path = "value" :: env.path)) match
                         case UnificationSuccess(env2, value) =>
@@ -939,7 +998,7 @@ object SIRUnify {
             println(s"unifyTypeBinding: \nleft=$left\nright=$right, env.upcasting=${env.upcasting}")
         val retval =
             if left.name == right.name then
-                unifyType(left.tp, right.tp, env.copy(path = "tp" :: env.path)) match
+                topLevelUnifyType(left.tp, right.tp, env.copy(path = "tp" :: env.path)) match
                     case UnificationSuccess(env1, tp) =>
                         UnificationSuccess(env1.copy(path = env.path), TypeBinding(left.name, tp))
                     case failure @ UnificationFailure(path, left, right) => failure
@@ -1029,31 +1088,45 @@ object SIRUnify {
         if env.debug then println(s"unifyConstrDecl: left=${left}, right=${right}")
         if left eq right then UnificationSuccess(env, left)
         else if left.name == right.name then {
-            unifyList(left.typeParams, right.typeParams, env.copy(path = "typeParams" :: env.path))(
-              using TypeVarRelaxingUnify
-            ) match
-                case UnificationSuccess(env1, typeParams) =>
-                    unifyList(left.params, right.params, env1.copy(path = "args" :: env.path)) match
-                        case UnificationSuccess(env2, params) =>
-                            unifyList(
-                              left.parentTypeArgs,
-                              right.parentTypeArgs,
-                              env2.copy(path = "parentTypeArgs" :: env.path)
-                            ) match
-                                case UnificationSuccess(ebv3, parentTypeArgs) =>
-                                    UnificationSuccess(
-                                      env2.copy(path = env.path),
-                                      ConstrDecl(
-                                        left.name,
-                                        params,
-                                        typeParams,
-                                        parentTypeArgs,
-                                        left.annotations
-                                      )
-                                    )
-                                case failure @ UnificationFailure(path, left, right) => failure
-                        case failure @ UnificationFailure(path, left, right) => failure
-                case failure @ UnificationFailure(path, left, right) => failure
+            if !env.deepDeclCheck then UnificationSuccess(env, left)
+            else {
+                // TODO: in new env,
+                unifyList(
+                  left.typeParams,
+                  right.typeParams,
+                  env.copy(path = "typeParams" :: env.path)
+                )(using
+                  TypeVarRelaxingUnify
+                ) match
+                    case UnificationSuccess(env1, typeParams) =>
+                        unifyList(
+                          left.params,
+                          right.params,
+                          env1.copy(path = "args" :: env.path)
+                        ) match
+                            case UnificationSuccess(env2, params) =>
+                                unifyList(
+                                  left.parentTypeArgs,
+                                  right.parentTypeArgs,
+                                  env2.copy(path = "parentTypeArgs" :: env.path)
+                                ) match
+                                    case UnificationSuccess(ebv3, parentTypeArgs) =>
+                                        UnificationSuccess(
+                                          env2.copy(path = env.path),
+                                          ConstrDecl(
+                                            left.name,
+                                            params,
+                                            typeParams,
+                                            parentTypeArgs,
+                                            left.annotations
+                                          )
+                                        )
+                                    case failure @ UnificationFailure(path, left, right) =>
+                                        failure
+                            case failure @ UnificationFailure(path, left, right) => failure
+                    case failure @ UnificationFailure(path, left, right) => failure
+            }
+
         } else UnificationFailure(env.path, left, right)
     }
 
@@ -1067,27 +1140,32 @@ object SIRUnify {
     //  things can changed in future,  when DataDecl will be able contains not only constructors
     def unifyDataDecl(left: DataDecl, right: DataDecl, env: Env): UnificationResult[DataDecl] = {
         if left eq right then UnificationSuccess(env, left)
-        else if left.name == right.name then
-            // order of conctructoes is determenistic (the same as in program source)
-            unifyList(
-              left.constructors,
-              right.constructors,
-              env.copy(path = "constructors" :: env.path)
-            ) match
-                case UnificationSuccess(env1, constructors) =>
-                    unifyList(
-                      left.typeParams,
-                      right.typeParams,
-                      env1.copy(path = "typeParams" :: env.path)
-                    )(using TypeVarRelaxingUnify) match
-                        case UnificationSuccess(env2, typeParams) =>
-                            UnificationSuccess(
-                              env2.copy(path = env.path),
-                              DataDecl(left.name, constructors, typeParams, left.annotations)
-                            )
-                        case failure @ UnificationFailure(path, left, right) => failure
-                case failure @ UnificationFailure(path, left, right) => failure
-        else UnificationFailure(env.path, left, right)
+        else if left.name == right.name then {
+            if !env.deepDeclCheck then UnificationSuccess(env, left)
+            else {
+                // order of conctructoes is determenistic (the same as in program source)
+                // if (left.typeParams.isEmpty && right.typeParams.isEmpty) then
+
+                unifyList(
+                  left.constructors,
+                  right.constructors,
+                  env.copy(path = "constructors" :: env.path)
+                ) match
+                    case UnificationSuccess(env1, constructors) =>
+                        unifyList(
+                          left.typeParams,
+                          right.typeParams,
+                          env1.copy(path = "typeParams" :: env.path)
+                        )(using TypeVarRelaxingUnify) match
+                            case UnificationSuccess(env2, typeParams) =>
+                                UnificationSuccess(
+                                  env2.copy(path = env.path),
+                                  DataDecl(left.name, constructors, typeParams, left.annotations)
+                                )
+                            case failure @ UnificationFailure(path, left, right) => failure
+                    case failure @ UnificationFailure(path, left, right) => failure
+            }
+        } else UnificationFailure(env.path, left, right)
     }
 
     def unifyList[T](left: List[T], right: List[T], env: Env)(using
@@ -1103,7 +1181,7 @@ object SIRUnify {
                             case UnificationSuccess(env1, v) =>
                                 UnificationSuccess(env1, v :: acc)
                             case failure @ UnificationFailure(path, left, right) =>
-                                UnificationFailure(path, left, right)
+                                failure
                     case (failure @ UnificationFailure(path, left, right), _) =>
                         failure
                 }
@@ -1188,6 +1266,30 @@ object SIRUnify {
         if env.debug then
             println(s"unityTypeVarRelaxing, left=${v1}, right=${v2}, retval=${retval}")
         retval
+    }
+
+    def typeVarsInEnv(vars: List[SIRType.TypeVar], env: Env): Boolean = {
+        if vars.exists(v => env.filledTypes.contains(v) || env.eqTypes.contains(v)) then true
+        else env.topLevelTypes.exists(tp => SIRType.isTypeVarsUsedIn(vars, tp))
+    }
+
+    def retrieveTypeVarGenerationContext(env: Env): SIRType.SetBasedTypeVarGenerationContext = {
+        env.optTypeVarGenerationContext match {
+            case Some(ctx) => ctx
+            case None      =>
+
+        }
+        val existing = env.filledTypes.keys.toSet ++ env.eqTypes.keys.toSet
+        if env.topLevelTypes.isEmpty then
+            throw IllegalStateException(
+              "top-level types should not be empty in unification context"
+            )
+        val maxExisting =
+            if existing.isEmpty then 0L
+            else existing.maxBy(_.optId.getOrElse(0L)).optId.getOrElse(0L)
+        val ctx =
+            SIRType.createMinimalTypeVarGenerationContext(maxExisting, env.topLevelTypes.toList)
+        ctx
     }
 
 }

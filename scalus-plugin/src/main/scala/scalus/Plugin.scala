@@ -260,7 +260,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 case Literal(Constant(flag: Boolean)) => flag
                 case _ =>
                     report.warning(
-                      s"ScalusPhase: Expected a boolean literal, but found: ${value.show}",
+                      s"ScalusPhase: Expected a boolean literal, but found: ${value.show}\ntree:${value}",
                       posTree.srcPos
                     )
                     false

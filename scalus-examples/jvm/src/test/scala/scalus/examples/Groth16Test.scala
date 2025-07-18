@@ -37,11 +37,22 @@ class Groth16Test extends AnyFunSuite:
       )
     )
 
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+      debug = false
+    )
+
     private val validator =
         val sir = compile((vk: Data, proof: Data, public: Data) =>
             grothVerify(vk.to[SnarkVerificationKey], proof.to[Proof], public.to[List[BigInt]])
         )
-        val uplc = sir.toUplcOptimized()
+        // println(s"Compiled Groth16 validator script: \n ${sir.pretty.render(100)}")
+        // val lv = sir.toLoweredValue()
+        // println(s"Compiled Groth16 validator script (LoweredValue): \n ${lv.pretty.render(100)}")
+        val uplc = sir.toUplc()
+        // println(s"Compiled Groth16 validator script (UPLC): \n ${uplc.pretty.render(100)}")
         uplc
 
     test("verify factorial proof - 3! = 6") {

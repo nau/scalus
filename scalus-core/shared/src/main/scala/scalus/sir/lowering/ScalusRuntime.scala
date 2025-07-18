@@ -58,10 +58,7 @@ object ScalusRuntime {
     private def initPairDataListToDataList(using lctx: LoweringContext): Unit = {
         val name = TUPLES_LIST_TO_DATA_LIST_NAME
         val name1 = "fun_" + name
-        val rhs = genPairDataListToDataList(
-          name1,
-          (tpA, tpB) => SIRType.List(SIRType.Tuple2(tpA, tpB))
-        )(using lctx)
+        val rhs = genPairDataListToDataList(name1)(using lctx)
         val retvalForTuples =
             lvNewLazyNamedVar(name, rhs.sirType, rhs.representation, rhs, AnnotationsDecl.empty.pos)
         // will ne the same uplc code but different types
@@ -93,10 +90,7 @@ object ScalusRuntime {
     private def initDataListToPairDataList(using lctx: LoweringContext): LoweredValue = {
         val nameTuples = DATA_LIST_TO_TUPLES_LIST_NAME
         val name1 = "fun_" + nameTuples
-        val rhs = genDataListToPairDataList(
-          name1,
-          (tpA, tpB) => SIRType.List(SIRType.Tuple2(tpA, tpB))
-        )(using lctx)
+        val rhs = genDataListToPairDataList(name1)(using lctx)
         val funTuples = lvNewLazyNamedVar(
           nameTuples,
           rhs.sirType,
@@ -128,29 +122,26 @@ object ScalusRuntime {
 
     }
 
+    /*
     private def initDataListToPairDataList_Tuple(
         name: String
     )(using lctx: LoweringContext): LoweredValue = {
         val name1 = "fun_" + name
-        val rhs = genDataListToPairDataList(
-          name1,
-          (tpA, tpB) => SIRType.Pair(tpA, tpB)
-        )(using lctx)
+        val rhs = genDataListToPairDataList(name1)(using lctx)
         lvNewLazyNamedVar(name, rhs.sirType, rhs.representation, rhs, AnnotationsDecl.empty.pos)
     }
+    
+     */
 
-    private def genPairDataListToDataList(
-        name: String,
-        inTpConstructor: (SIRType.TypeVar, SIRType.TypeVar) => SIRType
-    )(using LoweringContext): LoweredValue = {
+    private def genPairDataListToDataList(name: String)(using LoweringContext): LoweredValue = {
         val hc = name.hashCode
         val tpA = SIRType.TypeVar("A", Some(hc), isBuiltin = false)
         val tpB = SIRType.TypeVar("B", Some(hc), isBuiltin = false)
-        val tpPair = SIRType.Pair(tpA, tpB)
-        val tpPairList = inTpConstructor(tpA, tpB)
-        val tpTupleList = SIRType.List(SIRType.Tuple2(tpA, tpB))
+        val tpInTuple = SIRType.Tuple2(tpA, tpB)
+        val tpInTupleList = SIRType.List(tpInTuple)
+        val tpOutTupleList = SIRType.List(SIRType.Tuple2(tpA, tpB))
         val funType =
-            SIRType.Fun(tpPairList, tpTupleList)
+            SIRType.Fun(tpInTupleList, tpOutTupleList)
         val lambdaType = SIRType.TypeLambda(List(tpA, tpB), funType)
         val lambdaRepr = LambdaRepresentation(
           SumCaseClassRepresentation.SumDataPairList,
@@ -160,7 +151,7 @@ object ScalusRuntime {
         val whenNil = {
             lvBuiltinApply0(
               SIRBuiltins.mkNilData,
-              tpTupleList,
+              tpOutTupleList,
               SumCaseClassRepresentation.SumDataList,
               AnnotationsDecl.empty.pos
             )
@@ -173,8 +164,8 @@ object ScalusRuntime {
             processCons(
               l,
               acceptHeadTail,
-              tpPairList,
-              tpPair,
+              tpInTupleList,
+              tpInTuple,
               SumCaseClassRepresentation.SumDataPairList,
               ProductCaseClassRepresentation.PairData
             )
@@ -229,14 +220,14 @@ object ScalusRuntime {
               recFun,
               tail,
               AnnotationsDecl.empty.pos,
-              Some(tpTupleList),
+              Some(tpOutTupleList),
               Some(SumCaseClassRepresentation.SumDataList)
             )
             lvBuiltinApply2(
               SIRBuiltins.mkCons,
               tupleInTvRepr,
               recCons,
-              tpTupleList,
+              tpOutTupleList,
               SumCaseClassRepresentation.SumDataList,
               AnnotationsDecl.empty.pos
             )
@@ -249,7 +240,7 @@ object ScalusRuntime {
           rec =>
               lvLamAbs(
                 "list",
-                tpPairList,
+                tpInTupleList,
                 SumCaseClassRepresentation.SumDataPairList,
                 list =>
                     lvChooseList(
@@ -259,7 +250,7 @@ object ScalusRuntime {
                         list,
                         (head, tail) => pairDataToTupleAsData(head, tail, rec),
                       ),
-                      tpTupleList,
+                      tpOutTupleList,
                       SumCaseClassRepresentation.SumDataList
                     ),
                 AnnotationsDecl.empty.pos
@@ -272,17 +263,16 @@ object ScalusRuntime {
     }
 
     private def genDataListToPairDataList(
-        name: String,
-        inPairConstructor: (SIRType.TypeVar, SIRType.TypeVar) => SIRType
+        name: String
     )(using lctx: LoweringContext): LoweredValue = {
         val hc = name.hashCode
         val tpA = SIRType.TypeVar("A", Some(hc), isBuiltin = false)
         val tpB = SIRType.TypeVar("B", Some(hc), isBuiltin = false)
-        val tpPair = inPairConstructor(tpA, tpB)
-        val tpPairList = SIRType.List(tpPair)
-        val tpTupleList = SIRType.List(SIRType.Tuple2(tpA, tpB))
+        val tpOutPair = SIRType.Tuple2(tpA, tpB)
+        val tpOutPairList = SIRType.List(tpOutPair)
+        val tpInTupleList = SIRType.List(SIRType.Tuple2(tpA, tpB))
         val funType =
-            SIRType.Fun(tpTupleList, tpPairList)
+            SIRType.Fun(tpInTupleList, tpOutPairList)
         val lambdaType = SIRType.TypeLambda(List(tpA, tpB), funType)
         val lambdaRepr = LambdaRepresentation(
           SumCaseClassRepresentation.SumDataList,
@@ -291,7 +281,7 @@ object ScalusRuntime {
 
         val whenNil = lvBuiltinApply0(
           SIRBuiltins.mkNilPairData,
-          tpPairList,
+          tpOutPairList,
           SumCaseClassRepresentation.SumDataPairList,
           AnnotationsDecl.empty.pos
         )
@@ -303,7 +293,7 @@ object ScalusRuntime {
             processCons(
               l,
               acceptHeadTail,
-              tpTupleList,
+              tpInTupleList,
               SIRType.Tuple2(tpA, tpB),
               SumCaseClassRepresentation.SumDataList,
               ProductCaseClassRepresentation.ProdDataConstr
@@ -362,7 +352,7 @@ object ScalusRuntime {
               SIRBuiltins.mkPairData,
               firstProdList,
               secondProdList,
-              inPairConstructor(tpA, tpB),
+              tpOutPair,
               ProductCaseClassRepresentation.PairData,
               AnnotationsDecl.empty.pos
             )
@@ -370,14 +360,14 @@ object ScalusRuntime {
               funRec,
               tail,
               AnnotationsDecl.empty.pos,
-              Some(tpPairList),
+              Some(tpOutPairList),
               Some(SumCaseClassRepresentation.SumDataPairList)
             )
             val cons = lvBuiltinApply2(
               SIRBuiltins.mkCons,
               pair,
               recCons,
-              tpPairList,
+              tpOutPairList,
               SumCaseClassRepresentation.SumDataPairList,
               AnnotationsDecl.empty.pos
             )
@@ -391,14 +381,14 @@ object ScalusRuntime {
           rec =>
               lvLamAbs(
                 "list",
-                tpTupleList,
+                tpInTupleList,
                 SumCaseClassRepresentation.SumDataList,
                 list =>
                     lvChooseList(
                       list,
                       whenNil,
                       whenCons(list, (head, tail) => mapTupleToPair(head, tail, rec)),
-                      tpPairList,
+                      tpOutPairList,
                       SumCaseClassRepresentation.SumDataPairList
                     ),
                 AnnotationsDecl.empty.pos

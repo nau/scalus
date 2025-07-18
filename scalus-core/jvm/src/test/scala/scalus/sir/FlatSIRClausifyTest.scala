@@ -76,7 +76,7 @@ class FlatSIRClausifyTest extends AnyFunSuite {
             scalus.flat.FlatInstantces.SIRTypeHashConsedFlat.decodeHC(hcDecodeState)
         val decodedTp = decodedTpRef.finValue(hcDecodeState.hashConsed, 0, new HSRIdentityHashMap)
 
-        SIRUnify.unifyType(decodedTp, myDeclTp, SIRUnify.Env.empty) match {
+        SIRUnify.topLevelUnifyType(decodedTp, myDeclTp, SIRUnify.Env.empty) match {
             case SIRUnify.UnificationFailure(path, l, r) =>
                 fail(s"Unification failed: ${path} ${l}!= ${r}")
             case SIRUnify.UnificationSuccess(_, _) =>

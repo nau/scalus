@@ -152,7 +152,11 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
         )
     }
 
-    override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         LoweringContext
     ): LoweredValue = {
         throw LoweringException(
