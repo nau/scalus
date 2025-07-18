@@ -9,13 +9,14 @@ import scalus.ledger.api.Timelock
 /** Represents a script in Cardano */
 sealed trait Script {
 
-    /** Get script language */
-    def language: Option[Language]
-
     def scriptHash: ScriptHash
 }
 
-sealed trait PlutusScript extends Script
+sealed trait PlutusScript extends Script {
+
+    /** Get script language */
+    def language: Language
+}
 
 object Script {
 
@@ -24,7 +25,6 @@ object Script {
 
         /** Get the script hash for this native script */
         @transient lazy val scriptHash: ScriptHash = script.scriptHash
-        def language: Option[Language] = None
     }
 
     /** Plutus V1 script */
@@ -35,7 +35,7 @@ object Script {
           platform.blake2b_224(ByteString.unsafeFromArray(1 +: script.bytes))
         )
 
-        def language: Option[Language] = Some(Language.PlutusV1)
+        def language: Language = Language.PlutusV1
     }
 
     /** Plutus V2 script */
@@ -45,7 +45,7 @@ object Script {
         @transient lazy val scriptHash: ScriptHash = Hash(
           platform.blake2b_224(ByteString.unsafeFromArray(2 +: script.bytes))
         )
-        def language: Option[Language] = Some(Language.PlutusV2)
+        def language: Language = Language.PlutusV2
     }
 
     /** Plutus V3 script */
@@ -55,7 +55,7 @@ object Script {
         @transient lazy val scriptHash: ScriptHash = Hash(
           platform.blake2b_224(ByteString.unsafeFromArray(3 +: script.bytes))
         )
-        def language: Option[Language] = Some(Language.PlutusV3)
+        def language: Language = Language.PlutusV3
     }
 
     given Codec[Script] = deriveCodec

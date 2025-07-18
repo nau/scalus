@@ -2,7 +2,7 @@ package scalus.patterns
 
 import scalus.*
 import scalus.ledger.api.v3.*
-import scalus.prelude.{*, given}
+import scalus.prelude.*
 
 // This design pattern couples the spend and minting endpoints of a validator,
 // in order to have minimal spend costs, in exchange for a single execution of
@@ -23,11 +23,11 @@ object TransactionLevelMinterValidator:
     def spend(
         minterScriptHash: ValidatorHash,
         minterRedeemerValidator: Redeemer => Boolean,
-        minterTokensValidator: AssocMap[TokenName, BigInt] => Boolean,
+        minterTokensValidator: SortedMap[TokenName, BigInt] => Boolean,
         txInfo: TxInfo
     ): Unit =
         val scriptPurpose = ScriptPurpose.Minting(minterScriptHash)
-        val tokens = txInfo.mint.get(minterScriptHash).getOrElse(AssocMap.empty)
+        val tokens = txInfo.mint.get(minterScriptHash).getOrElse(SortedMap.empty)
 
         val redeemer: Redeemer = txInfo.redeemers.get(scriptPurpose).getOrFail(MissingRedeemer)
         minterRedeemerValidator(redeemer) orFail MinterRedeemerValidatorFailed

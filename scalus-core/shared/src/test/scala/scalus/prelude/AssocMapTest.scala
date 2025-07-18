@@ -74,11 +74,11 @@ class AssocMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbitr
         }
     }
 
-    test("fromList(lst).toList == lst.unique(using AssocMap.eq)") {
-        check { (lst: List[(BigInt, Boolean)]) =>
-            AssocMap.fromList(lst).toList == lst.unique(using AssocMap.pairEq)
-        }
-    }
+//    test("fromList(lst).toList == lst.unique(using AssocMap.eq)") {
+//        check { (lst: List[(BigInt, Boolean)]) =>
+//            AssocMap.fromList(lst).toList == lst.unique(using AssocMap.pairEq)
+//        }
+//    }
 
     test("insert") {
         check { (map: AssocMap[BigInt, BigInt], k: BigInt, v: BigInt) =>

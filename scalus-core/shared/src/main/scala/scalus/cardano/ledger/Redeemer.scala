@@ -82,6 +82,8 @@ object Redeemers:
     final case class Array(redeemers: IndexedSeq[Redeemer]) extends Redeemers:
         require(redeemers.nonEmpty, "Must have at least one redeemer")
 
+    def apply(redeemers: Redeemer*): Redeemers = from(redeemers)
+
     def from(redeemers: IterableOnce[Redeemer]): Redeemers =
         // Convert to map format, preserve order
         Map(

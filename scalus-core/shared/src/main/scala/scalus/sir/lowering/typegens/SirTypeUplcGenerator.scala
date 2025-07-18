@@ -99,7 +99,7 @@ object SirTypeUplcGenerator {
                 if constrDecl.name == "scalus.ledger.api.v1.PubKeyHash"
                     || constrDecl.name == "scalus.ledger.api.v3.TxId"
                 then ProductCaseOneElementSirTypeGenerator(SIRTypeUplcByteStringGenerator)
-                else if constrDecl.name == "scalus.prelude.AssocMap"
+                else if constrDecl.name == "scalus.prelude.AssocMap" || constrDecl.name == "scalus.prelude.SortedMap"
                 then MapSirTypeGenerator
                 else
                     val hasFun = containsFun(constrDecl, new IdentityHashMap[SIRType, SIRType]())

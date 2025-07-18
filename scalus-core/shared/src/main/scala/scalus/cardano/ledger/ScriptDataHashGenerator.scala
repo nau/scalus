@@ -13,7 +13,11 @@ object ScriptDataHashGenerator {
         w: TransactionWitnessSet,
         refScripts: Set[Script]
     ): CostModels = {
-        val refLangs: TreeSet[Language] = refScripts.view.flatMap(_.language).to(TreeSet)
+        val refLangs: TreeSet[Language] = refScripts.view
+            .collect { case script: PlutusScript =>
+                script.language
+            }
+            .to(TreeSet)
         getUsedCostModels(pparams, w, refLangs)
     }
 
