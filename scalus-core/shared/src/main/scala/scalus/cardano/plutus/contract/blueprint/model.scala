@@ -10,7 +10,8 @@ case class Blueprint(
     validators: Seq[Validator] = Nil,
     //        definitions: Option[Map[String, PlutusDataSchema]] = None todo
 ) {
-    def show: String = writeToString(this)
+    def show(indentation: Int = 2): String =
+        writeToString(this, WriterConfig.withIndentionStep(indentation))
 }
 
 object Blueprint {
@@ -93,12 +94,11 @@ case class PlutusDataSchema(
     title: Option[String] = None,
     description: Option[String] = None,
     anyOf: Option[List[PlutusDataSchema]] = None,
-    allOf: Option[List[PlutusDataSchema]] = None,
-    oneOf: Option[List[PlutusDataSchema]] = None,
-    not: Option[PlutusDataSchema] = None,
     index: Option[Int] = None,
     fields: Option[List[PlutusDataSchema]] = None
-)
+) {
+    def show(indentation: Int = 2): String = writeToString(this, WriterConfig.withIndentionStep(indentation))
+}
 
 object PlutusDataSchema {
     given JsonValueCodec[PlutusDataSchema] =
