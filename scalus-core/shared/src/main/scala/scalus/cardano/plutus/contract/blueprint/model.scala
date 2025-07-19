@@ -97,7 +97,8 @@ case class PlutusDataSchema(
     index: Option[Int] = None,
     fields: Option[List[PlutusDataSchema]] = None
 ) {
-    def show(indentation: Int = 2): String = writeToString(this, WriterConfig.withIndentionStep(indentation))
+    def show(indentation: Int = 2): String =
+        writeToString(this, WriterConfig.withIndentionStep(indentation))
 }
 
 object PlutusDataSchema {

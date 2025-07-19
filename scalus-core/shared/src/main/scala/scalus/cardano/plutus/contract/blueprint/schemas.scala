@@ -133,7 +133,7 @@ private def resolveFieldDataType(using
     Quotes
 )(tpe: quotes.reflect.TypeRepr): Expr[Option[DataType]] =
     import quotes.reflect.*
-    
+
     if isPrimitive(tpe) then {
         tpe.show match {
             case "scala.Int" | "scala.Long" | "scala.math.BigInt" =>
@@ -172,7 +172,7 @@ private def resolveFieldDataType(using
 
 private def isPrimitive(using Quotes)(tpe: quotes.reflect.TypeRepr): Boolean =
     import quotes.reflect.*
-    
+
     tpe.show match {
         case "scala.Int" | "scala.Long" | "scala.math.BigInt" | "scala.Boolean" |
             "java.lang.String" =>
@@ -181,7 +181,6 @@ private def isPrimitive(using Quotes)(tpe: quotes.reflect.TypeRepr): Boolean =
         case _ if tpe.typeSymbol.name == "List" || tpe.typeSymbol.name == "Map" => true
         case _                                                                  => false
     }
-
 
 private def isCaseClassOrEnum(using Quotes)(symbol: quotes.reflect.Symbol): Boolean =
     import quotes.reflect.*
@@ -201,8 +200,7 @@ private def getConstructorParams(using
         symbol.children.filter(_.flags.is(Flags.Case)).flatMap { caseSymbol =>
             getPrimaryConstructorParams(caseSymbol)
         }
-    else
-        getPrimaryConstructorParams(symbol)
+    else getPrimaryConstructorParams(symbol)
 
 private def getPrimaryConstructorParams(using
     Quotes

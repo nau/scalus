@@ -88,7 +88,6 @@ object HtlcValidatorInputs {
         case Timeout
         case Reveal(preimage: Preimage)
 
-
     object Action {
         def schema: String = """{
                                       |  "title": "Action",
