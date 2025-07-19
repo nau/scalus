@@ -13,11 +13,10 @@ import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
 import com.bloxbean.cardano.yaci.core.model.serializers.util.{TransactionBodyExtractor, WitnessUtil}
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
-import io.bullet.borer.Cbor
 import scalus.*
 import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
-import scalus.builtin.{platform, ByteString, JVMPlatformSpecific, PlatformSpecific, given}
+import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
 import scalus.cardano.ledger.{AddrKeyHash, BlockFile, Hash, Language, Script, ScriptDataHashGenerator}
 import scalus.ledger.api.ValidityInterval
@@ -279,8 +278,7 @@ object BlocksValidation:
                     (txb, w) <- block.transactionBodies.zip(block.transactionWitnessSets)
                     native <- w.nativeScripts
                 do
-                    val serialized = ByteString.fromArray(0 +: Cbor.encode(native).toByteArray)
-                    val scriptHash = JVMPlatformSpecific.blake2b_224(serialized)
+                    val scriptHash = native.scriptHash
                     val keyHashes = w.vkeyWitnesses.map { w =>
                         val key = w.vkey
                         AddrKeyHash(platform.blake2b_224(key))
@@ -374,7 +372,8 @@ object BlocksValidation:
                                 (if w.plutusV1Scripts.nonEmpty then "v1" else "")
                                     ++ (if w.plutusV2Scripts.nonEmpty then "v2" else "")
                                     ++ (if w.plutusV3Scripts.nonEmpty then "v3" else "")
-                                    ++ (if w.plutusData.value.nonEmpty then "D" else "")
+                                    ++ (if w.plutusData.value.toIndexedSeq.nonEmpty then "D"
+                                        else "")
                                     ++ (if w.redeemers.nonEmpty then "R" else "")
 
                             val sameAsBloxbean =
@@ -472,7 +471,7 @@ object BlocksValidation:
             block.transactionWitnessSets.exists { _.plutusV3Scripts.nonEmpty } &&
             block.transactionWitnessSets.exists { _.nativeScripts.nonEmpty } &&
             block.transactionWitnessSets.exists { _.vkeyWitnesses.nonEmpty } &&
-            block.transactionWitnessSets.exists { _.plutusData.value.nonEmpty }
+            block.transactionWitnessSets.exists { _.plutusData.value.toIndexedSeq.nonEmpty }
         }
         println(s"Interesting blocks ${interestingBlocks.size} of ${blocks.size}")
         interestingBlocks.foreach { p =>

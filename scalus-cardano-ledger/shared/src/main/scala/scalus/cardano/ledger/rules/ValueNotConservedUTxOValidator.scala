@@ -49,11 +49,11 @@ object ValueNotConservedUTxOValidator extends STS.Validator {
                 Certificate.shelleyTotalRefundsTxCerts(
                   lookupStakingDeposit,
                   params,
-                  txBody.certificates
+                  txBody.certificates.toIndexedSeq
                 ) + Certificate
                     .conwayDRepRefundsTxCerts(
                       lookupDRepDeposit,
-                      txBody.certificates
+                      txBody.certificates.toIndexedSeq
                     )
             val getTotalRefundsTxCerts = conwayTotalRefundsTxCerts
             // Compute the total refunds from the Certificates of a TransactionBody

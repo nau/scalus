@@ -25,7 +25,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   votingProcedures = None,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   withdrawals = None,
                   requiredSigners = Set.empty
                 )
@@ -94,7 +94,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   votingProcedures = None,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   withdrawals = None,
                   requiredSigners = Set.empty
                 )
@@ -162,7 +162,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   referenceInputs = Set.empty,
                   votingProcedures = None,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   withdrawals = None,
                   requiredSigners = Set.empty
                 )
@@ -231,7 +231,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   referenceInputs = Set.empty,
                   votingProcedures = None,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   withdrawals = None,
                   requiredSigners = Set.empty
                 )
@@ -317,7 +317,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                       )
                     )
                   ),
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   withdrawals = None,
                   requiredSigners = Set.empty
                 )
@@ -374,7 +374,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                       )
                     )
                   ),
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   withdrawals = None,
                   requiredSigners = Set.empty
                 )
@@ -409,7 +409,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   votingProcedures = None,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   withdrawals = Some(
                     Withdrawals(
                       Map(
@@ -475,7 +475,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   votingProcedures = None,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   withdrawals = Some(
                     Withdrawals(
                       Map(
@@ -542,7 +542,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   votingProcedures = None,
-                  certificates = Set(
+                  certificates = TaggedSet(
                     Certificate.StakeRegistration(credential),
                     Certificate.StakeDeregistration(credential),
                     Certificate
@@ -638,7 +638,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   votingProcedures = None,
-                  certificates = Set(
+                  certificates = TaggedSet(
                     Certificate.StakeRegistration(credential),
                     Certificate.StakeDeregistration(credential),
                     Certificate
@@ -730,7 +730,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   votingProcedures = None,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   withdrawals = None,
                   requiredSigners = Set(
                     Hash(platform.blake2b_224(publicKey1)),
@@ -768,7 +768,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   votingProcedures = None,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   withdrawals = None,
                   requiredSigners = Set(
                     Hash(platform.blake2b_224(publicKey1)),

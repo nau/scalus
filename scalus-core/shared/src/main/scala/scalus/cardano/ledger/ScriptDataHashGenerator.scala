@@ -62,7 +62,7 @@ object ScriptDataHashGenerator {
             case Some(value) => value.raw
             case None        => Array(0xa0.toByte) // Empty map in CBOR
         val plutusDataBytes =
-            if datums.value.isEmpty then Array.empty[Byte]
+            if datums.value.toIndexedSeq.isEmpty then Array.empty[Byte]
             else datums.raw
         val costModelsBytes = costModels.getLanguageViewEncoding
         val encodedBytes = redeemerBytes ++ plutusDataBytes ++ costModelsBytes

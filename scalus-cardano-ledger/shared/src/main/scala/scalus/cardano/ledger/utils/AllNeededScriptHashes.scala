@@ -130,7 +130,7 @@ object AllNeededScriptHashes {
         }
 
         for
-            certificate <- certificates.view
+            certificate <- certificates.toIndexedSeq.view
             scriptHash <- certificate match
                 case cert: Certificate.StakeRegistration   => extractScriptHash(cert.credential)
                 case cert: Certificate.StakeDeregistration => extractScriptHash(cert.credential)

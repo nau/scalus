@@ -3,8 +3,6 @@ package scalus.cardano.ledger
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 import scalus.cardano.ledger
 
-import scala.collection.immutable.SortedMap
-
 /** Represents a value in Cardano, which can be either pure ADA or ADA with multi-assets */
 case class Value(coin: Coin, assets: ledger.MultiAsset) {
     // Validate multi-asset map

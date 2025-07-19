@@ -124,7 +124,7 @@ object AllNeededKeyHashes {
         }
 
         for
-            certificate <- certificates.view
+            certificate <- certificates.toIndexedSeq.view
             keyHash: (AddrKeyHash | PoolKeyHash) <- certificate match
                 case cert: Certificate.StakeRegistration   => extractKeyHash(cert.credential)
                 case cert: Certificate.StakeDeregistration => extractKeyHash(cert.credential)

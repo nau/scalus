@@ -45,7 +45,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   withdrawals = None,
                   proposalProcedures = Set.empty,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   requiredSigners = Set.empty
                 )
               ),
@@ -57,7 +57,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                 plutusV1Scripts = Set.empty,
                 plutusV2Scripts = Set.empty,
                 plutusV3Scripts = Set.empty,
-                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                plutusData = KeepRaw(TaggedSet.empty),
                 redeemers = Some(
                   KeepRaw(
                     Redeemers.Array(
@@ -151,7 +151,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   withdrawals = None,
                   proposalProcedures = Set.empty,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   requiredSigners = Set.empty
                 )
               ),
@@ -163,7 +163,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                 plutusV1Scripts = Set.empty,
                 plutusV2Scripts = Set.empty,
                 plutusV3Scripts = Set.empty,
-                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                plutusData = KeepRaw(TaggedSet.empty),
                 redeemers = Some(
                   KeepRaw(
                     Redeemers.Array(
@@ -248,7 +248,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   withdrawals = None,
                   proposalProcedures = Set.empty,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   requiredSigners = Set.empty
                 )
               ),
@@ -260,7 +260,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                 plutusV1Scripts = Set.empty,
                 plutusV2Scripts = Set.empty,
                 plutusV3Scripts = Set.empty,
-                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                plutusData = KeepRaw(TaggedSet.empty),
                 redeemers = Some(
                   KeepRaw(
                     Redeemers.Array(
@@ -354,7 +354,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   withdrawals = None,
                   proposalProcedures = Set.empty,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   requiredSigners = Set.empty
                 )
               ),
@@ -366,7 +366,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                 plutusV1Scripts = Set.empty,
                 plutusV2Scripts = Set.empty,
                 plutusV3Scripts = Set.empty,
-                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                plutusData = KeepRaw(TaggedSet.empty),
                 redeemers = Some(
                   KeepRaw(
                     Redeemers.Array(
@@ -460,7 +460,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   withdrawals = None,
                   proposalProcedures = Set.empty,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   requiredSigners = Set.empty
                 )
               ),
@@ -472,7 +472,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                 plutusV1Scripts = Set.empty,
                 plutusV2Scripts = Set.empty,
                 plutusV3Scripts = Set.empty,
-                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                plutusData = KeepRaw(TaggedSet.empty),
                 redeemers = Some(
                   KeepRaw(
                     Redeemers.Array(
@@ -566,7 +566,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   withdrawals = None,
                   proposalProcedures = Set.empty,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   requiredSigners = Set.empty
                 )
               ),
@@ -578,7 +578,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                 plutusV1Scripts = Set.empty,
                 plutusV2Scripts = Set.empty,
                 plutusV3Scripts = Set.empty,
-                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                plutusData = KeepRaw(TaggedSet.empty),
                 redeemers = Some(
                   KeepRaw(
                     Redeemers.Array(
@@ -657,7 +657,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   withdrawals = None,
                   proposalProcedures = Set.empty,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   requiredSigners = Set.empty
                 )
               ),
@@ -669,7 +669,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                 plutusV1Scripts = Set.empty,
                 plutusV2Scripts = Set.empty,
                 plutusV3Scripts = Set.empty,
-                plutusData = KeepRaw(TaggedSet(Set.empty)),
+                plutusData = KeepRaw(TaggedSet.empty),
                 redeemers = Some(
                   KeepRaw(
                     Redeemers.Array(

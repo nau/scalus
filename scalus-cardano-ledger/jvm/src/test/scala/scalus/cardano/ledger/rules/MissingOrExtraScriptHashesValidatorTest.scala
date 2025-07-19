@@ -7,6 +7,8 @@ import scalus.builtin.platform
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.collection.immutable.TreeMap
+
 class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
     test("MissingOrExtraScriptHashesValidator rule success") {
         val context = Context()
@@ -34,10 +36,14 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                   collateralInputs = Set.empty,
                   referenceInputs = Set(referenceInput),
                   mint = Some(
-                    Map(
-                      plutusV1Script.scriptHash -> Map.empty,
-                      plutusV2Script.scriptHash -> Map.empty,
-                      plutusV3Script.scriptHash -> Map.empty
+                    Mint(
+                      MultiAsset(
+                        TreeMap(
+                          plutusV1Script.scriptHash -> TreeMap.empty,
+                          plutusV2Script.scriptHash -> TreeMap.empty,
+                          plutusV3Script.scriptHash -> TreeMap.empty
+                        )
+                      )
                     )
                   ),
                   votingProcedures = Some(
@@ -90,7 +96,7 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                             )
                         )
                   ),
-                  certificates = Set(
+                  certificates = TaggedSet(
                     Certificate.StakeRegistration(credential1),
                     Certificate.StakeDeregistration(credential2),
                     Certificate

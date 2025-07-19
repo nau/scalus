@@ -32,8 +32,8 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"AssetName should serialize and deserialize correctly"):
         testSerializationRoundTrip[AssetName]()
 
-    test(s"Mint should serialize and deserialize correctly"):
-        testSerializationRoundTrip[Mint]()
+    test(s"MultiAsset should serialize and deserialize correctly"):
+        testSerializationRoundTrip[MultiAsset]()
 
     test(s"Language should serialize and deserialize correctly"):
         testSerializationRoundTrip[Language]()

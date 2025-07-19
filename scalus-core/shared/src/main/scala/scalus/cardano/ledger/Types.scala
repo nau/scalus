@@ -44,7 +44,22 @@ object Coin {
     val zero: Coin = Coin(0)
 }
 
-// TODO: this should be SortedMap as in Haskell
+/** Minting MultiAsset. Can't contain zeros, can't be empty */
+opaque type Mint <: MultiAsset = MultiAsset
+object Mint {
+    def apply(ma: MultiAsset): Mint = {
+        require(!ma.isEmpty, "Mint cannot be empty")
+        require(
+          ma.assets.forall { case (_, assets) => assets.forall { case (_, value) => value != 0 } },
+          "Mint cannot contain zero values"
+        )
+        ma
+    }
+
+    given Encoder[Mint] = MultiAsset.given_Encoder_MultiAsset
+    given Decoder[Mint] = MultiAsset.given_Decoder_MultiAsset.map(Mint.apply)
+}
+
 case class MultiAsset(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]) {
     def isEmpty: Boolean = assets.isEmpty
 }
@@ -92,8 +107,6 @@ object MultiAsset {
     }
 
 }
-
-type Mint = MultiAsset
 
 /** Represents an asset name in Cardano's multi-asset framework
   *

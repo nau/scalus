@@ -3,44 +3,6 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import scalus.builtin.Data
 
-opaque type TaggedSet[A] <: Set[A] = Set[A]
-object TaggedSet {
-    inline def empty[A]: TaggedSet[A] = Set.empty[A]
-
-    inline def apply[A](s: Set[A]): TaggedSet[A] = s
-
-    /** Creates a `TaggedSet` with the specified elements.
-      * @tparam A
-      *   the type of the `TaggedSet`'s elements
-      * @param elems
-      *   the elements of the created `TaggedSet`
-      * @return
-      *   a new `TaggedSet` with elements `elems`
-      */
-    def apply[A](elems: A*): TaggedSet[A] = Set(elems*)
-
-    def from[A](it: IterableOnce[A]): TaggedSet[A] = Set.from(it)
-
-    given [A: Encoder]: Encoder[TaggedSet[A]] with
-        def write(w: Writer, value: TaggedSet[A]): Writer = {
-            // Use indefinite array
-            w.writeTag(Tag.Other(258))
-            w.writeArrayHeader(value.size)
-            value.foreach(w.write(_))
-            w
-        }
-
-    given [A: Decoder]: Decoder[TaggedSet[A]] with
-        def read(r: Reader): TaggedSet[A] = {
-            // Check for indefinite array tag (258)
-            if r.dataItem() == DataItem.Tag then
-                val tag = r.readTag()
-                if tag.code != 258 then
-                    r.validationFailure(s"Expected tag 258 for definite Set, got $tag")
-            r.read[Set[A]]()(using Decoder.fromFactory[A, Set])
-        }
-}
-
 /** Represents the witness set for a transaction in Cardano */
 case class TransactionWitnessSet(
     /** VKey witnesses */
@@ -61,7 +23,7 @@ case class TransactionWitnessSet(
       *   We need raw CBOR bytes of all `plutusData` for [[ScriptDataHash]] calculation. Also, we
       *   need raw bytes for each datum for [[DataHash]] calculation.
       */
-    plutusData: KeepRaw[TaggedSet[KeepRaw[Data]]] = KeepRaw(TaggedSet(Set.empty)),
+    plutusData: KeepRaw[TaggedSet[KeepRaw[Data]]] = KeepRaw(TaggedSet.empty),
 
     /** Redeemers */
     redeemers: Option[KeepRaw[Redeemers]] = None,
@@ -78,7 +40,7 @@ case class TransactionWitnessSet(
             nativeScripts.isEmpty &&
             bootstrapWitnesses.isEmpty &&
             plutusV1Scripts.isEmpty &&
-            plutusData.value.isEmpty &&
+            plutusData.value.toIndexedSeq.isEmpty &&
             redeemers.isEmpty &&
             plutusV2Scripts.isEmpty &&
             plutusV3Scripts.isEmpty
@@ -97,7 +59,7 @@ object TransactionWitnessSet:
             if value.nativeScripts.nonEmpty then mapSize += 1
             if value.bootstrapWitnesses.nonEmpty then mapSize += 1
             if value.plutusV1Scripts.nonEmpty then mapSize += 1
-            if value.plutusData.value.nonEmpty then mapSize += 1
+            if value.plutusData.value.toIndexedSeq.nonEmpty then mapSize += 1
             if value.redeemers.isDefined then mapSize += 1
             if value.plutusV2Scripts.nonEmpty then mapSize += 1
             if value.plutusV3Scripts.nonEmpty then mapSize += 1
@@ -125,7 +87,7 @@ object TransactionWitnessSet:
                 writeSet(w, value.plutusV1Scripts)
 
             // Plutus data (key 4)
-            if value.plutusData.value.nonEmpty then
+            if value.plutusData.value.toIndexedSeq.nonEmpty then
                 w.writeInt(4)
                 // TODO: handle KeepRaw properly when this is implemented: https://github.com/sirthias/borer/issues/764
                 w.write(value.plutusData)
@@ -165,7 +127,7 @@ object TransactionWitnessSet:
             var nativeScripts = Set.empty[Script.Native]
             var bootstrapWitnesses = Set.empty[BootstrapWitness]
             var plutusV1Scripts = Set.empty[Script.PlutusV1]
-            var plutusData = KeepRaw(TaggedSet(Set.empty[KeepRaw[Data]]))
+            var plutusData = KeepRaw(TaggedSet.empty[KeepRaw[Data]])
             var redeemers: Option[KeepRaw[Redeemers]] = None
             var plutusV2Scripts = Set.empty[Script.PlutusV2]
             var plutusV3Scripts = Set.empty[Script.PlutusV3]

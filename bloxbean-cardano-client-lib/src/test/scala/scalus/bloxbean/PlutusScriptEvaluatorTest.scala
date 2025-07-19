@@ -103,17 +103,17 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
     }
 
     test("evaluate block 11544748") {
-        //        pending
+        pending
         validateBlock(11544748)
     }
 
     test("evaluate block 11544518") {
-//        pending
+        pending
         validateBlock(11544518)
     }
 
     test("evaluate block 11553070") {
-//        pending
+        pending
         validateBlock(11553070)
     }
 

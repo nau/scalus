@@ -71,6 +71,27 @@ enum Certificate {
         case Certificate.StakeDeregistration(c) => Some(c)
         case Certificate.UnregCert(c, _)        => Some(c)
         case _                                  => None
+
+    def scriptHashOption: Option[ScriptHash] = this match {
+        case Certificate.StakeRegistration(credential)            => credential.scriptHashOption
+        case Certificate.StakeDeregistration(credential)          => credential.scriptHashOption
+        case Certificate.StakeDelegation(credential, poolKeyHash) => credential.scriptHashOption
+        case _: Certificate.PoolRegistration                      => None
+        case _: Certificate.PoolRetirement                        => None
+        case Certificate.RegCert(credential, coin)                => credential.scriptHashOption
+        case Certificate.UnregCert(credential, coin)              => ???
+        case Certificate.VoteDelegCert(credential, drep)          => ???
+        case Certificate.StakeVoteDelegCert(credential, poolKeyHash, drep)          => ???
+        case Certificate.StakeRegDelegCert(credential, poolKeyHash, coin)           => ???
+        case Certificate.VoteRegDelegCert(credential, drep, coin)                   => ???
+        case Certificate.StakeVoteRegDelegCert(credential, poolKeyHash, drep, coin) => ???
+        case Certificate.AuthCommitteeHotCert(committeeColdCredential, committeeHotCredential) =>
+            ???
+        case Certificate.ResignCommitteeColdCert(committeeColdCredential, anchor) => ???
+        case Certificate.RegDRepCert(drepCredential, coin, anchor)                => ???
+        case Certificate.UnregDRepCert(drepCredential, coin)                      => ???
+        case Certificate.UpdateDRepCert(drepCredential, anchor)                   => ???
+    }
 }
 
 object Certificate {

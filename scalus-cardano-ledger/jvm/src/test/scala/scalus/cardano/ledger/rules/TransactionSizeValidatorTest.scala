@@ -38,7 +38,7 @@ class TransactionSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   proposalProcedures = Set.empty,
                   withdrawals = None,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   mint = None,
                   requiredSigners = Set.empty,
                   collateralReturnOutput = None

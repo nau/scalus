@@ -10,7 +10,7 @@ import scalus.prelude.Option
 import scalus.prelude.These
 import scalus.prelude.These.*
 import scalus.prelude
-import scalus.prelude.{Eq, Ord}
+import scalus.prelude.Eq
 
 @Compile
 object Value:

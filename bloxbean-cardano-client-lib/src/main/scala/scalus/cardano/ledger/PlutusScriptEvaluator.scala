@@ -126,8 +126,41 @@ private[scalus] class PlutusScriptEvaluator(
                           s"Transaction does not contain minting value: $tx"
                         )
             case RedeemerTag.Cert =>
-                // FIXME:
-                findSpendScript(tx, index, lookupTable, utxos)
+                /*
+                 * val certs = tx.getBody.getCerts.asScala
+                if certs.isDefinedAt(index) then
+                    val cert = certs(index)
+                    val script = getCertScript(cert)
+                    script match
+                        case Some(hash) =>
+                            val script = lookupTable.scripts.getOrElse(
+                              hash,
+                              throw new IllegalStateException(s"Script not found: $hash")
+                            )
+                            script -> None
+                        case None =>
+                            throw new IllegalStateException(
+                              s"Missing required script for cert: $cert"
+                            )
+                else throw new IllegalStateException(s"Cert not found: $index in $certs")*/
+                val certs = tx.body.value.certificates.toIndexedSeq
+                if !certs.isDefinedAt(index) then
+                    throw new IllegalStateException(
+                      s"Certificate not found: $index in ${certs.mkString("[", ", ", "]")}"
+                    )
+                val cert = certs(index)
+                cert.scriptHashOption match
+                    case Some(scriptHash) =>
+                        lookupTable.scripts.get(scriptHash) match
+                            case Some(script) => script -> None
+                            case None =>
+                                throw new IllegalStateException(
+                                  s"Script not found for certificate: $scriptHash"
+                                )
+                    case None =>
+                        throw new IllegalStateException(
+                          s"Certificate does not require a script: $cert"
+                        )
             case RedeemerTag.Reward =>
                 // FIXME:
                 val withdrawals = tx.body.value.withdrawals.get.withdrawals.toArray.sortBy(_._1)
@@ -418,7 +451,7 @@ private[scalus] class PlutusScriptEvaluator(
         // According to Babbage spec, we lookup datums only in witness set
         // and do not consider reference input inline datums
         // (getDatum, Figure 3: Functions related to scripts)
-        val datumsMapping = tx.witnessSet.plutusData.value.view.map { datum =>
+        val datumsMapping = tx.witnessSet.plutusData.value.toIndexedSeq.view.map { datum =>
             datum.dataHash -> datum.value
         }.toSeq
 

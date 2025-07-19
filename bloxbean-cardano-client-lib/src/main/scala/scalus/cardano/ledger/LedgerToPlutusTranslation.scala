@@ -581,7 +581,7 @@ object LedgerToPlutusTranslation {
           outputs = prelude.List.from(body.outputs.map(getTxOutV1)),
           fee = v1.Value.lovelace(body.fee.value),
           mint = getMintValue(body.mint),
-          dcert = prelude.List.from(body.certificates.toSeq.map(getDCert)),
+          dcert = prelude.List.from(body.certificates.toIndexedSeq.map(getDCert)),
           withdrawals = getWithdrawals(body.withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
@@ -618,7 +618,7 @@ object LedgerToPlutusTranslation {
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
           fee = v1.Value.lovelace(body.fee.value),
           mint = getMintValue(body.mint),
-          dcert = prelude.List.from(body.certificates.toSeq.map(getDCert)),
+          dcert = prelude.List.from(body.certificates.toIndexedSeq.map(getDCert)),
           withdrawals = AssocMap.unsafeFromList(getWithdrawals(body.withdrawals)),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
@@ -678,7 +678,7 @@ object LedgerToPlutusTranslation {
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
           fee = body.fee.value,
           mint = getMintValue(body.mint),
-          certificates = prelude.List.from(body.certificates.toSeq.map(getTxCertV3)),
+          certificates = prelude.List.from(body.certificates.toIndexedSeq.map(getTxCertV3)),
           withdrawals = AssocMap.unsafeFromList(withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
@@ -733,7 +733,7 @@ object LedgerToPlutusTranslation {
                 else throw new IllegalStateException(s"Policy ID not found: $index")
 
             case RedeemerTag.Cert =>
-                val certs = body.certificates.toSeq // FIXME: check if it should be sorted
+                val certs = body.certificates.toIndexedSeq
                 if certs.isDefinedAt(index) then v1.ScriptPurpose.Certifying(getDCert(certs(index)))
                 else throw new IllegalStateException(s"Certificate not found: $index")
 
@@ -784,7 +784,7 @@ object LedgerToPlutusTranslation {
                 else throw new IllegalStateException(s"Policy ID not found: $index")
 
             case RedeemerTag.Cert =>
-                val certs = body.certificates.toSeq
+                val certs = body.certificates.toIndexedSeq
                 if certs.isDefinedAt(index) then
                     v3.ScriptPurpose.Certifying(index, getTxCertV3(certs(index)))
                 else throw new IllegalStateException(s"Certificate not found: $index")

@@ -10,6 +10,7 @@ import scalus.ledger.api.{SlotNo, Timelock}
 import scalus.testutil.ArbitraryDerivation.autoDerived
 
 import scala.collection.immutable
+import scala.collection.immutable.SortedMap
 
 object ArbitraryInstances extends ArbitraryInstances
 trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
@@ -76,17 +77,6 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
       Gen.choose(0, 32).flatMap(genByteStringOfN).map(AssetName.apply)
     )
 
-    given Arbitrary[Mint] = {
-        given Arbitrary[Long] = Arbitrary(
-          Gen.oneOf(Gen.choose(Long.MinValue, -1L), Gen.choose(1L, Long.MaxValue))
-        )
-        given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
-          genMapOfSizeFromArbitrary(1, 8)
-        )
-
-        summon[Arbitrary[Mint]]
-    }
-
     given Arbitrary[Language] = autoDerived
     given Arbitrary[AddressBytes] = Arbitrary(arbitrary[ByteString].map(AddressBytes.apply))
     given Arbitrary[Slot] = Arbitrary(Gen.choose(0L, Long.MaxValue).map(Slot.apply))
@@ -131,27 +121,28 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
 
         for
             policies <- Gen.choose(minPolicies, maxPolicies)
-            result <- Gen.mapOfN(
-              policies,
-              for
-                  policyId <- arbitrary[PolicyId]
-                  assets <- arbitrary[immutable.Map[AssetName, Long]]
-              yield (policyId, assets)
-            )
-        yield result
+            result: immutable.Map[PolicyId, SortedMap[AssetName, Long]] <- Gen
+                .mapOfN(
+                  policies,
+                  for
+                      policyId <- arbitrary[PolicyId]
+                      assets <- arbitrary[immutable.Map[AssetName, Long]]
+                  yield (policyId, assets.to(immutable.TreeMap))
+                )
+        yield MultiAsset(result.to(immutable.TreeMap))
     }
 
-    given Arbitrary[Value] = Arbitrary {
-        for
-            coin <- arbitrary[Coin]
-            assets <- genMultiAsset(
-              minPolicies = 0,
-              maxPolicies = 4,
-              minAssets = 1,
-              maxAssets = 4
-            )
-        yield Value(coin, assets)
+    given Arbitrary[MultiAsset] = Arbitrary {
+        genMultiAsset(minPolicies = 0, maxPolicies = 4, minAssets = 1, maxAssets = 4)
     }
+
+    given Arbitrary[Mint] = Arbitrary {
+        genMultiAsset(minPolicies = 1, maxPolicies = 4, minAssets = 1, maxAssets = 4).map(
+          Mint.apply
+        )
+    }
+
+    given Arbitrary[Value] = autoDerived
 
     // FIXME: autoDerived for DRep is not working correctly
     // assertion failed: position not set for io.bullet.borer.derivation.key # -1 of class dotty.tools.dotc.ast.Trees$Ident in <no file>
@@ -473,7 +464,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     }
 
     given [A: Arbitrary]: Arbitrary[TaggedSet[A]] = Arbitrary(
-      genSetOfSizeFromArbitrary(1, 3).map(TaggedSet.apply)
+      genSetOfSizeFromArbitrary(1, 3).map(TaggedSet.from)
     )
 
     given Arbitrary[TransactionWitnessSet] = {
@@ -585,7 +576,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
             outputs <- genVectorOfSizeFromArbitrary[Sized[TransactionOutput]](0, 4)
             fee <- arbitrary[Coin]
             ttl <- Gen.option(Gen.choose(0L, Long.MaxValue))
-            certificates <- genSetOfSizeFromArbitrary[Certificate](0, 4)
+            certificates <- genSetOfSizeFromArbitrary[Certificate](0, 4).map(TaggedSet.from)
             withdrawals <- Gen.option(
               genMapOfSizeFromArbitrary[RewardAccount, Coin](1, 4).map(Withdrawals.apply)
             )
