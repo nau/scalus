@@ -14,6 +14,33 @@ enum Interval {
     case Finite(value: Int)
     case Infinite
 }
+object Interval {
+    def schema: String =
+        """{
+          |  "title": "Interval",
+          |  "anyOf": [
+          |    {
+          |      "dataType": "constructor",
+          |      "title": "Finite",
+          |      "index": 0,
+          |      "fields": [
+          |        {
+          |          "dataType": "integer",
+          |          "title": "value"
+          |        }
+          |      ]
+          |    },
+          |    {
+          |      "dataType": "constructor",
+          |      "title": "Infinite",
+          |      "index": 1,
+          |      "fields": [
+          |        
+          |      ]
+          |    }
+          |  ]
+          |}""".stripMargin
+}
 
 // Copied from examples
 object HtlcValidatorInputs {
@@ -29,7 +56,7 @@ object HtlcValidatorInputs {
         timeout: PosixTime
     )
     object ContractDatum {
-        def correctSchema: String =
+        def schema: String =
             """
               |{
               |  "dataType": "constructor",
@@ -58,12 +85,12 @@ object HtlcValidatorInputs {
 
     // Redeemer
     enum Action:
-        case Timeout 
+        case Timeout
         case Reveal(preimage: Preimage)
-    
-    
+
+
     object Action {
-        def correctSchema: String = """{
+        def schema: String = """{
                                       |  "title": "Action",
                                       |  "anyOf": [
                                       |    {
@@ -71,7 +98,7 @@ object HtlcValidatorInputs {
                                       |      "title": "Timeout",
                                       |      "index": 0,
                                       |      "fields": [
-                                      |        
+                                      |
                                       |      ]
                                       |    },
                                       |    {

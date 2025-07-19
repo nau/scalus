@@ -14,11 +14,19 @@ class BlueprintTest extends AnyFunSuite {
         assert(bp.show(0) == expected)
     }
 
+    // This case is covered by the following tests, keeping this test to check compatibility with aiken.
+    // https://github.com/aiken-lang/aiken/blob/main/crates/aiken-project/src/blueprint/snapshots/aiken_project__blueprint__validator__tests__generics.snap#L57
+    test("should produce correct schemas for `enum` types") {
+        val intervalSchema = deriveSchema[Interval]
+
+        assert(intervalSchema.show() == Interval.schema)
+    }
+
     test("should produce correct schemas for `HtlcValidator` input types") {
         val datumSchema = deriveSchema[ContractDatum]
         val redeemerSchema = deriveSchema[Action]
 
-        assert(datumSchema.show() == ContractDatum.correctSchema)
-        println(redeemerSchema.show() == Action.correctSchema)
+        assert(datumSchema.show() == ContractDatum.schema)
+        println(redeemerSchema.show() == Action.schema)
     }
 }
