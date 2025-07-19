@@ -624,7 +624,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     given Arbitrary[Block] = Arbitrary {
         for
             header <- arbitrary[BlockHeader]
-            transactionBodies <- genVectorOfSizeFromArbitrary[TransactionBody](1, 4)
+            transactionBodies <- genVectorOfSizeFromArbitrary[KeepRaw[TransactionBody]](1, 4)
             transactionBodiesSize = transactionBodies.size
             transactionWitnessSets <- genVectorOfSizeFromArbitrary[TransactionWitnessSet](
               transactionBodiesSize,
