@@ -28,3 +28,8 @@ enum Credential derives Codec.All:
     def scriptHashOption: Option[scalus.cardano.ledger.ScriptHash] = this match
         case ScriptHash(hash) => Some(hash)
         case _                => None
+
+    /** Get the key hash if this credential is a `KeyHash` */
+    def keyHashOption: Option[AddrKeyHash] = this match
+        case KeyHash(hash) => Some(hash)
+        case _             => None
