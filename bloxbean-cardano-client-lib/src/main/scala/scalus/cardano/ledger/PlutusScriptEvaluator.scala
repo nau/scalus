@@ -8,7 +8,7 @@ import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Language.*
 import scalus.cardano.ledger.LedgerToPlutusTranslation.*
-import scalus.cardano.ledger.utils.AllWitnessesScripts
+import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllWitnessesScripts}
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion}
@@ -149,18 +149,20 @@ private[scalus] class PlutusScriptEvaluator(
                       s"Certificate not found: $index in ${certs.mkString("[", ", ", "]")}"
                     )
                 val cert = certs(index)
-                cert.scriptHashOption match
-                    case Some(scriptHash) =>
-                        lookupTable.scripts.get(scriptHash) match
-                            case Some(script) => script -> None
-                            case None =>
-                                throw new IllegalStateException(
-                                  s"Script not found for certificate: $scriptHash"
-                                )
-                    case None =>
-                        throw new IllegalStateException(
-                          s"Certificate does not require a script: $cert"
-                        )
+                val scriptHash = AllNeededScriptHashes
+                    .getNeededScriptHashOption(cert)
+                    .getOrElse(
+                      throw new IllegalStateException(
+                        s"Certificate does not require a script: $cert"
+                      )
+                    )
+                val script = lookupTable.scripts.getOrElse(
+                  scriptHash,
+                  throw new IllegalStateException(
+                    s"Script not found for certificate: $scriptHash"
+                  )
+                )
+                script -> None
             case RedeemerTag.Reward =>
                 // FIXME:
                 val withdrawals = tx.body.value.withdrawals.get.withdrawals.toArray.sortBy(_._1)
