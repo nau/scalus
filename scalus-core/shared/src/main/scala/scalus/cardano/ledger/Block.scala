@@ -14,7 +14,7 @@ case class Block(
     header: BlockHeader,
 
     /** Transaction bodies in this block */
-    transactionBodies: IndexedSeq[TransactionBody],
+    transactionBodies: IndexedSeq[KeepRaw[TransactionBody]],
 
     /** Transaction witness sets for each transaction */
     transactionWitnessSets: IndexedSeq[TransactionWitnessSet],
@@ -68,7 +68,7 @@ case class Block(
             val auxData = auxiliaryDataSet.get(idx)
             val isValid = !invalidTransactions.contains(idx)
 
-            Transaction(KeepRaw(body), witnessSet, isValid, auxData)
+            Transaction(body, witnessSet, isValid, auxData)
         }
 
 object Block:

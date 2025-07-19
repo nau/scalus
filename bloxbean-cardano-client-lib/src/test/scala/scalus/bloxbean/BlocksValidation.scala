@@ -275,7 +275,9 @@ object BlocksValidation:
                 val blockBytes = Files.readAllBytes(path)
                 val block = BlockFile.fromCborArray(blockBytes).block
                 for
-                    (txb, w) <- block.transactionBodies.zip(block.transactionWitnessSets)
+                    (txb, w) <- block.transactionBodies.view
+                        .map(_.value)
+                        .zip(block.transactionWitnessSets)
                     native <- w.nativeScripts
                 do
                     val scriptHash = native.scriptHash
@@ -344,7 +346,8 @@ object BlocksValidation:
                 val blockBytes = Files.readAllBytes(path)
                 val bbTxs = readTransactionsFromBlockCbor(blockBytes)
                 val block = BlockFile.fromCborArray(blockBytes).block
-                for (((txb, w), bbtx), idx) <- block.transactionBodies
+                for (((txb, w), bbtx), idx) <- block.transactionBodies.view
+                        .map(_.value)
                         .zip(block.transactionWitnessSets)
                         .zip(bbTxs)
                         .zipWithIndex
