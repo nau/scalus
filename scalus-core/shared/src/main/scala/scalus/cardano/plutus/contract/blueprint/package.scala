@@ -4,6 +4,11 @@ import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger.{Language, PlutusScript, Script}
 import scalus.utils.Hex.toHex
 
+/** Implementation of Plutus Contract Blueprints.
+  *
+  * @see
+  *   https://cips.cardano.org/cip/CIP-57
+  */
 package object blueprint {
 
     /** Returns a CIP-57 compliant [[Blueprint]] based on the provided [[validator]].
