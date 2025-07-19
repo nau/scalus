@@ -97,7 +97,6 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                         )
                   ),
                   certificates = TaggedSet(
-                    Certificate.StakeRegistration(credential1),
                     Certificate.StakeDeregistration(credential2),
                     Certificate
                         .StakeDelegation(credential3, Arbitrary.arbitrary[PoolKeyHash].sample.get),
@@ -114,7 +113,7 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                     ),
                     Certificate
                         .PoolRetirement(Hash(platform.blake2b_224(publicKey)), 1),
-                    Certificate.RegCert(credential1, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.RegCert(credential1, Arbitrary.arbitrary[Option[Coin]].sample.get),
                     Certificate.UnregCert(credential2, Arbitrary.arbitrary[Coin].sample.get),
                     Certificate.VoteDelegCert(credential3, Arbitrary.arbitrary[DRep].sample.get),
                     Certificate.StakeVoteDelegCert(

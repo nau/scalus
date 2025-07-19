@@ -119,14 +119,14 @@ object AllNeededKeyHashes {
         for
             certificate <- certificates.toIndexedSeq.view
             keyHash: (AddrKeyHash | PoolKeyHash) <- certificate match
-                case cert: Certificate.StakeRegistration   => cert.credential.keyHashOption
+                case Certificate.RegCert(credential, None) => credential.keyHashOption
                 case cert: Certificate.StakeDeregistration => cert.credential.keyHashOption
                 case cert: Certificate.StakeDelegation     => cert.credential.keyHashOption
                 case cert: Certificate.PoolRegistration =>
                     cert.poolOwners.view.concat(Some(cert.operator))
                 case cert: Certificate.PoolRetirement => Some(cert.poolKeyHash)
-                case cert: Certificate.RegCert =>
-                    if cert.coin > Coin.zero then cert.credential.keyHashOption
+                case Certificate.RegCert(credential, Some(coin)) =>
+                    if coin > Coin.zero then credential.keyHashOption
                     else None // No witness needed for zero deposit
                 case cert: Certificate.UnregCert             => cert.credential.keyHashOption
                 case cert: Certificate.VoteDelegCert         => cert.credential.keyHashOption

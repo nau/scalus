@@ -130,13 +130,13 @@ object AllNeededScriptHashes {
 
     def getNeededScriptHashOption(certificate: Certificate): Option[ScriptHash] = {
         certificate match
-            case cert: Certificate.StakeRegistration   => cert.credential.scriptHashOption
+            case Certificate.RegCert(credential, None) => credential.scriptHashOption
             case cert: Certificate.StakeDeregistration => cert.credential.scriptHashOption
             case cert: Certificate.StakeDelegation     => cert.credential.scriptHashOption
             case _: Certificate.PoolRegistration       => None
             case _: Certificate.PoolRetirement         => None
-            case cert: Certificate.RegCert =>
-                if cert.coin > Coin.zero then cert.credential.scriptHashOption
+            case Certificate.RegCert(credential, Some(coin)) =>
+                if coin > Coin.zero then credential.scriptHashOption
                 else None // No witness needed for zero deposit
             case cert: Certificate.UnregCert             => cert.credential.scriptHashOption
             case cert: Certificate.VoteDelegCert         => cert.credential.scriptHashOption

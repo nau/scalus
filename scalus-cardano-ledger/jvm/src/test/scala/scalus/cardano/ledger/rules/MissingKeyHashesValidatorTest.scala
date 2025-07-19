@@ -543,7 +543,6 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   referenceInputs = Set.empty,
                   votingProcedures = None,
                   certificates = TaggedSet(
-                    Certificate.StakeRegistration(credential),
                     Certificate.StakeDeregistration(credential),
                     Certificate
                         .StakeDelegation(credential, Arbitrary.arbitrary[PoolKeyHash].sample.get),
@@ -560,7 +559,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                     ),
                     Certificate
                         .PoolRetirement(Hash(platform.blake2b_224(publicKey)), 1),
-                    Certificate.RegCert(credential, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.RegCert(credential, Arbitrary.arbitrary[Option[Coin]].sample.get),
                     Certificate.UnregCert(credential, Arbitrary.arbitrary[Coin].sample.get),
                     Certificate.VoteDelegCert(credential, Arbitrary.arbitrary[DRep].sample.get),
                     Certificate.StakeVoteDelegCert(
@@ -639,7 +638,6 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   referenceInputs = Set.empty,
                   votingProcedures = None,
                   certificates = TaggedSet(
-                    Certificate.StakeRegistration(credential),
                     Certificate.StakeDeregistration(credential),
                     Certificate
                         .StakeDelegation(credential, Arbitrary.arbitrary[PoolKeyHash].sample.get),
@@ -656,7 +654,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                     ),
                     Certificate
                         .PoolRetirement(Hash(platform.blake2b_224(publicKey)), 1),
-                    Certificate.RegCert(credential, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.RegCert(credential, Arbitrary.arbitrary[Option[Coin]].sample.get),
                     Certificate.UnregCert(credential, Arbitrary.arbitrary[Coin].sample.get),
                     Certificate.VoteDelegCert(credential, Arbitrary.arbitrary[DRep].sample.get),
                     Certificate.StakeVoteDelegCert(

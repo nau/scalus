@@ -436,8 +436,6 @@ object LedgerToPlutusTranslation {
       */
     def getDCert(cert: Certificate): v1.DCert = {
         cert match
-            case Certificate.StakeRegistration(credential) =>
-                v1.DCert.DelegRegKey(getStakingCredential(credential))
             case Certificate.RegCert(credential, _) =>
                 v1.DCert.DelegRegKey(getStakingCredential(credential))
 
@@ -489,7 +487,7 @@ object LedgerToPlutusTranslation {
             case Certificate.RegCert(credential, coin) =>
                 v3.TxCert.RegStaking(
                   getCredential(credential),
-                  prelude.Option.Some(BigInt(coin.value))
+                  coin.map(c => BigInt(c.value)).asScalus
                 )
             case Certificate.RegDRepCert(credential, coin, _) =>
                 v3.TxCert.RegDRep(getCredential(credential), BigInt(coin.value))
