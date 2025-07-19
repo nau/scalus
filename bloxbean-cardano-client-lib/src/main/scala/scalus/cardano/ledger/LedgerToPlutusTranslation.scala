@@ -438,12 +438,8 @@ object LedgerToPlutusTranslation {
         cert match
             case Certificate.RegCert(credential, _) =>
                 v1.DCert.DelegRegKey(getStakingCredential(credential))
-
-            case Certificate.StakeDeregistration(credential) =>
-                v1.DCert.DelegDeRegKey(getStakingCredential(credential))
             case Certificate.UnregCert(credential, _) =>
                 v1.DCert.DelegDeRegKey(getStakingCredential(credential))
-
             case Certificate.StakeDelegation(credential, poolKeyHash) =>
                 v1.DCert.DelegDelegate(
                   getStakingCredential(credential),
@@ -524,7 +520,7 @@ object LedgerToPlutusTranslation {
             case Certificate.UnregCert(credential, coin) =>
                 v3.TxCert.UnRegStaking(
                   getCredential(credential),
-                  prelude.Option.Some(BigInt(coin.value))
+                  coin.map(c => BigInt(c.value)).asScalus
                 )
             case Certificate.UnregDRepCert(credential, coin) =>
                 v3.TxCert.UnRegDRep(getCredential(credential), BigInt(coin.value))

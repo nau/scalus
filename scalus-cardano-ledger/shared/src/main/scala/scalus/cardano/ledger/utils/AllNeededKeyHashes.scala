@@ -120,7 +120,6 @@ object AllNeededKeyHashes {
             certificate <- certificates.toIndexedSeq.view
             keyHash: (AddrKeyHash | PoolKeyHash) <- certificate match
                 case Certificate.RegCert(credential, None) => credential.keyHashOption
-                case cert: Certificate.StakeDeregistration => cert.credential.keyHashOption
                 case cert: Certificate.StakeDelegation     => cert.credential.keyHashOption
                 case cert: Certificate.PoolRegistration =>
                     cert.poolOwners.view.concat(Some(cert.operator))

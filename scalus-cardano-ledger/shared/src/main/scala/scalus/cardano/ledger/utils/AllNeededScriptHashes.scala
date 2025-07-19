@@ -131,7 +131,6 @@ object AllNeededScriptHashes {
     def getNeededScriptHashOption(certificate: Certificate): Option[ScriptHash] = {
         certificate match
             case Certificate.RegCert(credential, None) => credential.scriptHashOption
-            case cert: Certificate.StakeDeregistration => cert.credential.scriptHashOption
             case cert: Certificate.StakeDelegation     => cert.credential.scriptHashOption
             case _: Certificate.PoolRegistration       => None
             case _: Certificate.PoolRetirement         => None
