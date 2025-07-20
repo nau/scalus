@@ -1,8 +1,9 @@
 package scalus.cardano.ledger
 
+import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.derivation.key
-import io.bullet.borer.*
+import scalus.builtin.ByteString
 
 /** Represents voting options in the Cardano blockchain governance system.
   *
@@ -19,17 +20,11 @@ object Vote {
 
     /** CBOR Encoder for Vote. Encodes as an unsigned integer (0, 1, or 2).
       */
-    given Encoder[Vote] = new Encoder {
-        def write(w: Writer, value: Vote): Writer =
-            w.writeInt(value.ordinal)
-    }
+    given Encoder[Vote] = (w: Writer, value: Vote) => w.writeInt(value.ordinal)
 
     /** CBOR Decoder for Vote. Decodes from an unsigned integer (0, 1, or 2).
       */
-    given Decoder[Vote] = new Decoder[Vote] {
-        def read(r: Reader): Vote =
-            Vote.fromOrdinal(r.readInt())
-    }
+    given Decoder[Vote] = (r: Reader) => Vote.fromOrdinal(r.readInt())
 }
 
 /** Represents a voter in the Cardano blockchain governance system.
@@ -77,4 +72,15 @@ enum Voter derives Codec.All {
       *   The key hash of the pool
       */
     @key(4) case StakingPoolKey(keyHash: AddrKeyHash)
+}
+
+object Voter {
+
+    given Ordering[Voter] = Ordering.by {
+        case ConstitutionalCommitteeHotKey(keyHash)       => (0, keyHash: ByteString)
+        case ConstitutionalCommitteeHotScript(scriptHash) => (1, scriptHash: ByteString)
+        case DRepKey(keyHash)                             => (2, keyHash: ByteString)
+        case DRepScript(scriptHash)                       => (3, scriptHash: ByteString)
+        case StakingPoolKey(keyHash)                      => (4, keyHash: ByteString)
+    }
 }

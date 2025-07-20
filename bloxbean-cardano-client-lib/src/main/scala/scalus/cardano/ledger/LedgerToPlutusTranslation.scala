@@ -537,8 +537,6 @@ object LedgerToPlutusTranslation {
                   v3.Delegatee.Vote(getDRep(drep)),
                   BigInt(coin.value)
                 )
-            case _ =>
-                throw new IllegalArgumentException(s"Certificate $cert not supported in V3")
     }
 
     /** Convert DRep to Plutus V3 DRep representation.
