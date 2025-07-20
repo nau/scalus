@@ -23,3 +23,12 @@ case class GovActionId(
       s"Gov action index must be between 0 and 65535, got $govActionIndex"
     )
 }
+
+object GovActionId {
+    // fixme: this is not the best way to compare GovActionId, but it works
+    given Ordering[GovActionId] with
+        def compare(x: GovActionId, y: GovActionId): Int =
+            x.transactionId.toHex.compareTo(y.transactionId.toHex) match
+                case 0 => x.govActionIndex.compareTo(y.govActionIndex)
+                case c => c
+}

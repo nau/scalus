@@ -18,39 +18,6 @@ import scalus.{builtin, ledger, prelude}
 import scala.collection.{immutable, mutable}
 import scala.math.BigInt
 
-/** Ordering instances for scalus.cardano.ledger types.
-  *
-  * These are essential for deterministic script context construction, as Cardano requires
-  * consistent ordering for validation.
-  */
-given Ordering[TransactionInput] with
-    def compare(x: TransactionInput, y: TransactionInput): Int =
-        x.transactionId.toHex.compareTo(y.transactionId.toHex) match
-            case 0 => x.index.compareTo(y.index)
-            case c => c
-
-given Ordering[v1.StakingCredential.StakingHash] = Ordering.by { cred =>
-    cred.cred match
-        case v1.Credential.PubKeyCredential(pkh)  => pkh.hash
-        case v1.Credential.ScriptCredential(hash) => hash
-}
-
-given Ordering[Redeemer] with
-    def compare(x: Redeemer, y: Redeemer): Int =
-        x.tag.ordinal.compareTo(y.tag.ordinal) match
-            case 0 => x.index.compareTo(y.index)
-            case c => c
-
-given Ordering[Voter] with
-    def compare(x: Voter, y: Voter): Int =
-        x.toString.compareTo(y.toString) // Simple string-based ordering for voter types
-
-given Ordering[GovActionId] with
-    def compare(x: GovActionId, y: GovActionId): Int =
-        x.transactionId.toHex.compareTo(y.transactionId.toHex) match
-            case 0 => x.govActionIndex.compareTo(y.govActionIndex)
-            case c => c
-
 /** Advanced interoperability layer for scalus.cardano.ledger domain model.
   *
   * This object provides conversion functions and utilities for working with native Scalus types
@@ -283,13 +250,27 @@ object LedgerToPlutusTranslation {
       * Minting contexts require special handling to ensure ADA is always included in the value map,
       * even when no ADA is being minted.
       */
-    def getMintValue(mint: Option[Mint]): v1.Value = {
+    def getMintValueV1V2(mint: Option[Mint]): v1.Value = {
         // Always include ADA entry with zero value for minting
         val assets = mint.getOrElse(MultiAsset.empty)
         val adaEntry = Seq(
           ByteString.empty -> prelude.SortedMap.singleton(ByteString.empty, BigInt(0))
         )
         val allEntries = adaEntry ++ assets.assets.view.map { case (policyId, assets) =>
+            val assetMap = prelude.SortedMap.fromList(prelude.List.from(assets.view.map:
+                (assetName, amount) => assetName.bytes -> BigInt(amount)))
+            policyId -> assetMap
+        }
+        prelude.SortedMap.fromList(prelude.List.from(allEntries))
+    }
+
+    /** Convert multi-asset values for minting context.
+      *
+      * In Plutus V3, minting value can not contain zero ADA entry, so we handle it differently.
+      */
+    def getMintValueV3(mint: Option[Mint]): v1.Value = {
+        val assets = mint.getOrElse(MultiAsset.empty)
+        val allEntries = assets.assets.view.map { case (policyId, assets) =>
             val assetMap = prelude.SortedMap.fromList(prelude.List.from(assets.view.map:
                 (assetName, amount) => assetName.bytes -> BigInt(amount)))
             policyId -> assetMap
@@ -397,9 +378,15 @@ object LedgerToPlutusTranslation {
     private def getOrderedWithdrawals(
         withdrawals: Option[Withdrawals]
     ): collection.SortedMap[v1.StakingCredential.StakingHash, BigInt] = {
+        given Ordering[v1.StakingCredential.StakingHash] = Ordering.by { cred =>
+            cred.cred match
+                case v1.Credential.PubKeyCredential(pkh)  => pkh.hash
+                case v1.Credential.ScriptCredential(hash) => hash
+        }
+
         val wdwls = mutable.TreeMap.empty[v1.StakingCredential.StakingHash, BigInt]
         withdrawals match
-            case None => wdwls
+            case None =>
             case Some(w) =>
                 for (rewardAccount, coin) <- w.withdrawals do
                     rewardAccount.address match
@@ -572,7 +559,7 @@ object LedgerToPlutusTranslation {
           inputs = prelude.List.from(body.inputs.toSeq.sorted.map(getTxInInfoV1(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV1)),
           fee = v1.Value.lovelace(body.fee.value),
-          mint = getMintValue(body.mint),
+          mint = getMintValueV1V2(body.mint),
           dcert = prelude.List.from(body.certificates.toIndexedSeq.map(getDCert)),
           withdrawals = getWithdrawals(body.withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
@@ -609,7 +596,7 @@ object LedgerToPlutusTranslation {
               prelude.List.from(body.referenceInputs.toSeq.sorted.map(getTxInInfoV2(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
           fee = v1.Value.lovelace(body.fee.value),
-          mint = getMintValue(body.mint),
+          mint = getMintValueV1V2(body.mint),
           dcert = prelude.List.from(body.certificates.toIndexedSeq.map(getDCert)),
           withdrawals = AssocMap.unsafeFromList(getWithdrawals(body.withdrawals)),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
@@ -669,7 +656,7 @@ object LedgerToPlutusTranslation {
               prelude.List.from(body.referenceInputs.toSeq.sorted.map(getTxInInfoV3(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
           fee = body.fee.value,
-          mint = getMintValue(body.mint),
+          mint = getMintValueV3(body.mint),
           certificates = prelude.List.from(body.certificates.toIndexedSeq.map(getTxCertV3)),
           withdrawals = AssocMap.unsafeFromList(withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
