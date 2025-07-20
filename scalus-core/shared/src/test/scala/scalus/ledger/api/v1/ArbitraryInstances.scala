@@ -4,7 +4,7 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
 import scalus.builtin.ByteString
-import scalus.prelude.{List, Option, Ord, SortedMap, given}
+import scalus.prelude.{List, Option, Ord, SortedMap}
 import scalus.testutil.ArbitraryDerivation.autoDerived
 import scalus.uplc.test
 

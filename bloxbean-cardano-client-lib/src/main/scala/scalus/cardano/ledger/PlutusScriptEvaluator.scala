@@ -150,7 +150,7 @@ private[scalus] class PlutusScriptEvaluator(
                     )
                 val cert = certs(index)
                 val scriptHash = AllNeededScriptHashes
-                    .getNeededScriptHashOption(cert)
+                    .getNeededCertificateScriptHashOption(cert)
                     .getOrElse(
                       throw new IllegalStateException(
                         s"Certificate does not require a script: $cert"

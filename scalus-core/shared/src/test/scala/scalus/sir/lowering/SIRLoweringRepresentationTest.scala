@@ -2,7 +2,7 @@ package scalus.sir.lowering
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.sir.*
-import scalus.sir.SIRType.{ByteString, TypeVar}
+import scalus.sir.SIRType.TypeVar
 import scalus.sir.lowering.typegens.*
 
 object SIRLoweringRepresentationTest {

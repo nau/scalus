@@ -124,19 +124,17 @@ object AllNeededScriptHashes {
         val certificates = transaction.body.value.certificates
         for
             certificate <- certificates.toIndexedSeq.view
-            scriptHash <- getNeededScriptHashOption(certificate)
+            scriptHash <- getNeededCertificateScriptHashOption(certificate)
         yield scriptHash
     }
 
-    def getNeededScriptHashOption(certificate: Certificate): Option[ScriptHash] = {
+    def getNeededCertificateScriptHashOption(certificate: Certificate): Option[ScriptHash] = {
         certificate match
-            case Certificate.RegCert(credential, None) => credential.scriptHashOption
-            case cert: Certificate.StakeDelegation     => cert.credential.scriptHashOption
-            case _: Certificate.PoolRegistration       => None
-            case _: Certificate.PoolRetirement         => None
-            case Certificate.RegCert(credential, Some(coin)) =>
-                if coin > Coin.zero then credential.scriptHashOption
-                else None // No witness needed for zero deposit
+            case cert: Certificate.StakeDelegation => cert.credential.scriptHashOption
+            case _: Certificate.PoolRegistration   => None
+            case _: Certificate.PoolRetirement     => None
+            case cert: Certificate.RegCert =>
+                if cert.coin.nonEmpty then cert.credential.scriptHashOption else None
             case cert: Certificate.UnregCert             => cert.credential.scriptHashOption
             case cert: Certificate.VoteDelegCert         => cert.credential.scriptHashOption
             case cert: Certificate.StakeVoteDelegCert    => cert.credential.scriptHashOption

@@ -2,7 +2,7 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Compiler.{compile, compileDebug, fieldAsData}
+import scalus.Compiler.{compile, fieldAsData}
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific}
 import scalus.ledger.api.PlutusLedgerLanguage

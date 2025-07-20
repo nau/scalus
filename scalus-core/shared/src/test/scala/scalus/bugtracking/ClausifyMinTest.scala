@@ -244,7 +244,7 @@ class ClausifyMinTest extends AnyFunSuite:
     }
 
     test("F3") {
-        import ClausifyTest.{*, given}
+        import ClausifyTest.*
         val result = Compiler
             .compile {
                 // (a = a = a) = (a = a) = (a = a)

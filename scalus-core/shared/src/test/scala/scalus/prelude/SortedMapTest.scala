@@ -1088,6 +1088,10 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             result === expected
         }
 
+        check { (map: SortedMap[BigInt, BigInt], key: BigInt, value: BigInt) =>
+            map.insert(key, value).get(key) === Option.Some(value)
+        }
+
         assertEvalEq(
           SortedMap.empty[BigInt, BigInt].insert(BigInt(1), BigInt(1)),
           SortedMap.singleton(BigInt(1), BigInt(1))
@@ -1123,6 +1127,11 @@ class SortedMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             val expected = SortedMap.fromStrictlyAscendingList(map.toList.filterNot(_._1 === key))
 
             result === expected
+        }
+
+        check { (map: SortedMap[BigInt, BigInt], key: BigInt, value: BigInt) =>
+            val newMap = map.insert(key, value)
+            newMap.contains(key) && !newMap.delete(key).contains(key)
         }
 
         assertEvalEq(
