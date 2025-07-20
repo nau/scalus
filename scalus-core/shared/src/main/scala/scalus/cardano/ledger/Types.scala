@@ -1,15 +1,16 @@
 package scalus.cardano.ledger
 
+import io.bullet.borer.*
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
-import io.bullet.borer.*
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
+import scalus.ledger.babbage.ProtocolParams
 import scalus.utils.Hex.toHex
 import upickle.default.ReadWriter as UpickleReadWriter
 
 import java.util
-import scala.collection.immutable.{SortedMap, TreeMap}
+import scala.collection.immutable.{ListMap, SortedMap, TreeMap}
 import scala.compiletime.asMatchable
 
 enum Era(val value: Int) extends Enumeration {
@@ -162,28 +163,18 @@ enum Language {
 
     /** Plutus V3, introduced in Conway hard fork */
     case PlutusV3
+
+    def languageId: Int = this.ordinal
 }
 
 object Language {
 
-    /** Gets the language ID (used in CBOR encoding) */
-    def languageId(language: Language): Int = language match {
-        case Language.PlutusV1 => 0
-        case Language.PlutusV2 => 1
-        case Language.PlutusV3 => 2
-    }
-
     /** Gets the language from an ID */
-    def fromId(id: Int): Language = id match {
-        case 0 => Language.PlutusV1
-        case 1 => Language.PlutusV2
-        case 2 => Language.PlutusV3
-        case _ => throw new IllegalArgumentException(s"Unknown language ID: $id")
-    }
+    def fromId(id: Int): Language = fromOrdinal(id)
 
     /** CBOR encoder for Language */
     given Encoder[Language] = Encoder { (w, language) =>
-        w.writeInt(languageId(language))
+        w.writeInt(language.languageId)
     }
 
     /** CBOR decoder for Language */
@@ -191,10 +182,8 @@ object Language {
         fromId(r.readInt())
     }
 
-    given Ordering[Language] = new Ordering[Language] {
-        def compare(x: Language, y: Language): Int = {
-            Language.languageId(x) - Language.languageId(y)
-        }
+    given Ordering[Language] = (x: Language, y: Language) => {
+        x.languageId - y.languageId
     }
 }
 
@@ -333,6 +322,19 @@ case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
       */
     def getLanguageViewEncoding: Array[Byte] = {
         Cbor.encode(this)(using LanguageViewEncoder).toByteArray
+    }
+}
+
+object CostModels {
+    def fromProtocolParams(
+        pparams: ProtocolParams
+    ): CostModels = {
+        // Convert the cost models from ProtocolParams to the format used in CostModels
+        CostModels(
+          pparams.costModels.view
+              .map { case (lang, costs) => Language.valueOf(lang).languageId -> costs }
+              .to(ListMap)
+        )
     }
 }
 

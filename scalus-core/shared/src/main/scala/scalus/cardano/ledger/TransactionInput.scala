@@ -16,3 +16,13 @@ final case class TransactionInput(
     index: Int
 ) derives Codec:
     require(index >= 0, s"Invalid index of TransactionInput, expected: >= 0, actual: $index")
+
+object TransactionInput {
+    given Ordering[TransactionInput] with
+        def compare(x: TransactionInput, y: TransactionInput): Int = {
+            // fixme: this is not the best way to compare TransactionInput, but it works
+            x.transactionId.toHex.compareTo(y.transactionId.toHex) match
+                case 0 => x.index.compareTo(y.index)
+                case c => c
+        }
+}
