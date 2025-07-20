@@ -87,6 +87,7 @@ object BlocksValidation:
         val v3Scripts = mutable.HashSet.empty[String]
         var v3ScriptsExecuted = 0
 
+        println(s"Validating blocks of epoch $epoch...")
         for blockNum <- 11544518 to 11546100 do
             val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
             val txsWithScripts =
@@ -102,7 +103,7 @@ object BlocksValidation:
                         case e: Exception =>
                             println(s"Error in block $blockNum, tx $txhash: ${e.getMessage}")
                 r.toSeq
-            println(s"Block $blockNum, num txs to validate: ${txsWithScripts.size}")
+            print(s"\rBlock $blockNum, num txs to validate: ${txsWithScripts.size}")
 //            println(s"Block txs:\n${txsWithScripts.map(_._3).sorted.mkString("\n")}")
 
             for (tx, datums, txhash, scripts) <- txsWithScripts do {
@@ -139,7 +140,7 @@ object BlocksValidation:
             }
 
 //                println("----------------------------------------------------")
-            println(s"=======================================")
+//            println(s"=======================================")
         println(s"""Total txs: $totalTx,
                |errors: $errors,
                |v1: $v1ScriptsExecuted of ${v1Scripts.size},
@@ -270,6 +271,7 @@ object BlocksValidation:
 
         val blocks = getAllBlocks()
 
+        println(s"Validating native scripts of ${blocks.size} blocks")
         for path <- blocks do
             try
                 val blockBytes = Files.readAllBytes(path)
@@ -341,6 +343,7 @@ object BlocksValidation:
 
         val blocks = getAllBlocks()
 
+        println(s"Validating script data hashes of ${blocks.size} blocks")
         for path <- blocks do
             try
                 val blockBytes = Files.readAllBytes(path)
