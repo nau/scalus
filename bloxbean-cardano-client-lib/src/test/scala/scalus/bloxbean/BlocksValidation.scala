@@ -18,9 +18,10 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, Hash, Language, Script, ScriptDataHashGenerator}
-import scalus.ledger.api.ValidityInterval
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, OriginalCborByteArray, PlutusScriptEvaluator, Script, ScriptDataHashGenerator}
+import scalus.ledger.api.{MajorProtocolVersion, ValidityInterval}
 import scalus.ledger.babbage.ProtocolParams
+import scalus.uplc.eval.ExBudget
 import scalus.utils.Hex.toHex
 import scalus.utils.Utils
 import upickle.default.read
@@ -33,6 +34,7 @@ import java.util.stream.Collectors
 import scala.collection.immutable.TreeSet
 import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
+import scala.math.Ordering.Implicits.*
 import scala.util.Using
 
 /** Setup BLOCKFROST_API_KEY environment variable before running this test. In SBT shell:
@@ -150,6 +152,70 @@ object BlocksValidation:
 
     }
 
+    private def validateBlocksOfEpochWithScalus(epoch: Int): Unit = {
+        val cwd = Paths.get(".")
+        val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
+        val utxoSupplier = CachedUtxoSupplier(
+          cwd.resolve("utxos"),
+          DefaultUtxoSupplier(backendService.getUtxoService)
+        )
+        // memory and file cached script supplier using the script service
+        val scriptSupplier = InMemoryCachedScriptSupplier(
+          FileScriptSupplier(
+            cwd.resolve("scripts"),
+            ScriptServiceSupplier(backendService.getScriptService)
+          )
+        )
+        val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
+        val params: ProtocolParams = read[ProtocolParams](
+          this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
+        )(using ProtocolParams.blockfrostParamsRW)
+        val costModels = CostModels.fromProtocolParams(params)
+        val evaluator = PlutusScriptEvaluator(
+          ledger.SlotConfig.Mainnet,
+          initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
+          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          costModels = costModels
+        )
+
+        var totalTx = 0
+        val blocks = getAllBlocksPaths().filter { path =>
+            val s = path.getFileName.toString
+            "block-11544518.cbor" <= s && s <= "block-11550000.cbor"
+        }
+        println(s"Validating native scripts of ${blocks.size} blocks")
+        for path <- blocks do
+            val blockBytes = Files.readAllBytes(path)
+            given OriginalCborByteArray = OriginalCborByteArray(blockBytes)
+            val block = BlockFile.fromCborArray(blockBytes).block
+            val txs =
+                block.transactions.filter(t => t.witnessSet.redeemers.nonEmpty && t.isValid)
+            print(
+              s"\rBlock ${Console.YELLOW}$path${Console.RESET}, num txs to validate: ${txs.size}"
+            )
+            for tx <- txs do
+                try
+                    val utxos = utxoResolver.resolveUtxos(tx)
+                    if tx.isValid && tx.witnessSet.redeemers.nonEmpty then {
+                        val redeemers = evaluator.evalPhaseTwo(tx, utxos)
+                        redeemers.zip(tx.witnessSet.redeemers.get.value.toIndexedSeq).foreach {
+                            case (res, redeemer) =>
+                                if res.exUnits > redeemer.exUnits then
+                                    println(
+                                      s"\n${Console.RED}AAAA!!!! block $path, tx ${tx.id} ${redeemer.tag} budget: ${res.exUnits} > ${redeemer.exUnits} ${Console.RESET}"
+                                    )
+                        }
+                    }
+                catch
+                    case e: Exception =>
+                        println(s"Error in block $path, tx ${tx.id}: ${e.getMessage}")
+                        e.printStackTrace()
+                totalTx += 1
+        println(
+          s"\n${Console.GREEN}Total txs: $totalTx, blocks: ${blocks.size}, epoch: $epoch${Console.RESET}"
+        )
+    }
+
     def readTransactionsFromBlockCbor(path: Path): collection.Seq[BlockTx] = {
         // read block cbor from file using mmap
         val channel = FileChannel.open(path, StandardOpenOption.READ)
@@ -242,7 +308,7 @@ object BlocksValidation:
             BlockTx(transaction, datumsCbor, txHashFromBytes)
     }
 
-    private def getAllBlocks(): IndexedSeq[Path] = {
+    private def getAllBlocksPaths(): IndexedSeq[Path] = {
         val cwd = Paths.get(".")
         val blocksDir = cwd.resolve("blocks")
         if !Files.exists(blocksDir) then
@@ -269,7 +335,7 @@ object BlocksValidation:
         val stats = mutable.HashMap.empty[ByteString, Res].withDefaultValue(Res(0, 0))
         val start = System.currentTimeMillis()
 
-        val blocks = getAllBlocks()
+        val blocks = getAllBlocksPaths()
 
         println(s"Validating native scripts of ${blocks.size} blocks")
         for path <- blocks do
@@ -341,7 +407,7 @@ object BlocksValidation:
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
         )(using ProtocolParams.blockfrostParamsRW)
 
-        val blocks = getAllBlocks()
+        val blocks = getAllBlocksPaths()
 
         println(s"Validating script data hashes of ${blocks.size} blocks")
         for path <- blocks do
@@ -467,7 +533,7 @@ object BlocksValidation:
 
     @main
     def findInterestingBlocks(): Unit = {
-        val blocks = getAllBlocks()
+        val blocks = getAllBlocksPaths()
         println(s"Found ${blocks.size} blocks")
         val interestingBlocks = blocks.filter { path =>
             val blockBytes = Files.readAllBytes(path)
@@ -493,6 +559,11 @@ object BlocksValidation:
     @main
     def validateBlocks(): Unit = {
         validateBlocksOfEpoch(543)
+    }
+
+    @main
+    def validateBlocksOfEpochWithScalusMain() = {
+        validateBlocksOfEpochWithScalus(543)
     }
 
     def main(args: Array[String]): Unit = {

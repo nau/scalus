@@ -259,8 +259,14 @@ case class ExUnits(
     def +(other: ExUnits): ExUnits =
         ExUnits(memory + other.memory, steps + other.steps)
 
-object ExUnits:
+object ExUnits {
     val zero: ExUnits = ExUnits(0, 0)
+
+    given Ordering[ExUnits] = (x: ExUnits, y: ExUnits) => {
+        if x.memory != y.memory then x.memory.compareTo(y.memory)
+        else x.steps.compareTo(y.steps)
+    }
+}
 
 /** Represents execution unit prices in the Cardano blockchain.
   *

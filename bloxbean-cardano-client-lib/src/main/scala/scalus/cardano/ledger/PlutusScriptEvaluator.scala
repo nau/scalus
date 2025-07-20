@@ -419,8 +419,9 @@ private[scalus] class PlutusScriptEvaluator(
             Result.Success(resultTerm, spender.getSpentBudget, Map.empty, logger.getLogs.toSeq)
         catch
             case e: StackTraceMachineError =>
-                println("============")
-                println(e.env.view.reverse.take(20).mkString("\n"))
+                println()
+                println(s"Script ${vm.language} ${redeemer.tag} evaluation failed: ${e.getMessage}")
+//                println(e.env.view.reverse.take(20).mkString("\n"))
                 throw new TxEvaluationException(e.getMessage, e, logger.getLogs)
             case e: Exception =>
                 throw new TxEvaluationException(e.getMessage, e, logger.getLogs)
