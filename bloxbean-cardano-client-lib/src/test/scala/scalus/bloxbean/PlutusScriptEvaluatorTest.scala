@@ -1,11 +1,8 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.account.Account
-import com.bloxbean.cardano.client.api.util.CostModelUtil
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
-import com.bloxbean.cardano.client.common.model.Networks
 import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
@@ -16,28 +13,22 @@ import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.ShelleyDelegationPart.Null
 import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.Language.*
 import scalus.examples.PubKeyValidator
 import scalus.ledger.api.MajorProtocolVersion
+import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
+import upickle.default.read
 
 import java.nio.file.{Files, Path, Paths}
 
 class PlutusScriptEvaluatorTest extends AnyFunSuite {
-    val senderMnemonic: String =
-        "drive useless envelope shine range ability time copper alarm museum near flee wrist live type device meadow allow churn purity wisdom praise drop code"
-    val sender1 = new Account(Networks.testnet(), senderMnemonic)
-    val sender1Addr: String = sender1.baseAddress()
+    private val params: ProtocolParams = read[ProtocolParams](
+      this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
+    )(using ProtocolParams.blockfrostParamsRW)
+    private val costModels = CostModels.fromProtocolParams(params)
 
     test("TxEvaluator PlutusV2") {
-        val costModels = CostModels(models =
-            Map(
-              PlutusV1.ordinal -> CostModelUtil.PlutusV1CostModel.getCosts.toIndexedSeq,
-              PlutusV2.ordinal -> CostModelUtil.PlutusV2CostModel.getCosts.toIndexedSeq,
-              PlutusV3.ordinal -> CostModelUtil.PlutusV3CostModel.getCosts.toIndexedSeq,
-            )
-        )
         val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
@@ -73,27 +64,24 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         )
         val redeemer = Redeemer(RedeemerTag.Spend, 0, Data.unit, ExUnits(0, 0))
         val tx = Transaction(
-          KeepRaw(
-            TransactionBody(
-              inputs = Set(input),
-              outputs = Vector(
-                Sized(
-                  TransactionOutput(
-                    address = Address.fromBech32(addr),
-                    value = Value.lovelace(2)
-                  )
+          TransactionBody(
+            inputs = Set(input),
+            outputs = Vector(
+              Sized(
+                TransactionOutput(
+                  address = Address.fromBech32(addr),
+                  value = Value.lovelace(2)
                 )
-              ),
-              fee = Coin(0),
-              requiredSigners = Set(Hash(requiredPubKeyHash)),
-            )
+              )
+            ),
+            fee = Coin(0),
+            requiredSigners = Set(Hash(requiredPubKeyHash)),
           ),
           witnessSet = TransactionWitnessSet(
             redeemers = Some(KeepRaw(Redeemers(redeemer))),
             plutusV2Scripts = Set(s),
             plutusData = KeepRaw(TaggedSet(KeepRaw(datum))),
           ),
-          isValid = true
         )
         val redeemers = evaluator.evalPhaseTwo(tx, utxo)
         assert(redeemers.size == 1)
@@ -121,12 +109,12 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         val bytes = getClass.getResourceAsStream(s"/blocks/block-$num.cbor").readAllBytes()
         given OriginalCborByteArray = OriginalCborByteArray(bytes)
         val block = readBlock(bytes).block
-        validateTransactions(block.transactions)
+        validateTransactions(block.transactions) // skip first 24 txs
     }
 
     private def validateTransactions(txs: Seq[Transaction]): Unit = {
         for tx <- txs do {
-            if tx.witnessSet.redeemers.nonEmpty then {
+            if tx.witnessSet.redeemers.nonEmpty && tx.isValid then {
                 validateTransaction(tx)
             }
         }
@@ -148,13 +136,6 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         )
         val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
         val utxos = utxoResolver.resolveUtxos(tx)
-        val costModels = CostModels(models =
-            Map(
-              PlutusV1.ordinal -> CostModelUtil.PlutusV1CostModel.getCosts.toIndexedSeq,
-              PlutusV2.ordinal -> CostModelUtil.PlutusV2CostModel.getCosts.toIndexedSeq,
-              PlutusV3.ordinal -> CostModelUtil.PlutusV3CostModel.getCosts.toIndexedSeq,
-            )
-        )
         val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
