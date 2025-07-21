@@ -1091,7 +1091,7 @@ object Interop {
           ),
           outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV2)),
           fee = body.getFee ?? BigInteger.ZERO,
-          mint = getMintValue(body.getMint ?? util.List.of()),
+          mint = getValue(body.getMint ?? util.List.of()),
           certificates = prelude.List.from(certs.asScala.map(getTxCertV3)),
           withdrawals = AssocMap(withdrawals),
           validRange = getInterval(tx, slotConfig, protocolVersion),
