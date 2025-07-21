@@ -197,6 +197,7 @@ object List:
                     case Nil          => Nil
             case Nil => Nil
 
+    /** Provides a `ToData` instance for `List[A]` where value type is instances of `ToData`. */
     given listToData[A: ToData]: ToData[scalus.prelude.List[A]] =
         (a: scalus.prelude.List[A]) => {
             def loop(a: scalus.prelude.List[A]): scalus.builtin.List[Data] =
@@ -208,13 +209,53 @@ object List:
             listData(loop(a))
         }
 
+    /** Provides a `FromData` instance for `List[A]` where value type is instances of `FromData`. */
     given ListFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
         def loop(ls: scalus.builtin.List[Data]): scalus.prelude.List[A] =
             if ls.isEmpty then List.Nil
             else new List.Cons(fromData[A](ls.head), loop(ls.tail))
         loop(unListData(d))
 
+    /** Provides an `Eq` instance for `List[A]` where value type is instances of `Eq`. */
+    given listEq[A: Eq]: Eq[List[A]] = (lhs: List[A], rhs: List[A]) =>
+        lhs match
+            case Nil =>
+                rhs match
+                    case Nil        => true
+                    case Cons(_, _) => false
+            case Cons(headLhs, tailLhs) =>
+                rhs match
+                    case Nil                    => false
+                    case Cons(headRhs, tailRhs) => headLhs === headRhs && tailLhs === tailRhs
+
+    /** Provides an `Ord` instance for `List[A]` where value type is instances of `Ord`. */
+    given listOrd[A: Ord]: Ord[List[A]] = (lhs: List[A], rhs: List[A]) =>
+        lhs match
+            case Nil =>
+                rhs match
+                    case Nil        => Order.Equal
+                    case Cons(_, _) => Order.Less
+            case Cons(headLhs, tailLhs) =>
+                rhs match
+                    case Nil => Order.Greater
+                    case Cons(headRhs, tailRhs) =>
+                        val order = headLhs <=> headRhs
+                        if order.nonEqual then order else tailLhs <=> tailRhs
+
     extension [A: Ord](self: List[A])
+        /** Sorts the list using the quicksort algorithm.
+          *
+          * This method sorts the elements of the list in ascending order based on the provided
+          * `Ord[A]` instance.
+          *
+          * @return
+          *   A new list containing the elements of the original list sorted in ascending order.
+          * @example
+          *   {{{
+          *   List(BigInt(3), BigInt(1), BigInt(2)).quicksort === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   List.empty[BigInt].quicksort === Nil
+          *   }}}
+          */
         def quicksort: List[A] =
             self match
                 case List.Nil => List.Nil
@@ -224,6 +265,7 @@ object List:
                     before ++ after.prepended(head)
 
     extension [A](self: List[A])
+        /** Alias for at */
         inline def !!(idx: BigInt): A = self.at(idx)
 
         /** Checks if the list is empty.
@@ -232,8 +274,8 @@ object List:
           *   `true` if the list is empty, `false` otherwise.
           * @example
           *   {{{
-          *   List.empty[BigInt].isEmpty === true
-          *   Cons(1, Nil).isEmpty       === false
+          *   List.empty[BigInt].isEmpty   === true
+          *   Cons(BigInt(1), Nil).isEmpty === false
           *   }}}
           */
         def isEmpty: Boolean = self match
@@ -246,14 +288,48 @@ object List:
           *   `true` if the list contains at least one element, `false` otherwise.
           * @example
           *   {{{
-          *   List.empty[BigInt].nonEmpty === false
-          *   Cons(1, Nil).nonEmpty       === true
+          *   List.empty[BigInt].nonEmpty    === false
+          *   Cons(BigInt(1), Nil).nonEmpty  === true
           *   }}}
           */
         inline def nonEmpty: Boolean = !isEmpty
 
+        /** Checks if the list contains an element at the specified index.
+          *
+          * @param index
+          *   The zero-based BigInt index to check.
+          * @return
+          *   `true` if the list contains an element at the specified index, `false` otherwise.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].isDefinedAt(BigInt(0)) === false
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.isDefinedAt(BigInt(1)) === true
+          *   list.isDefinedAt(BigInt(3)) === false
+          *   list.isDefinedAt(BigInt(-1)) === false
+          *   }}}
+          */
         def isDefinedAt(index: BigInt): Boolean = get(index).isDefined
 
+        /** Retrieves the element at the specified index in the list.
+          *
+          * @param index
+          *   The zero-based BigInt index of the element to retrieve.
+          * @return
+          *   The element at the specified index.
+          * @throws `NoSuchElementException`
+          *   if the index is out of bounds.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].at(BigInt(0)) // throws NoSuchElementException
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.at(BigInt(1)) === BigInt(2)
+          *   list.at(BigInt(3)) // throws NoSuchElementException
+          *   list.at(BigInt(-1)) // throws NoSuchElementException
+          *   }}}
+          */
         def at(index: BigInt): A = get(index).getOrFail("Index out of bounds")
 
         /** Retrieves the element at the specified index in the list.
@@ -267,8 +343,8 @@ object List:
           *   {{{
           *   List.empty[BigInt].get(0) === None
           *
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
-          *   list.get(1) === Some(2)
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.get(1) === Some(BigInt(2))
           *   list.get(3) === None
           *   list.get(-1) === None
           *   }}}
@@ -286,8 +362,25 @@ object List:
                 go(self, 0)
         }
 
-        def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean =
-            find(_ === elem).isDefined
+        /** Checks if the list contains the specified element.
+          *
+          * @param elem
+          *   The element to check for in the list.
+          * @tparam B
+          *   The type of the element, which must be a supertype of `A`.
+          * @return
+          *   `true` if the list contains the element, `false` otherwise.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].contains(BigInt(2)) === false
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.contains(BigInt(2)) === true
+          *   list.contains(BigInt(4)) === false
+          *   list.contains(BigInt(-1)) === false
+          *   }}}
+          */
+        def contains[B >: A](elem: B)(using eq: Eq[B]): Boolean = find(_ === elem).isDefined
 
         /** Groups the elements of this list by the keys returned by the specified function.
           *
@@ -397,6 +490,23 @@ object List:
             go(self, AssocMap.empty)
         }
 
+        /** Zips this list with another list, producing a list of pairs.
+          *
+          * The resulting list will have the length of the shorter of the two lists.
+          *
+          * @param other
+          *   The other list to zip with.
+          * @tparam B
+          *   The type of elements in the other list.
+          * @return
+          *   A list of pairs, where each pair contains an element from this list and an element
+          *   from the other list at the same index.
+          * @example
+          *   {{{
+          *   List(BigInt(1), BigInt(2)).zip(List(BigInt(3), BigInt(4))) === Cons((BigInt(1), BigInt(3)), Cons((BigInt(2), BigInt(4)), Nil))
+          *   List.empty[BigInt].zip(List(BigInt(1), BigInt(2))) === Nil
+          *   }}}
+          */
         def zip[B](other: List[B]): List[(A, B)] = self match
             case Nil => Nil
             case Cons(selfHead, selfTail) =>
@@ -405,23 +515,92 @@ object List:
                     case Cons(otherHead, otherTail) =>
                         Cons((selfHead, otherHead), selfTail.zip(otherTail))
 
-        /** Adds an element at the beginning of this list */
+        /** Prepends an element to the list.
+          *
+          * @param elem
+          *   The element to prepend.
+          * @tparam B
+          *   The type of the element, which must be a supertype of `A`.
+          * @return
+          *   A new list with the element prepended.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].prepended(BigInt(1)) === Cons(BigInt(1), Nil)
+          *
+          *   val list: List[BigInt] = Cons(BigInt(2), Cons(BigInt(3), Nil))
+          *   list.prepended(BigInt(1)) === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   }}}
+          */
         inline def prepended[B >: A](elem: B): List[B] = Cons(elem, self)
-        inline def prependedAll[B >: A](other: List[B]): List[B] = other.appendedAll(self)
 
+        /** Prepends all elements of another list to this list.
+          *
+          * @param other
+          *   The list whose elements will be prepended.
+          * @tparam B
+          *   The type of the elements in the other list, which must be a supertype of `A`.
+          * @return
+          *   A new list with all elements of `other` prepended to this list.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].prependedAll(List(BigInt(1), BigInt(2))) === Cons(BigInt(1), Cons(BigInt(2), Nil))
+          *
+          *   val list: List[BigInt] = Cons(BigInt(3), Nil)
+          *   list.prependedAll(List(BigInt(1), BigInt(2))) === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   }}}
+          */
+        inline def prependedAll[B >: A](other: List[B]): List[B] = other match
+            case Nil              => self
+            case Cons(head, tail) => Cons(head, tail.appendedAll(self))
+
+        /** Appends an element to the end of the list.
+          *
+          * @param elem
+          *   The element to append.
+          * @tparam B
+          *   The type of the element, which must be a supertype of `A`.
+          * @return
+          *   A new list with the element appended.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].appended(BigInt(1)) === Cons(BigInt(1), Nil)
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Nil))
+          *   list.appended(BigInt(3)) === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   }}}
+          */
         def appended[B >: A](elem: B): List[B] = self match
             case Nil              => List.single(elem)
             case Cons(head, tail) => Cons(head, tail.appended(elem))
 
+        /** Alias for appended. */
         inline def :+[B >: A](elem: B): List[B] = appended(elem)
 
-        def appendedAll[B >: A](other: List[B]): List[B] = self match
-            case Nil              => other
-            case Cons(head, tail) => Cons(head, tail.appendedAll(other))
+        /** Appends all elements of another list to this list.
+          *
+          * @param other
+          *   The list whose elements will be appended.
+          * @tparam B
+          *   The type of the elements in the other list, which must be a supertype of `A`.
+          * @return
+          *   A new list with all elements of `other` appended to this list.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].appendedAll(List(BigInt(1), BigInt(2))) === Cons(BigInt(1), Cons(BigInt(2), Nil))
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Nil))
+          *   list.appendedAll(List(BigInt(3), BigInt(4))) === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Cons(BigInt(4), Nil))))
+          *   }}}
+          */
+        def appendedAll[B >: A](other: List[B]): List[B] = other.prependedAll(self)
 
+        /** Alias for appendedAll. */
         inline def :++[B >: A](other: List[B]): List[B] = appendedAll(other)
 
+        /** Alias for appendedAll. */
         inline def concat[B >: A](other: List[B]): List[B] = appendedAll(other)
+
+        /** Alias for appendedAll. */
         inline def ++[B >: A](other: List[B]): List[B] = concat(other)
 
         /** Applies a function to each element of the list, producing a new list with the results.
@@ -435,14 +614,33 @@ object List:
           *   {{{
           *   List.empty[BigInt].map(_ * 2) === Nil
           *
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
           *   val result = list.map(_ * 2)
-          *   result === Cons(2, Cons(4, .Cons(6, Nil)))
+          *   result === Cons(BigInt(2), Cons(BigInt(4), .Cons(BigInt(6), Nil)))
           *   }}}
           */
         def map[B](mapper: A => B): List[B] =
             foldRight(List.empty[B]) { (head, tail) => Cons(mapper(head), tail) }
 
+        /** Applies a function to each element of the list, producing a new list with the results.
+          *
+          * This method is similar to `map`, but it allows the function to return a list for each
+          * element, effectively flattening the result.
+          *
+          * @param mapper
+          *   A function that takes an element of type `A` and returns a list of type `List[B]`.
+          * @return
+          *   A new list containing all elements produced by applying `mapper` to each element of
+          *   the original list and flattening the results.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].flatMap(x => List(x, x + 1)) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Nil))
+          *   val result = list.flatMap(x => List(x, x + 1))
+          *   result === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(2), Cons(BigInt(3), Nil))))
+          *   }}}
+          */
         def flatMap[B](mapper: A => List[B]): List[B] =
             foldRight(List.empty[B]) { (head, tail) => mapper(head) ++ tail }
 
@@ -457,9 +655,9 @@ object List:
           *   {{{
           *   List.empty[BigInt].filter(_ % 2 == 1) === Nil
           *
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
           *   val filtered = list.filter(_ % 2 == 1)
-          *   filtered === Cons(1, Cons(3, Nil))
+          *   filtered === Cons(BigInt(1), Cons(BigInt(3), Nil))
           *   }}}
           */
         def filter(predicate: A => Boolean): List[A] =
@@ -467,8 +665,46 @@ object List:
                 if predicate(head) then Cons(head, tail) else tail
             }
 
+        /** Filters the elements of the list based on a predicate that returns `false` for elements
+          * to be excluded.
+          *
+          * @param predicate
+          *   A function that takes an element of type `A` and returns `true` if the element should
+          *   be excluded from the resulting list, or `false` otherwise.
+          * @return
+          *   A new list containing only the elements that do not satisfy the predicate.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].filterNot(_ % 2 == 1) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   val filtered = list.filterNot(_ % 2 == 1)
+          *   filtered === Cons(BigInt(2), Nil)
+          *   }}}
+          */
         def filterNot(predicate: A => Boolean): List[A] = filter(!predicate(_))
 
+        /** Filters the elements of the list based on a predicate that returns an `Option[B]`.
+          *
+          * If the predicate returns `None`, the element is excluded from the resulting list. If it
+          * returns `Some(value)`, the value is included in the resulting list.
+          *
+          * @param predicate
+          *   A function that takes an element of type `A` and returns an `Option[B]`.
+          * @tparam B
+          *   The type of the values to be included in the resulting list.
+          * @return
+          *   A new list containing only the elements for which the predicate returned
+          *   `Some(value)`.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].filterMap(x => if x % 2 == 1 then Some(x) else None) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   val filtered = list.filterMap(x => if x % 2 == 1 then Some(x) else None)
+          *   filtered === Cons(BigInt(1), Cons(BigInt(3), Nil))
+          *   }}}
+          */
         def filterMap[B](predicate: A => Option[B]): List[B] =
             foldRight(List.empty[B]) { (head, tail) =>
                 predicate(head) match
@@ -488,8 +724,8 @@ object List:
           *   {{{
           *   List.empty[BigInt].find(_ > 1) === None
           *
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
-          *   list.find(_ > 1) === Some(2)
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.find(_ > 1) === Some(BigInt(2))
           *   list.find(_ > 3) === None
           *   }}}
           */
@@ -508,11 +744,11 @@ object List:
           *   elements of the list, or `None` if no such element exists.
           * @example
           *   {{{
-          *   List.empty[String].findMap(str => if str.length >= 3 then Some(str.length) else None) === None
+          *   List.empty[String].findMap(str => if str.length >= 3 then Some(BigInt(str.length)) else None) === None
           *
           *   val list: List[String] = Cons("a", Cons("bb", Cons("ccc", Nil)))
-          *   list.findMap(str => if str.length >= 2 then Some(str.length) else None) === Some(2)
-          *   list.findMap(str => if str.length >= 4 then Some(str.length) else None) === None
+          *   list.findMap(str => if str.length >= 2 then Some(BigInt(str.length)) else None) === Some(BigInt(2))
+          *   list.findMap(str => if str.length >= 4 then Some(BigInt(str.length)) else None) === None
           *   }}}
           */
         @tailrec
@@ -537,7 +773,7 @@ object List:
           *   {{{
           *   List.empty[BigInt].foldLeft(BigInt(0))(_ + _) === BigInt(0)
           *
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
           *   val sum = list.foldLeft(BigInt(0))(_ + _)
           *   sum === BigInt(6)
           *   }}}
@@ -547,21 +783,105 @@ object List:
             case Nil              => init
             case Cons(head, tail) => tail.foldLeft(combiner(init, head))(combiner)
 
+        /** Performs a right fold on the list.
+          * @param init
+          *   The initial value to start the fold with.
+          * @param combiner
+          *   A function that combines the current element and the accumulated value.
+          * @param B
+          *   The type of the accumulated value.
+          * @return
+          *   The result of applying the combiner function to all elements of the list, starting
+          *   with the initial value.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].foldRight(BigInt(0))(_ + _) === BigInt(0)
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   val sum = list.foldRight(BigInt(0))(_ + _)
+          *   sum === BigInt(6)
+          *   }}}
+          */
         def foldRight[B](init: B)(combiner: (A, B) => B): B = self match
             case Nil              => init
             case Cons(head, tail) => combiner(head, tail.foldRight(init)(combiner))
 
+        /** Checks if the list contains an element that satisfies the given predicate.
+          * @param predicate
+          *   A function that takes an element of type `A` and returns `true` if the element matches
+          *   the condition.
+          * @return
+          *   `true` if there is at least one element in the list that satisfies the predicate,
+          *   `false` otherwise.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].exists(_ > 1) === false
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.exists(_ > 1) === true
+          *   list.exists(_ > 3) === false
+          *   }}}
+          */
         def exists(predicate: A => Boolean): Boolean = find(predicate).isDefined
 
+        /** Checks if all elements in the list satisfy the given predicate.
+          *
+          * @param predicate
+          *   A function that takes an element of type `A` and returns `true` if the element matches
+          *   the condition.
+          * @return
+          *   `true` if all elements in the list satisfy the predicate, `false` otherwise.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].forall(_ > 1) === true
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.forall(_ > 0) === true
+          *   list.forall(_ > 2) === false
+          *   }}}
+          */
         @tailrec
         def forall(predicate: A => Boolean): Boolean = self match
             case Nil              => true
             case Cons(head, tail) => if predicate(head) then tail.forall(predicate) else false
 
+        /** Counts the number of elements in the list that satisfy the given predicate.
+          * @param p
+          *   A function that takes an element of type `A` and returns `true` if the element matches
+          *   the condition.
+          * @return
+          *   The number of elements in the list that satisfy the predicate as a `BigInt`.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].count(_ > 1) === BigInt(0)
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.count(_ > 1) === BigInt(2)
+          *   }}}
+          */
         def count(p: A => Boolean): BigInt = foldLeft(BigInt(0)) { (counter, elem) =>
             if p(elem) then counter + 1 else counter
         }
 
+        /** Finds the index of the first occurrence of the specified element in the list.
+          *
+          * @param elem
+          *   The element to search for in the list.
+          * @tparam B
+          *   The type of the element being searched for, which must be a supertype of `A`.
+          * @return
+          *   The index of the first occurrence of the element, or BigInt(-1) if the element is not
+          *   found.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].indexOf(BigInt(2)) === BigInt(-1)
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.indexOf(BigInt(2)) === BigInt(1)
+          *   list.indexOf(BigInt(4)) === BigInt(-1)
+          *   list.indexOf(BigInt(-1)) === BigInt(-1)
+          *   }}}
+          */
         def indexOf[B >: A](elem: B)(using eq: Eq[B]): BigInt = indexOfOption(elem).getOrElse(-1)
 
         /** Finds the index of the first occurrence of the specified element in the list.
@@ -577,9 +897,10 @@ object List:
           *   {{{
           *   List.empty[BigInt].indexOfOption(BigInt(2)) === None
           *
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
           *   list.indexOfOption(BigInt(2)) === Some(BigInt(1))
           *   list.indexOfOption(BigInt(4)) === None
+          *   list.indexOfOption(BigInt(-1)) === None
           *   }}}
           */
         def indexOfOption[B >: A](elem: B)(using eq: Eq[B]): Option[BigInt] = {
@@ -592,9 +913,22 @@ object List:
             go(self, BigInt(0))
         }
 
+        /** Returns the last element of the list or throws an exception if the list is empty.
+          *
+          * @return
+          *   The last element of the list.
+          * @throws NoSuchElementException
+          *   If the list is empty.
+          * @example
+          *   {{{
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.last === BigInt(3)
+          *   List.empty[BigInt].last // throw NoSuchElementException
+          *   }}}
+          */
         def last: A = lastOption.getOrFail("last of empty list")
 
-        /** Returns the last element of the list.
+        /** Returns the last element of the list as an [[Option]].
           *
           * @return
           *   An `Option` containing the last element of the list, or `None` if the list is empty.
@@ -602,8 +936,9 @@ object List:
           *   {{{
           *   List.empty[BigInt].lastOption === None
           *
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
-          *   list.lastOption === Some(3)
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.lastOption === Some(BigInt(3))
+          *   List.empty[BigInt].lastOption === None
           *   }}}
           */
         @tailrec
@@ -619,20 +954,16 @@ object List:
           *   {{{
           *   List.empty[BigInt].length === BigInt(0)
           *
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
           *   list.length === BigInt(3)
           *   }}}
           */
         def length: BigInt = foldLeft(BigInt(0)) { (counter, _) => counter + 1 }
 
-        /** Alias for `length`.
-          *
-          * @return
-          *   The number of elements in the list as a `BigInt`.
-          */
+        /** Alias for `length`. */
         inline def size: BigInt = length
 
-        /** Returns the first element of the list.
+        /** Returns the first element of the list or throws an exception if the list is empty.
           *
           * @return
           *   The first element of the list.
@@ -640,9 +971,9 @@ object List:
           *   If the list is empty.
           * @example
           *   {{{
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
           *   list.head === BigInt(1)
-          *   // List.empty[BigInt].head would throw NoSuchElementException
+          *   List.empty[BigInt].head // throw NoSuchElementException
           *   }}}
           */
         def head: A = headOption.getOrFail("head of empty list")
@@ -655,15 +986,17 @@ object List:
           *   {{{
           *   List.empty[BigInt].headOption === None
           *
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
           *   list.headOption === Some(1)
+          *   List.empty[BigInt].headOption === None
           *   }}}
           */
         def headOption: Option[A] = self match
             case Nil            => None
             case Cons(value, _) => Some(value)
 
-        /** Returns a list consisting of all elements except the first.
+        /** Returns a list consisting of all elements except the first element of this list or
+          * throws an exception if the list is empty.
           *
           * @return
           *   A list containing all elements except the first.
@@ -671,15 +1004,32 @@ object List:
           *   If the list is empty.
           * @example
           *   {{{
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
-          *   list.tail === Cons(2, Cons(3, Nil))
-          *   // List.empty[BigInt].tail would throw NoSuchElementException
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.tail === Cons(BigInt(2), Cons(BigInt(3), Nil))
+          *   List.empty[BigInt].tail // throw NoSuchElementException
           *   }}}
           */
         def tail: List[A] = self match
             case Nil           => throw new NoSuchElementException("tail of empty list")
             case Cons(_, rest) => rest
 
+        /** Returns a list consisting of all elements except the first `skip` elements of this list.
+          *
+          * @param skip
+          *   The number of elements to drop from the beginning of the list
+          * @return
+          *   A new list with the first `skip` elements removed, or an empty list if `skip` is
+          *   greater than or equal to the list's length
+          * @example
+          *   {{{
+          *   List.empty[BigInt].drop(2) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.drop(2) === Cons(BigInt(3), Nil)
+          *   list.drop(0) === list
+          *   list.drop(4) === Nil
+          *   }}}
+          */
         @tailrec
         def drop(skip: BigInt): List[A] =
             if skip <= 0 then self
@@ -688,6 +1038,23 @@ object List:
                     case Nil           => Nil
                     case Cons(_, tail) => tail.drop(skip - 1)
 
+        /** Returns a list consisting of all elements except the last `skip` elements of this list.
+          *
+          * @param skip
+          *   The number of elements to drop from the end of the list
+          * @return
+          *   A new list with the last `skip` elements removed, or an empty list if `skip` is
+          *   greater than or equal to the list's length
+          * @example
+          *   {{{
+          *   List.empty[BigInt].dropRight(2) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.dropRight(2) === Cons(BigInt(1), Nil)
+          *   list.dropRight(0) === list
+          *   list.dropRight(4) === Nil
+          *   }}}
+          */
         def dropRight(skip: BigInt): List[A] =
             if skip <= 0 then self
             else
@@ -696,6 +1063,50 @@ object List:
                     else (Cons(head, acc._1), acc._2)
                 }._1
 
+        /** Drops elements from the beginning of the list as long as they satisfy the predicate.
+          *
+          * @param predicate
+          *   A function that takes an element and returns `true` if it should be dropped from the
+          *   result
+          * @return
+          *   A new list containing all elements from the first element that does not satisfy the
+          *   predicate until the end of the list
+          * @example
+          *   {{{
+          *   List.empty[BigInt].dropWhile(_ < 3) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.dropWhile(_ < 3) === Cons(BigInt(3), Nil)
+          *   list.dropWhile(_ < 1) === list
+          *   list.dropWhile(_ < 4) === Nil
+          *   }}}
+          */
+        def dropWhile(predicate: A => Boolean): List[A] = self match
+            case Nil => Nil
+            case Cons(head, tail) =>
+                if predicate(head) then tail.dropWhile(predicate)
+                else self
+
+        /** Deletes the first occurrence of the specified element from the list.
+          *
+          * @param elem
+          *   The element to delete from the list
+          * @param eq
+          *   An instance of `Eq[B]` used to compare elements for equality
+          * @tparam B
+          *   The type of the element being deleted, which must be a supertype of `A`
+          * @return
+          *   A new list with the first occurrence of the specified element removed, or the original
+          *   list if the element is not found
+          * @example
+          *   {{{
+          *   List.empty[BigInt].deleteFirst(BigInt(2)) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(2), Nil)))
+          *   list.deleteFirst(BigInt(2)) === Cons(BigInt(1), Cons(BigInt(2), Nil))
+          *   list.deleteFirst(BigInt(3)) === list
+          *   }}}
+          */
         def deleteFirst[B >: A](elem: B)(using eq: Eq[B]): List[A] = {
             def go(lst: List[A]): List[A] = lst match
                 case Nil => Nil
@@ -706,6 +1117,23 @@ object List:
             go(self)
         }
 
+        /** Takes the first `count` elements from the list.
+          *
+          * @param count
+          *   The number of elements to take from the beginning of the list
+          * @return
+          *   A new list containing the first `count` elements, or an empty list if `count` is less
+          *   than or equal to 0
+          * @example
+          *   {{{
+          *   List.empty[BigInt].take(2) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.take(2) === Cons(BigInt(1), Cons(BigInt(2), Nil))
+          *   list.take(0) === Nil
+          *   list.take(4) === list
+          *   }}}
+          */
         def take(count: BigInt): List[A] =
             if count <= 0 then Nil
             else
@@ -713,6 +1141,23 @@ object List:
                     case Nil              => Nil
                     case Cons(head, tail) => Cons(head, tail.take(count - 1))
 
+        /** Takes the last `count` elements from the list.
+          *
+          * @param count
+          *   The number of elements to take from the end of the list
+          * @return
+          *   A new list containing the last `count` elements, or an empty list if `count` is less
+          *   than or equal to 0
+          * @example
+          *   {{{
+          *   List.empty[BigInt].takeRight(2) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.takeRight(2) === Cons(BigInt(2), Cons(BigInt(3), Nil))
+          *   list.takeRight(0) === Nil
+          *   list.takeRight(4) === list
+          *   }}}
+          */
         def takeRight(count: BigInt): List[A] =
             if count <= 0 then Nil
             else
@@ -721,18 +1166,74 @@ object List:
                     else (Cons(head, acc._1), acc._2 + 1)
                 }._1
 
+        /** Takes elements from the beginning of the list as long as they satisfy the predicate.
+          *
+          * @param predicate
+          *   A function that takes an element and returns `true` if it should be included in the
+          *   result
+          * @return
+          *   A new list containing elements from the beginning of the list until an element is
+          *   found that does not satisfy the predicate
+          * @example
+          *   {{{
+          *   List.empty[BigInt].takeWhile(_ < 3) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.takeWhile(_ < 3) === Cons(BigInt(1), Cons(BigInt(2), Nil))
+          *   list.takeWhile(_ < 1) === Nil
+          *   list.takeWhile(_ < 4) === list
+          *   }}}
+          */
         def takeWhile(predicate: A => Boolean): List[A] = self match
             case Nil => Nil
             case Cons(head, tail) =>
                 if predicate(head) then Cons(head, tail.takeWhile(predicate))
                 else Nil
 
+        /** Returns a new list with duplicate elements removed, keeping only the first occurrence of
+          * each element.
+          *
+          * @param eq
+          *   An instance of `Eq[B]` used to compare elements for equality
+          * @tparam B
+          *   The type of elements being compared, which must be a supertype of `A`
+          * @return
+          *   A new list containing only unique elements in their original order
+          * @example
+          *   {{{
+          *   List.empty[BigInt].unique === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(1), Cons(BigInt(3), Nil))))
+          *   list.unique === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   }}}
+          */
         def unique[B >: A](using eq: Eq[B]): List[A] =
             foldLeft(List.empty[A]) { (acc, elem) =>
                 if acc.exists(_ === elem) then acc
                 else Cons(elem, acc)
             }.reverse
 
+        /** Returns a new list containing elements from this list that do not appear in the other
+          * list.
+          *
+          * @param other
+          *   The list whose elements should be removed from this list
+          * @param eq
+          *   An instance of `Eq[B]` used to compare elements for equality
+          * @tparam B
+          *   The type of elements in the other list, which must be a supertype of `A`
+          * @return
+          *   A new list containing elements from this list that do not appear in the other list
+          * @example
+          *   {{{
+          *   List.empty[BigInt].difference(List(BigInt(1), BigInt(2))) === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.difference(List(BigInt(2))) === Cons(BigInt(1), Cons(BigInt(3), Nil))
+          *   list.difference(Nil) === list
+          *   list.difference(list) === Nil
+          *   }}}
+          */
         @tailrec
         def difference[B >: A](other: List[B])(using eq: Eq[B]): List[A] = {
             if self.isEmpty then Nil
@@ -743,6 +1244,21 @@ object List:
                         (self.deleteFirst(head): List[A]).difference(tail)
         }
 
+        /** Returns a list consisting of all elements except the last element of this list.
+          *
+          * This is equivalent to `dropRight(1)`.
+          *
+          * @return
+          *   A new list containing all elements except the last one
+          * @example
+          *   {{{
+          *   List.empty[BigInt].init === Nil
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.init === Cons(BigInt(1), Cons(BigInt(2), Nil))
+          *   Cons(BigInt(1), Nil).init === Nil
+          *   }}}
+          */
         inline def init: List[A] = dropRight(1)
 
         /** Returns a new list with elements in reverse order.
@@ -753,8 +1269,8 @@ object List:
           *   {{{
           *   List.empty[BigInt].reverse === Nil
           *
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
-          *   list.reverse === Cons(3, Cons(2, Cons(1, Nil)))
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.reverse === Cons(BigInt(3), Cons(BigInt(2), Cons(BigInt(1), Nil)))
           *   }}}
           */
         def reverse: List[A] = foldLeft(List.empty[A]) { (acc, elem) => Cons(elem, acc) }
@@ -765,10 +1281,14 @@ object List:
           *   The function to apply to each element.
           * @example
           *   {{{
-          *   var sum = BigInt(0)
-          *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Nil)))
-          *   list.foreach(elem => sum += elem)
-          *   sum === BigInt(6)
+          *   var sum1 = BigInt(0)
+          *   List.empty[BigInt].foreach(elem => sum1 += elem)
+          *   sum1 === BigInt(0)
+          *
+          *   var sum2 = BigInt(0)
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.foreach(elem => sum2 += elem)
+          *   sum2 === BigInt(6)
           *   }}}
           */
         @tailrec
@@ -776,44 +1296,49 @@ object List:
             case Nil              => ()
             case Cons(head, tail) => f(head); tail.foreach(f)
 
-        /** Converts to a [[scala.Seq]] */
+        /** Converts the list to a Scala sequence (`scala.Seq`).
+          *
+          * This method is only available offchain.
+          *
+          * @return
+          *   A `scala.Seq[A]` containing all the elements from this list in the same order.
+          * @example
+          *   {{{
+          *   List.empty[BigInt].asScala === scala.Seq.empty[BigInt]
+          *
+          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.asScala === scala.Seq(BigInt(1), BigInt(2), BigInt(3))
+          *   }}}
+          */
         @Ignore
         def asScala: scala.Seq[A] =
             val buf = mutable.ListBuffer.empty[A]
             for e <- self do buf.addOne(e)
             buf.toList
 
-    extension [A](elem: A) inline def +:[B >: A](l: List[B]): List[B] = l.prepended(elem)
+    extension [A](elem: A)
+        /** Alias on prepended */
+        inline def +:[B >: A](l: List[B]): List[B] = l.prepended(elem)
     extension [A](left: List[A])
+        /** Alias on prependedAll */
         inline def ++:[B >: A](other: List[B]): List[B] = other.prependedAll(left)
 
     extension [A](self: scala.Seq[A])
-        /** Converts a [[scala.Seq]] to a `List` */
+        /** Converts a [[scala.Seq]] to a `List`.
+          *
+          * This method is only available offchain.
+          *
+          * @return
+          *   A `List[A]` containing all the elements from this sequence in the same order.
+          * @example
+          *   {{{
+          *   scala.Seq.empty[BigInt].asScalus === List.empty[BigInt]
+          *
+          *   val seq: scala.Seq[BigInt] = scala.Seq(BigInt(1), BigInt(2), BigInt(3))
+          *   seq.asScalus === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   }}}
+          */
         @Ignore
         def asScalus: List[A] = self match
             case scala.Seq()            => Nil
             case scala.Seq(head, tail*) => Cons(head, tail.asScalus)
-
-    given listEq[A: Eq]: Eq[List[A]] = (lhs: List[A], rhs: List[A]) =>
-        lhs match
-            case Nil =>
-                rhs match
-                    case Nil        => true
-                    case Cons(_, _) => false
-            case Cons(headLhs, tailLhs) =>
-                rhs match
-                    case Nil                    => false
-                    case Cons(headRhs, tailRhs) => headLhs === headRhs && tailLhs === tailRhs
-
-    given listOrd[A: Ord]: Ord[List[A]] = (lhs: List[A], rhs: List[A]) =>
-        lhs match
-            case Nil =>
-                rhs match
-                    case Nil        => Order.Equal
-                    case Cons(_, _) => Order.Less
-            case Cons(headLhs, tailLhs) =>
-                rhs match
-                    case Nil => Order.Greater
-                    case Cons(headRhs, tailRhs) =>
-                        val order = headLhs <=> headRhs
-                        if order.nonEqual then order else tailLhs <=> tailRhs

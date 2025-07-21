@@ -5,6 +5,7 @@ import scalus.Ignore
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data.{fromData, toData}
 import scalus.builtin.{Data, FromData, ToData}
+import Ord.*
 
 /** Alternative to `scala.Option` in onchain code.
   * @tparam A
@@ -109,6 +110,17 @@ object Option {
                 b match
                     case None         => false
                     case Some(value2) => value === value2
+
+    given optionOrd[A](using ord: Ord[A]): Ord[Option[A]] = (a: Option[A], b: Option[A]) =>
+        a match
+            case None =>
+                b match
+                    case None    => Order.Equal
+                    case Some(_) => Order.Less
+            case Some(value1) =>
+                b match
+                    case None         => Order.Greater
+                    case Some(value2) => value1 <=> value2
 
     given optionFromData[A: FromData]: FromData[Option[A]] = (d: Data) =>
         val pair = unConstrData(d)
