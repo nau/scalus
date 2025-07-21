@@ -84,7 +84,10 @@ trait DataApi {
                 if x.bitLength <= 64 then writer.write(x)
                 else
                     // otherwise, chunk the bytes
-                    val bytes = x.toByteArray
+                    val bytes =
+                        val bytes = x.toByteArray
+                        // in Java first byte CAN be zero (for sign bit), in Haskell it can not
+                        if bytes.head == 0 then bytes.tail else bytes
                     if x.signum < 0 then
                         bytes.mapInPlace(b => (~b.toInt).toByte) // basically, -1 - x
                         writer.writeTag(Tag.NegativeBigNum)

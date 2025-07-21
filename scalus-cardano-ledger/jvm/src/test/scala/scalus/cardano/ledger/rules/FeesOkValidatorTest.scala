@@ -33,7 +33,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                         Address.Shelley(
                           Arbitrary.arbitrary[ShelleyAddress].sample.get
                         ),
-                        Value(Coin(20000000L))
+                        Value(Coin(20000000L), Arbitrary.arbitrary[MultiAsset].sample.get)
                       )
                     )
                   ),
@@ -104,7 +104,12 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                         )
                     )
               ),
-              Value(Coin(30000000L))
+              Value(
+                Coin(30000000L),
+                transaction.body.value.collateralReturnOutput
+                    .map { _.value.value.assets }
+                    .getOrElse(MultiAsset.empty)
+              )
             )
           )
         )
@@ -342,7 +347,15 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                         Address.Shelley(
                           Arbitrary.arbitrary[ShelleyAddress].sample.get
                         ),
-                        Value(Coin(20000000L), Arbitrary.arbitrary[MultiAsset].sample.get)
+                        Value(
+                          Coin(20000000L),
+                          genMultiAsset(
+                            minPolicies = 1,
+                            maxPolicies = 4,
+                            minAssets = 1,
+                            maxAssets = 4
+                          ).sample.get
+                        )
                       )
                     )
                   ),
@@ -413,12 +426,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                         )
                     )
               ),
-              Value(
-                Coin(30000000L),
-                transaction.body.value.collateralReturnOutput
-                    .map { _.value.value.assets }
-                    .getOrElse(MultiAsset.empty)
-              )
+              Value(Coin(30000000L))
             )
           )
         )

@@ -4,11 +4,18 @@ import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger.{Language, PlutusScript, Script}
 import scalus.utils.Hex.toHex
 
+/** Implementation of Plutus Contract Blueprints.
+  *
+  * @see
+  *   https://cips.cardano.org/cip/CIP-57
+  */
 package object blueprint {
 
     /** Returns a CIP-57 compliant [[Blueprint]] based on the provided [[validator]].
       *
       * The returned `Blueprint` always contains only 1 validator.
+      *
+      * To specify the `redeemer` and `datum` schemas, use [[Blueprint.newBuilder()]].
       *
       * @param contractTitle
       *   the title of the "blueprintee" contract
@@ -31,7 +38,7 @@ package object blueprint {
         Preamble(
           title = title,
           description = Some(description),
-          compiler = Some(CompilerInfo("scalus", Some(BuildInfo.scalusVersion))),
+          compiler = Some(CompilerInfo("scalus", Some(BuildInfo.version))),
           plutusVersion = Some(version)
         )
 

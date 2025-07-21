@@ -1,19 +1,80 @@
 package scalus.cardano.plutus.contract.blueprint
 
 import com.github.plokhotnyuk.jsoniter_scala.core.*
-import com.github.plokhotnyuk.jsoniter_scala.macros.{CodecMakerConfig, JsonCodecMaker}
-import scalus.cardano.ledger.Language
-import scalus.cardano.ledger.Language.{PlutusV1, PlutusV2, PlutusV3}
+import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
+import scalus.buildinfo.BuildInfo
+import scalus.cardano.ledger.{Language, PlutusScript}
+import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
 
 case class Blueprint(
     preamble: Preamble,
     validators: Seq[Validator] = Nil,
-    //        definitions: Option[Map[String, PlutusDataSchema]] = None todo
 ) {
-    def show: String = writeToString(this)
+    def show(indentation: Int = 2): String =
+        writeToString(this, WriterConfig.withIndentionStep(indentation))
 }
 
 object Blueprint {
+    private[blueprint] case class Builder(
+        title: String,
+        description: Option[String] = None,
+        validatorScript: Option[PlutusScript] = None,
+        redeemerSchema: Option[PlutusDataSchema] = None,
+        datumSchema: Option[PlutusDataSchema] = None,
+        paramSchemas: Option[List[PlutusDataSchema]] = None
+    ) {
+
+        def withDescription(d: String): Builder = copy(description = Some(d))
+
+        def withScript(script: PlutusScript): Builder = copy(validatorScript = Some(script))
+
+        inline def withDatum[T]: Builder = {
+            val ds = PlutusDataSchema.derived[T]
+            copy(datumSchema = Some(ds))
+        }
+
+        inline def withRedeemer[T]: Builder = {
+            val rs = PlutusDataSchema.derived[T]
+            copy(redeemerSchema = Some(rs))
+        }
+
+        inline def withParam[T]: Builder = {
+            val ps = PlutusDataSchema.derived[T]
+            copy(paramSchemas = paramSchemas.map(ps :: _))
+        }
+
+        def build: Blueprint = {
+            for {
+                validatorScript <- this.validatorScript
+                datumSchema <- this.datumSchema
+                redeemerSchema <- this.redeemerSchema
+            } yield {
+                val preamble = Preamble(
+                  title = title,
+                  description = description,
+                  compiler = Some(CompilerInfo("scalus", Some(BuildInfo.version))),
+                  plutusVersion = Some(validatorScript.language)
+                )
+                val cbor = validatorScript match {
+                    case PlutusV1(script) => script.toHex
+                    case PlutusV2(script) => script.toHex
+                    case PlutusV3(script) => script.toHex
+                }
+                val validator = Validator(
+                  "validator",
+                  compiledCode = Some(cbor),
+                  hash = Some(validatorScript.scriptHash.toHex),
+                  datum = Some(Argument(schema = datumSchema)),
+                  redeemer = Some(Argument(schema = redeemerSchema)),
+                  parameters = paramSchemas.map(_.map(schema => Argument(schema = schema)))
+                )
+                Blueprint(preamble, Seq(validator))
+            }
+        }.get
+    }
+
+    def newBuilder(title: String): Builder = Builder(title)
+
     given JsonValueCodec[Blueprint] = JsonCodecMaker.make
 }
 
@@ -28,13 +89,13 @@ case class Preamble(
 
 object Preamble {
     given JsonValueCodec[Language] = new JsonValueCodec[Language] {
-        override def nullValue: Language = PlutusV3
+        override def nullValue: Language = Language.PlutusV3
 
         override def decodeValue(in: JsonReader, default: Language): Language =
             in.readString("") match {
-                case "v1" => PlutusV1
-                case "v2" => PlutusV2
-                case "v3" => PlutusV3
+                case "v1" => Language.PlutusV1
+                case "v2" => Language.PlutusV2
+                case "v3" => Language.PlutusV3
                 case x =>
                     throw new RuntimeException(
                       s"Error when reading blueprint plutus version. Expected one of [v1, v2, v3], got $x"
@@ -86,23 +147,6 @@ case class Argument(
 
 object Argument {
     given JsonValueCodec[Argument] = JsonCodecMaker.make
-}
-
-case class PlutusDataSchema(
-    dataType: Option[DataType] = None,
-    title: Option[String] = None,
-    description: Option[String] = None,
-    anyOf: Option[List[PlutusDataSchema]] = None,
-    allOf: Option[List[PlutusDataSchema]] = None,
-    oneOf: Option[List[PlutusDataSchema]] = None,
-    not: Option[PlutusDataSchema] = None,
-    index: Option[Int] = None,
-    fields: Option[List[PlutusDataSchema]] = None
-)
-
-object PlutusDataSchema {
-    given JsonValueCodec[PlutusDataSchema] =
-        JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
 }
 
 enum DataType(val value: String) {

@@ -1,13 +1,9 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
-import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
-import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.bloxbean.BlocksValidation.apiKey
 import scalus.builtin.ByteString.*
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.ShelleyDelegationPart.Null
@@ -108,7 +104,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
     private def validateBlock(num: Long): Unit = {
         val bytes = getClass.getResourceAsStream(s"/blocks/block-$num.cbor").readAllBytes()
         given OriginalCborByteArray = OriginalCborByteArray(bytes)
-        val block = readBlock(bytes).block
+        val block = BlockFile.fromCborArray(bytes).block
         validateTransactions(block.transactions) // skip first 24 txs
     }
 
@@ -121,21 +117,8 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
     }
 
     private def validateTransaction(tx: Transaction): Unit = {
-        val cwd = Paths.get(".")
-        val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
-        val utxoSupplier = CachedUtxoSupplier(
-          cwd.resolve("utxos"),
-          DefaultUtxoSupplier(backendService.getUtxoService)
-        )
-        // memory and file cached script supplier using the script service
-        val scriptSupplier = InMemoryCachedScriptSupplier(
-          FileScriptSupplier(
-            cwd.resolve("scripts"),
-            ScriptServiceSupplier(backendService.getScriptService)
-          )
-        )
-        val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
-        val utxos = utxoResolver.resolveUtxos(tx)
+//        val utxos = bloxbeanResolveUtxo(tx)
+        val utxos = resolveUtxoFromResources(tx)
         val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
@@ -149,6 +132,38 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         for (actual, expected) <- redeemers.zip(tx.witnessSet.redeemers.get.value.toIndexedSeq) do
             assert(actual.exUnits.memory <= expected.exUnits.memory)
             assert(actual.exUnits.steps <= expected.exUnits.steps, actual)
+    }
+
+    private def bloxbeanResolveUtxo(tx: Transaction): Map[TransactionInput, TransactionOutput] = {
+        import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
+        import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
+        import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
+
+        val cwd = Paths.get(".")
+        val backendService =
+            new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, BlocksValidation.apiKey)
+        val utxoSupplier = CachedUtxoSupplier(
+          cwd.resolve("utxos"),
+          DefaultUtxoSupplier(backendService.getUtxoService)
+        )
+        // memory and file cached script supplier using the script service
+        val scriptSupplier = InMemoryCachedScriptSupplier(
+          FileScriptSupplier(
+            cwd.resolve("scripts"),
+            ScriptServiceSupplier(backendService.getScriptService)
+          )
+        )
+        val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
+        utxoResolver.resolveUtxos(tx)
+    }
+
+    private def resolveUtxoFromResources(
+        tx: Transaction
+    ): Map[TransactionInput, TransactionOutput] = {
+        val utxoResolver = ResourcesUtxoResolver()
+//        utxoResolver.copyToResources(tx)
+        utxoResolver.resolveUtxos(tx)
+//        Map.empty
     }
 
     private def dumpTxInfo(
@@ -169,9 +184,5 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         val outs = Cbor.encode(utxos.values.toIndexedSeq).toByteArray
         Files.write(Path.of(s"ins-$txhash.cbor"), ins)
         Files.write(Path.of(s"outs-$txhash.cbor"), outs)
-    }
-
-    private def readBlock(blockBytes: Array[Byte]): BlockFile = {
-        BlockFile.fromCborArray(blockBytes)
     }
 }
