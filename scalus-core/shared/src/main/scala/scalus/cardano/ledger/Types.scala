@@ -120,7 +120,7 @@ final case class AssetName(bytes: ByteString) derives Codec {
     require(bytes.size <= 32, s"AssetName must be at most 32 bytes, got ${bytes.size}")
 
     /** Convert to ASCII string if possible, otherwise returns hex representation */
-    def asString: String = {
+    override def toString: String = {
         if bytes.bytes.forall(b => b >= 32 && b < 127) then {
             new String(bytes.bytes, "ASCII")
         } else {
