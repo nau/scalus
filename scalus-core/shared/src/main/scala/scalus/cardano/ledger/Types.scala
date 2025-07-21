@@ -245,19 +245,13 @@ final case class Slot(slot: Long) derives Codec {
 }
 
 /** Represents execution units for Plutus scripts in Cardano */
-case class ExUnits(
-    /** Memory units */
-    memory: Long,
-
-    /** CPU step units */
-    steps: Long
-) derives Codec,
-      UpickleReadWriter:
+case class ExUnits(memory: Long, steps: Long) derives Codec, UpickleReadWriter {
     require(memory >= 0, s"Memory units must be non-negative, got $memory")
     require(steps >= 0, s"Step units must be non-negative, got $steps")
 
     def +(other: ExUnits): ExUnits =
         ExUnits(memory + other.memory, steps + other.steps)
+}
 
 object ExUnits {
     val zero: ExUnits = ExUnits(0, 0)
