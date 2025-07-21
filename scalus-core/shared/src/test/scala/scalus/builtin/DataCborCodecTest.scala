@@ -7,6 +7,7 @@ import scalus.builtin
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data.*
 import scalus.uplc.ArbitraryInstances
+import scalus.utils.Hex.toHex
 import scalus.utils.Utils
 
 import scala.collection.immutable
@@ -39,6 +40,30 @@ class DataCborCodecTest extends AnyFunSuite with ScalaCheckPropertyChecks with A
             "c35f584000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff42ffffff"
         assert(encodeHex(I(minusTwoTo520)) == expectedMinusTwo)
         assert(decodeHex(expectedMinusTwo) == I(minusTwoTo520))
+    }
+
+    test("Fix of bug with encoding large BigInt into CBOR") {
+        /* We take byte array representation of the BigInt, and encode it as a CBOR
+         * byte string.
+         * We use `BigInteger.toByteArray`, which returns a byte array.
+         * The issue was that `BigInteger.toByteArray` returns a byte array has a place for a sign bit,
+         * even if the number is positive.
+         * This results in an extra '00' byte at the beginning of the byte array which is not needed.
+         */
+        val bs =
+            hex"aa7bd5108b0ad89b36b70f8555d44f0c63da331eb0f4dc85f0df96bac171a117048ba43520412412a8870182b4f454429de39635a54079e695a2253f5977c6bfe521b19066a58c54574e691211b0264d96493cc7ed664fcb21ea45c4c8866745511a50b6bae29fbf63c72d4c265bf04e4d18a830fa0e1fd5f9b3bd46d71003aa"
+        val bigInt = BigInt(bs.toHex, 16)
+        val data = I(bigInt)
+        val encoded = data.toCbor
+        val I(decoded) = Data.fromCbor(encoded): @unchecked
+        assert(decoded == bigInt)
+        val expectedHex =
+            "c25f5840"
+                + "aa7bd5108b0ad89b36b70f8555d44f0c63da331eb0f4dc85f0df96bac171a117048ba43520412412a8870182b4f454429de39635a54079e695a2253f5977c6bf"
+                + "5840"
+                + "e521b19066a58c54574e691211b0264d96493cc7ed664fcb21ea45c4c8866745511a50b6bae29fbf63c72d4c265bf04e4d18a830fa0e1fd5f9b3bd46d71003aa"
+                + "ff"
+        assert(encoded.toHex == expectedHex)
     }
 
     test("All BigInt values are encoded/decoded correctly") {
