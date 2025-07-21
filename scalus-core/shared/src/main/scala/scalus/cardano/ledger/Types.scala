@@ -71,7 +71,7 @@ object MultiAsset {
     def binOp(op: (Long, Long) => Long)(self: MultiAsset, other: MultiAsset): MultiAsset = {
         val assets: SortedMap[PolicyId, SortedMap[AssetName, Long]] =
             (self.assets.keySet ++ other.assets.keySet).view
-                .map { policyId =>
+                .flatMap { policyId =>
                     val selfAssets =
                         self.assets.getOrElse(policyId, SortedMap.empty[AssetName, Long])
                     val otherAssets =
@@ -79,16 +79,17 @@ object MultiAsset {
 
                     val mergedAssets: SortedMap[AssetName, Long] =
                         (selfAssets.keySet ++ otherAssets.keySet).view
-                            .map { assetName =>
+                            .flatMap { assetName =>
                                 val combinedValue =
                                     op(
                                       selfAssets.getOrElse(assetName, 0L),
                                       otherAssets.getOrElse(assetName, 0L)
                                     )
-                                assetName -> combinedValue
+                                if combinedValue != 0 then Some(assetName -> combinedValue)
+                                else None
                             }
                             .to(TreeMap)
-                    policyId -> mergedAssets
+                    if mergedAssets.nonEmpty then Some(policyId -> mergedAssets) else None
                 }
                 .to(TreeMap)
         MultiAsset(assets)
