@@ -105,14 +105,14 @@ object SIRTypeUplcBooleanGenerator extends PrimitiveSirTypeGenerator {
           lvBuiltinApply(
             SIRBuiltins.iData,
             lvIntConstant(1, pos),
-            SIRType.Data,
+            SIRType.Boolean,
             PrimitiveRepresentation.PackedData,
             pos
           ),
           lvBuiltinApply(
             SIRBuiltins.iData,
             lvIntConstant(0, pos),
-            SIRType.Data,
+            SIRType.Boolean,
             PrimitiveRepresentation.PackedData,
             pos
           ),

@@ -123,5 +123,7 @@ object Vesting extends Validator:
     }
 
 object VestingScript {
-    val compiled = compile(Vesting.validate)
+
+    inline def compiled(using scalus.Compiler.Options) = compile(Vesting.validate)
+
 }

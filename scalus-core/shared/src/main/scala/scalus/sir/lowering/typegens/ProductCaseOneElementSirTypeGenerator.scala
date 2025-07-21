@@ -223,13 +223,18 @@ case class ProductCaseOneElementSirTypeGenerator(
                 throw LoweringException("Empty match cases", matchData.anns.pos)
             case SIR.Case(pattern, body, anns) :: Nil =>
                 pattern match
-                    case SIR.Pattern.Constr(constr, bindings, typeBindings) =>
+                    case SIR.Pattern.Constr(constr, bindings, typeParams) =>
                         if constr.name == sirCaseClass.constrDecl.name then
+                            val argType = SIRType.substitute(
+                              constr.params.head.tp,
+                              sirCaseClass.constrDecl.typeParams.zip(typeParams).toMap,
+                              Map.empty
+                            )
                             val prevScope = lctx.scope
                             val arg = argLoweredValue(loweredScrutinee)
                             lvNewLazyNamedVar(
                               bindings.head,
-                              typeBindings.head,
+                              argType,
                               arg.representation,
                               arg,
                               anns.pos

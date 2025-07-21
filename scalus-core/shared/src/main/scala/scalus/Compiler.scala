@@ -20,7 +20,6 @@ object Compiler:
 
     enum TargetLoweringBackend:
         case SimpleSirToUplcLowering
-        case SimpleSirToUplcV3Lowering
         case SirToUplc110Lowering
         case SirToUplcV3Lowering
 

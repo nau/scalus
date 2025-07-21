@@ -35,8 +35,6 @@ package object scalus {
             val uplc = backend match
                 case Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>
                     SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
-                case Compiler.TargetLoweringBackend.SimpleSirToUplcV3Lowering =>
-                    SimpleSirToUplcV3Lowering(sir, generateErrorTraces).lower()
                 case Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     SirToUplc110Lowering(sir, generateErrorTraces).lower()
                 case Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
@@ -86,9 +84,6 @@ package object scalus {
             val uplc = backend match
                 case Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>
                     SimpleSirToUplcLowering(sir, options.generateErrorTraces).lower()
-                case Compiler.TargetLoweringBackend.SimpleSirToUplcV3Lowering =>
-                    SimpleSirToUplcV3Lowering(sir, options.generateErrorTraces)
-                        .lower()
                 case Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     SirToUplc110Lowering(sir, options.generateErrorTraces).lower()
                 case Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>

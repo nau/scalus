@@ -99,7 +99,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
           testName = "ClausifyTest.F3",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(41872495549L), ExMemory(136054751L)),
-          isPrintComparison = false
+          isPrintComparison = true
         )
     }
 
@@ -1025,7 +1025,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
           testName = "ClausifyTest.F4",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(56754761923L), ExMemory(181055087L)),
-          isPrintComparison = false
+          isPrintComparison = true
         )
     }
 
@@ -1049,7 +1049,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
           testName = "ClausifyTest.F5",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(203182153626L), ExMemory(660668247L)),
-          isPrintComparison = false
+          isPrintComparison = true
         )
     }
 

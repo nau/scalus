@@ -227,6 +227,7 @@ object IntervalBoundType {
   *   whether the bound is inclusive or not
   */
 case class IntervalBound(boundType: IntervalBoundType, isInclusive: Closure)
+
 @deprecated("Use `IntervalBound` instead", "0.7.0")
 type UpperBound[A] = IntervalBound
 @deprecated("Use `IntervalBound` instead", "0.7.0")

@@ -395,7 +395,6 @@ object Lowering {
     }
 
     private def isFromDataApp(app: SIR.Apply): Boolean = {
-
         app.f match
             case SIR.ExternalVar(moduleName, name, tp, _) =>
                 // extrapolation.  TODO: write annotation when compiling FromData tp and extract it here
@@ -408,7 +407,7 @@ object Lowering {
         app.f match
             case SIR.ExternalVar(moduleName, name, tp, _) =>
                 // extrapolation.  TODO: write annotation when compiling ToData tp and extract it here
-                name.contains("ToData") && isToDataType(tp)
+                name == "scalus.builtin.internal.UniversalDataConversion$.toData"
             case _ => false
 
     }

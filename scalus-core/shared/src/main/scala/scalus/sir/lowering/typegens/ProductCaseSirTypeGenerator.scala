@@ -314,11 +314,20 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
     ): LoweredValue = {
         val loweredArgs = constr.args.map(arg => lctx.lower(arg))
         val argTypeGens = loweredArgs.map(_.sirType).map(lctx.typeGenerator)
-        val isDataSupported = constr.args.zip(argTypeGens).forall { case (arg, typeGen) =>
-            typeGen.isDataSupported(arg.tp)
+        val isDataSupported = loweredArgs.zip(argTypeGens).forall { case (arg, typeGen) =>
+            typeGen.isDataSupported(arg.sirType)
         }
-        if !isDataSupported then genConstrUplcConstr(constr)
-        else
+        if !isDataSupported then {
+            val notSupportedData = loweredArgs.zip(argTypeGens).filterNot { case (arg, typeGen) =>
+                typeGen.isDataSupported(arg.sirType)
+            }
+            val firstNotSupported = notSupportedData.head._1
+            throw LoweringException(
+              s"Sorry, data representation is not supported for ${firstNotSupported.sirType.show}",
+              firstNotSupported.pos
+            )
+            genConstrUplcConstr(constr)
+        } else
             // check majority
             val nDataCentric = loweredArgs.count(_.representation.isDataCentric)
             if nDataCentric >= loweredArgs.size / 2 then
