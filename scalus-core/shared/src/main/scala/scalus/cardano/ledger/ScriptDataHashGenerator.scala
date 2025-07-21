@@ -26,7 +26,7 @@ object ScriptDataHashGenerator {
         w: TransactionWitnessSet,
         refLangs: TreeSet[Language]
     ): CostModels = {
-
+        // FIXME:  reuse code from ledger rules
         val v1: TreeSet[Language] =
             if w.plutusV1Scripts.nonEmpty then TreeSet(Language.PlutusV1) else TreeSet.empty
         val v2: TreeSet[Language] =

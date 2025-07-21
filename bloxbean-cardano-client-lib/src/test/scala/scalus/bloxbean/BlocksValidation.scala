@@ -483,7 +483,7 @@ object BlocksValidation:
         txb: ledger.TransactionBody
     ): TreeSet[Language] = {
         import scala.jdk.OptionConverters.RichOptional
-        val refScripts = txb.referenceInputs.view
+        val refScripts = (txb.inputs.view ++ txb.referenceInputs.view)
             .flatMap { refInputs =>
                 utxoSupplier
                     .getTxOutput(refInputs.transactionId.toHex, refInputs.index)
@@ -520,6 +520,8 @@ object BlocksValidation:
         then {
             costMdls.add(PlutusV3CostModel)
         }
+
+        // FIXME: this is not complete because we need to include scripts from inputs and reference inputs
 
         import com.bloxbean.cardano.client.plutus.util.ScriptDataHashGenerator.generate
         val bbgenerated = generate(
