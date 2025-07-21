@@ -10,17 +10,15 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
         val context = Context()
 
         val output = TransactionOutput.Shelley(
-          Address.Shelley(
-            Arbitrary
-                .arbitrary[ShelleyAddress]
-                .sample
-                .get
-                .copy(payment =
-                    ShelleyPaymentPart.keyHash(
-                      Arbitrary.arbitrary[AddrKeyHash].sample.get
-                    )
-                )
-          ),
+          Arbitrary
+              .arbitrary[ShelleyAddress]
+              .sample
+              .get
+              .copy(payment =
+                  ShelleyPaymentPart.keyHash(
+                    Arbitrary.arbitrary[AddrKeyHash].sample.get
+                  )
+              ),
           Value(Coin(1000000000L))
         )
 
@@ -46,17 +44,15 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
         val context = Context()
 
         val output = TransactionOutput.Shelley(
-          Address.Shelley(
-            Arbitrary
-                .arbitrary[ShelleyAddress]
-                .sample
-                .get
-                .copy(payment =
-                    ShelleyPaymentPart.keyHash(
-                      Arbitrary.arbitrary[AddrKeyHash].sample.get
-                    )
-                )
-          ),
+          Arbitrary
+              .arbitrary[ShelleyAddress]
+              .sample
+              .get
+              .copy(payment =
+                  ShelleyPaymentPart.keyHash(
+                    Arbitrary.arbitrary[AddrKeyHash].sample.get
+                  )
+              ),
           Value(Coin(1L))
         )
 
@@ -82,17 +78,15 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
         val context = Context()
 
         val collateralReturnOutput = TransactionOutput.Shelley(
-          Address.Shelley(
-            Arbitrary
-                .arbitrary[ShelleyAddress]
-                .sample
-                .get
-                .copy(payment =
-                    ShelleyPaymentPart.keyHash(
-                      Arbitrary.arbitrary[AddrKeyHash].sample.get
-                    )
-                )
-          ),
+          Arbitrary
+              .arbitrary[ShelleyAddress]
+              .sample
+              .get
+              .copy(payment =
+                  ShelleyPaymentPart.keyHash(
+                    Arbitrary.arbitrary[AddrKeyHash].sample.get
+                  )
+              ),
           Value(Coin(1000000000L))
         )
 
@@ -118,17 +112,15 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
         val context = Context()
 
         val collateralReturnOutput = TransactionOutput.Shelley(
-          Address.Shelley(
-            Arbitrary
-                .arbitrary[ShelleyAddress]
-                .sample
-                .get
-                .copy(payment =
-                    ShelleyPaymentPart.keyHash(
-                      Arbitrary.arbitrary[AddrKeyHash].sample.get
-                    )
-                )
-          ),
+          Arbitrary
+              .arbitrary[ShelleyAddress]
+              .sample
+              .get
+              .copy(payment =
+                  ShelleyPaymentPart.keyHash(
+                    Arbitrary.arbitrary[AddrKeyHash].sample.get
+                  )
+              ),
           Value(Coin(1L))
         )
 

@@ -7,6 +7,8 @@ import scalus.builtin.platform
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.collection.immutable.TreeMap
+
 class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
     test("MissingOrExtraScriptHashesValidator rule success") {
         val context = Context()
@@ -34,10 +36,14 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                   collateralInputs = Set.empty,
                   referenceInputs = Set(referenceInput),
                   mint = Some(
-                    Map(
-                      plutusV1Script.scriptHash -> Map.empty,
-                      plutusV2Script.scriptHash -> Map.empty,
-                      plutusV3Script.scriptHash -> Map.empty
+                    Mint(
+                      MultiAsset(
+                        TreeMap(
+                          plutusV1Script.scriptHash -> TreeMap.empty,
+                          plutusV2Script.scriptHash -> TreeMap.empty,
+                          plutusV3Script.scriptHash -> TreeMap.empty
+                        )
+                      )
                     )
                   ),
                   votingProcedures = Some(
@@ -54,15 +60,13 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                     Withdrawals(
                       Map(
                         RewardAccount(
-                          Address.Shelley(
-                            Arbitrary
-                                .arbitrary[ShelleyAddress]
-                                .sample
-                                .get
-                                .copy(
-                                  payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
-                                )
-                          )
+                          Arbitrary
+                              .arbitrary[ShelleyAddress]
+                              .sample
+                              .get
+                              .copy(
+                                payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
+                              )
                         ) -> Arbitrary.arbitrary[Coin].sample.get
                       )
                     )
@@ -90,9 +94,7 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                             )
                         )
                   ),
-                  certificates = Set(
-                    Certificate.StakeRegistration(credential1),
-                    Certificate.StakeDeregistration(credential2),
+                  certificates = TaggedSet(
                     Certificate
                         .StakeDelegation(credential3, Arbitrary.arbitrary[PoolKeyHash].sample.get),
                     Certificate.PoolRegistration(
@@ -108,8 +110,9 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                     ),
                     Certificate
                         .PoolRetirement(Hash(platform.blake2b_224(publicKey)), 1),
-                    Certificate.RegCert(credential1, Arbitrary.arbitrary[Coin].sample.get),
-                    Certificate.UnregCert(credential2, Arbitrary.arbitrary[Coin].sample.get),
+                    Certificate.RegCert(credential1, Arbitrary.arbitrary[Option[Coin]].sample.get),
+                    Certificate
+                        .UnregCert(credential2, Arbitrary.arbitrary[Option[Coin]].sample.get),
                     Certificate.VoteDelegCert(credential3, Arbitrary.arbitrary[DRep].sample.get),
                     Certificate.StakeVoteDelegCert(
                       credential1,
@@ -168,15 +171,13 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
         val state = State(
           utxo = Map(
             input -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(
+                    payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
+                  ),
               Value(Coin(1000000L))
             ),
             referenceInput -> TransactionOutput

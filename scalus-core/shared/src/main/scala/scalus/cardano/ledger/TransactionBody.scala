@@ -18,7 +18,7 @@ case class TransactionBody(
     ttl: Option[Long] = None,
 
     /** Certificates for delegation, stake operations, etc. */
-    certificates: Set[Certificate] = Set.empty,
+    certificates: TaggedSet[Certificate] = TaggedSet.empty,
 
     /** Withdrawals from reward accounts */
     withdrawals: Option[Withdrawals] = None,
@@ -85,6 +85,10 @@ case class TransactionBody(
     )
 
 object TransactionBody:
+    // Needed to resolve ambiguity between Encoder[TaggedSet] and Encoder[IndexedSeq]
+    // we override it with explicit import which is higher priority in given resolution
+//    import TaggedSet.given
+
     /** CBOR encoder for TransactionBody */
     given Encoder[TransactionBody] with
         def write(w: Writer, value: TransactionBody): Writer =
@@ -92,7 +96,7 @@ object TransactionBody:
             var mapSize = 3 // inputs, outputs, fee are required
 
             if value.ttl.isDefined then mapSize += 1
-            if value.certificates.nonEmpty then mapSize += 1
+            if value.certificates.toIndexedSeq.nonEmpty then mapSize += 1
             if value.withdrawals.isDefined then mapSize += 1
             if value.auxiliaryDataHash.isDefined then mapSize += 1
             if value.validityStartSlot.isDefined then mapSize += 1
@@ -134,9 +138,9 @@ object TransactionBody:
             }
 
             // Certificates (key 4)
-            if value.certificates.nonEmpty then
+            if value.certificates.toIndexedSeq.nonEmpty then
                 w.writeInt(4)
-                writeSet(w, value.certificates)
+                w.write(value.certificates)
 
             // Withdrawals (key 5)
             value.withdrawals.foreach { withdrawals =>
@@ -242,7 +246,7 @@ object TransactionBody:
             var outputs = IndexedSeq.empty[Sized[TransactionOutput]]
             var fee: Option[Coin] = None
             var ttl: Option[Long] = None
-            var certificates = Set.empty[Certificate]
+            var certificates = TaggedSet.empty[Certificate]
             var withdrawals: Option[Withdrawals] = None
             var auxiliaryDataHash: Option[AuxiliaryDataHash] = None
             var validityStartSlot: Option[Long] = None
@@ -277,7 +281,7 @@ object TransactionBody:
                         if r.hasOverLong then ttl = Some(r.readOverLong())
                         else ttl = Some(r.readLong())
                     case 4 => // Certificates
-                        certificates = readSet[Certificate](r)
+                        certificates = r.read[TaggedSet[Certificate]]()
 
                     case 5 => // Withdrawals
                         withdrawals = Some(r.read[Withdrawals]())
@@ -289,7 +293,7 @@ object TransactionBody:
                         validityStartSlot = Some(r.readLong())
 
                     case 9 => // Mint
-                        mint = Some(r.read[MultiAsset]())
+                        mint = Some(r.read[Mint]())
 
                     case 11 => // Script data hash
                         scriptDataHash = Some(r.read[ScriptDataHash]())

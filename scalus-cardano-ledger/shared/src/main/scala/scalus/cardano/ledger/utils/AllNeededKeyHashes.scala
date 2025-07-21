@@ -116,38 +116,28 @@ object AllNeededKeyHashes {
         transaction: Transaction
     ): View[AddrKeyHash | PoolKeyHash] = {
         val certificates = transaction.body.value.certificates
-
-        def extractKeyHash(credential: Credential): Option[AddrKeyHash] = {
-            credential match
-                case Credential.KeyHash(keyHash) => Some(keyHash)
-                case _: Credential.ScriptHash    => None
-        }
-
         for
-            certificate <- certificates.view
+            certificate <- certificates.toIndexedSeq.view
             keyHash: (AddrKeyHash | PoolKeyHash) <- certificate match
-                case cert: Certificate.StakeRegistration   => extractKeyHash(cert.credential)
-                case cert: Certificate.StakeDeregistration => extractKeyHash(cert.credential)
-                case cert: Certificate.StakeDelegation     => extractKeyHash(cert.credential)
+                case cert: Certificate.StakeDelegation => cert.credential.keyHashOption
                 case cert: Certificate.PoolRegistration =>
                     cert.poolOwners.view.concat(Some(cert.operator))
                 case cert: Certificate.PoolRetirement => Some(cert.poolKeyHash)
                 case cert: Certificate.RegCert =>
-                    if cert.coin > Coin.zero then extractKeyHash(cert.credential)
-                    else None // No witness needed for zero deposit
-                case cert: Certificate.UnregCert             => extractKeyHash(cert.credential)
-                case cert: Certificate.VoteDelegCert         => extractKeyHash(cert.credential)
-                case cert: Certificate.StakeVoteDelegCert    => extractKeyHash(cert.credential)
-                case cert: Certificate.StakeRegDelegCert     => extractKeyHash(cert.credential)
-                case cert: Certificate.VoteRegDelegCert      => extractKeyHash(cert.credential)
-                case cert: Certificate.StakeVoteRegDelegCert => extractKeyHash(cert.credential)
+                    if cert.coin.nonEmpty then cert.credential.keyHashOption else None
+                case cert: Certificate.UnregCert             => cert.credential.keyHashOption
+                case cert: Certificate.VoteDelegCert         => cert.credential.keyHashOption
+                case cert: Certificate.StakeVoteDelegCert    => cert.credential.keyHashOption
+                case cert: Certificate.StakeRegDelegCert     => cert.credential.keyHashOption
+                case cert: Certificate.VoteRegDelegCert      => cert.credential.keyHashOption
+                case cert: Certificate.StakeVoteRegDelegCert => cert.credential.keyHashOption
                 case cert: Certificate.AuthCommitteeHotCert =>
-                    extractKeyHash(cert.committeeColdCredential)
+                    cert.committeeColdCredential.keyHashOption
                 case cert: Certificate.ResignCommitteeColdCert =>
-                    extractKeyHash(cert.committeeColdCredential)
-                case cert: Certificate.RegDRepCert    => extractKeyHash(cert.drepCredential)
-                case cert: Certificate.UnregDRepCert  => extractKeyHash(cert.drepCredential)
-                case cert: Certificate.UpdateDRepCert => extractKeyHash(cert.drepCredential)
+                    cert.committeeColdCredential.keyHashOption
+                case cert: Certificate.RegDRepCert    => cert.drepCredential.keyHashOption
+                case cert: Certificate.UnregDRepCert  => cert.drepCredential.keyHashOption
+                case cert: Certificate.UpdateDRepCert => cert.drepCredential.keyHashOption
         yield keyHash
     }
 

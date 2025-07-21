@@ -2,14 +2,8 @@ package scalus.bugtracking
 
 import scalus.Compiler.compile
 import scalus.*
-import scalus.prelude.{*, given}
-import scalus.builtin.{ByteString, Data}
-import scalus.ledger.api.v1.{Credential, PubKeyHash}
-import scalus.ledger.api.v1.Value.getLovelace
-import scalus.ledger.api.v2.TxOut
-import scalus.ledger.api.v3.*
-import scalus.prelude.{AssocMap, DataParameterizedValidator, List, Option}
-import scalus.prelude.Option.Some
+import scalus.prelude.*
+import scalus.builtin.Data
 
 import org.scalatest.funsuite.AnyFunSuite
 

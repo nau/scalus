@@ -304,6 +304,7 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       name := "scalus-testkit",
       scalaVersion := scalaVersion.value,
       scalacOptions ++= commonScalacOptions,
+      scalacOptions += "-Xmax-inlines:100", // needed for Arbitrary[Certificate] = autoDerived
       Test / scalacOptions += "-color:never",
       copySharedFiles := {
           val sharedFiles = Seq(

@@ -52,7 +52,6 @@ import scalus.ledger.babbage.PlutusV1Params
 import scalus.ledger.babbage.PlutusV2Params
 import scalus.ledger.babbage.PlutusV3Params
 import scalus.prelude
-import scalus.prelude.Ord.given
 import scalus.prelude.AssocMap
 import scalus.prelude.List
 import scalus.uplc.eval.*
@@ -1110,7 +1109,7 @@ object Interop {
           ),
           outputs = prelude.List.from(body.getOutputs.asScala.map(getTxOutV2)),
           fee = body.getFee ?? BigInteger.ZERO,
-          mint = getMintValue(body.getMint ?? util.List.of()),
+          mint = getValue(body.getMint ?? util.List.of()),
           certificates = prelude.List.from(certs.asScala.map(getTxCertV3)),
           withdrawals = AssocMap.unsafeFromList(withdrawals),
           validRange = getInterval(tx, slotConfig, protocolVersion),

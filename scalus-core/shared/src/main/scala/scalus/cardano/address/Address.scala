@@ -284,7 +284,7 @@ case class ShelleyAddress(
     network: Network,
     payment: ShelleyPaymentPart,
     delegation: ShelleyDelegationPart
-) {
+) extends Address {
 
     /** Get numeric type ID for this address following CIP-19 specification */
     def typeId: Byte = (payment, delegation) match
@@ -329,10 +329,20 @@ case class ShelleyAddress(
 
     /** Check if this is an enterprise address (no delegation) */
     def isEnterprise: Boolean = delegation == ShelleyDelegationPart.Null
+
+    def encode: Try[String] = toBech32
+
+    def keyHash: Option[AddrKeyHash | StakeKeyHash] = payment match
+        case ShelleyPaymentPart.Key(hash) => Some(hash)
+        case _                            => None
+
+    def scriptHash: Option[ScriptHash] = payment match
+        case ShelleyPaymentPart.Script(hash) => Some(hash)
+        case _                               => None
 }
 
 /** A decoded Stake address for delegation purposes */
-case class StakeAddress(network: Network, payload: StakePayload) {
+case class StakeAddress(network: Network, payload: StakePayload) extends Address {
 
     /** Get numeric type ID */
     def typeId: Byte = payload match
@@ -361,100 +371,75 @@ case class StakeAddress(network: Network, payload: StakePayload) {
         encoded <- Try(Bech32.encodeFrom5Bit(prefix, Bech32.to5Bit(bytes)))
     } yield encoded
 
-    /** Check if this is a script stake address */
-    def isScript: Boolean = payload.isScript
+    def hasScript: Boolean = payload.isScript
+
+    def isEnterprise: Boolean = false // Stake addresses are not enterprise addresses
+
+    def encode: Try[String] = toBech32
+
+    def keyHash: Option[AddrKeyHash | StakeKeyHash] = payload match
+        case StakePayload.Stake(hash) => Some(hash)
+        case StakePayload.Script(_)   => None
+
+    def scriptHash: Option[ScriptHash] = payload match
+        case StakePayload.Script(hash) => Some(hash)
+        case _                         => None
 }
 
 /** Placeholder for Byron address - complex legacy format */
-case class ByronAddress(bytes: ByteString) {
+case class ByronAddress(bytes: ByteString) extends Address {
     def typeId: Byte = 0x08
     def toBytes: ByteString = bytes
     def toHex: String = bytes.toString
     // Byron addresses use Base58 encoding, not implemented here
     def toBase58: String = ??? // Would need Base58 implementation
+    def hrp: Try[String] = Failure(
+      new UnsupportedOperationException("Byron addresses don't use bech32")
+    )
+    def network: Option[Network] = None // Byron addresses don't have explicit network
+    def hasScript: Boolean = false // Byron addresses don't have scripts
+    def isEnterprise: Boolean = false // Byron addresses are not enterprise addresses
+    def encode: Try[String] = Failure(
+      new UnsupportedOperationException("Byron addresses don't use bech32")
+    )
+    def keyHash: Option[AddrKeyHash | StakeKeyHash] =
+        None // Byron addresses don't have staking credentials
+    def scriptHash: Option[ScriptHash] = None // Byron addresses don't have staking credentials
 }
 
-/** Main Address enum representing any type of Cardano address */
-enum Address {
-    case Byron(address: ByronAddress)
-    case Shelley(address: ShelleyAddress)
-    case Stake(address: StakeAddress)
-
-    /** Get network if available (Byron addresses don't have explicit network) */
-    def network: Option[Network] = this match
-        case Byron(_)      => None
-        case Shelley(addr) => Some(addr.network)
-        case Stake(addr)   => Some(addr.network)
+/** Base trait for all Cardano addresses
+  *
+  * Provides common functionality and properties shared across different address types
+  */
+trait Address {
 
     /** Get type ID */
-    def typeId: Byte = this match
-        case Byron(addr)   => addr.typeId
-        case Shelley(addr) => addr.typeId
-        case Stake(addr)   => addr.typeId
+    def typeId: Byte
 
     /** Get human-readable prefix if available */
-    def hrp: Try[String] = this match
-        case Byron(_) =>
-            Failure(new UnsupportedOperationException("Byron addresses don't use bech32"))
-        case Shelley(addr) => addr.hrp
-        case Stake(addr)   => addr.hrp
+    def hrp: Try[String]
 
     /** Check if address contains scripts */
-    def hasScript: Boolean = this match
-        case Byron(_)      => false
-        case Shelley(addr) => addr.hasScript
-        case Stake(addr)   => addr.isScript
+    def hasScript: Boolean
 
     /** Check if this is an enterprise address */
-    def isEnterprise: Boolean = this match
-        case Shelley(addr) => addr.isEnterprise
-        case _             => false
+    def isEnterprise: Boolean
 
     /** Serialize to bytes */
-    def toBytes: ByteString = this match
-        case Byron(addr)   => addr.toBytes
-        case Shelley(addr) => addr.toBytes
-        case Stake(addr)   => addr.toBytes
+    def toBytes: ByteString
 
     /** Convert to hex string */
-    def toHex: String = this match
-        case Byron(addr)   => addr.toHex
-        case Shelley(addr) => addr.toHex
-        case Stake(addr)   => addr.toHex
+    def toHex: String
 
     /** Encode to appropriate string format */
-    def encode: Try[String] = this match
-        case Byron(addr)   => Try(addr.toBase58)
-        case Shelley(addr) => addr.toBech32
-        case Stake(addr)   => addr.toBech32
+    def encode: Try[String]
 
-    def keyHash: Option[AddrKeyHash | StakeKeyHash] = {
-        this match
-            case Address.Byron(_) =>
-                None // Byron addresses don't have staking credentials
-            case Address.Shelley(shelleyAddress) =>
-                shelleyAddress.payment match
-                    case ShelleyPaymentPart.Key(hash) => Some(hash)
-                    case _: ShelleyPaymentPart.Script => None
-            case Address.Stake(stakeAddress) =>
-                stakeAddress.payload match
-                    case StakePayload.Stake(hash) => Some(hash)
-                    case _: StakePayload.Script   => None
-    }
+    /** Get key hash if available */
+    def keyHash: Option[AddrKeyHash | StakeKeyHash]
 
-    def scriptHash: Option[ScriptHash] = {
-        this match
-            case Address.Byron(_) =>
-                None // Byron addresses don't have staking credentials
-            case Address.Shelley(shelleyAddress) =>
-                shelleyAddress.payment match
-                    case _: ShelleyPaymentPart.Key       => None
-                    case ShelleyPaymentPart.Script(hash) => Some(hash)
-            case Address.Stake(stakeAddress) =>
-                stakeAddress.payload match
-                    case _: StakePayload.Stake     => None
-                    case StakePayload.Script(hash) => Some(hash)
-    }
+    /** Get script hash if available */
+    def scriptHash: Option[ScriptHash]
+
 }
 
 // Conversion utilities between address types
@@ -545,7 +530,7 @@ object Address {
         // Try bech32 first (most common for modern addresses)
         Try(fromBech32(str))
             .orElse(
-              Try(Address.Byron(ByronAddress(ByteString.fromString(str))))
+              Try(ByronAddress(ByteString.fromString(str)))
             )
             .get
     }
@@ -566,7 +551,7 @@ object Address {
         val payment = ShelleyPaymentPart.Key(paymentHash)
         val delegation = ShelleyDelegationPart.Key(stakeHash)
 
-        Address.Shelley(ShelleyAddress(network, payment, delegation))
+        ShelleyAddress(network, payment, delegation)
     }
 
     /** Parse Type 1: Script Hash + Stake Key Hash */
@@ -583,7 +568,7 @@ object Address {
         val payment = ShelleyPaymentPart.Script(scriptHash)
         val delegation = ShelleyDelegationPart.Key(stakeHash)
 
-        Address.Shelley(ShelleyAddress(network, payment, delegation))
+        ShelleyAddress(network, payment, delegation)
     }
 
     /** Parse Type 2: Payment Key Hash + Script Hash */
@@ -600,7 +585,7 @@ object Address {
         val payment = ShelleyPaymentPart.Key(paymentHash)
         val delegation = ShelleyDelegationPart.Script(scriptHash)
 
-        Address.Shelley(ShelleyAddress(network, payment, delegation))
+        ShelleyAddress(network, payment, delegation)
     }
 
     /** Parse Type 3: Script Hash + Script Hash */
@@ -617,7 +602,7 @@ object Address {
         val payment = ShelleyPaymentPart.Script(scriptHash1)
         val delegation = ShelleyDelegationPart.Script(scriptHash2)
 
-        Address.Shelley(ShelleyAddress(network, payment, delegation))
+        ShelleyAddress(network, payment, delegation)
     }
 
     /** Parse Type 4: Payment Key Hash + Pointer */
@@ -640,7 +625,7 @@ object Address {
         val payment = ShelleyPaymentPart.Key(paymentHash)
         val delegation = ShelleyDelegationPart.Pointer(pointer)
 
-        Address.Shelley(ShelleyAddress(network, payment, delegation))
+        ShelleyAddress(network, payment, delegation)
     }
 
     /** Parse Type 5: Script Hash + Pointer */
@@ -663,7 +648,7 @@ object Address {
         val payment = ShelleyPaymentPart.Script(scriptHash)
         val delegation = ShelleyDelegationPart.Pointer(pointer)
 
-        Address.Shelley(ShelleyAddress(network, payment, delegation))
+        ShelleyAddress(network, payment, delegation)
     }
 
     /** Parse Type 6: Payment Key Hash Only (Enterprise) */
@@ -679,7 +664,7 @@ object Address {
         val payment = ShelleyPaymentPart.Key(paymentHash)
         val delegation = ShelleyDelegationPart.Null
 
-        Address.Shelley(ShelleyAddress(network, payment, delegation))
+        ShelleyAddress(network, payment, delegation)
     }
 
     /** Parse Type 7: Script Hash Only (Enterprise) */
@@ -695,14 +680,14 @@ object Address {
         val payment = ShelleyPaymentPart.Script(scriptHash)
         val delegation = ShelleyDelegationPart.Null
 
-        Address.Shelley(ShelleyAddress(network, payment, delegation))
+        ShelleyAddress(network, payment, delegation)
     }
 
     /** Parse Type 8: Byron Address (Legacy) */
     private def parseType8(header: Byte, payload: Array[Byte]): Address = {
         // Byron addresses have complex CBOR structure - simplified here
         val fullBytes = header +: payload
-        Address.Byron(ByronAddress(ByteString.fromArray(fullBytes)))
+        ByronAddress(ByteString.fromArray(fullBytes))
     }
 
     /** Parse Type 14: Stake Key Hash */
@@ -716,7 +701,7 @@ object Address {
         val stakeHash = Hash.stakeKeyHash(ByteString.fromArray(payload))
 
         val stakePayload = StakePayload.Stake(stakeHash)
-        Address.Stake(StakeAddress(network, stakePayload))
+        StakeAddress(network, stakePayload)
     }
 
     /** Parse Type 15: Stake Script Hash */
@@ -730,6 +715,6 @@ object Address {
         val scriptHash = Hash.scriptHash(ByteString.fromArray(payload))
 
         val stakePayload = StakePayload.Script(scriptHash)
-        Address.Stake(StakeAddress(network, stakePayload))
+        StakeAddress(network, stakePayload)
     }
 }

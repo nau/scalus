@@ -15,6 +15,14 @@ import scalus.uplc.eval.PlutusVM
 import scala.language.implicitConversions
 
 class PubKeyValidatorTest extends AnyFunSuite with ScalaCheckPropertyChecks:
+
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
+    )
+
     test("PubKey Validator example") {
         val scriptContext =
             ScriptContext(

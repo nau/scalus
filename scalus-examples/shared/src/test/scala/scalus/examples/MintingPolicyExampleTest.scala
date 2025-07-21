@@ -9,7 +9,6 @@ import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
 import scalus.prelude.Option.*
 import scalus.prelude.*
-import scalus.prelude.Ord.given
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
 import scalus.uplc.*
@@ -171,7 +170,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
-        assert(flatSize == 2208)
+        assert(flatSize == 2213)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
     }
 
@@ -184,7 +183,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV2(appliedValidator).flatEncoded.length
-        assert(flatSize == 2864)
+        assert(flatSize == 2869)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
     }
 
@@ -198,7 +197,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
-        assert(flatSize == 1036)
+        assert(flatSize == 1041)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
     }
 }

@@ -3,17 +3,13 @@ package scalus.examples
 import scalus.*
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
-import scalus.prelude.log
 import scalus.prelude.Option.*
-import scalus.prelude.given_Eq_ByteString
 import scalus.ledger.api.v1.IntervalBoundType.*
-import scalus.prelude.Eq
 import scalus.ledger.api.v2.OutputDatum
 import scalus.builtin.Data
-import scalus.builtin.Data.{fromData, toData, FromData, ToData}
+import scalus.builtin.Data.{FromData, ToData}
 import scalus.ledger.api.v1.Value.getLovelace
 import scalus.Compiler.compile
-import scalus.builtin.Builtins.trace
 
 case class VestingDatum(
     beneficiary: PubKeyHash,
@@ -127,5 +123,7 @@ object Vesting extends Validator:
     }
 
 object VestingScript {
-    val compiled = compile(Vesting.validate)
+
+    inline def compiled(using scalus.Compiler.Options) = compile(Vesting.validate)
+
 }

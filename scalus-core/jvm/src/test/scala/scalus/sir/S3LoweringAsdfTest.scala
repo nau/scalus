@@ -3,10 +3,12 @@ package scalus.sir
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtin.ByteString.*
 import scalus.builtin.*
+import scalus.builtin.ByteString.hex
+import scalus.builtin.Data.toData
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
+import scalus.uplc.*
 import scalus.uplc.Term
 import scalus.uplc.Term.*
 import scalus.uplc.eval.{PlutusVM, Result}
@@ -14,14 +16,22 @@ import scalus.uplc.eval.{PlutusVM, Result}
 import scala.language.implicitConversions
 
 class S3LoweringAsdfTest extends AnyFunSuite {
+
     given PlutusVM = PlutusVM.makePlutusV3VM()
+
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
+    )
 
     case class Asdf(
         a: BigInt,
         b: ByteString,
         c: Boolean,
         d: String,
-        u: Unit,
+        // u: Unit,  // have np data represemtatom.  TODO: enble
         e1: BLS12_381_G1_Element,
         e2: BLS12_381_G2_Element,
         bb: AA
@@ -39,7 +49,7 @@ class S3LoweringAsdfTest extends AnyFunSuite {
                   hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6",
                   false,
                   "asdf",
-                  (),
+                  // (),
                   Builtins
                       .bls12_381_G1_hashToGroup(ByteString.empty, ByteString.fromString("DST")),
                   Builtins.bls12_381_G2_hashToGroup(
@@ -52,13 +62,13 @@ class S3LoweringAsdfTest extends AnyFunSuite {
                 asdf.bb
 
         // println(sir.showHighlighted)
-        val lower = SimpleSirToUplcV3Lowering(sir)
+        val lower = SirToUplcV3Lowering(sir)
         val term = lower.lower()
         // println(term.showHighlighted)
-        // println(term.evaluateDebug)
+        val r = term.evaluateDebug
     }
 
-    test("V3 pattern matching") {
+    test("pattern match on DDD enum") {
         val sir =
             compile:
                 val bb: AA = new AA.DDD(123)
@@ -67,13 +77,15 @@ class S3LoweringAsdfTest extends AnyFunSuite {
                     case _         => false
 
         // println(sir.showHighlighted)
-        val lower = SimpleSirToUplcV3Lowering(sir)
+        val lower = SirToUplcV3Lowering(sir)
         val term = lower.lower()
         // println(term.showHighlighted)
-        // println(term.evaluateDebug)
+        val Result.Success(result, _, _, _) = term.evaluateDebug: @unchecked
+
+        assert(result == Term.Const(Constant.Bool(true)))
     }
 
-    test("Asdf") {
+    test("pattern match on txId") {
         val sir =
             compile:
                 val txid = new TxId(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6")
@@ -82,10 +94,15 @@ class S3LoweringAsdfTest extends AnyFunSuite {
                 txid.hash
 
         // println(sir.showHighlighted)
-        val lower = SimpleSirToUplcV3Lowering(sir)
+        val lower = SirToUplcV3Lowering(sir)
         val term = lower.lower()
         // println(term.showHighlighted)
-        // println(term.evaluateDebug)
+        val Result.Success(r, _, _, _) = term.evaluateDebug: @unchecked
+        assert(
+          r == Term.Const(
+            Constant.ByteString(hex"61822dde476439a526070f36d3d1667ad099b462c111cd85e089f5e7f6")
+          )
+        )
     }
 
     test("Option") {
@@ -94,16 +111,18 @@ class S3LoweringAsdfTest extends AnyFunSuite {
                 new Option.Some(true)
 
         // println(sir.showHighlighted)
-        val lower = SimpleSirToUplcV3Lowering(sir)
+        val lower = SirToUplcV3Lowering(sir)
         val term = lower.lower()
         // println(term.showHighlighted)
-        // println(term.evaluateDebug)
+        val r = term.evaluateDebug
+        assert(r.isSuccess)
     }
 
-    test("ScriptContext") {
+    test("get txInfop.validRange from ScriptContext") {
         val sir =
-            compile: (ctx: ScriptContext) =>
-                ctx.txInfo.validRange
+            compile: (ctxData: Data) =>
+                val ctx = Data.fromData[ScriptContext](ctxData)
+                ctx.txInfo.validRange.toData
 
         val ctx = ScriptContext(
           txInfo = TxInfo(
@@ -130,8 +149,8 @@ class S3LoweringAsdfTest extends AnyFunSuite {
         import scalus.builtin.Data.toData
         val ctxData = ctx.toData
 
-        //        println(sir.showHighlighted)
-        val lower = SimpleSirToUplcV3Lowering(sir)
+        // println(sir.showHighlighted)
+        val lower = SirToUplcV3Lowering(sir)
         val term = lower.lower() $ ctxData.asTerm
         // println(term.showHighlighted)
         val Result.Success(t, _, _, _) = term.evaluateDebug: @unchecked
@@ -139,4 +158,5 @@ class S3LoweringAsdfTest extends AnyFunSuite {
         // println(ctx.txInfo.validRange.toData.asTerm.showHighlighted)
         assert(Term.alphaEq(t, ctx.txInfo.validRange.toData.asTerm))
     }
+
 }

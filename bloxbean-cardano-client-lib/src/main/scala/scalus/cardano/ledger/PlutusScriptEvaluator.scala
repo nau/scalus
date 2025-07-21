@@ -8,7 +8,7 @@ import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Language.*
 import scalus.cardano.ledger.LedgerToPlutusTranslation.*
-import scalus.cardano.ledger.utils.AllWitnessesScripts
+import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllWitnessesScripts}
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion}
@@ -105,15 +105,87 @@ private[scalus] class PlutusScriptEvaluator(
         val index = redeemer.index
         redeemer.tag match
             case RedeemerTag.Spend =>
-                findSpendScript(tx, index, lookupTable, utxos)
+                val inputs = tx.body.value.inputs.toArray.sorted
+
+                if !inputs.isDefinedAt(index) then
+                    throw new IllegalStateException(
+                      s"Input not found: $index in ${inputs.mkString("[", ", ", "]")}"
+                    )
+
+                val input = inputs(index)
+                val output = utxos.getOrElse(
+                  input,
+                  throw new IllegalStateException(s"UTxO not found for input: $input")
+                )
+
+                // Extract script hash from address
+                val scriptHash = output.address.scriptHash
+                    .getOrElse(
+                      throw new IllegalStateException(
+                        s"No script credential in address: ${output.address}"
+                      )
+                    )
+
+                // Resolve script
+                val script = lookupTable.scripts.getOrElse(
+                  scriptHash,
+                  throw new IllegalStateException(s"Script not found: $scriptHash")
+                )
+
+                // Extract datum if needed
+                val datum = extractDatumFromOutput(output, lookupTable)
+
+                // V1 and V2 scripts require datums
+                script match
+                    case _: Script.PlutusV1 | _: Script.PlutusV2 =>
+                        if datum.isEmpty then
+                            throw new IllegalStateException(
+                              s"Missing required datum for script: $script"
+                            )
+                    case _ => // V3 and Native scripts don't require datums in the traditional sense
+                (script, datum)
+
             case RedeemerTag.Mint =>
-                // FIXME:
-                findSpendScript(tx, index, lookupTable, utxos)
+                tx.body.value.mint match
+                    case Some(value) =>
+                        val mintingPolicies = value.assets.keys.toArray
+                        if !mintingPolicies.isDefinedAt(index) then
+                            throw new IllegalArgumentException(
+                              s"Minting policy not found: $index in ${mintingPolicies.mkString("[", ", ", "]")}"
+                            )
+                        val scriptHash = mintingPolicies(index)
+                        lookupTable.scripts.get(scriptHash) match
+                            case Some(script) => script -> None
+                            case None =>
+                                throw new IllegalStateException(
+                                  s"Script not found for minting policy: $scriptHash"
+                                )
+                    case None =>
+                        throw new IllegalArgumentException(
+                          s"Transaction does not contain minting value: $tx"
+                        )
             case RedeemerTag.Cert =>
-                // FIXME:
-                findSpendScript(tx, index, lookupTable, utxos)
+                val certs = tx.body.value.certificates.toIndexedSeq // FIXME: should be sorted
+                if !certs.isDefinedAt(index) then
+                    throw new IllegalStateException(
+                      s"Certificate not found: $index in ${certs.mkString("[", ", ", "]")}"
+                    )
+                val cert = certs(index)
+                val scriptHash = AllNeededScriptHashes
+                    .getNeededCertificateScriptHashOption(cert)
+                    .getOrElse(
+                      throw new IllegalStateException(
+                        s"Certificate does not require a script: $cert"
+                      )
+                    )
+                val script = lookupTable.scripts.getOrElse(
+                  scriptHash,
+                  throw new IllegalStateException(
+                    s"Script not found for certificate: $scriptHash"
+                  )
+                )
+                script -> None
             case RedeemerTag.Reward =>
-                // FIXME:
                 val withdrawals = tx.body.value.withdrawals.get.withdrawals.toArray.sortBy(_._1)
                 if !withdrawals.isDefinedAt(index) then
                     throw new IllegalStateException(
@@ -123,63 +195,50 @@ private[scalus] class PlutusScriptEvaluator(
                 lookupTable.scripts(scriptHash) -> None
 
             case RedeemerTag.Voting =>
-                // FIXME:
-                findSpendScript(tx, index, lookupTable, utxos)
+                val votingProcedures = tx.body.value.votingProcedures.getOrElse(
+                  throw new IllegalStateException("Transaction does not contain voting procedures")
+                )
+                // FIXME: consider using SortedMap
+                val voters = votingProcedures.procedures.toArray.sortBy(_._1)
+                if !voters.isDefinedAt(index) then
+                    throw new IllegalStateException(
+                      s"Voter not found: $index in ${voters.mkString("[", ", ", "]")}"
+                    )
+                val voting = voters(index)
+                val scriptHash = voting._1 match
+                    case Voter.ConstitutionalCommitteeHotScript(scriptHash) => scriptHash
+                    case Voter.DRepScript(scriptHash)                       => scriptHash
+                    case _ =>
+                        throw new IllegalStateException(s"Voter does not require a script: $voting")
+                val script = lookupTable.scripts.getOrElse(
+                  scriptHash,
+                  throw new IllegalStateException(s"Script not found for voter: $scriptHash")
+                )
+                script -> None
             case RedeemerTag.Proposing =>
-                // FIXME:
-                findSpendScript(tx, index, lookupTable, utxos)
+                val proposals =
+                    tx.body.value.proposalProcedures.toArray.sortBy(p => p.rewardAccount)
+                if !proposals.isDefinedAt(index) then
+                    throw new IllegalStateException(
+                      s"Proposal not found: $index in ${proposals.mkString("[", ", ", "]")}"
+                    )
+                val proposal = proposals(index)
+                val scriptHashOption = proposal.govAction match
+                    case GovAction.ParameterChange(_, _, policyHash)  => policyHash
+                    case GovAction.TreasuryWithdrawals(_, policyHash) => policyHash
+                    case _                                            => None
+                val scriptHash = scriptHashOption
+                    .getOrElse(
+                      throw new IllegalStateException(
+                        s"Proposal does not require a script: $proposal"
+                      )
+                    )
+                val script = lookupTable.scripts.getOrElse(
+                  scriptHash,
+                  throw new IllegalStateException(s"Script not found for proposal: $scriptHash")
+                )
+                script -> None
 
-    }
-
-    /** Find script for spending a UTxO (Spend redeemer tag).
-      *
-      * For spending scripts, we need to:
-      *   1. Locate the UTxO being spent using the redeemer index
-      *   2. Extract the script hash from the UTxO's address
-      *   3. Resolve the script from the lookup table
-      *   4. Extract the datum if the script requires it (V1/V2 scripts need datums)
-      */
-    private def findSpendScript(
-        tx: Transaction,
-        index: Int,
-        lookupTable: LookupTable,
-        utxos: Map[TransactionInput, TransactionOutput]
-    ): (Script, Option[Data]) = {
-        val inputs = tx.body.value.inputs.toArray.sorted // FIXME sorted
-
-        if !inputs.isDefinedAt(index) then
-            throw new IllegalStateException(
-              s"Input not found: $index in ${inputs.mkString("[", ", ", "]")}"
-            )
-
-        val input = inputs(index)
-        val output = utxos.getOrElse(
-          input,
-          throw new IllegalStateException(s"UTxO not found for input: $input")
-        )
-
-        // Extract script hash from address
-        val scriptHash = output.address.scriptHash
-            .getOrElse(
-              throw new IllegalStateException(s"No script credential in address: ${output.address}")
-            )
-
-        // Resolve script
-        val script = lookupTable.scripts.getOrElse(
-          scriptHash,
-          throw new IllegalStateException(s"Script not found: $scriptHash")
-        )
-
-        // Extract datum if needed
-        val datum = extractDatumFromOutput(output, lookupTable)
-
-        // V1 and V2 scripts require datums
-        script match
-            case _: Script.PlutusV1 | _: Script.PlutusV2 =>
-                if datum.isEmpty then
-                    throw new IllegalStateException(s"Missing required datum for script: $script")
-            case _ => // V3 and Native scripts don't require datums in the traditional sense
-        (script, datum)
     }
 
     private def extractDatumFromOutput(
@@ -213,10 +272,8 @@ private[scalus] class PlutusScriptEvaluator(
         redeemer: Redeemer,
         lookupTable: LookupTable
     ): Redeemer = {
-        val result = findScript(tx, redeemer, lookupTable, utxos) match
-            case (_: Script.Native, _) =>
-                throw new IllegalStateException("Native script evaluation not supported in Phase 2")
-
+        val scriptAndData = findScript(tx, redeemer, lookupTable, utxos)
+        val result = scriptAndData match
             case (Script.PlutusV1(script), datum) =>
                 evalPlutusV1Script(tx, datums, utxos, redeemer, script, datum)
 
@@ -225,6 +282,9 @@ private[scalus] class PlutusScriptEvaluator(
 
             case (Script.PlutusV3(script), datum) =>
                 evalPlutusV3Script(tx, datums, utxos, redeemer, script, datum)
+
+            case (_: Script.Native, _) =>
+                throw new IllegalStateException("Native script evaluation not supported in Phase 2")
 
         val cost = result.budget
         log.debug(s"Evaluation result: $result")
@@ -358,6 +418,11 @@ private[scalus] class PlutusScriptEvaluator(
             val resultTerm = vm.evaluateScript(applied, spender, logger)
             Result.Success(resultTerm, spender.getSpentBudget, Map.empty, logger.getLogs.toSeq)
         catch
+            case e: StackTraceMachineError =>
+                println()
+                println(s"Script ${vm.language} ${redeemer.tag} evaluation failed: ${e.getMessage}")
+//                println(e.env.view.reverse.take(20).mkString("\n"))
+                throw new TxEvaluationException(e.getMessage, e, logger.getLogs)
             case e: Exception =>
                 throw new TxEvaluationException(e.getMessage, e, logger.getLogs)
     }
@@ -402,7 +467,7 @@ private[scalus] class PlutusScriptEvaluator(
         // According to Babbage spec, we lookup datums only in witness set
         // and do not consider reference input inline datums
         // (getDatum, Figure 3: Functions related to scripts)
-        val datumsMapping = tx.witnessSet.plutusData.value.view.map { datum =>
+        val datumsMapping = tx.witnessSet.plutusData.value.toIndexedSeq.view.map { datum =>
             datum.dataHash -> datum.value
         }.toSeq
 

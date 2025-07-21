@@ -1,5 +1,7 @@
 package scalus.sir.lowering
 
+import scala.annotation.unused
+
 import org.typelevel.paiges.Doc
 import scalus.sir.*
 import scalus.sir.Recursivity.NonRec
@@ -46,7 +48,7 @@ object Lowering {
                     // TODO: pass logger.
                     println(s"Data declaration ${data.name} already exists")
                 }
-                lowerSIR(term)
+                lowerSIR(term, optTargetType)
             case constr @ SIR.Constr(name, decl, args, tp, anns) =>
                 val resolvedType = lctx.resolveTypeVarIfNeeded(tp)
                 val typeGenerator =
@@ -65,7 +67,9 @@ object Lowering {
                           s"  scrutinee.tp = ${scrutinee.tp.show}\n"
                     )
                 val loweredScrutinee = lowerSIR(scrutinee)
-                val retval = lctx.typeGenerator(scrutinee.tp).genMatch(sirMatch, loweredScrutinee)
+                val retval = lctx
+                    .typeGenerator(scrutinee.tp)
+                    .genMatch(sirMatch, loweredScrutinee, optTargetType)
                 if lctx.debug then
                     lctx.log(
                       s"Lowered match: ${sir.pretty.render(100)}\n" +
@@ -143,10 +147,15 @@ object Lowering {
                           s"  param.tp = ${param.tp.show}\n" +
                           s"  term.tp = ${term.tp.show}\n"
                     )
+                val optTermTargetType = optTargetType.flatMap { tp =>
+                    SIRType.collectPolyOrFun(tp).flatMap { case (typeParams, in, out) =>
+                        Some(out)
+                    }
+                }
                 val retval = lvLamAbs(
                   param,
                   lctx.typeGenerator(param.tp).defaultRepresentation(param.tp),
-                  _id => summon[LoweringContext].lower(term),
+                  _id => summon[LoweringContext].lower(term, optTermTargetType),
                   anns.pos
                 )
                 if lctx.debug then
@@ -156,7 +165,7 @@ object Lowering {
                     )
                 retval
             case app: SIR.Apply =>
-                lowerApp(app)
+                lowerApp(app, optTargetType)
             case sel @ SIR.Select(scrutinee, field, tp, anns) =>
                 val loweredScrutinee = lowerSIR(scrutinee)
                 loweredScrutinee.sirType match {
@@ -253,7 +262,7 @@ object Lowering {
                 StaticLoweredValue(
                   sirError,
                   term,
-                  PrimitiveRepresentation.Constant
+                  ErrorRepresentation
                 )
         lctx.nestingLevel -= 1
         retval
@@ -308,13 +317,17 @@ object Lowering {
 
     }
 
-    private def lowerApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
+    private def lowerApp(app: SIR.Apply, optTargetType: Option[SIRType])(using
+        lctx: LoweringContext
+    ): LoweredValue = {
         if isFromDataApp(app) then lowerFromData(app)
         else if isToDataApp(app) then lowerToData(app)
-        else lowerNormalApp(app)
+        else lowerNormalApp(app, optTargetType)
     }
 
-    private def lowerNormalApp(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
+    private def lowerNormalApp(app: SIR.Apply, @unused optTargetType: Option[SIRType])(using
+        lctx: LoweringContext
+    ): LoweredValue = {
         if lctx.debug then
             lctx.log(
               s"Lowering app: ${app.pretty.render(100)}\n" +
@@ -323,8 +336,11 @@ object Lowering {
                   s"  arg.tp = ${app.arg.tp.show}\n" +
                   s"  f = ${app.f.pretty.render(100)}\n"
             )
+        val prevDebug = lctx.debug
+        lctx.debug = false
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
+        lctx.debug = prevDebug
         val result =
             try
                 lvApply(
@@ -339,8 +355,12 @@ object Lowering {
                     println(
                       s"Error lowering app: ${app.pretty.render(100)} at ${app.anns.pos.file}:${app.anns.pos.startLine + 1}"
                     )
+                    println(ex.getMessage)
                     println(s"f.tp=${app.f.tp.show}")
-                    println(s"fun.sirType=${fun.sirType.show}")
+                    println(s"f=${app.f.pretty.render(100)}")
+                    println(s"lowered f.tp: ${fun.sirType.show}")
+                    println(s"arg.tp=${app.arg.tp.show}")
+                    println(s"lowered arg.tp: ${arg.sirType.show}")
                     lctx.debug = true
                     // redu with debug mode to see the error
                     lvApply(
@@ -350,6 +370,7 @@ object Lowering {
                       Some(app.tp),
                       None // representation can depend from fun, so should be calculated.
                     )
+                    throw ex;
         result
     }
 
@@ -374,7 +395,6 @@ object Lowering {
     }
 
     private def isFromDataApp(app: SIR.Apply): Boolean = {
-
         app.f match
             case SIR.ExternalVar(moduleName, name, tp, _) =>
                 // extrapolation.  TODO: write annotation when compiling FromData tp and extract it here
@@ -387,7 +407,7 @@ object Lowering {
         app.f match
             case SIR.ExternalVar(moduleName, name, tp, _) =>
                 // extrapolation.  TODO: write annotation when compiling ToData tp and extract it here
-                name.contains("ToData") && isToDataType(tp)
+                name == "scalus.builtin.internal.UniversalDataConversion$.toData"
             case _ => false
 
     }

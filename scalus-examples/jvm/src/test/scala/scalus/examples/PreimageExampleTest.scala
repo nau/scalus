@@ -102,15 +102,15 @@ class PreimageExampleTest extends BaseValidatorTest {
         // SimpleBackend
         // assert(flatSize == 2230)
 
-//        performChecks(validator)
+        performChecks(validator)
     }
 
     test("Optimized Preimage Validator") {
         val optV = OptimizedPreimage.compiledOptimizedPreimageValidator
         val uplc = optV.toUplcOptimized()
-        val program = uplc.plutusV2
+        val program = uplc.plutusV3
         val flatSize = program.flatEncoded.length
-        assert(flatSize == 167)
+        assert(flatSize == 179)
         performChecks(program)
     }
 }

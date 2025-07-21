@@ -16,7 +16,7 @@ object ValueNotConservedUTxOValidator extends STS.Validator {
         val transactionId = tx.id
         val params = context.env.params
         val txBody = tx.body.value
-        val mint = txBody.mint.getOrElse(Map.empty)
+        val mint = txBody.mint.getOrElse(MultiAsset.empty)
 
         val consumed = {
             val inputs = txBody.inputs
@@ -49,11 +49,11 @@ object ValueNotConservedUTxOValidator extends STS.Validator {
                 Certificate.shelleyTotalRefundsTxCerts(
                   lookupStakingDeposit,
                   params,
-                  txBody.certificates
+                  txBody.certificates.toIndexedSeq
                 ) + Certificate
                     .conwayDRepRefundsTxCerts(
                       lookupDRepDeposit,
-                      txBody.certificates
+                      txBody.certificates.toIndexedSeq
                     )
             val getTotalRefundsTxCerts = conwayTotalRefundsTxCerts
             // Compute the total refunds from the Certificates of a TransactionBody
@@ -64,9 +64,9 @@ object ValueNotConservedUTxOValidator extends STS.Validator {
             val consumedValue = inputs + Value(withdrawals + refunds)
             val minted = Value(
               Coin.zero,
-              mint.map { case (policy, assets) =>
+              MultiAsset(mint.assets.map { case (policy, assets) =>
                   policy -> assets.filter((_, value) => value > 0)
-              }
+              })
             )
             val getConsumedMaryValue = consumedValue + minted
             val conwayConsumed = getConsumedMaryValue
@@ -76,9 +76,9 @@ object ValueNotConservedUTxOValidator extends STS.Validator {
         val produced = {
             val burned = Value(
               Coin.zero,
-              mint.map { case (policy, assets) =>
+              MultiAsset(mint.assets.map { case (policy, assets) =>
                   policy -> assets.filter((_, value) => value < 0)
-              }
+              })
             )
             val outputs = txBody.outputs
                 .map(_.value.value)

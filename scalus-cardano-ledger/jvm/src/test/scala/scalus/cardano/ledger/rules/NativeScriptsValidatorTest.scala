@@ -125,45 +125,45 @@ class NativeScriptsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             State(
               utxo = Map(
                 input1 -> TransactionOutput.Babbage(
-                  Address.Shelley(signatureTimelock1Address),
+                  signatureTimelock1Address,
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
                 input2 -> TransactionOutput.Babbage(
-                  Address.Shelley(signatureTimelock2Address),
+                  signatureTimelock2Address,
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
                 input3 -> TransactionOutput.Babbage(
-                  Address.Shelley(allOfTimelockAddress),
+                  allOfTimelockAddress,
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
                 input4 -> TransactionOutput.Babbage(
-                  Address.Shelley(anyOfTimelockAddress),
+                  anyOfTimelockAddress,
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
                 input5 -> TransactionOutput.Babbage(
-                  Address.Shelley(mOfTimelockAddress),
+                  mOfTimelockAddress,
                   Value(Coin(1000L)),
                   None,
                   None
                 ),
                 referenceInput1 -> TransactionOutput
                     .Babbage(
-                      Address.Shelley(timeStartTimelockAddress),
+                      timeStartTimelockAddress,
                       Value(Coin(1000L)),
                       None,
                       Some(ScriptRef(Script.Native(timeStartTimelock)))
                     ),
                 referenceInput2 -> TransactionOutput
                     .Babbage(
-                      Address.Shelley(timeExpireTimelockAddress),
+                      timeExpireTimelockAddress,
                       Value(Coin(1000L)),
                       None,
                       Some(ScriptRef(Script.Native(timeExpireTimelock)))
@@ -224,14 +224,14 @@ class NativeScriptsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               utxo = Map(
                 input1 -> TransactionOutput
                     .Babbage(
-                      Address.Shelley(timeStartTimelockAddress),
+                      timeStartTimelockAddress,
                       Value(Coin(1000L)),
                       None,
                       Some(ScriptRef(Script.Native(timeStartTimelock)))
                     ),
                 input2 -> TransactionOutput
                     .Babbage(
-                      Address.Shelley(timeExpireTimelockAddress),
+                      timeExpireTimelockAddress,
                       Value(Coin(1000L)),
                       None,
                       None

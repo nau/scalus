@@ -14,6 +14,7 @@ import scala.collection.mutable.Map as MutableMap
 trait LoweredValue {
 
     val createdEx = new RuntimeException("Lovered value created here")
+    var debugMark = "i"
 
     def sirType: SIRType
 
@@ -50,7 +51,7 @@ trait LoweredValue {
         summon[LoweringContext].typeGenerator(sirType).upcastOne(this, targetType, pos)
 
     def maybeUpcast(targetType: SIRType, pos: SIRPosition)(using LoweringContext): LoweredValue = {
-        SIRUnify.unifyType(sirType, targetType, SIRUnify.Env.empty.withoutUpcasting) match
+        SIRUnify.topLevelUnifyType(sirType, targetType, SIRUnify.Env.empty.withoutUpcasting) match
             case SIRUnify.UnificationSuccess(env, tp) =>
                 this
             case SIRUnify.UnificationFailure(path, l, r) =>
@@ -62,7 +63,7 @@ trait LoweredValue {
                     println(
                       s"first unify failure: path = ${path}, left = ${l}, right = ${r}"
                     )
-                    val debugUnification = SIRUnify.unifyType(
+                    val debugUnification = SIRUnify.topLevelUnifyType(
                       sirType,
                       targetType,
                       SIRUnify.Env.empty.withoutUpcasting.withDebug
@@ -494,6 +495,7 @@ trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: Low
 
 case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, inPos: SIRPosition)
     extends ComplexLoweredValue(Set(newVar), body) {
+
     override def sirType: SIRType = SIRType.Fun(newVar.sirType, body.sirType)
 
     override def representation: LoweredValueRepresentation = {
@@ -772,17 +774,6 @@ object LoweredValue {
         var printedIdentifiers: Set[String] = Set.empty
     )
 
-    def intConstant(value: Int, pos: SIRPosition): ConstantLoweredValue = {
-        ConstantLoweredValue(
-          SIR.Const(
-            Constant.Integer(value),
-            SIRType.Integer,
-            AnnotationsDecl(pos)
-          ),
-          PrimitiveRepresentation.Constant
-        )
-    }
-
     /** Builder for LoweredValue, to avoid boilerplate code. Import this object to make available
       */
     object Builder {
@@ -791,38 +782,56 @@ object LoweredValue {
             cond: LoweredValue,
             thenBranch: LoweredValue,
             elseBranch: LoweredValue,
-            inPos: SIRPosition
+            inPos: SIRPosition,
+            optTargetType: Option[SIRType] = None
         )(using lctx: LoweringContext): LoweredValue = {
 
             // val resType = SIRType.leastUpperBound(thenBranch.sirType, elseBranch.sirType)
 
-            val resType = SIRUnify.unifyType(
-              thenBranch.sirType,
-              elseBranch.sirType,
-              SIRUnify.Env.empty.withUpcasting
-            ) match {
-                case SIRUnify.UnificationSuccess(_, tp)                => tp
-                case failure @ SIRUnify.UnificationFailure(path, l, r) =>
-                    // if we cannot unify types, we need to upcast
-                    //  to the target type.
-                    println("Unification failure: " + failure)
-                    SIRType.FreeUnificator
+            val resType = optTargetType.getOrElse(
+              SIRUnify.topLevelUnifyType(
+                thenBranch.sirType,
+                elseBranch.sirType,
+                SIRUnify.Env.empty.withUpcasting
+              ) match {
+                  case SIRUnify.UnificationSuccess(_, tp) =>
+                      if tp == SIRType.FreeUnificator then
+                          throw LoweringException(
+                            s"if-then-else branches return unrelated types: ${thenBranch.sirType.show} and ${elseBranch.sirType.show}",
+                            inPos
+                          )
+                      tp
+                  case failure @ SIRUnify.UnificationFailure(path, l, r) =>
+                      // if we cannot unify types, we need to upcast
+                      //  to the target type.
+                      println("Unification failure: " + failure)
+                      SIRType.FreeUnificator
+              }
+            )
+
+            if lctx.debug then {
+                lctx.log(
+                  s"lvIfThenElse: cond = ${cond.pretty.render(100)}, \n thenBranch = ${thenBranch.pretty.render(100)}, \n elseBranch = ${elseBranch.pretty.render(
+                        100
+                      )}, resType = ${resType.show}"
+                )
+                lctx.log(
+                  s"lvIfThenElse: thenBranch.sirType = ${thenBranch.sirType.show}, thenBranch.representation = ${thenBranch.representation}, elseBranch.sirType = ${elseBranch.sirType.show}, elseBranch.representation = ${elseBranch.representation}"
+                )
             }
 
-            if resType == SIRType.FreeUnificator then
-                throw LoweringException(
-                  s"if-then-else branches return unrelated types: ${thenBranch.sirType.show} and ${elseBranch.sirType.show}",
-                  inPos
-                )
+            val thenBranchUpcasted = thenBranch.maybeUpcast(resType, inPos)
+            val elseBranchUpcasted = elseBranch.maybeUpcast(resType, inPos)
 
-            val thenBranchR = thenBranch.maybeUpcast(resType, inPos)
+            val targetRepresentation = chooseCommonRepresentation(
+              Seq(thenBranchUpcasted, elseBranchUpcasted),
+              resType,
+              inPos
+            )
 
-            val elseBranchR = elseBranch
-                .maybeUpcast(resType, inPos)
-                .toRepresentation(
-                  thenBranchR.representation,
-                  inPos
-                )
+            val thenBranchR = thenBranchUpcasted.toRepresentation(targetRepresentation, inPos)
+
+            val elseBranchR = elseBranchUpcasted.toRepresentation(targetRepresentation, inPos)
 
             val condR = cond.toRepresentation(PrimitiveRepresentation.Constant, inPos)
 
@@ -831,7 +840,7 @@ object LoweredValue {
               thenBranchR,
               elseBranchR,
               resType,
-              thenBranchR.representation,
+              targetRepresentation,
               inPos
             )
 
@@ -909,10 +918,16 @@ object LoweredValue {
                 // lctx.log(
                 //  s"lvApply: f.representation = ${f.representation.doc.render(100)}, arg.representation = ${arg.representation.doc.render(100)}"
                 // )
-                // println("f.createdAt:")
+                println(s"f.debugMark=${f.debugMark}")
                 // f.createdEx.printStackTrace()
                 lctx.log(
                   s"lvApply: targetArgType = ${targetArgType.show}, targetArgRepresentation = $targetArgRepresentation"
+                )
+                lctx.log(
+                  s"lvApply: arg.sirType = ${arg.sirType.show}, arg.representation = ${arg.representation.doc.render(100)}"
+                )
+                lctx.log(
+                  s"lvApply: arg = ${arg.pretty.render(100)}"
                 )
                 lctx.log(
                   s"lvApply: resTp=${resTp.map(_.show)} resRepresentation = ${resRepr.getOrElse("None")}"
@@ -972,7 +987,6 @@ object LoweredValue {
                 } else {
                     argTypevarResolved.toRepresentation(targetArgRepresentation, inPos)
                 }
-            if lctx.debug then lctx.log(s"argInTargetRepresentation = ${argInTargetRepresentation}")
 
             val calculatedResType = SIRType.calculateApplyType(
               f.sirType,
@@ -980,6 +994,7 @@ object LoweredValue {
               Map.empty,
               debug = lctx.debug
             )
+            if lctx.debug then lctx.log(s"lvApply1: calculatedResType = ${calculatedResType.show}")
 
             val resType = resTp match {
                 case Some(tp) =>
@@ -1007,7 +1022,11 @@ object LoweredValue {
                           s"lvApply: resType = ${resTps.map(_.show).mkString(", ")} =>> ${resBody.show}))"
                         )
                     }
-                    SIRUnify.unifyType(ctBody, resBody, SIRUnify.Env.empty.withUpcasting) match {
+                    SIRUnify.topLevelUnifyType(
+                      ctBody,
+                      resBody,
+                      SIRUnify.Env.empty.withUpcasting.setDebug(lctx.debug)
+                    ) match {
                         case SIRUnify.UnificationSuccess(env, tp) =>
                             // tp is ok, now try get typevars only from resultedSize
                             if lctx.debug then {
@@ -1048,9 +1067,20 @@ object LoweredValue {
                                 SIRType.partitionGround(ctResFree ++ resTpsFree, ntp)
                             if grounded.nonEmpty then SIRType.TypeLambda(grounded, ntp) else ntp
                         case failure @ SIRUnify.UnificationFailure(path, l, r) =>
+                            println("!!!: unifucation failure, createsAt:")
+                            failure.createEx.printStackTrace()
+                            val lString = l match
+                                case tp: SIRType =>
+                                    tp.show
+                                case _ => l.toString
+                            val rString = r match
+                                case tp: SIRType =>
+                                    tp.show
+                                case _ => r.toString
                             throw LoweringException(
-                              s"Cannot unify result type of apply: ${tp.show} and ${calculatedResType.show}.\n" +
-                                  s"Unification failure: path=${path}, left=${l}, right=${r}",
+                              s"Cannot unify result type of apply: \n${tp.show}\n and\n${calculatedResType.show}.\n" +
+                                  s"ctBody = ${ctBody.show}, resBody = ${resBody.show}\n" +
+                                  s"Unification failure: path=${path}, left=${lString}, right=${rString}",
                               inPos
                             )
                     }
@@ -1357,7 +1387,7 @@ object LoweredValue {
                 )
             }
 
-            SIRUnify.unifyType(
+            SIRUnify.topLevelUnifyType(
               expr.sirType,
               targetType,
               SIRUnify.Env.empty.withoutUpcasting
@@ -1461,6 +1491,24 @@ object LoweredValue {
             targetRepresentation: LoweredValueRepresentation
         ): (LoweredValue, Boolean) = {
 
+            val alignEnv =
+                SIRUnify.topLevelUnifyType(
+                  arg.sirType,
+                  targetType,
+                  SIRUnify.Env.empty.withUpcasting
+                ) match
+                    case SIRUnify.UnificationSuccess(env, _) => env
+                    case SIRUnify.UnificationFailure(_, _, _) =>
+                        throw LoweringException(
+                          s"Cannot unify types ${arg.sirType.show} and ${targetType.show} at $inPos",
+                          inPos
+                        )
+
+            def resolvedInAlign(tp: SIRType): SIRType = {
+                if alignEnv.filledTypes.isEmpty then tp
+                else SIRType.substitute(tp, alignEnv.filledTypes, Map.empty)
+            }
+
             SIRType.collectPolyOrFun(arg.sirType) match {
                 case Some((argParams, argIn, argOut)) =>
                     SIRType.collectPolyOrFun(targetType) match {
@@ -1481,11 +1529,15 @@ object LoweredValue {
                                       inPos
                                     )
                             }
+
+                            val resolvedTargetIn = resolvedInAlign(targetIn)
+                            val resolvedArgIn = resolvedInAlign(argIn)
+
                             // if both are functions, we need to align their type arguments
                             val runUpcast = SIRType.isSum(argIn) && SIRUnify
-                                .unifyType(
-                                  argIn,
-                                  targetIn,
+                                .topLevelUnifyType(
+                                  resolvedTargetIn,
+                                  resolvedArgIn,
                                   lctx.typeUnifyEnv.withoutUpcasting
                                 )
                                 .isFailure
@@ -1494,28 +1546,31 @@ object LoweredValue {
                             val xIn = VariableLoweredValue(
                               xId,
                               xId,
-                              SIR.Var(xId, targetIn, AnnotationsDecl(inPos)),
+                              SIR.Var(xId, resolvedTargetIn, AnnotationsDecl(inPos)),
                               targetInRepr
                             )
                             var changed = false
                             val prevScope = lctx.scope
                             lctx.scope = lctx.scope.add(xIn)
                             val xInUpcased =
-                                if runUpcast then xIn.maybeUpcast(argIn, inPos) else xIn
+                                if runUpcast then xIn.maybeUpcast(resolvedArgIn, inPos) else xIn
                             if !(xInUpcased eq xIn) then changed = true
                             val xInAligned =
-                                if SIRType.isPolyFunOrFun(targetIn) then
+                                if SIRType.isPolyFunOrFun(resolvedTargetIn) then
                                     // arg = \\ lambda xIn: targetIn => (xIn'): argIn
                                     val (xInAligned, changed) =
-                                        alignWithChange(xInUpcased, argIn, argInRepr)
+                                        alignWithChange(xInUpcased, resolvedArgIn, argInRepr)
                                     xInAligned
                                 else xInUpcased
                             if !(xInAligned eq xInUpcased) then changed = true
                             val yIn = xInAligned.toRepresentation(argInRepr, inPos)
                             if !(yIn eq xInAligned) then changed = true
-                            val xOut = ApplyLoweredValue(arg, yIn, argOut, argOutRepr, inPos)
+                            val resolvedArgOut = resolvedInAlign(argOut)
+                            val xOut =
+                                ApplyLoweredValue(arg, yIn, resolvedArgOut, argOutRepr, inPos)
+                            val resolvedTargetOut = resolvedInAlign(targetOut)
                             val (resOut, outChanged) =
-                                alignWithChange(xOut, targetOut, targetOutRepr)
+                                alignWithChange(xOut, resolvedTargetOut, targetOutRepr)
                             if outChanged then changed = true
                             lctx.scope = prevScope
                             if !changed then (arg, false)
@@ -1548,9 +1603,8 @@ object LoweredValue {
                             )
                     }
                 case None =>
-
                     val retval = arg
-                        .maybeUpcast(targetType, arg.pos)
+                        .maybeUpcast(resolvedInAlign(targetType), arg.pos)
                         .toRepresentation(targetRepresentation, arg.pos)
                     val chanded = retval != arg
                     (retval, chanded)
@@ -1559,6 +1613,7 @@ object LoweredValue {
         }
 
         val (alignedArg, changed) = alignWithChange(arg, targetType, targetRepresentation)
+
         if lctx.debug then {
             lctx.log(
               s"alignTypeArgumentsAndRepresentations: alignedArg.type = ${alignedArg.sirType.show}, changed = $changed"
@@ -1567,6 +1622,30 @@ object LoweredValue {
         if changed then alignedArg
         else arg
 
+    }
+
+    /** Common representation prerequisite: all values have the same type: targetType
+      */
+    def chooseCommonRepresentation(
+        values: Seq[LoweredValue],
+        targetType: SIRType,
+        pos: SIRPosition
+    )(using lctx: LoweringContext): LoweredValueRepresentation = {
+        if values.isEmpty then
+            throw LoweringException(
+              "Cannot choose common type and representation for empty sequence of values",
+              pos
+            )
+        val nonNothingValues = values.filter(_.sirType != SIRType.TypeNothing)
+        val retval =
+            if nonNothingValues.isEmpty then values.head.representation
+            else
+                val byRepresentation =
+                    nonNothingValues.groupBy(_.representation).map((k, v) => (k, v.length)).toMap
+                val nonErrored = byRepresentation.removed(ErrorRepresentation)
+                if nonErrored.isEmpty then byRepresentation.head._1
+                else nonErrored.toSeq.maxBy(_._2)._1
+        retval
     }
 
 }

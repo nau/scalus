@@ -100,8 +100,38 @@ private trait ByteStringOffchainApi {
         def read(r: Reader): ByteString =
             ByteString.unsafeFromArray(r.readBytes())
 
+    /** Platform-agnostic unsigned byte array comparison. Compares two byte arrays
+      * lexicographically, treating bytes as unsigned values.
+      *
+      * @param a
+      *   first byte array
+      * @param b
+      *   second byte array
+      * @return
+      *   negative if a < b, zero if a == b, positive if a > b
+      */
+    private def compareUnsigned(a: Array[Byte], b: Array[Byte]): Int = {
+        val minLength = math.min(a.length, b.length)
+
+        // Compare byte by byte, treating each as unsigned (0-255)
+        var i = 0
+        while i < minLength do
+            // Convert signed byte to unsigned int for comparison
+            val aUnsigned = a(i) & 0xff
+            val bUnsigned = b(i) & 0xff
+
+            if aUnsigned != bUnsigned then return aUnsigned - bUnsigned
+            i += 1
+
+        // If all compared bytes are equal, compare lengths
+        a.length - b.length
+    }
+
     given Ordering[ByteString] with
-        def compare(x: ByteString, y: ByteString): Int =
-            java.util.Arrays.compareUnsigned(x.bytes, y.bytes)
+        def compare(x: ByteString, y: ByteString): Int = {
+            // Use the unsigned comparison function defined above
+            // because java.util.Arrays.compareUnsigned is not available on Scala.js
+            compareUnsigned(x.bytes, y.bytes)
+        }
 
 }

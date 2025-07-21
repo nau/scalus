@@ -7,7 +7,7 @@ import scalus.prelude.{*, given}
 import scalus.builtin.{ByteString, Data}
 import scalus.builtin.Data.toData
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
-import scalus.ledger.api.v1.{Credential, PubKeyHash, ScriptHash, Value}
+import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
 import scalus.ledger.api.v1.Value.getLovelace
 import scalus.ledger.api.v2.TxOut
 import scalus.ledger.api.v3.*

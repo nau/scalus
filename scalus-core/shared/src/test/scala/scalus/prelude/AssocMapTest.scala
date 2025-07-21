@@ -36,6 +36,13 @@ private object AssocMapTest {
 
 class AssocMapTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
 
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
+    )
+
     test("empty") {
         assert(AssocMap.empty.toList == List.Nil)
     }

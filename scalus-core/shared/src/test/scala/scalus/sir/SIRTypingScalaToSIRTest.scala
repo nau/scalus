@@ -3,8 +3,6 @@ package scalus.sir
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
 import scalus.*
-import scalus.sir.SIRUnify.given
-import scalus.sir.SIRUnify.~=~
 
 object SIRTypingScalaToSIRSpecScope {
 
@@ -96,7 +94,6 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
         import scalus.prelude.*
         import scalus.prelude.given
         import scalus.builtin.ByteString
-        import scalus.prelude.EqCompanion.given
         val sir = compile { (l: scalus.prelude.List[ByteString], v: ByteString) =>
             l.contains(v)
         }

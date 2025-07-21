@@ -10,8 +10,8 @@ import scala.collection.mutable
   */
 enum Certificate {
     // Legacy Shelley certificates
-    case StakeRegistration(credential: Credential)
-    case StakeDeregistration(credential: Credential)
+//    case StakeRegistration(credential: Credential)
+//    case StakeDeregistration(credential: Credential)
     // delegate to a stake pool
     case StakeDelegation(credential: Credential, poolKeyHash: PoolKeyHash)
 
@@ -27,10 +27,10 @@ enum Certificate {
         poolMetadata: Option[PoolMetadata]
     )
     case PoolRetirement(poolKeyHash: PoolKeyHash, epochNo: Long)
-    // register staking credential and pay deposit
-    case RegCert(credential: Credential, coin: Coin) // old StakeRegistration
-    // deregister staking credential and pay deposit
-    case UnregCert(credential: Credential, coin: Coin) // old StakeDeregistration
+    // register staking credential and pay deposit, old StakeRegistration when coin is None
+    case RegCert(credential: Credential, coin: Option[Coin]) // old StakeRegistration
+    // deregister staking credential and pay deposit, old StakeDeregistration when coin is None
+    case UnregCert(credential: Credential, coin: Option[Coin]) // old StakeDeregistration
     // delegate to dRep
     case VoteDelegCert(credential: Credential, drep: DRep)
     // delegate to stake pool and dRep
@@ -60,7 +60,6 @@ enum Certificate {
     case UpdateDRepCert(drepCredential: Credential, anchor: Option[Anchor])
 
     def lookupRegStakeTxCert: Option[Credential] = this match
-        case Certificate.StakeRegistration(c)              => Some(c)
         case Certificate.RegCert(c, _)                     => Some(c)
         case Certificate.StakeRegDelegCert(c, _, _)        => Some(c)
         case Certificate.VoteRegDelegCert(c, _, _)         => Some(c)
@@ -68,9 +67,8 @@ enum Certificate {
         case _                                             => None
 
     def lookupUnRegStakeTxCert: Option[Credential] = this match
-        case Certificate.StakeDeregistration(c) => Some(c)
-        case Certificate.UnregCert(c, _)        => Some(c)
-        case _                                  => None
+        case Certificate.UnregCert(c, _) => Some(c)
+        case _                           => None
 }
 
 object Certificate {
@@ -135,12 +133,12 @@ object Certificate {
 
     given Encoder[Certificate] with
         def write(w: Writer, value: Certificate): Writer = value match
-            case Certificate.StakeRegistration(credential) =>
+            case Certificate.RegCert(credential, None) =>
                 w.writeArrayHeader(2)
                     .writeInt(0)
                     .write(credential)
 
-            case Certificate.StakeDeregistration(credential) =>
+            case Certificate.UnregCert(credential, None) =>
                 w.writeArrayHeader(2)
                     .writeInt(1)
                     .write(credential)
@@ -197,13 +195,13 @@ object Certificate {
                     .write(poolKeyHash)
                     .writeLong(epochNo)
 
-            case Certificate.RegCert(credential, coin) =>
+            case Certificate.RegCert(credential, Some(coin)) =>
                 w.writeArrayHeader(3)
                     .writeInt(7)
                     .write(credential)
                     .write(coin)
 
-            case Certificate.UnregCert(credential, coin) =>
+            case Certificate.UnregCert(credential, Some(coin)) =>
                 w.writeArrayHeader(3)
                     .writeInt(8)
                     .write(credential)
@@ -294,8 +292,8 @@ object Certificate {
             //            println(s"Certificate tag: ${tag}")
 
             tag match
-                case 0 => Certificate.StakeRegistration(r.read[Credential]())
-                case 1 => Certificate.StakeDeregistration(r.read[Credential]())
+                case 0 => Certificate.RegCert(r.read[Credential](), None) // old StakeRegistration
+                case 1 => Certificate.UnregCert(r.read[Credential](), None)
                 case 2 =>
                     val credential = r.read[Credential]()
                     val poolKeyHash = r.read[PoolKeyHash]()
@@ -329,11 +327,11 @@ object Certificate {
                 case 7 =>
                     val credential = r.read[Credential]()
                     val coin = r.read[Coin]()
-                    Certificate.RegCert(credential, coin)
+                    Certificate.RegCert(credential, Some(coin))
                 case 8 =>
                     val credential = r.read[Credential]()
                     val coin = r.read[Coin]()
-                    Certificate.UnregCert(credential, coin)
+                    Certificate.UnregCert(credential, Some(coin))
                 case 9 =>
                     val credential = r.read[Credential]()
                     val drep = r.read[DRep]()

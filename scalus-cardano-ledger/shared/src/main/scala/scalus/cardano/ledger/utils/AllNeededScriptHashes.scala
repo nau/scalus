@@ -45,7 +45,7 @@ object AllNeededScriptHashes {
 
     def allNeededMintScriptHashes(
         transaction: Transaction
-    ): Set[PolicyId] = transaction.body.value.mint.getOrElse(Map.empty).keySet
+    ): Set[PolicyId] = transaction.body.value.mint.getOrElse(MultiAsset.empty).assets.keySet
 
     def allNeededVotingProceduresScriptHashes(
         transaction: Transaction
@@ -122,37 +122,31 @@ object AllNeededScriptHashes {
         transaction: Transaction
     ): View[ScriptHash] = {
         val certificates = transaction.body.value.certificates
-
-        def extractScriptHash(credential: Credential): Option[ScriptHash] = {
-            credential match
-                case _: Credential.KeyHash             => None
-                case Credential.ScriptHash(scriptHash) => Some(scriptHash)
-        }
-
         for
-            certificate <- certificates.view
-            scriptHash <- certificate match
-                case cert: Certificate.StakeRegistration   => extractScriptHash(cert.credential)
-                case cert: Certificate.StakeDeregistration => extractScriptHash(cert.credential)
-                case cert: Certificate.StakeDelegation     => extractScriptHash(cert.credential)
-                case _: Certificate.PoolRegistration       => None
-                case _: Certificate.PoolRetirement         => None
-                case cert: Certificate.RegCert =>
-                    if cert.coin > Coin.zero then extractScriptHash(cert.credential)
-                    else None // No witness needed for zero deposit
-                case cert: Certificate.UnregCert             => extractScriptHash(cert.credential)
-                case cert: Certificate.VoteDelegCert         => extractScriptHash(cert.credential)
-                case cert: Certificate.StakeVoteDelegCert    => extractScriptHash(cert.credential)
-                case cert: Certificate.StakeRegDelegCert     => extractScriptHash(cert.credential)
-                case cert: Certificate.VoteRegDelegCert      => extractScriptHash(cert.credential)
-                case cert: Certificate.StakeVoteRegDelegCert => extractScriptHash(cert.credential)
-                case cert: Certificate.AuthCommitteeHotCert =>
-                    extractScriptHash(cert.committeeColdCredential)
-                case cert: Certificate.ResignCommitteeColdCert =>
-                    extractScriptHash(cert.committeeColdCredential)
-                case cert: Certificate.RegDRepCert    => extractScriptHash(cert.drepCredential)
-                case cert: Certificate.UnregDRepCert  => extractScriptHash(cert.drepCredential)
-                case cert: Certificate.UpdateDRepCert => extractScriptHash(cert.drepCredential)
+            certificate <- certificates.toIndexedSeq.view
+            scriptHash <- getNeededCertificateScriptHashOption(certificate)
         yield scriptHash
+    }
+
+    def getNeededCertificateScriptHashOption(certificate: Certificate): Option[ScriptHash] = {
+        certificate match
+            case cert: Certificate.StakeDelegation => cert.credential.scriptHashOption
+            case _: Certificate.PoolRegistration   => None
+            case _: Certificate.PoolRetirement     => None
+            case cert: Certificate.RegCert =>
+                if cert.coin.nonEmpty then cert.credential.scriptHashOption else None
+            case cert: Certificate.UnregCert             => cert.credential.scriptHashOption
+            case cert: Certificate.VoteDelegCert         => cert.credential.scriptHashOption
+            case cert: Certificate.StakeVoteDelegCert    => cert.credential.scriptHashOption
+            case cert: Certificate.StakeRegDelegCert     => cert.credential.scriptHashOption
+            case cert: Certificate.VoteRegDelegCert      => cert.credential.scriptHashOption
+            case cert: Certificate.StakeVoteRegDelegCert => cert.credential.scriptHashOption
+            case cert: Certificate.AuthCommitteeHotCert =>
+                cert.committeeColdCredential.scriptHashOption
+            case cert: Certificate.ResignCommitteeColdCert =>
+                cert.committeeColdCredential.scriptHashOption
+            case cert: Certificate.RegDRepCert    => cert.drepCredential.scriptHashOption
+            case cert: Certificate.UnregDRepCert  => cert.drepCredential.scriptHashOption
+            case cert: Certificate.UpdateDRepCert => cert.drepCredential.scriptHashOption
     }
 }

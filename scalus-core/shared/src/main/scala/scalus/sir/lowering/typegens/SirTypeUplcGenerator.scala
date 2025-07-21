@@ -58,7 +58,11 @@ trait SirTypeUplcGenerator {
         LoweringContext
     ): LoweredValue
 
-    def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         LoweringContext
     ): LoweredValue
 
@@ -123,6 +127,12 @@ object SirTypeUplcGenerator {
                 TypeVarSirTypeGenerator
             case SIRType.TypeNothing =>
                 TypeNothingSirTypeGenerator
+            case SIRType.BLS12_381_G1_Element =>
+                BLS12_381_G1_SirTypeGenerator
+            case SIRType.BLS12_381_G2_Element =>
+                BLS12_381_G2_SirTypeGenerator
+            case SIRType.BLS12_381_MlResult =>
+                BLS12_381_MLResultSirTypeGenerator
             case _ =>
                 // TODO: imnplement
                 ???

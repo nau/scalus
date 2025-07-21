@@ -208,7 +208,11 @@ case class ProductCaseOneElementSirTypeGenerator(
         else argLoweredValue(loweredScrutinee)
     }
 
-    override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         lctx: LoweringContext
     ): LoweredValue = {
         import ProductCaseOneElementSirTypeGenerator.*
@@ -219,18 +223,23 @@ case class ProductCaseOneElementSirTypeGenerator(
                 throw LoweringException("Empty match cases", matchData.anns.pos)
             case SIR.Case(pattern, body, anns) :: Nil =>
                 pattern match
-                    case SIR.Pattern.Constr(constr, bindings, typeBindings) =>
+                    case SIR.Pattern.Constr(constr, bindings, typeParams) =>
                         if constr.name == sirCaseClass.constrDecl.name then
+                            val argType = SIRType.substitute(
+                              constr.params.head.tp,
+                              sirCaseClass.constrDecl.typeParams.zip(typeParams).toMap,
+                              Map.empty
+                            )
                             val prevScope = lctx.scope
                             val arg = argLoweredValue(loweredScrutinee)
                             lvNewLazyNamedVar(
                               bindings.head,
-                              typeBindings.head,
+                              argType,
                               arg.representation,
                               arg,
                               anns.pos
                             )
-                            val loweredBody = lctx.lower(body)
+                            val loweredBody = lctx.lower(body, optTargetType)
                             lctx.scope = prevScope
                             loweredBody
                         else
@@ -239,7 +248,7 @@ case class ProductCaseOneElementSirTypeGenerator(
                               anns.pos
                             )
                     case SIR.Pattern.Wildcard =>
-                        lctx.lower(body)
+                        lctx.lower(body, optTargetType)
             case _ =>
                 throw LoweringException(
                   s"Expected single case with select on ${name}, got ${matchData.cases}",

@@ -4,7 +4,7 @@ import scalus.*
 import scalus.builtin.Builtins.{multiplyInteger, remainderInteger}
 import scalus.prelude.{*, given}
 import scalus.prelude.Eq.given
-import scalus.prelude.Ord.{*, given}
+import scalus.prelude.Ord.*
 import scalus.uplc.*
 import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -12,6 +12,15 @@ import scalus.testkit.ScalusTest
 
 class KnightsTest extends AnyFunSuite, ScalusTest:
     import KnightsTest.{*, given}
+
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+      debug = false
+    )
+
+    val printComparison = true
 
     test("100_4x4") {
         val result = Compiler
@@ -23,7 +32,20 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(44783_358238L), ExMemory(247_807177L))
+        val scalusBudget =
+            if summon[
+                  scalus.Compiler.Options
+                ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
+            then ExBudget(ExCPU(14498_3685437L), ExMemory(502_629427L))
+            else if summon[
+                  scalus.Compiler.Options
+                ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering
+            then ExBudget(ExCPU(44783_358238L), ExMemory(247_807177L))
+            else {
+                // actually we don't know, need recheck
+                ExBudget(ExCPU(44783_358238L), ExMemory(247_807177L))
+            }
+
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -31,7 +53,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
           testName = "KnightsTest.100_4x4",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(54958_831939L), ExMemory(160_204421L)),
-          isPrintComparison = false
+          isPrintComparison = printComparison
         )
     }
 
@@ -551,7 +573,14 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(115775_218834L), ExMemory(645_799142L))
+        val scalusBudget =
+            summon[scalus.Compiler.Options].targetLoweringBackend match
+                case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
+                    ExBudget(ExCPU(573963_461543L), ExMemory(196_0167422L))
+                case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
+                    ExBudget(ExCPU(115775_218834L), ExMemory(645_799142L))
+                case _ =>
+                    throw new IllegalStateException("Unsupported target lowering backend")
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -559,7 +588,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
           testName = "KnightsTest.100_6x6",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(131954_064320L), ExMemory(292_216349L)),
-          isPrintComparison = false
+          isPrintComparison = printComparison
         )
     }
 
@@ -1212,7 +1241,16 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(235822_700067L), ExMemory(1315_097779L))
+        val scalusBudget = {
+            summon[scalus.Compiler.Options].targetLoweringBackend match {
+                case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
+                    ExBudget(ExCPU(1223341510941L), ExMemory(4189103091L))
+                case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
+                    ExBudget(ExCPU(235822_700067L), ExMemory(1315_097779L))
+                case scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>
+                    ExBudget(ExCPU(235822_700067L), ExMemory(1315_097779L))
+            }
+        }
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -1220,7 +1258,6 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
           testName = "KnightsTest.100_8x8",
           scalusBudget = scalusBudget,
           refBudget = ExBudget(ExCPU(270266_226527L), ExMemory(540_217437L)),
-          isPrintComparison = false
         )
     }
 

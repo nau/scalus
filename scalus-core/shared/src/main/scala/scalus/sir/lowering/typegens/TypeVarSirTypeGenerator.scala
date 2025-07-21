@@ -240,11 +240,17 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
             )
     }
 
-    override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         lctx: LoweringContext
     ): LoweredValue = {
         makeResolvedProxy(loweredScrutinee, matchData.anns.pos)
-            .map(input => lctx.typeGenerator(input.sirType).genMatch(matchData, input))
+            .map(input =>
+                lctx.typeGenerator(input.sirType).genMatch(matchData, input, optTargetType)
+            )
             .getOrElse(
               throw LoweringException(
                 s"TypeVarSirTypeGenerator does not support match",

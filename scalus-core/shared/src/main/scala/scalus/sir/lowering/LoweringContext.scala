@@ -23,8 +23,8 @@ class LoweringContext(
         s"$prefix$varIdSeq"
     }
 
-    def lower(sir: SIR): LoweredValue = {
-        Lowering.lowerSIR(sir)(using this)
+    def lower(sir: SIR, optTargetType: Option[SIRType] = None): LoweredValue = {
+        Lowering.lowerSIR(sir, optTargetType)(using this)
     }
 
     def typeGenerator(sirType: SIRType): SirTypeUplcGenerator = {

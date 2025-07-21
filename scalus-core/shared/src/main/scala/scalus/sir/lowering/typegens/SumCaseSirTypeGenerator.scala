@@ -155,7 +155,11 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     }
 
-    override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         lctx: LoweringContext
     ): LoweredValue = {
         loweredScrutinee.representation match {
@@ -163,15 +167,17 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 genMatchDataConstr(
                   matchData,
                   loweredScrutinee,
+                  optTargetType
                 )
             case SumDataList =>
-                SumDataListSirTypeGenerator.genMatch(matchData, loweredScrutinee)
+                SumDataListSirTypeGenerator.genMatch(matchData, loweredScrutinee, optTargetType)
             case PackedSumDataList =>
-                SumDataListSirTypeGenerator.genMatch(matchData, loweredScrutinee)
+                SumDataListSirTypeGenerator.genMatch(matchData, loweredScrutinee, optTargetType)
             case UplcConstr =>
                 genMatchUplcConstr(
                   matchData,
                   loweredScrutinee,
+                  optTargetType
                 )
             case UplcConstrOnData =>
                 ???
@@ -297,7 +303,8 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     def genMatchDataConstr(
         matchData: SIR.Match,
-        loweredScrutinee: LoweredValue
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
     )(using lctx: LoweringContext): LoweredValue = {
 
         val orderedCases = prepareOrderedCased(matchData, loweredScrutinee)
@@ -352,7 +359,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
         val retval = orderedCases.zipWithIndex.foldRight(lastTerm) {
             case ((sirCase, caseIndex), state) =>
-                val body = genMatchDataConstrCase(sirCase, dataListVar)
+                val body = genMatchDataConstrCase(sirCase, dataListVar, optTargetType)
                 lvIfThenElse(
                   lvEqualsInteger(
                     constrIdxVar,
@@ -372,7 +379,8 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     def genMatchDataConstrCase(
         sirCase: SIR.Case,
-        dataListVar: IdentifiableLoweredValue
+        dataListVar: IdentifiableLoweredValue,
+        optTargetType: Option[SIRType]
     )(using lctx: LoweringContext): LoweredValue = {
         val prevScope = lctx.scope
 
@@ -440,7 +448,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
             }
 
         // now with the all named variable in the scope we can generate the body
-        val body = lctx.lower(sirCase.body)
+        val body = lctx.lower(sirCase.body, optTargetType)
 
         lctx.scope = prevScope
 
@@ -449,7 +457,8 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     def genMatchUplcConstr(
         mathData: SIR.Match,
-        loweredScrutinee: LoweredValue
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
     )(using lctx: LoweringContext): LoweredValue = {
         ???
     }

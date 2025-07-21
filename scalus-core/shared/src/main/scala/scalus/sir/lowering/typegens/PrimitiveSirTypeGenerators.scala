@@ -82,7 +82,11 @@ trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
         throw LoweringException(s"Primitive type have no field ${sel.field}", sel.anns.pos)
     }
 
-    override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         lctx: LoweringContext
     ): LoweredValue = {
         // TODO: add support
@@ -101,14 +105,14 @@ object SIRTypeUplcBooleanGenerator extends PrimitiveSirTypeGenerator {
           lvBuiltinApply(
             SIRBuiltins.iData,
             lvIntConstant(1, pos),
-            SIRType.Data,
+            SIRType.Boolean,
             PrimitiveRepresentation.PackedData,
             pos
           ),
           lvBuiltinApply(
             SIRBuiltins.iData,
             lvIntConstant(0, pos),
-            SIRType.Data,
+            SIRType.Boolean,
             PrimitiveRepresentation.PackedData,
             pos
           ),
@@ -241,5 +245,163 @@ object SIRTypeUplcDataGenerator extends PrimitiveSirTypeGenerator {
         LoweringContext
     ): LoweredValue =
         RepresentationProxyLoweredValue(input, PrimitiveRepresentation.Constant, pos)
+
+}
+
+object BLS12_381_G1_SirTypeGenerator extends PrimitiveSirTypeGenerator {
+
+    override def uplcToDataValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        val bs = lvBuiltinApply(
+          SIRBuiltins.bls12_381_G1_compress,
+          input,
+          SIRType.ByteString,
+          PrimitiveRepresentation.Constant,
+          pos
+        )
+        lvBuiltinApply(
+          SIRBuiltins.bData,
+          bs,
+          SIRType.BLS12_381_G1_Element,
+          PrimitiveRepresentation.PackedData,
+          pos
+        )
+    }
+
+    override def dataToUplcValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        val bs = lvBuiltinApply(
+          SIRBuiltins.unBData,
+          input,
+          SIRType.ByteString,
+          PrimitiveRepresentation.Constant,
+          pos
+        )
+        lvBuiltinApply(
+          SIRBuiltins.bls12_381_G1_uncompress,
+          input,
+          SIRType.BLS12_381_G1_Element,
+          PrimitiveRepresentation.Constant,
+          pos
+        )
+    }
+
+}
+
+object BLS12_381_G2_SirTypeGenerator extends PrimitiveSirTypeGenerator {
+
+    override def uplcToDataValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        val bs = lvBuiltinApply(
+          SIRBuiltins.bls12_381_G2_compress,
+          input,
+          SIRType.ByteString,
+          PrimitiveRepresentation.Constant,
+          pos
+        )
+        lvBuiltinApply(
+          SIRBuiltins.bData,
+          bs,
+          SIRType.BLS12_381_G2_Element,
+          PrimitiveRepresentation.PackedData,
+          pos
+        )
+    }
+
+    override def dataToUplcValue(input: LoweredValue, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        val bs = lvBuiltinApply(
+          SIRBuiltins.unBData,
+          input,
+          SIRType.ByteString,
+          PrimitiveRepresentation.Constant,
+          pos
+        )
+        lvBuiltinApply(
+          SIRBuiltins.bls12_381_G2_uncompress,
+          input,
+          SIRType.BLS12_381_G2_Element,
+          PrimitiveRepresentation.Constant,
+          pos
+        )
+    }
+
+}
+
+object BLS12_381_MLResultSirTypeGenerator extends SirTypeUplcGenerator {
+
+    override def defaultRepresentation(tp: SIRType)(using
+        lctx: LoweringContext
+    ): LoweredValueRepresentation = PrimitiveRepresentation.Constant
+
+    override def defaultDataRepresentation(tp: SIRType)(using
+        lctx: LoweringContext
+    ): LoweredValueRepresentation =
+        throw IllegalArgumentException("MLResultGenerator does not support data representation")
+
+    override def defaultTypeVarReperesentation(tp: SIRType)(using
+        LoweringContext
+    ): LoweredValueRepresentation =
+        PrimitiveRepresentation.Constant
+
+    override def isDataSupported(tp: SIRType)(using
+        lctx: LoweringContext
+    ): Boolean = false
+
+    override def toRepresentation(
+        input: LoweredValue,
+        outputRepresentation: LoweredValueRepresentation,
+        pos: SIRPosition
+    )(using
+        lctx: LoweringContext
+    ): LoweredValue = {
+        if input.representation == outputRepresentation then input
+        else
+            throw LoweringException(
+              s"MLResultGenerator can't convert from ${input.sirType.show} to $outputRepresentation",
+              pos
+            )
+    }
+
+    override def genConstr(constr: SIR.Constr)(using LoweringContext): LoweredValue = {
+        throw LoweringException(
+          s"MLResultGenerator can't generate constructor for ${constr.name}",
+          constr.anns.pos
+        )
+    }
+
+    override def genSelect(sel: SIR.Select, loweredScrutinee: LoweredValue)(using
+        LoweringContext
+    ): LoweredValue = {
+        throw LoweringException(
+          s"BLS12_381_Result have no fields (reading field ${sel.field})",
+          sel.anns.pos
+        )
+    }
+
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using LoweringContext): LoweredValue = {
+        throw LoweringException(
+          s"BLS12_381_Result can't be a match scrutinee",
+          matchData.anns.pos
+        )
+    }
+
+    override def upcastOne(input: LoweredValue, targetType: SIRType, pos: SIRPosition)(using
+        LoweringContext
+    ): LoweredValue = {
+        throw LoweringException(
+          s"BLS12_381_Result can't be upcasted to ${targetType.show}",
+          pos
+        )
+
+    }
 
 }

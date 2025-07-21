@@ -4,8 +4,7 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
 import scalus.builtin.ByteString
-import scalus.prelude.{List, Option, Ord, SortedMap, given}
-import scalus.prelude.Ord.given
+import scalus.prelude.{List, Option, Ord, SortedMap}
 import scalus.testutil.ArbitraryDerivation.autoDerived
 import scalus.uplc.test
 
@@ -25,7 +24,7 @@ trait ArbitraryInstances extends test.ArbitraryInstances {
         for
             b1 <- arbitrary[IntervalBound]
             b2 <- arbitrary[IntervalBound]
-        yield summon[Ord[IntervalBound]].compare(b1, b2) match
+        yield Ord[IntervalBound].compare(b1, b2) match
             case Ord.Order.Greater => Interval(b2, b1)
             case _                 => Interval(b1, b2)
     }

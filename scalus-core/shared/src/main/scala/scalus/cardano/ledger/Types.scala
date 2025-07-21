@@ -1,14 +1,16 @@
 package scalus.cardano.ledger
 
+import io.bullet.borer.*
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
-import io.bullet.borer.*
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
+import scalus.ledger.babbage.ProtocolParams
 import scalus.utils.Hex.toHex
 import upickle.default.ReadWriter as UpickleReadWriter
 
 import java.util
+import scala.collection.immutable.{ListMap, SortedMap, TreeMap}
 import scala.compiletime.asMatchable
 
 enum Era(val value: Int) extends Enumeration {
@@ -43,22 +45,54 @@ object Coin {
     val zero: Coin = Coin(0)
 }
 
-// TODO: this should be SortedMap as in Haskell
-type MultiAsset = Map[PolicyId, Map[AssetName, Long]]
-object MultiAsset {
-    val zero: MultiAsset = Map.empty
-    def binOp(op: (Long, Long) => Long)(self: MultiAsset, other: MultiAsset): MultiAsset = {
-        (self.keySet ++ other.keySet).view.map { policyId =>
-            val selfAssets = self.getOrElse(policyId, Map.empty)
-            val otherAssets = other.getOrElse(policyId, Map.empty)
+/** Minting MultiAsset. Can't contain zeros, can't be empty */
+opaque type Mint <: MultiAsset = MultiAsset
+object Mint {
+    def apply(ma: MultiAsset): Mint = {
+        require(!ma.isEmpty, "Mint cannot be empty")
+        require(
+          ma.assets.forall { case (_, assets) => assets.forall { case (_, value) => value != 0 } },
+          "Mint cannot contain zero values"
+        )
+        ma
+    }
 
-            val mergedAssets = (selfAssets.keySet ++ otherAssets.keySet).view.map { assetName =>
-                val combinedValue =
-                    op(selfAssets.getOrElse(assetName, 0L), otherAssets.getOrElse(assetName, 0L))
-                assetName -> combinedValue
-            }.toMap
-            policyId -> mergedAssets
-        }.toMap
+    given Encoder[Mint] = MultiAsset.given_Encoder_MultiAsset
+    given Decoder[Mint] = MultiAsset.given_Decoder_MultiAsset.map(Mint.apply)
+}
+
+case class MultiAsset(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]) {
+    def isEmpty: Boolean = assets.isEmpty
+}
+
+object MultiAsset {
+    val zero: MultiAsset = MultiAsset(SortedMap.empty)
+    val empty: MultiAsset = zero
+    def binOp(op: (Long, Long) => Long)(self: MultiAsset, other: MultiAsset): MultiAsset = {
+        val assets: SortedMap[PolicyId, SortedMap[AssetName, Long]] =
+            (self.assets.keySet ++ other.assets.keySet).view
+                .flatMap { policyId =>
+                    val selfAssets =
+                        self.assets.getOrElse(policyId, SortedMap.empty[AssetName, Long])
+                    val otherAssets =
+                        other.assets.getOrElse(policyId, SortedMap.empty[AssetName, Long])
+
+                    val mergedAssets: SortedMap[AssetName, Long] =
+                        (selfAssets.keySet ++ otherAssets.keySet).view
+                            .flatMap { assetName =>
+                                val combinedValue =
+                                    op(
+                                      selfAssets.getOrElse(assetName, 0L),
+                                      otherAssets.getOrElse(assetName, 0L)
+                                    )
+                                if combinedValue != 0 then Some(assetName -> combinedValue)
+                                else None
+                            }
+                            .to(TreeMap)
+                    if mergedAssets.nonEmpty then Some(policyId -> mergedAssets) else None
+                }
+                .to(TreeMap)
+        MultiAsset(assets)
     }
 
     extension (self: MultiAsset) {
@@ -66,9 +100,15 @@ object MultiAsset {
         def -(other: MultiAsset): MultiAsset = binOp(_ - _)(self, other)
     }
 
-}
+    given Encoder[MultiAsset] =
+        Encoder.forMap[PolicyId, SortedMap[AssetName, Long], SortedMap].contramap(_.assets)
 
-type Mint = MultiAsset
+    given Decoder[MultiAsset] = Decoder { r =>
+        given Decoder[TreeMap[AssetName, Long]] = Decoder.forTreeMap[AssetName, Long]
+        Decoder.forTreeMap[PolicyId, TreeMap[AssetName, Long]].map(MultiAsset.apply).read(r)
+    }
+
+}
 
 /** Represents an asset name in Cardano's multi-asset framework
   *
@@ -80,7 +120,7 @@ final case class AssetName(bytes: ByteString) derives Codec {
     require(bytes.size <= 32, s"AssetName must be at most 32 bytes, got ${bytes.size}")
 
     /** Convert to ASCII string if possible, otherwise returns hex representation */
-    def asString: String = {
+    override def toString: String = {
         if bytes.bytes.forall(b => b >= 32 && b < 127) then {
             new String(bytes.bytes, "ASCII")
         } else {
@@ -90,6 +130,10 @@ final case class AssetName(bytes: ByteString) derives Codec {
 }
 
 object AssetName {
+
+    given Ordering[AssetName] = (x: AssetName, y: AssetName) => {
+        Ordering[ByteString].compare(x.bytes, y.bytes)
+    }
 
     /** Empty asset name */
     val empty: AssetName = AssetName(ByteString.empty)
@@ -120,28 +164,18 @@ enum Language {
 
     /** Plutus V3, introduced in Conway hard fork */
     case PlutusV3
+
+    def languageId: Int = this.ordinal
 }
 
 object Language {
 
-    /** Gets the language ID (used in CBOR encoding) */
-    def languageId(language: Language): Int = language match {
-        case Language.PlutusV1 => 0
-        case Language.PlutusV2 => 1
-        case Language.PlutusV3 => 2
-    }
-
     /** Gets the language from an ID */
-    def fromId(id: Int): Language = id match {
-        case 0 => Language.PlutusV1
-        case 1 => Language.PlutusV2
-        case 2 => Language.PlutusV3
-        case _ => throw new IllegalArgumentException(s"Unknown language ID: $id")
-    }
+    def fromId(id: Int): Language = fromOrdinal(id)
 
     /** CBOR encoder for Language */
     given Encoder[Language] = Encoder { (w, language) =>
-        w.writeInt(languageId(language))
+        w.writeInt(language.languageId)
     }
 
     /** CBOR decoder for Language */
@@ -149,10 +183,8 @@ object Language {
         fromId(r.readInt())
     }
 
-    given Ordering[Language] = new Ordering[Language] {
-        def compare(x: Language, y: Language): Int = {
-            Language.languageId(x) - Language.languageId(y)
-        }
+    given Ordering[Language] = (x: Language, y: Language) => {
+        x.languageId - y.languageId
     }
 }
 
@@ -227,8 +259,14 @@ case class ExUnits(
     def +(other: ExUnits): ExUnits =
         ExUnits(memory + other.memory, steps + other.steps)
 
-object ExUnits:
+object ExUnits {
     val zero: ExUnits = ExUnits(0, 0)
+
+    given Ordering[ExUnits] = (x: ExUnits, y: ExUnits) => {
+        if x.memory != y.memory then x.memory.compareTo(y.memory)
+        else x.steps.compareTo(y.steps)
+    }
+}
 
 /** Represents execution unit prices in the Cardano blockchain.
   *
@@ -291,6 +329,19 @@ case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
       */
     def getLanguageViewEncoding: Array[Byte] = {
         Cbor.encode(this)(using LanguageViewEncoder).toByteArray
+    }
+}
+
+object CostModels {
+    def fromProtocolParams(
+        pparams: ProtocolParams
+    ): CostModels = {
+        // Convert the cost models from ProtocolParams to the format used in CostModels
+        CostModels(
+          pparams.costModels.view
+              .map { case (lang, costs) => Language.valueOf(lang).languageId -> costs }
+              .to(ListMap)
+        )
     }
 }
 

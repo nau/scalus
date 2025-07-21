@@ -35,8 +35,6 @@ package object scalus {
             val uplc = backend match
                 case Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>
                     SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
-                case Compiler.TargetLoweringBackend.SimpleSirToUplcV3Lowering =>
-                    SimpleSirToUplcV3Lowering(sir, generateErrorTraces).lower()
                 case Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     SirToUplc110Lowering(sir, generateErrorTraces).lower()
                 case Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
@@ -52,12 +50,19 @@ package object scalus {
             retval
         }
 
-        def toUplcOptimized(generateErrorTraces: Boolean = false): Term = {
-            SimpleSirToUplcLowering(sir, generateErrorTraces).lower()
-                |> EtaReduce.apply
-                |> Inliner.apply
-                |> CaseConstrApply.apply
-                |> ForcedBuiltinsExtractor.apply
+        def toUplcOptimized(using
+            options: Compiler.Options = Compiler.defaultOptions
+        )(
+            generateErrorTraces: Boolean = options.generateErrorTraces,
+            backend: Compiler.TargetLoweringBackend = options.targetLoweringBackend,
+            debug: Boolean = options.debug
+        ): Term = {
+            toUplc(
+              generateErrorTraces = generateErrorTraces,
+              backend = backend,
+              optimizeUplc = true,
+              debug = debug
+            )
         }
 
         def toLoweredValue(using
@@ -79,9 +84,6 @@ package object scalus {
             val uplc = backend match
                 case Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>
                     SimpleSirToUplcLowering(sir, options.generateErrorTraces).lower()
-                case Compiler.TargetLoweringBackend.SimpleSirToUplcV3Lowering =>
-                    SimpleSirToUplcV3Lowering(sir, options.generateErrorTraces)
-                        .lower()
                 case Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     SirToUplc110Lowering(sir, options.generateErrorTraces).lower()
                 case Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>

@@ -44,11 +44,6 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
             case (SumCaseClassRepresentation.SumDataList, SumCaseClassRepresentation.SumDataList) =>
                 input
             case (
-                  SumCaseClassRepresentation.PackedSumDataList,
-                  SumCaseClassRepresentation.PackedSumDataList
-                ) =>
-                input
-            case (
                   SumCaseClassRepresentation.SumDataList,
                   SumCaseClassRepresentation.SumDataPairList
                 ) =>
@@ -89,6 +84,11 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                 input
                     .toRepresentation(SumCaseClassRepresentation.SumDataList, pos)
                     .toRepresentation(SumCaseClassRepresentation.SumDataPairList, pos)
+            case (
+                  SumCaseClassRepresentation.PackedSumDataList,
+                  SumCaseClassRepresentation.PackedSumDataList
+                ) =>
+                input
             case (
                   SumCaseClassRepresentation.PackedSumDataList,
                   SumCaseClassRepresentation.SumDataList
@@ -163,6 +163,21 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                         )
                 // we know that function will have appropriate type and representation by definition
                 lvApply(fun, input, pos, None, None)
+            case (
+                  SumCaseClassRepresentation.SumDataAssocMap,
+                  SumCaseClassRepresentation.SumDataPairList
+                ) =>
+                lvBuiltinApply(
+                  SIRBuiltins.unMapData,
+                  input,
+                  input.sirType,
+                  SumCaseClassRepresentation.SumDataPairList,
+                  pos
+                )
+            case (SumCaseClassRepresentation.SumDataAssocMap, _) =>
+                input
+                    .toRepresentation(SumCaseClassRepresentation.SumDataPairList, pos)
+                    .toRepresentation(outputRepresentation, pos)
             case (_, tv @ TypeVarRepresentation(isBuiltin)) =>
                 if isBuiltin then input
                 else {
@@ -271,10 +286,12 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                 val head = lctx.lower(constr.args.head)
                 val tail = lctx.lower(constr.args.tail.head)
                 val elementType = retrieveElementType(constr.tp, constr.anns.pos)
-                val headElementRepr = head.toRepresentation(
-                  defaultElementRepresentation(elementType, constr.anns.pos),
-                  constr.anns.pos
-                )
+                val headElementRepr = head
+                    .maybeUpcast(elementType, constr.anns.pos)
+                    .toRepresentation(
+                      defaultElementRepresentation(elementType, constr.anns.pos),
+                      constr.anns.pos
+                    )
                 // special case when tail is Nil, than have tyoe List[Nothing]
                 val fixedTail =
                     if isNilType(tail.sirType) then
@@ -433,7 +450,11 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
 
     }
 
-    override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         lctx: LoweringContext
     ): LoweredValue = {
         // Nil, Cons
@@ -545,14 +566,17 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
           List(listInput, consHead, consTail)
         )
 
-        val loweredConsBody =
-            lctx.lower(consCase.get.body).maybeUpcast(matchData.tp, consCase.get.anns.pos)
-        val bodyRepresentation = loweredConsBody.representation
+        val resType = optTargetType.getOrElse(matchData.tp)
+
+        val loweredConsBody = lctx
+            .lower(consCase.get.body, Some(resType))
+            .maybeUpcast(resType, consCase.get.anns.pos)
+
         lctx.scope = prevScope
-        val loweredNilBody =
-            lctx.lower(nilCase.get.body)
-                .maybeUpcast(matchData.tp, nilCase.get.anns.pos)
-                .toRepresentation(bodyRepresentation, nilCase.get.anns.pos)
+
+        val loweredNilBody = lctx
+            .lower(nilCase.get.body, Some(resType))
+            .maybeUpcast(resType, nilCase.get.anns.pos)
 
         if SIRType.isProd(loweredScrutinee.sirType) then
             val constrDecl = SIRType
@@ -577,7 +601,15 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                 )
         else
 
-            val resType = matchData.tp
+            val resRepr = LoweredValue.chooseCommonRepresentation(
+              Seq(loweredConsBody, loweredNilBody),
+              resType,
+              matchData.anns.pos
+            )
+            val loweredConsBodyR =
+                loweredConsBody.toRepresentation(resRepr, consCase.get.anns.pos)
+            val loweredNilBodyR =
+                loweredNilBody.toRepresentation(resRepr, nilCase.get.anns.pos)
 
             if resType == SIRType.FreeUnificator then
                 throw LoweringException(
@@ -585,20 +617,14 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                   matchData.anns.pos
                 )
 
-            val consBodyR = loweredConsBody.maybeUpcast(resType, matchData.anns.pos)
-            val resRepresentation = consBodyR.representation
-            val nilBodyR = loweredNilBody
-                .maybeUpcast(resType, loweredNilBody.pos)
-                .toRepresentation(resRepresentation, loweredNilBody.pos)
-
             val retval = ListMatchLoweredValue(
               listInput,
               consHead,
               consTail,
-              consBodyR,
-              nilBodyR,
+              loweredConsBodyR,
+              loweredNilBodyR,
               resType,
-              resRepresentation,
+              resRepr,
               matchData.anns.pos
             )
 

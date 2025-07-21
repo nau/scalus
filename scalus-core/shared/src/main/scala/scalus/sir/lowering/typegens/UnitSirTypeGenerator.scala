@@ -36,6 +36,9 @@ object UnitSirTypeGenerator extends SirTypeUplcGenerator {
                 input
             case (PrimitiveRepresentation.Constant, TypeVarRepresentation(isBuiltin)) =>
                 input
+            case (ErrorRepresentation, _) =>
+                // error can be converted to any representatio
+                input
             case _ =>
                 throw LoweringException(
                   s"Unit type can't be converted from ${input.representation} to $outputRepresentation",
@@ -66,7 +69,11 @@ object UnitSirTypeGenerator extends SirTypeUplcGenerator {
           sel.anns.pos
         )
 
-    override def genMatch(matchData: SIR.Match, loweredScrutinee: LoweredValue)(using
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
         LoweringContext
     ): LoweredValue =
         throw LoweringException(

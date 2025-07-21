@@ -1118,7 +1118,11 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 println(s"assembleMethodWithTypeFromBody:  paramss: ${paramss} ,  paramss.isEmpty")
             if !typeFromDefMismatchWasFound then
                 val retType = SIRType.substitute(typeFromDef, typeParamsMapping, Map.empty)
-                SIRUnify.unifyType(retType, bodyExpr.tp, SIRUnify.Env.empty.withoutUpcasting) match
+                SIRUnify.topLevelUnifyType(
+                  retType,
+                  bodyExpr.tp,
+                  SIRUnify.Env.empty.withoutUpcasting
+                ) match
                     case SIRUnify.UnificationSuccess(env, r) =>
                         (retType, bodyExpr)
                     case SIRUnify.UnificationFailure(_, _, _) =>
@@ -2457,6 +2461,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   SIR.Error("Unsupported while expression", AnnotationsDecl.fromSrcPos(tree.srcPos))
                 )
             case x =>
+                println(s"Not supported expression, tree=${x}")
                 error(
                   ExpressionNotSupported(x.show, tree.srcPos),
                   SIR.Error("Unsupported expression", AnnotationsDecl.fromSrcPos(tree.srcPos))

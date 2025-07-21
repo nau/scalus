@@ -30,7 +30,7 @@ class TransactionSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   outputs = IndexedSeq(
                     Sized(
                       TransactionOutput.Shelley(
-                        Address.Byron(Arbitrary.arbitrary[ByronAddress].sample.get),
+                        Arbitrary.arbitrary[ByronAddress].sample.get,
                         Value(Coin(1000000L))
                       )
                     )
@@ -38,7 +38,7 @@ class TransactionSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   proposalProcedures = Set.empty,
                   withdrawals = None,
-                  certificates = Set.empty,
+                  certificates = TaggedSet.empty,
                   mint = None,
                   requiredSigners = Set.empty,
                   collateralReturnOutput = None

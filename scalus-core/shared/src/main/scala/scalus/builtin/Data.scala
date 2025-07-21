@@ -1,9 +1,26 @@
 package scalus.builtin
 
+import scalus.builtin.Data.{B, Constr, I, List, Map}
+
 import scala.collection.immutable
 import scala.compiletime.asMatchable
 
-sealed abstract class Data
+sealed abstract class Data {
+    private[scalus] def showDebug: String = this match {
+        case Constr(constr, args) =>
+            s"<$constr, [${args.map(_.showDebug).mkString(", ")}]>"
+        case Map(values) =>
+            s"{${values.map { case (k, v) => s"${k.showDebug}: ${v.showDebug}" }.mkString(", ")}}"
+        case List(values) =>
+            s"[${values.map(_.showDebug).mkString(", ")}]"
+        case I(value) =>
+            s"$value"
+        case B(value) =>
+            s"\"${value.toHex}\""
+    }
+
+    override def toString: String = showDebug
+}
 
 object Data extends DataApi:
 

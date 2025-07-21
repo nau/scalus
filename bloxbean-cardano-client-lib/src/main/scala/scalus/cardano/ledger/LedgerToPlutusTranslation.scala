@@ -14,43 +14,9 @@ import scalus.prelude.Option.asScalus
 import scalus.prelude.{AssocMap, List}
 import scalus.uplc.eval.*
 import scalus.{builtin, ledger, prelude}
-import scalus.prelude.Ord.given
 
 import scala.collection.{immutable, mutable}
 import scala.math.BigInt
-
-/** Ordering instances for scalus.cardano.ledger types.
-  *
-  * These are essential for deterministic script context construction, as Cardano requires
-  * consistent ordering for validation.
-  */
-given Ordering[TransactionInput] with
-    def compare(x: TransactionInput, y: TransactionInput): Int =
-        x.transactionId.toHex.compareTo(y.transactionId.toHex) match
-            case 0 => x.index.compareTo(y.index)
-            case c => c
-
-given Ordering[v1.StakingCredential.StakingHash] = Ordering.by { cred =>
-    cred.cred match
-        case v1.Credential.PubKeyCredential(pkh)  => pkh.hash
-        case v1.Credential.ScriptCredential(hash) => hash
-}
-
-given Ordering[Redeemer] with
-    def compare(x: Redeemer, y: Redeemer): Int =
-        x.tag.ordinal.compareTo(y.tag.ordinal) match
-            case 0 => x.index.compareTo(y.index)
-            case c => c
-
-given Ordering[Voter] with
-    def compare(x: Voter, y: Voter): Int =
-        x.toString.compareTo(y.toString) // Simple string-based ordering for voter types
-
-given Ordering[GovActionId] with
-    def compare(x: GovActionId, y: GovActionId): Int =
-        x.transactionId.toHex.compareTo(y.transactionId.toHex) match
-            case 0 => x.govActionIndex.compareTo(y.govActionIndex)
-            case c => c
 
 /** Advanced interoperability layer for scalus.cardano.ledger domain model.
   *
@@ -143,7 +109,7 @@ object LedgerToPlutusTranslation {
       */
     def getAddress(address: Address): v1.Address = {
         address match
-            case Address.Shelley(shelleyAddr) =>
+            case shelleyAddr: ShelleyAddress =>
                 val paymentCred = shelleyAddr.payment match
                     case ShelleyPaymentPart.Key(hash) =>
                         v1.Credential.PubKeyCredential(v1.PubKeyHash(hash))
@@ -171,12 +137,12 @@ object LedgerToPlutusTranslation {
 
                 v1.Address(paymentCred, stakingCred)
 
-            case Address.Byron(_) =>
+            case _: ByronAddress =>
                 throw new IllegalArgumentException(
                   "Byron addresses not supported in script contexts"
                 )
 
-            case Address.Stake(_) =>
+            case _: StakeAddress =>
                 throw new IllegalArgumentException(
                   "Stake addresses not supported as payment addresses"
                 )
@@ -263,39 +229,19 @@ object LedgerToPlutusTranslation {
       * value format, which uses nested association maps for multi-asset representation.
       */
     def getValue(value: Value): v1.Value = {
-        // Create the multi-asset map
-        val multiAssetList = for
-            (policyId, assets) <- value.assets.toArray.sortBy(_._1)
-            (assetName, amount) <- assets.toArray.sortBy(_._1.bytes)
-        yield (policyId, assetName.bytes) -> amount
-
-        // Group by policy ID and create nested maps
-        val policyMap = multiAssetList
-            .groupBy(_._1._1)
-            .view
-            .mapValues { assets =>
-                val assetMap = assets
-                    .map { case ((_, assetName), amount) =>
-                        assetName -> BigInt(amount)
-                    }
-                    .sortBy(_._1)
-                prelude.SortedMap.fromList(prelude.List.from(assetMap))
-            }
-            .toArray
-            .sortBy(_._1)
-
         // Add ADA entry if not empty
         val adaEntry =
             if value.coin.value > 0 then
                 Seq(
-                  (
-                    ByteString.empty,
-                    prelude.SortedMap.singleton(ByteString.empty, BigInt(value.coin.value))
-                  )
+                  ByteString.empty -> prelude.SortedMap
+                      .singleton(ByteString.empty, BigInt(value.coin.value))
                 )
             else Seq.empty
-
-        val allEntries = adaEntry ++ policyMap.map((pid, assets) => (pid, assets))
+        val allEntries = adaEntry ++ value.assets.assets.view.map { case (policyId, assets) =>
+            val assetMap = prelude.SortedMap.fromList(prelude.List.from(assets.view.map:
+                (assetName, amount) => assetName.bytes -> BigInt(amount)))
+            policyId -> assetMap
+        }
         prelude.SortedMap.fromList(prelude.List.from(allEntries))
     }
 
@@ -304,33 +250,31 @@ object LedgerToPlutusTranslation {
       * Minting contexts require special handling to ensure ADA is always included in the value map,
       * even when no ADA is being minted.
       */
-    def getMintValue(mint: Option[Mint]): v1.Value = {
-        val mintAssets = mint.map(_.toSeq).getOrElse(Seq.empty)
-
-        val multiAssetList = for
-            (policyId, assets) <- mintAssets.sortBy(_._1)
-            (assetName, amount) <- assets.toSeq.sortBy(_._1.bytes.toHex)
-        yield (policyId, assetName.bytes) -> amount
-
-        // Group by policy ID
-        val policyMap = multiAssetList
-            .groupBy(_._1._1)
-            .view
-            .mapValues { assets =>
-                val assetMap = assets
-                    .map { case ((_, assetName), amount) =>
-                        assetName -> BigInt(amount)
-                    }
-                    .sortBy(_._1.toHex)
-                prelude.SortedMap.fromList(prelude.List.from(assetMap))
-            }
-            .toSeq
-            .sortBy(_._1.toHex)
-
+    def getMintValueV1V2(mint: Option[Mint]): v1.Value = {
         // Always include ADA entry with zero value for minting
-        val adaEntry = (ByteString.empty, prelude.SortedMap.singleton(ByteString.empty, BigInt(0)))
-        val allEntries = adaEntry +: policyMap.map((pid, assets) => (pid, assets))
+        val assets = mint.getOrElse(MultiAsset.empty)
+        val adaEntry = Seq(
+          ByteString.empty -> prelude.SortedMap.singleton(ByteString.empty, BigInt(0))
+        )
+        val allEntries = adaEntry ++ assets.assets.view.map { case (policyId, assets) =>
+            val assetMap = prelude.SortedMap.fromList(prelude.List.from(assets.view.map:
+                (assetName, amount) => assetName.bytes -> BigInt(amount)))
+            policyId -> assetMap
+        }
+        prelude.SortedMap.fromList(prelude.List.from(allEntries))
+    }
 
+    /** Convert multi-asset values for minting context.
+      *
+      * In Plutus V3, minting value can not contain zero ADA entry, so we handle it differently.
+      */
+    def getMintValueV3(mint: Option[Mint]): v1.Value = {
+        val assets = mint.getOrElse(MultiAsset.empty)
+        val allEntries = assets.assets.view.map { case (policyId, assets) =>
+            val assetMap = prelude.SortedMap.fromList(prelude.List.from(assets.view.map:
+                (assetName, amount) => assetName.bytes -> BigInt(amount)))
+            policyId -> assetMap
+        }
         prelude.SortedMap.fromList(prelude.List.from(allEntries))
     }
 
@@ -434,13 +378,19 @@ object LedgerToPlutusTranslation {
     private def getOrderedWithdrawals(
         withdrawals: Option[Withdrawals]
     ): collection.SortedMap[v1.StakingCredential.StakingHash, BigInt] = {
+        given Ordering[v1.StakingCredential.StakingHash] = Ordering.by { cred =>
+            cred.cred match
+                case v1.Credential.PubKeyCredential(pkh)  => pkh.hash
+                case v1.Credential.ScriptCredential(hash) => hash
+        }
+
         val wdwls = mutable.TreeMap.empty[v1.StakingCredential.StakingHash, BigInt]
         withdrawals match
-            case None => wdwls
+            case None =>
             case Some(w) =>
                 for (rewardAccount, coin) <- w.withdrawals do
                     rewardAccount.address match
-                        case Address.Stake(stakeAddr) =>
+                        case stakeAddr: StakeAddress =>
                             stakeAddr.payload match
                                 case StakePayload.Stake(hash) =>
                                     val cred =
@@ -473,16 +423,10 @@ object LedgerToPlutusTranslation {
       */
     def getDCert(cert: Certificate): v1.DCert = {
         cert match
-            case Certificate.StakeRegistration(credential) =>
-                v1.DCert.DelegRegKey(getStakingCredential(credential))
             case Certificate.RegCert(credential, _) =>
                 v1.DCert.DelegRegKey(getStakingCredential(credential))
-
-            case Certificate.StakeDeregistration(credential) =>
-                v1.DCert.DelegDeRegKey(getStakingCredential(credential))
             case Certificate.UnregCert(credential, _) =>
                 v1.DCert.DelegDeRegKey(getStakingCredential(credential))
-
             case Certificate.StakeDelegation(credential, poolKeyHash) =>
                 v1.DCert.DelegDelegate(
                   getStakingCredential(credential),
@@ -526,7 +470,7 @@ object LedgerToPlutusTranslation {
             case Certificate.RegCert(credential, coin) =>
                 v3.TxCert.RegStaking(
                   getCredential(credential),
-                  prelude.Option.Some(BigInt(coin.value))
+                  coin.map(c => BigInt(c.value)).asScalus
                 )
             case Certificate.RegDRepCert(credential, coin, _) =>
                 v3.TxCert.RegDRep(getCredential(credential), BigInt(coin.value))
@@ -563,7 +507,7 @@ object LedgerToPlutusTranslation {
             case Certificate.UnregCert(credential, coin) =>
                 v3.TxCert.UnRegStaking(
                   getCredential(credential),
-                  prelude.Option.Some(BigInt(coin.value))
+                  coin.map(c => BigInt(c.value)).asScalus
                 )
             case Certificate.UnregDRepCert(credential, coin) =>
                 v3.TxCert.UnRegDRep(getCredential(credential), BigInt(coin.value))
@@ -580,8 +524,6 @@ object LedgerToPlutusTranslation {
                   v3.Delegatee.Vote(getDRep(drep)),
                   BigInt(coin.value)
                 )
-            case _ =>
-                throw new IllegalArgumentException(s"Certificate $cert not supported in V3")
     }
 
     /** Convert DRep to Plutus V3 DRep representation.
@@ -617,8 +559,8 @@ object LedgerToPlutusTranslation {
           inputs = prelude.List.from(body.inputs.toSeq.sorted.map(getTxInInfoV1(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV1)),
           fee = v1.Value.lovelace(body.fee.value),
-          mint = getMintValue(body.mint),
-          dcert = prelude.List.from(body.certificates.toSeq.map(getDCert)),
+          mint = getMintValueV1V2(body.mint),
+          dcert = prelude.List.from(body.certificates.toIndexedSeq.map(getDCert)),
           withdrawals = getWithdrawals(body.withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
@@ -654,8 +596,8 @@ object LedgerToPlutusTranslation {
               prelude.List.from(body.referenceInputs.toSeq.sorted.map(getTxInInfoV2(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
           fee = v1.Value.lovelace(body.fee.value),
-          mint = getMintValue(body.mint),
-          dcert = prelude.List.from(body.certificates.toSeq.map(getDCert)),
+          mint = getMintValueV1V2(body.mint),
+          dcert = prelude.List.from(body.certificates.toIndexedSeq.map(getDCert)),
           withdrawals = AssocMap.unsafeFromList(getWithdrawals(body.withdrawals)),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
@@ -714,8 +656,8 @@ object LedgerToPlutusTranslation {
               prelude.List.from(body.referenceInputs.toSeq.sorted.map(getTxInInfoV3(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
           fee = body.fee.value,
-          mint = getMintValue(body.mint),
-          certificates = prelude.List.from(body.certificates.toSeq.map(getTxCertV3)),
+          mint = getMintValueV3(body.mint),
+          certificates = prelude.List.from(body.certificates.toIndexedSeq.map(getTxCertV3)),
           withdrawals = AssocMap.unsafeFromList(withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
@@ -764,13 +706,13 @@ object LedgerToPlutusTranslation {
             case RedeemerTag.Mint =>
                 val policyIds =
                     body.mint
-                        .map(_.keys.toArray[ByteString].sorted)
+                        .map(_.assets.keys.toArray)
                         .getOrElse(Array.empty[ByteString])
                 if policyIds.isDefinedAt(index) then v1.ScriptPurpose.Minting(policyIds(index))
                 else throw new IllegalStateException(s"Policy ID not found: $index")
 
             case RedeemerTag.Cert =>
-                val certs = body.certificates.toSeq // FIXME: check if it should be sorted
+                val certs = body.certificates.toIndexedSeq
                 if certs.isDefinedAt(index) then v1.ScriptPurpose.Certifying(getDCert(certs(index)))
                 else throw new IllegalStateException(s"Certificate not found: $index")
 
@@ -815,13 +757,13 @@ object LedgerToPlutusTranslation {
             case RedeemerTag.Mint =>
                 val policyIds =
                     body.mint
-                        .map(_.keys.toArray[ByteString].sorted)
+                        .map(_.assets.keys.toArray[ByteString])
                         .getOrElse(Array.empty[ByteString])
                 if policyIds.isDefinedAt(index) then v3.ScriptPurpose.Minting(policyIds(index))
                 else throw new IllegalStateException(s"Policy ID not found: $index")
 
             case RedeemerTag.Cert =>
-                val certs = body.certificates.toSeq
+                val certs = body.certificates.toIndexedSeq
                 if certs.isDefinedAt(index) then
                     v3.ScriptPurpose.Certifying(index, getTxCertV3(certs(index)))
                 else throw new IllegalStateException(s"Certificate not found: $index")

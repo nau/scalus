@@ -227,6 +227,7 @@ object IntervalBoundType {
   *   whether the bound is inclusive or not
   */
 case class IntervalBound(boundType: IntervalBoundType, isInclusive: Closure)
+
 @deprecated("Use `IntervalBound` instead", "0.7.0")
 type UpperBound[A] = IntervalBound
 @deprecated("Use `IntervalBound` instead", "0.7.0")
@@ -251,7 +252,7 @@ object IntervalBound:
                             if closure1 === closure2 then Ord.Order.Equal
                             else if closure1 then Ord.Order.Greater
                             else Ord.Order.Less
-                        else summon[Ord[IntervalBoundType]].compare(bound, bound2)
+                        else Ord[IntervalBoundType].compare(bound, bound2)
 
     given ToData[IntervalBound] = ToData.derived
 

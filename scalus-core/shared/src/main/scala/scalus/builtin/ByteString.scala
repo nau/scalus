@@ -3,6 +3,7 @@ package scalus.builtin
 import scalus.Compile
 import scalus.utils.Hex
 
+import scala.annotation.threadUnsafe
 import scala.compiletime.asMatchable
 
 // TODO: replace Array on IArray
@@ -31,7 +32,7 @@ class ByteString private[builtin] (val bytes: Array[Byte]) {
       *
       * Offchain operation, not available onchain.
       */
-    lazy val toHex: String = Hex.bytesToHex(bytes)
+    @threadUnsafe val toHex: String = Hex.bytesToHex(bytes)
 
     /** Converts the ByteString to a binary string representation
       *

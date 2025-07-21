@@ -3,8 +3,8 @@ package scalus.uplc
 import io.bullet.borer.Cbor
 import org.typelevel.paiges.Doc
 import scalus.*
-import scalus.builtin.Data
 import scalus.builtin.Data.*
+import scalus.builtin.{ByteString, Data}
 import scalus.uplc.Term.Const
 import scalus.utils.Hex
 
@@ -47,6 +47,12 @@ case class Program(version: (Int, Int, Int), term: Term):
       * The CBOR-encoded representation is a byte array that contains the program in a CBOR format.
       */
     lazy val cborEncoded: Array[Byte] = Cbor.encode(flatEncoded).toByteArray
+
+    /** CBOR-encoded [[ByteString]] of the program.
+      *
+      * The CBOR-encoded representation is a byte array that contains the program in a CBOR format.
+      */
+    lazy val cborByteString: ByteString = ByteString.unsafeFromArray(cborEncoded)
 
     /** Double CBOR-encoded representation of the program.
       *
