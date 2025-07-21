@@ -215,7 +215,7 @@ object FromDataMacros {
         val typeSymbol = TypeRepr.of[A].widen.dealias.typeSymbol
         if !typeSymbol.flags.is(Flags.Enum) then
             report.errorAndAbort(
-              s"derived can only be used with enums or sealed hoerarchy of type classes ${typeSymbol.fullName}"
+              s"derived can only be used with enums or sealed hierarchy of type classes ${typeSymbol.fullName}"
             )
 
         val mappingRhs: scala.List[Expr[scalus.builtin.List[Data] => A]] =
