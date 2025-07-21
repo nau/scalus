@@ -15,6 +15,8 @@ package object blueprint {
       *
       * The returned `Blueprint` always contains only 1 validator.
       *
+      * To specify the `redeemer` and `datum` schemas, use [[Blueprint.newBuilder()]].
+      *
       * @param contractTitle
       *   the title of the "blueprintee" contract
       * @param description
@@ -36,7 +38,7 @@ package object blueprint {
         Preamble(
           title = title,
           description = Some(description),
-          compiler = Some(CompilerInfo("scalus", Some(BuildInfo.scalusVersion))),
+          compiler = Some(CompilerInfo("scalus", Some(BuildInfo.version))),
           plutusVersion = Some(version)
         )
 
