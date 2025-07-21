@@ -10,7 +10,8 @@ case class Blueprint(
     validators: Seq[Validator] = Nil,
     //        definitions: Option[Map[String, PlutusDataSchema]] = None todo
 ) {
-    def show: String = writeToString(this)
+    def show(indentation: Int = 2): String =
+        writeToString(this, WriterConfig.withIndentionStep(indentation))
 }
 
 object Blueprint {
@@ -86,23 +87,6 @@ case class Argument(
 
 object Argument {
     given JsonValueCodec[Argument] = JsonCodecMaker.make
-}
-
-case class PlutusDataSchema(
-    dataType: Option[DataType] = None,
-    title: Option[String] = None,
-    description: Option[String] = None,
-    anyOf: Option[List[PlutusDataSchema]] = None,
-    allOf: Option[List[PlutusDataSchema]] = None,
-    oneOf: Option[List[PlutusDataSchema]] = None,
-    not: Option[PlutusDataSchema] = None,
-    index: Option[Int] = None,
-    fields: Option[List[PlutusDataSchema]] = None
-)
-
-object PlutusDataSchema {
-    given JsonValueCodec[PlutusDataSchema] =
-        JsonCodecMaker.make(CodecMakerConfig.withAllowRecursiveTypes(true))
 }
 
 enum DataType(val value: String) {
