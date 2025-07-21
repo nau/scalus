@@ -20,7 +20,7 @@ object RewardAccount {
     given Ordering[RewardAccount] with
         def compare(x: RewardAccount, y: RewardAccount): Int =
             (x.address, y.address) match
-                case (Address.Stake(StakeAddress(n1, p1)), Address.Stake(StakeAddress(n2, p2))) =>
+                case (StakeAddress(n1, p1), StakeAddress(n2, p2)) =>
                     n1.compare(n2) match
                         case 0 => p1.asHash.compare(p2.asHash)
                         case c => c

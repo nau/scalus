@@ -42,31 +42,23 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
         val state = State(
           utxo = Map(
             input1 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Key(
-                        Hash(platform.blake2b_224(publicKey1))
-                      )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment = ShelleyPaymentPart.Key(Hash(platform.blake2b_224(publicKey1)))),
               Value(Coin(1000000L))
             ),
             input2 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Key(
-                        Hash(platform.blake2b_224(publicKey2))
-                      )
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(
+                    payment = ShelleyPaymentPart.Key(
+                      Hash(platform.blake2b_224(publicKey2))
                     )
-              ),
+                  ),
               Value(Coin(1000000L))
             )
           )
@@ -110,31 +102,27 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
         val state = State(
           utxo = Map(
             input1 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Key(
-                        Hash(platform.blake2b_224(publicKey1))
-                      )
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(
+                    payment = ShelleyPaymentPart.Key(
+                      Hash(platform.blake2b_224(publicKey1))
                     )
-              ),
+                  ),
               Value(Coin(1000000L))
             ),
             input2 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Key(
-                        Hash(platform.blake2b_224(publicKey2))
-                      )
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(
+                    payment = ShelleyPaymentPart.Key(
+                      Hash(platform.blake2b_224(publicKey2))
                     )
-              ),
+                  ),
               Value(Coin(1000000L))
             )
           )
@@ -179,31 +167,27 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
         val state = State(
           utxo = Map(
             collateralInput1 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Key(
-                        Hash(platform.blake2b_224(publicKey1))
-                      )
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(
+                    payment = ShelleyPaymentPart.Key(
+                      Hash(platform.blake2b_224(publicKey1))
                     )
-              ),
+                  ),
               Value(Coin(1000000L))
             ),
             collateralInput2 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Key(
-                        Hash(platform.blake2b_224(publicKey2))
-                      )
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(
+                    payment = ShelleyPaymentPart.Key(
+                      Hash(platform.blake2b_224(publicKey2))
                     )
-              ),
+                  ),
               Value(Coin(1000000L))
             )
           )
@@ -247,31 +231,23 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
         val state = State(
           utxo = Map(
             collateralInput1 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Key(
-                        Hash(platform.blake2b_224(publicKey1))
-                      )
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(
+                    payment = ShelleyPaymentPart.Key(
+                      Hash(platform.blake2b_224(publicKey1))
                     )
-              ),
+                  ),
               Value(Coin(1000000L))
             ),
             collateralInput2 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Key(
-                        Hash(platform.blake2b_224(publicKey2))
-                      )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment = ShelleyPaymentPart.Key(Hash(platform.blake2b_224(publicKey2)))),
               Value(Coin(1000000L))
             )
           )
@@ -414,30 +390,26 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                     Withdrawals(
                       Map(
                         RewardAccount(
-                          Address.Shelley(
-                            Arbitrary
-                                .arbitrary[ShelleyAddress]
-                                .sample
-                                .get
-                                .copy(
-                                  payment = ShelleyPaymentPart.Key(
-                                    Hash(platform.blake2b_224(publicKey1))
-                                  )
+                          Arbitrary
+                              .arbitrary[ShelleyAddress]
+                              .sample
+                              .get
+                              .copy(
+                                payment = ShelleyPaymentPart.Key(
+                                  Hash(platform.blake2b_224(publicKey1))
                                 )
-                          )
+                              )
                         ) -> Coin(1000000L),
                         RewardAccount(
-                          Address.Shelley(
-                            Arbitrary
-                                .arbitrary[ShelleyAddress]
-                                .sample
-                                .get
-                                .copy(
-                                  payment = ShelleyPaymentPart.Key(
-                                    Hash(platform.blake2b_224(publicKey2))
-                                  )
+                          Arbitrary
+                              .arbitrary[ShelleyAddress]
+                              .sample
+                              .get
+                              .copy(
+                                payment = ShelleyPaymentPart.Key(
+                                  Hash(platform.blake2b_224(publicKey2))
                                 )
-                          )
+                              )
                         ) -> Coin(2000000L)
                       )
                     )
@@ -480,30 +452,26 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                     Withdrawals(
                       Map(
                         RewardAccount(
-                          Address.Shelley(
-                            Arbitrary
-                                .arbitrary[ShelleyAddress]
-                                .sample
-                                .get
-                                .copy(
-                                  payment = ShelleyPaymentPart.Key(
-                                    Hash(platform.blake2b_224(publicKey1))
-                                  )
+                          Arbitrary
+                              .arbitrary[ShelleyAddress]
+                              .sample
+                              .get
+                              .copy(
+                                payment = ShelleyPaymentPart.Key(
+                                  Hash(platform.blake2b_224(publicKey1))
                                 )
-                          )
+                              )
                         ) -> Coin(1000000L),
                         RewardAccount(
-                          Address.Shelley(
-                            Arbitrary
-                                .arbitrary[ShelleyAddress]
-                                .sample
-                                .get
-                                .copy(
-                                  payment = ShelleyPaymentPart.Key(
-                                    Hash(platform.blake2b_224(publicKey2))
-                                  )
+                          Arbitrary
+                              .arbitrary[ShelleyAddress]
+                              .sample
+                              .get
+                              .copy(
+                                payment = ShelleyPaymentPart.Key(
+                                  Hash(platform.blake2b_224(publicKey2))
                                 )
-                          )
+                              )
                         ) -> Coin(2000000L)
                       )
                     )

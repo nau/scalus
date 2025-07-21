@@ -109,7 +109,7 @@ object LedgerToPlutusTranslation {
       */
     def getAddress(address: Address): v1.Address = {
         address match
-            case Address.Shelley(shelleyAddr) =>
+            case shelleyAddr: ShelleyAddress =>
                 val paymentCred = shelleyAddr.payment match
                     case ShelleyPaymentPart.Key(hash) =>
                         v1.Credential.PubKeyCredential(v1.PubKeyHash(hash))
@@ -137,12 +137,12 @@ object LedgerToPlutusTranslation {
 
                 v1.Address(paymentCred, stakingCred)
 
-            case Address.Byron(_) =>
+            case _: ByronAddress =>
                 throw new IllegalArgumentException(
                   "Byron addresses not supported in script contexts"
                 )
 
-            case Address.Stake(_) =>
+            case _: StakeAddress =>
                 throw new IllegalArgumentException(
                   "Stake addresses not supported as payment addresses"
                 )
@@ -390,7 +390,7 @@ object LedgerToPlutusTranslation {
             case Some(w) =>
                 for (rewardAccount, coin) <- w.withdrawals do
                     rewardAccount.address match
-                        case Address.Stake(stakeAddr) =>
+                        case stakeAddr: StakeAddress =>
                             stakeAddr.payload match
                                 case StakePayload.Stake(hash) =>
                                     val cred =

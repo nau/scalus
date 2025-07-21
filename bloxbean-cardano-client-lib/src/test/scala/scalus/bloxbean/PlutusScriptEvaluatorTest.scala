@@ -47,12 +47,10 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"
         val utxo = Map(
           input -> TransactionOutput(
-            address = Address.Shelley(
-              ShelleyAddress(
-                Network.Mainnet,
-                payment = ShelleyPaymentPart.Script(s.scriptHash),
-                delegation = Null
-              ),
+            address = ShelleyAddress(
+              Network.Mainnet,
+              payment = ShelleyPaymentPart.Script(s.scriptHash),
+              delegation = Null
             ),
             datumOption = Some(DatumOption.Hash(dataHash)),
             value = Value.lovelace(2)

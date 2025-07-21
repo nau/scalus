@@ -60,15 +60,13 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                     Withdrawals(
                       Map(
                         RewardAccount(
-                          Address.Shelley(
-                            Arbitrary
-                                .arbitrary[ShelleyAddress]
-                                .sample
-                                .get
-                                .copy(
-                                  payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
-                                )
-                          )
+                          Arbitrary
+                              .arbitrary[ShelleyAddress]
+                              .sample
+                              .get
+                              .copy(
+                                payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
+                              )
                         ) -> Arbitrary.arbitrary[Coin].sample.get
                       )
                     )
@@ -173,15 +171,13 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
         val state = State(
           utxo = Map(
             input -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(
-                      payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(
+                    payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
+                  ),
               Value(Coin(1000000L))
             ),
             referenceInput -> TransactionOutput

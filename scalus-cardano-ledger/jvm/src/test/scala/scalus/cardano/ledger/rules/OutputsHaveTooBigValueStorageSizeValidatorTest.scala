@@ -34,9 +34,7 @@ class OutputsHaveTooBigValueStorageSizeValidatorTest extends AnyFunSuite, Valida
         val context = Context()
 
         val output = TransactionOutput.Shelley(
-          Address.Shelley(
-            Arbitrary.arbitrary[ShelleyAddress].sample.get
-          ),
+          Arbitrary.arbitrary[ShelleyAddress].sample.get,
           Value(
             Coin(1L),
             genMultiAsset(
@@ -95,9 +93,7 @@ class OutputsHaveTooBigValueStorageSizeValidatorTest extends AnyFunSuite, Valida
         val context = Context()
 
         val collateralReturnOutput = TransactionOutput.Shelley(
-          Address.Shelley(
-            Arbitrary.arbitrary[ShelleyAddress].sample.get
-          ),
+          Arbitrary.arbitrary[ShelleyAddress].sample.get,
           Value(
             Coin(1L),
             genMultiAsset(

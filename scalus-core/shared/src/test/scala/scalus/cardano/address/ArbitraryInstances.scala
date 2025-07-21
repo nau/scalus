@@ -68,9 +68,9 @@ trait ArbitraryInstances extends scalus.uplc.test.ArbitraryInstances {
     }
 
     given Arbitrary[Address] = Arbitrary {
-        val genByron = arbitrary[ByronAddress].map(Address.Byron.apply(_))
-        val genShelley = arbitrary[ShelleyAddress].map(Address.Shelley.apply(_))
-        val genStake = arbitrary[StakeAddress].map(Address.Stake.apply(_))
+        val genByron = arbitrary[ByronAddress]
+        val genShelley = arbitrary[ShelleyAddress]
+        val genStake = arbitrary[StakeAddress]
         Gen.oneOf(genShelley, genStake)
     }
 }

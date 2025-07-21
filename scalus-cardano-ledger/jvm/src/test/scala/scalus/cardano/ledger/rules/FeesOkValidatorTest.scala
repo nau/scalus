@@ -30,9 +30,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralReturnOutput = Some(
                     Sized(
                       TransactionOutput.Shelley(
-                        Address.Shelley(
-                          Arbitrary.arbitrary[ShelleyAddress].sample.get
-                        ),
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get,
                         Value(Coin(20000000L), Arbitrary.arbitrary[MultiAsset].sample.get)
                       )
                     )
@@ -79,31 +77,27 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
         val state = State(
           utxo = Map(
             collateralInput1 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey1))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey1))
+                      )
+                  ),
               Value(Coin(30000000L))
             ),
             collateralInput2 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey2))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey2))
+                      )
+                  ),
               Value(
                 Coin(30000000L),
                 transaction.body.value.collateralReturnOutput
@@ -141,9 +135,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralReturnOutput = Some(
                     Sized(
                       TransactionOutput.Shelley(
-                        Address.Shelley(
-                          Arbitrary.arbitrary[ShelleyAddress].sample.get
-                        ),
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get,
                         Value(Coin(20000000L))
                       )
                     )
@@ -190,31 +182,27 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
         val state = State(
           utxo = Map(
             collateralInput1 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey1))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey1))
+                      )
+                  ),
               Value(Coin(30000000L))
             ),
             collateralInput2 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey2))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey2))
+                      )
+                  ),
               Value(Coin(30000000L))
             )
           )
@@ -287,31 +275,27 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
         val state = State(
           utxo = Map(
             collateralInput1 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey1))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey1))
+                      )
+                  ),
               Value(Coin(20000000L))
             ),
             collateralInput2 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.Script(
-                          Arbitrary.arbitrary[ScriptHash].sample.get
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.Script(
+                        Arbitrary.arbitrary[ScriptHash].sample.get
+                      )
+                  ),
               Value(Coin(20000000L))
             )
           )
@@ -344,9 +328,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralReturnOutput = Some(
                     Sized(
                       TransactionOutput.Shelley(
-                        Address.Shelley(
-                          Arbitrary.arbitrary[ShelleyAddress].sample.get
-                        ),
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get,
                         Value(
                           Coin(20000000L),
                           genMultiAsset(
@@ -401,31 +383,27 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
         val state = State(
           utxo = Map(
             collateralInput1 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey1))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey1))
+                      )
+                  ),
               Value(Coin(30000000L))
             ),
             collateralInput2 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey2))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey2))
+                      )
+                  ),
               Value(Coin(30000000L))
             )
           )
@@ -458,9 +436,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralReturnOutput = Some(
                     Sized(
                       TransactionOutput.Shelley(
-                        Address.Shelley(
-                          Arbitrary.arbitrary[ShelleyAddress].sample.get
-                        ),
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get,
                         Value(Coin(60000000L))
                       )
                     )
@@ -507,31 +483,27 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
         val state = State(
           utxo = Map(
             collateralInput1 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey1))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey1))
+                      )
+                  ),
               Value(Coin(30000000L))
             ),
             collateralInput2 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey2))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey2))
+                      )
+                  ),
               Value(Coin(30000000L))
             )
           )
@@ -564,9 +536,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralReturnOutput = Some(
                     Sized(
                       TransactionOutput.Shelley(
-                        Address.Shelley(
-                          Arbitrary.arbitrary[ShelleyAddress].sample.get
-                        ),
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get,
                         Value(Coin(20000000L))
                       )
                     )
@@ -613,31 +583,27 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
         val state = State(
           utxo = Map(
             collateralInput1 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey1))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey1))
+                      )
+                  ),
               Value(Coin(30000000L))
             ),
             collateralInput2 -> TransactionOutput.Shelley(
-              Address.Shelley(
-                Arbitrary
-                    .arbitrary[ShelleyAddress]
-                    .sample
-                    .get
-                    .copy(payment =
-                        ShelleyPaymentPart.keyHash(
-                          Hash(platform.blake2b_224(publicKey2))
-                        )
-                    )
-              ),
+              Arbitrary
+                  .arbitrary[ShelleyAddress]
+                  .sample
+                  .get
+                  .copy(payment =
+                      ShelleyPaymentPart.keyHash(
+                        Hash(platform.blake2b_224(publicKey2))
+                      )
+                  ),
               Value(Coin(30000000L))
             )
           )
