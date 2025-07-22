@@ -10,8 +10,7 @@ import scalus.builtin.ByteString.*
 import scalus.ledger.api.v2.OutputDatum
 import scalus.prelude.List.*
 
-// here warnings are incorrect, ignore them
-import scalus.prelude.Option.{asScalus as asScalusOption, None, Some}
+import scalus.prelude.Option.{None, Some}
 import scalus.uplc.test.ArbitraryInstances
 
 private object ListTest {
@@ -118,19 +117,19 @@ class ListTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
     test("find") {
         assert(List.empty[BigInt].find(_ > 1) === None)
-        assert(scala.List.empty[BigInt].find(_ > 1).asScalusOption === scala.None.asScalusOption)
+        assert(scala.List.empty[BigInt].find(_ > 1).asScalus === scala.None.asScalus)
         assert(List.empty[BigInt].find(_ > 1).asScala == None.asScala)
 
         assert(testScalusList1.find(_ > 1) === Some[BigInt](2))
-        assert(testScalaList1.find(_ > 1).asScalusOption === scala.Some[BigInt](2).asScalusOption)
+        assert(testScalaList1.find(_ > 1).asScalus === scala.Some[BigInt](2).asScalus)
         assert(testScalusList1.find(_ > 1).asScala == Some[BigInt](2).asScala)
 
         assert(testScalusList1.find(_ > 3) === None)
-        assert(testScalaList1.find(_ > 3).asScalusOption === scala.None.asScalusOption)
+        assert(testScalaList1.find(_ > 3).asScalus === scala.None.asScalus)
         assert(testScalusList1.find(_ > 3).asScala == None.asScala)
 
         check { (list: List[BigInt], value: BigInt) =>
-            list.find(_ > value) === list.asScala.find(_ > value).asScalusOption
+            list.find(_ > value) === list.asScala.find(_ > value).asScalus
         }
 
         check { (list: scala.List[BigInt], value: BigInt) =>
@@ -187,15 +186,15 @@ class ListTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
     test("headOption") {
         assert(List.empty[BigInt].headOption === None)
-        assert(scala.List.empty[BigInt].headOption.asScalusOption === scala.None.asScalusOption)
+        assert(scala.List.empty[BigInt].headOption.asScalus === scala.None.asScalus)
         assert(List.empty[BigInt].headOption.asScala == None.asScala)
 
         assert(testScalusList1.headOption === Some[BigInt](1))
-        assert(testScalaList1.headOption.asScalusOption === scala.Some[BigInt](1).asScalusOption)
+        assert(testScalaList1.headOption.asScalus === scala.Some[BigInt](1).asScalus)
         assert(testScalusList1.headOption.asScala == Some[BigInt](1).asScala)
 
         check { (list: List[BigInt]) =>
-            list.headOption === list.asScala.headOption.asScalusOption
+            list.headOption === list.asScala.headOption.asScalus
         }
 
         check { (list: scala.List[BigInt]) =>
@@ -205,15 +204,15 @@ class ListTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
 
     test("lastOption") {
         assert(List.empty[BigInt].lastOption === None)
-        assert(scala.List.empty[BigInt].lastOption.asScalusOption === scala.None.asScalusOption)
+        assert(scala.List.empty[BigInt].lastOption.asScalus === scala.None.asScalus)
         assert(List.empty[BigInt].lastOption.asScala == None.asScala)
 
         assert(testScalusList1.lastOption === Some[BigInt](3))
-        assert(testScalaList1.lastOption.asScalusOption === scala.Some[BigInt](3).asScalusOption)
+        assert(testScalaList1.lastOption.asScalus === scala.Some[BigInt](3).asScalus)
         assert(testScalusList1.lastOption.asScala == Some[BigInt](3).asScala)
 
         check { (list: List[BigInt]) =>
-            list.lastOption === list.asScala.lastOption.asScalusOption
+            list.lastOption === list.asScala.lastOption.asScalus
         }
 
         check { (list: scala.List[BigInt]) =>

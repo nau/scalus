@@ -9,7 +9,7 @@ import scalus.builtin.Data
 import scalus.builtin.Data.{B, Constr, I, List, Map}
 import scalus.uplc.DefaultUni.{ProtoList, ProtoPair}
 import scalus.uplc.Term.*
-import scalus.prelude.{Eq, Ord}
+import scalus.prelude.{asScalus, Eq, Ord}
 
 import scala.collection.immutable
 import scala.annotation.nowarn
@@ -324,7 +324,7 @@ trait ArbitraryInstances:
 
     given arbOption[A: Arbitrary]: Arbitrary[scalus.prelude.Option[A]] = Arbitrary {
         for o <- Arbitrary.arbitrary[Option[A]]
-        yield scalus.prelude.Option.asScalus(o)
+        yield o.asScalus
     }
 
     given arbAssocMap[A: Arbitrary: Eq, B: Arbitrary]: Arbitrary[scalus.prelude.AssocMap[A, B]] =
