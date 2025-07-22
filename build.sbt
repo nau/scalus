@@ -462,6 +462,12 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       publish / skip := false
     )
+    .jvmSettings(
+      // temporary, needed for current PlutusScriptEvaluator implementation
+      // TODO: remove when PlutusScriptEvaluator uses different logger
+      libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
+    )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
       scalaJSUseMainModuleInitializer := false,

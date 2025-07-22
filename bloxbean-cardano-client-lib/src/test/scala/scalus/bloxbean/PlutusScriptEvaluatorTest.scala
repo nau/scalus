@@ -1,6 +1,5 @@
 package scalus.bloxbean
 
-import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
@@ -16,7 +15,7 @@ import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
 import upickle.default.read
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Paths
 
 class PlutusScriptEvaluatorTest extends AnyFunSuite {
     private val params: ProtocolParams = read[ProtocolParams](
