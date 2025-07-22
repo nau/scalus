@@ -64,7 +64,7 @@ object ToDataBigRecord:
     /* given ToData[BigRecord] = (r: BigRecord) =>
     r match
       case BigRecord(a, b, bs, s, d, ls, m) =>
-        mkConstr(
+        constrData(
           0,
           scalus.builtin.List(a.toData, b.toData, bs.toData, s.toData, d, ls.toData, m.toData)
         ) */

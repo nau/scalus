@@ -57,7 +57,7 @@ object ToDataMacros {
         Something ike:
           a match
             case A(field1, field2, ...) =>
-              mkConstr(
+              constrData(
                 BigInt($constrIdx),
                 mkCons(field1.toData, mkCons(field2.toData, ...))
               )
@@ -286,7 +286,7 @@ object ToDataMacros {
       Something ike:
         a match
           case A(field1, field2, ...) =>
-            mkConstr(
+            constrData(
               BigInt($constrIdx),
               mkCons(field1.toData, mkCons(field2.toData, ...))
             )
