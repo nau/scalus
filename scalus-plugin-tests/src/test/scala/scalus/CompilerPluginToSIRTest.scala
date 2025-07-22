@@ -22,7 +22,7 @@ case class Test(a: BigInt, b: String)
 @Compile
 object Test {
     import TotoDataInstances.given
-    given Data.ToData[Test] = ToData.deriveCaseClass[Test](12)
+    given Data.ToData[Test] = ToData.derived
 }
 
 class CustomError extends Exception("custom error")
@@ -30,13 +30,13 @@ class CustomError extends Exception("custom error")
 class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     val deadbeef = Constant.ByteString(hex"deadbeef")
 
-    test("compile literals") {
+    test("compile error") {
         val sir = compile {
             @nowarn
             def err(msg: String): Nothing = throw new RuntimeException(msg)
             err("test")
         }
-        println(sir)
-        println(sir.pretty.render(100))
-        println(sir.toUplcOptimized().showHighlighted)
+        // println(sir)
+        // println(sir.pretty.render(100))
+        // println(sir.toUplcOptimized().showHighlighted)
     }
