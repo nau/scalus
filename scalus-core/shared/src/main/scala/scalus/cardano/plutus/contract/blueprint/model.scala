@@ -64,9 +64,9 @@ object Blueprint {
                   "validator",
                   compiledCode = Some(cbor),
                   hash = Some(validatorScript.scriptHash.toHex),
-                  datum = Some(Argument(schema = datumSchema)),
-                  redeemer = Some(Argument(schema = redeemerSchema)),
-                  parameters = paramSchemas.map(_.map(schema => Argument(schema = schema)))
+                  datum = Some(TypeDescription(schema = datumSchema)),
+                  redeemer = Some(TypeDescription(schema = redeemerSchema)),
+                  parameters = paramSchemas.map(_.map(schema => TypeDescription(schema = schema)))
                 )
                 Blueprint(preamble, Seq(validator))
             }
@@ -125,28 +125,28 @@ object CompilerInfo {
 }
 
 case class Validator(
-    title: String,
-    description: Option[String] = None,
-    redeemer: Option[Argument] = None,
-    datum: Option[Argument] = None,
-    parameters: Option[List[Argument]] = None,
-    compiledCode: Option[String] = None,
-    hash: Option[String] = None
+                        title: String,
+                        description: Option[String] = None,
+                        redeemer: Option[TypeDescription] = None,
+                        datum: Option[TypeDescription] = None,
+                        parameters: Option[List[TypeDescription]] = None,
+                        compiledCode: Option[String] = None,
+                        hash: Option[String] = None
 )
 
 object Validator {
     given JsonValueCodec[Validator] = JsonCodecMaker.make
 }
 
-case class Argument(
+case class TypeDescription(
     title: Option[String] = None,
     description: Option[String] = None,
     purpose: Option[Purpose] = None,
     schema: PlutusDataSchema
 )
 
-object Argument {
-    given JsonValueCodec[Argument] = JsonCodecMaker.make
+object TypeDescription {
+    given JsonValueCodec[TypeDescription] = JsonCodecMaker.make
 }
 
 enum DataType(val value: String) {
