@@ -2,10 +2,8 @@ package scalus.cardano.plutus.contract.blueprint
 
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
-import scalus.buildinfo.BuildInfo
-import scalus.cardano.ledger.{Language, PlutusScript}
-import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
-import scalus.cardano.tbd.CompiledContract
+import scalus.cardano.ledger.Language
+import scalus.cardano.plutus.contract.blueprint.Blueprint.Preamble
 
 case class Blueprint(
     preamble: Preamble,
@@ -15,21 +13,6 @@ case class Blueprint(
         writeToString(this, WriterConfig.withIndentionStep(indentation))
 
     def addValidator(v: Validator): Blueprint = copy(validators = validators.appended(v))
-
-    def addValidator[D, R](compiledValidator: CompiledContract): Blueprint = {
-        inline val datumSchema = PlutusDataSchema.derived[D]
-        inline val redeemerSchema = PlutusDataSchema.derived[R]
-        val v = compiledValidator.source
-
-        val bpValidator = Validator(
-          title = v.getClass.getName,
-          datum = Some(TypeDescription(schema = datumSchema)),
-          redeemer = Some(TypeDescription(schema = redeemerSchema)),
-          compiledCode = Some(compiledValidator.asProgram.cborByteString.toHex),
-          hash = Some(compiledValidator.asScript.scriptHash.toHex)
-        )
-        addValidator(bpValidator)
-    }
 }
 
 object Blueprint {
@@ -42,8 +25,6 @@ object Blueprint {
         plutusVersion: Option[Language] = None,
         license: Option[String] = None
     )
-    
-    def 
 
     object Preamble {
         given JsonValueCodec[Language] = new JsonValueCodec[Language] {

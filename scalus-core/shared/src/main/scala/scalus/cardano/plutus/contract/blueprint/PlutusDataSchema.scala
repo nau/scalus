@@ -1,5 +1,5 @@
 package scalus.cardano.plutus.contract.blueprint
-import com.github.plokhotnyuk.jsoniter_scala.core.{writeToString, JsonValueCodec, WriterConfig}
+import com.github.plokhotnyuk.jsoniter_scala.core.{JsonValueCodec, WriterConfig, writeToString}
 import com.github.plokhotnyuk.jsoniter_scala.macros.{CodecMakerConfig, JsonCodecMaker}
 import scalus.cardano.plutus.contract.blueprint.PlutusDataSchema.given_JsonValueCodec_PlutusDataSchema
 
@@ -63,7 +63,6 @@ object PlutusDataSchema {
     private def deriveForCaseClass(using
         Quotes
     )(symbol: quotes.reflect.Symbol): Expr[PlutusDataSchema] =
-        import quotes.reflect.*
 
         val params = getPrimaryConstructorParams(symbol)
         val fieldSchemas = params.map { case (name, typeRepr) =>
@@ -102,7 +101,6 @@ object PlutusDataSchema {
     private def generateForEnumLeafWithIndex(using
         Quotes
     )(symbol: quotes.reflect.Symbol, index: Int = 0): Expr[PlutusDataSchema] =
-        import quotes.reflect.*
 
         val params = getPrimaryConstructorParams(symbol)
 
@@ -134,7 +132,6 @@ object PlutusDataSchema {
     private def generateFieldSchema(using
         Quotes
     )(name: String, tpe: quotes.reflect.TypeRepr): Expr[PlutusDataSchema] =
-        import quotes.reflect.*
 
         val dataType = resolveFieldDataType(tpe)
 
@@ -188,7 +185,6 @@ object PlutusDataSchema {
         }
 
     private def isPrimitive(using Quotes)(tpe: quotes.reflect.TypeRepr): Boolean =
-        import quotes.reflect.*
 
         tpe.show match {
             case "scala.Int" | "scala.Long" | "scala.math.BigInt" | "scala.Boolean" |
