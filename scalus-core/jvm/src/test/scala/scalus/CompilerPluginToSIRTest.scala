@@ -521,7 +521,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
-    test("compile mkConstr builtins") {
+    test("compile constrData builtins") {
         val nilData =
             Const(Constant.List(DefaultUni.Data, immutable.Nil), SIRType.List(sirData), AnE)
         assert(
@@ -549,7 +549,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
-    test("compile mkList builtins") {
+    test("compile listData builtins") {
         val nilData =
             Const(Constant.List(DefaultUni.Data, immutable.Nil), SIRType.List(sirData), AnE)
         assert(
@@ -599,7 +599,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     }
 
-    test("compile mkMap builtins") {
+    test("compile mapData builtins") {
 
         assert(
           compile(
@@ -641,7 +641,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
-    test("compile unsafeDataAsConstr function") {
+    test("compile unConstrData function") {
         assert(
           compile { (d: Data) => Builtins.unConstrData(d) }
               ~=~ LamAbs(
@@ -658,7 +658,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
-    test("compile unsafeDataAsList function") {
+    test("compile unListData function") {
         assert(
           compile { (d: Data) => Builtins.unListData(d) }
               ~=~ LamAbs(
@@ -670,7 +670,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
-    test("compile unsafeDataAsMap function") {
+    test("compile unMapData function") {
         assert(
           compile { (d: Data) => Builtins.unMapData(d) }
               ~=~ LamAbs(
@@ -687,7 +687,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
-    test("compile unsafeDataAsB function") {
+    test("compile unBData function") {
         assert(
           compile { (d: Data) => Builtins.unBData(d) }
               ~=~ LamAbs(
@@ -699,7 +699,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
-    test("compile unsafeDataAsI function") {
+    test("compile unIData function") {
         assert(
           compile { (d: Data) => Builtins.unIData(d) } ~=~
               LamAbs(
