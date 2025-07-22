@@ -69,6 +69,7 @@ enum ScriptSource {
     case Cbor(program: Program)
 }
 
+// Possible source description that we might want to retain
 trait SourceOptions
 
 case class ScriptMetadata(
@@ -93,6 +94,7 @@ object PlutusV1Header {
         )
     }
     
+    // for cbored inputs, we always lose the compiler options, since it was given to us in the compiled form
     def cbored(bytes: Array[Byte]): PlutusV1Header = {
         val program = DeBruijnedProgram.fromCbor(bytes).toProgram
         PlutusV1Header(
