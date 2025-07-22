@@ -776,7 +776,7 @@ case class IfThenElseLoweredValue(
         import Doc.*
         ((text("if") + (lineOrSpace + cond.docRef(ctx)).nested(2)).grouped
             + (line + text("then") + (Doc.lineOrSpace + thenBranch.docRef(ctx)).nested(2)).grouped
-            + (line + text("else") + (Doc.lineOrSpace + thenBranch.docRef(ctx)).nested(
+            + (line + text("else") + (Doc.lineOrSpace + elseBranch.docRef(ctx)).nested(
               2
             )).grouped).aligned
     }
