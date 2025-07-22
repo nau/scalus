@@ -15,7 +15,7 @@ case class ScriptDefinition(
     metadata: ScriptMetadata,
     plutusVersion: Language
 ) {
-    
+
     def asProgram: Program = source match {
         case ScriptSource.Code(sir, options) =>
             val uplc = sir.toUplc(using options)
@@ -34,7 +34,7 @@ case class ScriptDefinition(
             }
         case ScriptSource.Cbor(program) => program
     }
-    
+
     def asScript: PlutusScript = {
         val program = asProgram
         plutusVersion match {
@@ -63,10 +63,7 @@ object ScriptDefinition {
         options: Compiler.Options
     ): ScriptDefinition = {
         val sir = Compiler.compileInline(code)
-        val metadata = ScriptMetadata(
-          compilerOptions = Some(options),
-          timestamp = Some(System.currentTimeMillis())
-        )
+        val metadata = ScriptMetadata(compilerOptions = Some(options))
 
         ScriptDefinition(
           source = ScriptSource.Code(sir, options),
