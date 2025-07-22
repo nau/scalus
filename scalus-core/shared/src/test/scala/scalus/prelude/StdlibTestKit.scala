@@ -11,11 +11,14 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
 
+export org.scalacheck.{Arbitrary, Gen}
+
 class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     export org.scalatestplus.scalacheck.Checkers.*
+    export org.scalacheck.Prop.forAll
+    export scalus.builtin.Data.{fromData, toData}
     export Eq.given
     export Ord.*
-    export scalus.builtin.Data.{fromData, toData}
 
     protected final inline def assertEvalFails[E <: Throwable: ClassTag](inline code: Any): Unit = {
         var isExceptionThrown = false
@@ -55,6 +58,17 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         assert(
           Term.alphaEq(codeTerm, expectedTerm),
           s"Expected term $expectedTerm, but got $codeTerm"
+        )
+    }
+
+    protected final inline def assertEvalNotEq[T: Eq](inline code: T, inline expected: T): Unit = {
+        assert(code !== expected, s"Expected not equal to $expected, but got $code")
+
+        val codeTerm = Compiler.compileInline(code).toUplc(true).evaluate
+        val expectedTerm = Compiler.compileInline(expected).toUplc(true).evaluate
+        assert(
+          !Term.alphaEq(codeTerm, expectedTerm),
+          s"Expected term not equal to $expectedTerm, but got $codeTerm"
         )
     }
 

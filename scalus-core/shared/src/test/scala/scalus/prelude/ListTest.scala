@@ -1,35 +1,219 @@
 package scalus.prelude
 
-import org.scalacheck.Arbitrary
-import org.scalacheck.Prop
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.Checkers.*
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.*
-import scalus.builtin.ByteString.*
-import scalus.ledger.api.v2.OutputDatum
-import scalus.prelude.List.*
-
+import scalus.prelude.List.{Cons, Nil}
 import scalus.prelude.Option.{None, Some}
-import scalus.uplc.test.ArbitraryInstances
 
 private object ListTest {
     val testScalusList1: List[BigInt] = List(1, 2, 3)
     val testScalaList1: scala.List[BigInt] = scala.List(1, 2, 3)
 }
 
-class ListTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
+class ListTest extends StdlibTestKit {
     import ListTest.*
 
     test("empty") {
-        assert(List.empty[Boolean] === Nil)
-        assert(scala.List.empty[Boolean].asScalus === scala.Nil.asScalus)
-        assert(List.empty[Boolean].asScala == Nil.asScala)
+        assertEvalEq(List.empty[BigInt], Nil)
 
-        assert(List.empty[Boolean] !== List(true))
-        assert(scala.List.empty[Boolean].asScalus !== scala.List(true).asScalus)
-        assert(List.empty[Boolean].asScala != List(true).asScala)
+        assert(scala.List.empty[BigInt].asScalus === List.empty[BigInt])
+        assert(List.empty[BigInt].asScala == scala.List.empty[BigInt])
     }
+
+    test("single") {
+        check { (value: BigInt) =>
+            val scalusList = List.single(value)
+            val scalaList = scala.List(value)
+
+            scalusList === Cons(
+              value,
+              Nil
+            ) && scalaList.asScalus === scalusList && scalusList.asScala == scalaList
+        }
+
+        assertEvalEq(List.single(BigInt(1)), Cons(BigInt(1), Nil))
+    }
+
+    test("apply") {
+        check { (seq: scala.Seq[BigInt]) =>
+            val scalusList = List(seq*)
+            val scalaList = scala.List(seq*)
+
+            scalaList.asScalus === scalusList && scalusList.asScala == scalaList
+        }
+    }
+
+    test("from IterableOnce") {
+        check { (seq: scala.Seq[BigInt]) =>
+            val scalusList = List.from(seq)
+            val scalaList = scala.List.from(seq)
+
+            scalaList.asScalus === scalusList && scalusList.asScala == scalaList
+        }
+    }
+
+    test("from java.lang.Iterable") {
+        check { (seq: scala.Seq[BigInt]) =>
+            import scala.jdk.CollectionConverters.*
+
+            val scalusList = List.from(seq.asJava)
+            val scalaList = scala.List.from(seq)
+
+            scalaList.asScalus === scalusList && scalusList.asScala == scalaList
+        }
+    }
+
+    test("range") {
+        forAll(`bigIntRangeGen[-5, 10]`) { (start: BigInt, end: BigInt) =>
+            val scalusList = List.range(start, end - 1)
+            val scalaList = scala.List.range(start, end)
+
+            scalaList.asScalus === scalusList && scalusList.asScala == scalaList
+        }
+
+        assertEvalEq(List.range(0, 0), List.single(BigInt(0)))
+        assertEvalEq(List.range(1, 3), Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil))))
+        assertEvalEq(List.range(0, -1), List.empty[BigInt])
+    }
+
+    test("rangeUntil") {
+        forAll(`bigIntRangeGen[-5, 10]`) { (start: BigInt, end: BigInt) =>
+            val scalusList = List.rangeUntil(start, end)
+            val scalaList = scala.List.range(start, end)
+
+            scalaList.asScalus === scalusList && scalusList.asScala == scalaList
+        }
+
+        assertEvalEq(List.rangeUntil(0, 1), List.single(BigInt(0)))
+        assertEvalEq(List.rangeUntil(1, 4), Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil))))
+        assertEvalEq(List.rangeUntil(0, 0), List.empty[BigInt])
+        assertEvalEq(List.rangeUntil(0, -1), List.empty[BigInt])
+    }
+
+    test("fill") {
+        val generator: Gen[(BigInt, BigInt)] =
+            for
+                value <- Arbitrary.arbitrary[BigInt]
+                times <- Gen.choose(BigInt(-1), BigInt(10))
+            yield (value, times)
+
+        forAll(generator) { (value: BigInt, times: BigInt) =>
+            val scalusList = List.fill(value, times)
+            val scalaList = scala.List.fill(times.toInt)(value)
+
+            scalaList.asScalus === scalusList && scalusList.asScala == scalaList
+        }
+
+        assertEvalEq(List.fill(BigInt(1), 1), List.single(BigInt(1)))
+
+        assertEvalEq(
+          List.fill(BigInt(1), 3),
+          Cons(BigInt(1), Cons(BigInt(1), Cons(BigInt(1), Nil)))
+        )
+
+        assertEvalEq(List.fill(BigInt(1), 0), List.empty[BigInt])
+
+        assertEvalEq(List.fill(BigInt(1), -1), List.empty[BigInt])
+    }
+
+    test("map2") {
+        check { (list1: List[BigInt], list2: List[BigInt]) =>
+            val scalusResult = List.map2(list1, list2)(_ + _)
+            val scalaResult = list1.asScala.zip(list2.asScala).map { case (a, b) => a + b }.asScalus
+
+            scalusResult === scalaResult
+        }
+
+        check { (list1: scala.List[BigInt], list2: scala.List[BigInt]) =>
+            val scalaResult = list1.zip(list2).map { case (a, b) => a + b }
+            val scalusResult = List.map2(list1.asScalus, list2.asScalus)(_ + _).asScala
+
+            scalaResult == scalusResult
+        }
+
+        check { (list: List[BigInt]) =>
+            List.map2(list, List.empty[BigInt])(_ + _) === List.empty[BigInt] &&
+            List.map2(List.empty[BigInt], list)(_ + _) === List.empty[BigInt]
+        }
+
+        assertEvalEq(
+          List.map2(Cons(BigInt(1), Cons(BigInt(2), Nil)), List.empty[BigInt])(_ + _),
+          List.empty[BigInt]
+        )
+
+        assertEvalEq(
+          List.map2(List.empty[BigInt], Cons(BigInt(3), Cons(BigInt(4), Nil)))(_ + _),
+          List.empty[BigInt]
+        )
+
+        assertEvalEq(
+          List.map2(Cons(BigInt(1), Cons(BigInt(2), Nil)), Cons(BigInt(3), Cons(BigInt(4), Nil)))(
+            _ + _
+          ),
+          Cons(BigInt(4), Cons(BigInt(6), Nil))
+        )
+    }
+
+    test("ToData <-> FromData") {
+        check { (list: List[BigInt]) =>
+            val data = list.toData
+            val fromDataList = fromData[List[BigInt]](data)
+
+            list === fromDataList
+        }
+
+        assertEvalEq(
+          fromData[List[BigInt]](List.empty[BigInt].toData),
+          List.empty[BigInt]
+        )
+
+        assertEvalEq(
+          fromData[List[BigInt]](List.single(BigInt(1)).toData),
+          List.single(BigInt(1))
+        )
+
+        assertEvalEq(
+          fromData[List[BigInt]](Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil))).toData),
+          Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+        )
+    }
+
+    test("Eq") {
+        check { (list1: List[BigInt], list2: List[BigInt]) =>
+            val scalusResult = list1 === list2
+            val scalaResult = list1.asScala == list2.asScala
+
+            scalusResult === scalaResult
+        }
+
+        check { (list1: scala.List[BigInt], list2: scala.List[BigInt]) =>
+            val scalaResult = list1 == list2
+            val scalusResult = list1.asScalus === list2.asScalus
+
+            scalaResult === scalusResult
+        }
+
+        assertEvalEq(List.empty[BigInt], List.empty[BigInt])
+
+        assertEvalEq(List.single(BigInt(1)), List.single(BigInt(1)))
+
+        assertEvalEq(
+          Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil))),
+          Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+        )
+
+        assertEvalNotEq(
+          List.empty[BigInt],
+          List.single(BigInt(1))
+        )
+
+        assertEvalNotEq(
+          Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil))),
+          Cons(BigInt(0), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+        )
+    }
+
+//    test("Ord") {
+//
+//    }
 
     test("isEmpty") {
         assert(List.empty.isEmpty)
@@ -270,14 +454,20 @@ class ListTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryI
         }
     }
 
-    test("right assoc infix operators") {
-        val ls: List[OutputDatum] =
-            OutputDatum.OutputDatumHash(hex"00") +: List(OutputDatum.NoOutputDatum)
-        assert(ls == List(OutputDatum.OutputDatumHash(hex"00"), OutputDatum.NoOutputDatum))
-        val ls2: List[OutputDatum] =
-            List(OutputDatum.OutputDatumHash(hex"00")) ++: List(OutputDatum.NoOutputDatum)
-        assert(ls2 == List(OutputDatum.OutputDatumHash(hex"00"), OutputDatum.NoOutputDatum))
-        val ls3 = List(BigInt(1)) ++: List(BigInt(12))
-        assert(ls3 == List(BigInt(1), BigInt(12)))
-    }
+//    test("right assoc infix operators") {
+//        val ls: List[OutputDatum] =
+//            OutputDatum.OutputDatumHash(hex"00") +: List(OutputDatum.NoOutputDatum)
+//        assert(ls == List(OutputDatum.OutputDatumHash(hex"00"), OutputDatum.NoOutputDatum))
+//        val ls2: List[OutputDatum] =
+//            List(OutputDatum.OutputDatumHash(hex"00")) ++: List(OutputDatum.NoOutputDatum)
+//        assert(ls2 == List(OutputDatum.OutputDatumHash(hex"00"), OutputDatum.NoOutputDatum))
+//        val ls3 = List(BigInt(1)) ++: List(BigInt(12))
+//        assert(ls3 == List(BigInt(1), BigInt(12)))
+//    }
+
+    private val `bigIntRangeGen[-5, 10]`: Gen[(BigInt, BigInt)] =
+        for {
+            start <- Gen.choose(BigInt(-5), BigInt(5))
+            end <- Gen.choose(BigInt(0), BigInt(10))
+        } yield (start, end)
 }

@@ -185,8 +185,10 @@ object List {
       *   `a` and `b`.
       * @example
       *   {{{
-      *   List.map2(List(BigInt(1), BigInt(2)), List(BigInt(3), BigInt(4)))(_ + _) === Cons(BigInt(4), Cons(BigInt(6), Nil))
-      *   List.map2(List.empty[BigInt], List(BigInt(1), BigInt(2)))(_ + _) === Nil
+      *   val list1 = Cons(BigInt(1), Cons(BigInt(2), Nil))
+      *   val list2 = Cons(BigInt(3), Cons(BigInt(4), Nil))
+      *   List.map2(list1, list2)(_ + _) === Cons(BigInt(4), Cons(BigInt(6), Nil))
+      *   List.map2(List.empty[BigInt], list1)(_ + _) === Nil
       *   }}}
       */
     def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] =

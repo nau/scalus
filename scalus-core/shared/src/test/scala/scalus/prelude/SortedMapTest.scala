@@ -235,16 +235,18 @@ class SortedMapTest extends StdlibTestKit {
         )
     }
 
-    test("sortedMapEq") {
-        assertEval(
-          SortedMap.empty[BigInt, BigInt] === SortedMap.empty[BigInt, BigInt]
+    test("Eq") {
+        assertEvalEq(
+          SortedMap.empty[BigInt, BigInt],
+          SortedMap.empty[BigInt, BigInt]
         )
 
-        assertEval(
-          SortedMap.singleton(BigInt(1), BigInt(1)) === SortedMap.singleton(BigInt(1), BigInt(1))
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)),
+          SortedMap.singleton(BigInt(1), BigInt(1))
         )
 
-        assertEval(
+        assertEvalEq(
           SortedMap
               .fromStrictlyAscendingList(
                 List.Cons(
@@ -254,24 +256,7 @@ class SortedMapTest extends StdlibTestKit {
                     List.Nil
                   )
                 )
-              ) ===
-              SortedMap
-                  .fromStrictlyAscendingList(
-                    List.Cons(
-                      (BigInt(1), BigInt(1)),
-                      List.Cons(
-                        (BigInt(2), BigInt(2)),
-                        List.Nil
-                      )
-                    )
-                  )
-        )
-
-        assertEval(
-          SortedMap.empty[BigInt, BigInt] !== SortedMap.singleton(BigInt(1), BigInt(1))
-        )
-
-        assertEval(
+              ),
           SortedMap
               .fromStrictlyAscendingList(
                 List.Cons(
@@ -281,21 +266,39 @@ class SortedMapTest extends StdlibTestKit {
                     List.Nil
                   )
                 )
-              ) !==
-              SortedMap
-                  .fromStrictlyAscendingList(
-                    List.Cons(
-                      (BigInt(1), BigInt(1)),
-                      List.Cons(
-                        (BigInt(3), BigInt(3)),
-                        List.Nil
-                      )
-                    )
+              )
+        )
+
+        assertEvalNotEq(
+          SortedMap.empty[BigInt, BigInt],
+          SortedMap.singleton(BigInt(1), BigInt(1))
+        )
+
+        assertEvalNotEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons(
+                    (BigInt(2), BigInt(2)),
+                    List.Nil
                   )
+                )
+              ),
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons(
+                    (BigInt(3), BigInt(3)),
+                    List.Nil
+                  )
+                )
+              )
         )
     }
 
-    test("sortedMapOrd") {
+    test("Ord") {
         assertEvalEq(
           SortedMap.empty[BigInt, BigInt] <=> SortedMap.empty[BigInt, BigInt],
           Order.Equal
@@ -390,8 +393,8 @@ class SortedMapTest extends StdlibTestKit {
     test("ToData <-> FromData") {
         check { (map: SortedMap[BigInt, BigInt]) =>
             val data = map.toData
-            val map2 = fromData[SortedMap[BigInt, BigInt]](data)
-            map === map2
+            val fromDataMap = fromData[SortedMap[BigInt, BigInt]](data)
+            map === fromDataMap
         }
 
         assertEvalEq(
