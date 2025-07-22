@@ -2,9 +2,8 @@ package scalus.cardano.tbd
 
 import scalus.Compiler
 import scalus.cardano.ledger.{Language, PlutusScript, Script}
-import scalus.cardano.plutus.contract.blueprint.{mkBlueprint, Blueprint}
-import scalus.cardano.tbd.CompiledContract.PreCompilationState.{Code, Unknown, Validator}
-import scalus.uplc.{DeBruijnedProgram, Program}
+import scalus.cardano.plutus.contract.blueprint.{mkBlueprint, mkPreamble, Blueprint, Preamble}
+import scalus.uplc.{DeBruijnedProgram, Program, Term}
 import scalus.sir.SIR
 import scalus.prelude.Validator
 import scalus.builtin.ByteString
@@ -12,52 +11,37 @@ import scalus.*
 
 class Application(contracts: Seq[CompiledContract], title: String, description: String) {
     def blueprint: Blueprint = {
-        contracts.map(_.source).collect {
-            case Validator(value, options) =>
-            // The only branch where we know datum and redeemer types without requiring the caller to supply them
-                ???
-            case Code(value, options) => ???
-            case Unknown              => ???
-        }
+        val preamble = mkPreamble(
+          title,
+          description,
+          version = ??? // the way types are laid out, the application allows to have 2 validators compiled to, e.g., Plutus 2 and Plutus 3
+        )
+        contracts.foldLeft(Blueprint(preamble))(_.addValidator(_))
     }
 }
 
 trait CompiledContract {
-    def source: PreCompilationState
-    def compilationResult: Array[
-      Byte
-    ] // feels like there should be a `Cbor` wrapper, kind of like `KeepRaw` or `Hash`
-    class PlutusV3(
-        override val source: PreCompilationState,
-        override val compilationResult: Array[Byte]
-    ) extends CompiledContract {
+    def source: Validator
+    def compilerOptions: Compiler.Options
 
-        def asProgram: Program = DeBruijnedProgram.fromCbor(compilationResult).toProgram
-        def asScript: PlutusScript = Script.PlutusV3(ByteString.fromArray(compilationResult))
+    def asProgram: Program
+    def asScript: PlutusScript
+
+    class PlutusV3(override val source: Validator, override val compilerOptions: Compiler.Options)
+        extends CompiledContract {
+        private inline val uplc: Term =
+            Compiler
+                .compileInline(source.validate)
+                .toUplcOptimized(using compilerOptions)()
+
+        override def asProgram: Program = uplc.plutusV3
+        override def asScript: PlutusScript = Script.PlutusV3(asProgram.cborByteString)
     }
 
     object PlutusV3 {
         def apply(v: Validator): PlutusV3 = {
             val options = summon[Compiler.Options]
-            val program = Compiler.compileInline(v.validate).toUplcOptimized(options)().plutusV3
-            new PlutusV3(PreCompilationState.Validator(v, options), program.cborEncoded)
+            new PlutusV3(v, options)
         }
-
-        inline def apply(inline code: Any): PlutusV3 = {
-            val options = summon[Compiler.Options]
-            val program = Compiler.compileInline(code).toUplcOptimized(options)().plutusV3
-            new PlutusV3(PreCompilationState.Code(code, options), program.cborEncoded)
-        }
-
-        def fromCbor(bytes: Array[Byte]): PlutusV3 = new PlutusV3(
-          PreCompilationState.Unknown,
-          bytes
-        )
-    }
-
-    enum PreCompilationState {
-        case Code(value: Any, options: Compiler.Options)
-        case Validator(value: scalus.prelude.Validator, options: Compiler.Options)
-        case Unknown
     }
 }

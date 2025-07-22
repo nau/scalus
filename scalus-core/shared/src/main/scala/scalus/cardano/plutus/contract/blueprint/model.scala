@@ -5,6 +5,7 @@ import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 import scalus.buildinfo.BuildInfo
 import scalus.cardano.ledger.{Language, PlutusScript}
 import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
+import scalus.cardano.tbd.CompiledContract
 
 case class Blueprint(
     preamble: Preamble,
@@ -12,100 +13,60 @@ case class Blueprint(
 ) {
     def show(indentation: Int = 2): String =
         writeToString(this, WriterConfig.withIndentionStep(indentation))
+
+    def addValidator(v: Validator): Blueprint = copy(validators = validators.appended(v))
+
+    def addValidator[D, R](compiledValidator: CompiledContract): Blueprint = {
+        inline val datumSchema = PlutusDataSchema.derived[D]
+        inline val redeemerSchema = PlutusDataSchema.derived[R]
+        val v = compiledValidator.source
+
+        val bpValidator = Validator(
+          title = v.getClass.getName,
+          datum = Some(TypeDescription(schema = datumSchema)),
+          redeemer = Some(TypeDescription(schema = redeemerSchema)),
+          compiledCode = Some(compiledValidator.asProgram.cborByteString.toHex),
+          hash = Some(compiledValidator.asScript.scriptHash.toHex)
+        )
+        addValidator(bpValidator)
+    }
 }
 
 object Blueprint {
-    private[blueprint] case class Builder(
+
+    case class Preamble(
         title: String,
         description: Option[String] = None,
-        validatorScript: Option[PlutusScript] = None,
-        redeemerSchema: Option[PlutusDataSchema] = None,
-        datumSchema: Option[PlutusDataSchema] = None,
-        paramSchemas: Option[List[PlutusDataSchema]] = None
-    ) {
+        version: Option[String] = None,
+        compiler: Option[CompilerInfo] = None,
+        plutusVersion: Option[Language] = None,
+        license: Option[String] = None
+    )
+    
+    def 
 
-        def withDescription(d: String): Builder = copy(description = Some(d))
+    object Preamble {
+        given JsonValueCodec[Language] = new JsonValueCodec[Language] {
+            override def nullValue: Language = Language.PlutusV3
 
-        def withScript(script: PlutusScript): Builder = copy(validatorScript = Some(script))
-
-        inline def withDatum[T]: Builder = {
-            val ds = PlutusDataSchema.derived[T]
-            copy(datumSchema = Some(ds))
-        }
-
-        inline def withRedeemer[T]: Builder = {
-            val rs = PlutusDataSchema.derived[T]
-            copy(redeemerSchema = Some(rs))
-        }
-
-        inline def withParam[T]: Builder = {
-            val ps = PlutusDataSchema.derived[T]
-            copy(paramSchemas = paramSchemas.map(ps :: _))
-        }
-
-        def build: Blueprint = {
-            for {
-                validatorScript <- this.validatorScript
-                datumSchema <- this.datumSchema
-                redeemerSchema <- this.redeemerSchema
-            } yield {
-                val preamble = Preamble(
-                  title = title,
-                  description = description,
-                  compiler = Some(CompilerInfo("scalus", Some(BuildInfo.version))),
-                  plutusVersion = Some(validatorScript.language)
-                )
-                val cbor = validatorScript match {
-                    case PlutusV1(script) => script.toHex
-                    case PlutusV2(script) => script.toHex
-                    case PlutusV3(script) => script.toHex
+            override def decodeValue(in: JsonReader, default: Language): Language =
+                in.readString("") match {
+                    case "v1" => Language.PlutusV1
+                    case "v2" => Language.PlutusV2
+                    case "v3" => Language.PlutusV3
+                    case x =>
+                        throw new RuntimeException(
+                          s"Error when reading blueprint plutus version. Expected one of [v1, v2, v3], got $x"
+                        )
                 }
-                val validator = Validator(
-                  "validator",
-                  compiledCode = Some(cbor),
-                  hash = Some(validatorScript.scriptHash.toHex),
-                  datum = Some(TypeDescription(schema = datumSchema)),
-                  redeemer = Some(TypeDescription(schema = redeemerSchema)),
-                  parameters = paramSchemas.map(_.map(schema => TypeDescription(schema = schema)))
-                )
-                Blueprint(preamble, Seq(validator))
-            }
-        }.get
-    }
 
-    def newBuilder(title: String): Builder = Builder(title)
+            override def encodeValue(x: Language, out: JsonWriter): Unit =
+                out.writeVal(x.show)
+        }
+        given JsonValueCodec[Preamble] = JsonCodecMaker.make
+    }
 
     given JsonValueCodec[Blueprint] = JsonCodecMaker.make
-}
-
-case class Preamble(
-    title: String,
-    description: Option[String] = None,
-    version: Option[String] = None,
-    compiler: Option[CompilerInfo] = None,
-    plutusVersion: Option[Language] = None,
-    license: Option[String] = None
-)
-
-object Preamble {
-    given JsonValueCodec[Language] = new JsonValueCodec[Language] {
-        override def nullValue: Language = Language.PlutusV3
-
-        override def decodeValue(in: JsonReader, default: Language): Language =
-            in.readString("") match {
-                case "v1" => Language.PlutusV1
-                case "v2" => Language.PlutusV2
-                case "v3" => Language.PlutusV3
-                case x =>
-                    throw new RuntimeException(
-                      s"Error when reading blueprint plutus version. Expected one of [v1, v2, v3], got $x"
-                    )
-            }
-
-        override def encodeValue(x: Language, out: JsonWriter): Unit =
-            out.writeVal(x.show)
-    }
-    given JsonValueCodec[Preamble] = JsonCodecMaker.make
 }
 
 extension (lang: Language) {
@@ -125,13 +86,13 @@ object CompilerInfo {
 }
 
 case class Validator(
-                        title: String,
-                        description: Option[String] = None,
-                        redeemer: Option[TypeDescription] = None,
-                        datum: Option[TypeDescription] = None,
-                        parameters: Option[List[TypeDescription]] = None,
-                        compiledCode: Option[String] = None,
-                        hash: Option[String] = None
+    title: String,
+    description: Option[String] = None,
+    redeemer: Option[TypeDescription] = None,
+    datum: Option[TypeDescription] = None,
+    parameters: Option[List[TypeDescription]] = None,
+    compiledCode: Option[String] = None,
+    hash: Option[String] = None
 )
 
 object Validator {

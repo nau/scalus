@@ -2,6 +2,7 @@ package scalus.cardano.plutus.contract
 import scalus.buildinfo.BuildInfo
 import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger.{Language, PlutusScript, Script}
+import scalus.cardano.plutus.contract.blueprint.Blueprint.Preamble
 import scalus.utils.Hex.toHex
 
 /** Implementation of Plutus Contract Blueprints.
@@ -34,7 +35,7 @@ package object blueprint {
         Blueprint(preamble, Seq(blueprintValidator))
     }
 
-    private def mkPreamble(title: String, description: String, version: Language) =
+    def mkPreamble(title: String, description: String, version: Language): Preamble =
         Preamble(
           title = title,
           description = Some(description),
