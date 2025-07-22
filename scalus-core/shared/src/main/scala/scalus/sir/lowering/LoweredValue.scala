@@ -10,6 +10,24 @@ import scala.collection.mutable.Set as MutableSet
 import scala.collection.mutable.Map as MutableMap
 
 /** SEA of nodes - like representation. E.e. each value is node, which manage dependencies.
+  * LoweredValue:
+  *   - represents a value in lowered SIR, which is
+  *   - a generator of a block of code with generate specific SIRType in specific representation. --
+  *     (representation is LoweredValueRepresentation, which can be term or data in specoific
+  *     encoding)
+  *   - some lowered values can be named (see IdentifiableLoweredValue and maintain a set of
+  *     dependencies) The idea of SEA of nodes -- than we can generate code 'by need' based on
+  *     dependencies. I.e. if value not used at all - code will not be generated, if value used once
+  *     -- no intermediate construction will be created and code will be generated directly in place
+  *     of usage. If value used multiple times -- it will be generated near the usage (i.e. in the
+  *     nearest block, which contains all depended).
+  *
+  * The idea of SEA of nodes described in the paper: <code> Cliff Click. 1995. Global code
+  * motion/global value numbering. SIGPLAN Not. 30, 6 (June 1995), 246–257.
+  * "https://doi.org/10.1145/223428.207154" </code>
+  *
+  * We have a quite different code (non-SSA form, only dominators), but the main idea of relaxing
+  * order is the same,
   */
 trait LoweredValue {
 
@@ -27,7 +45,7 @@ trait LoweredValue {
     def termWithNeededVars(gctx: TermGenerationContext): Term =
         Lowering.generateDominatedUplevelVarsAccess(this)(using gctx)
 
-    /** Generates the term for this value, without any uplevel variables.
+    /** Generates the term for this value.
       * @param gctx
       * @return
       */
@@ -50,6 +68,8 @@ trait LoweredValue {
     ): LoweredValue =
         summon[LoweringContext].typeGenerator(sirType).upcastOne(this, targetType, pos)
 
+    /** Upcast the value to the target type if needed.
+      */
     def maybeUpcast(targetType: SIRType, pos: SIRPosition)(using LoweringContext): LoweredValue = {
         SIRUnify.topLevelUnifyType(sirType, targetType, SIRUnify.Env.empty.withoutUpcasting) match
             case SIRUnify.UnificationSuccess(env, tp) =>
@@ -282,10 +302,6 @@ class VariableLoweredValue(
                             println(
                               s"VariableLoweredValue: generating term for undefined variable $name with id $id"
                             )
-                            if id == "x$1341" then {
-                                println(s"generatedVars: ${gctx.generatedVars}")
-                            }
-                            // createdEx.printStackTrace()
                         }
                         Term.Var(NamedDeBruijn(id))
                     } else
