@@ -1,10 +1,8 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.api.UtxoSupplier
 import com.bloxbean.cardano.client.api.model.Utxo
 import com.bloxbean.cardano.client.plutus.spec.{PlutusScript, PlutusV1Script, PlutusV2Script, PlutusV3Script}
 import com.bloxbean.cardano.client.plutus.util.PlutusUtil
-import com.bloxbean.cardano.client.util.JsonUtil
 import com.fasterxml.jackson.databind.{ObjectMapper, SerializationFeature}
 import io.bullet.borer.Cbor
 import scalus.builtin.{ByteString, Data}
@@ -15,8 +13,6 @@ import scalus.utils.{Hex, Utils}
 
 import java.nio.file.{Files, Path}
 import scala.collection.mutable
-import scala.jdk.OptionConverters.*
-import scala.util.Try
 
 /** Resolves UTXOs for transactions using scalus.cardano.ledger domain classes */
 private[scalus] class ResourcesUtxoResolver {
