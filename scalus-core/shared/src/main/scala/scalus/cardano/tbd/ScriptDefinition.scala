@@ -1,192 +1,63 @@
 package scalus.cardano.tbd
 
 import scalus.Compiler
-import scalus.cardano.ledger.{Language, PlutusScript}
-import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
+import scalus.cardano.ledger.{Language, PlutusScript, Script}
 import scalus.cardano.plutus.contract.blueprint.{mkBlueprint, Blueprint}
+import scalus.cardano.tbd.CompiledContract.PreCompilationState.{Code, Unknown, Validator}
 import scalus.uplc.{DeBruijnedProgram, Program}
 import scalus.sir.SIR
 import scalus.prelude.Validator
 import scalus.builtin.ByteString
 import scalus.*
 
-sealed trait ScriptHeader {
-    def asProgram: Program
-    def asScript: PlutusScript
-    def blueprint(title: String, description: String): Blueprint
-}
-
-case class PlutusV1Header private (
-    source: ScriptSource,
-    metadata: ScriptMetadata
-) extends ScriptHeader {
-    
-    def asProgram: Program = source match {
-        case ScriptSource.Code(sir, options) => sir.toUplc(using options).plutusV1
-        case ScriptSource.Cbor(program) => program
-    }
-    
-    def asScript: PlutusScript = PlutusV1(asProgram.cborByteString)
-    
-    def blueprint(title: String, description: String): Blueprint = 
-        mkBlueprint(title, description, asScript)
-}
-
-case class PlutusV2Header private (
-    source: ScriptSource,
-    metadata: ScriptMetadata
-) extends ScriptHeader {
-    
-    def asProgram: Program = source match {
-        case ScriptSource.Code(sir, options) => sir.toUplc(using options).plutusV2
-        case ScriptSource.Cbor(program) => program
-    }
-    
-    def asScript: PlutusScript = PlutusV2(asProgram.cborByteString)
-    
-    def blueprint(title: String, description: String): Blueprint = 
-        mkBlueprint(title, description, asScript)
-}
-
-case class PlutusV3Header private (
-    source: ScriptSource,
-    metadata: ScriptMetadata
-) extends ScriptHeader {
-    
-    def asProgram: Program = source match {
-        case ScriptSource.Code(sir, options) => sir.toUplc(using options).plutusV3
-        case ScriptSource.Cbor(program) => program
-    }
-    
-    def asScript: PlutusScript = PlutusV3(asProgram.cborByteString)
-    
-    def blueprint(title: String, description: String): Blueprint = 
-        mkBlueprint(title, description, asScript)
-}
-
-enum ScriptSource {
-    case Code(sir: SIR, compilerOptions: Compiler.Options)
-    case Cbor(program: Program)
-}
-
-// Possible source description that we might want to retain
-trait SourceOptions
-
-case class ScriptMetadata(
-    compilerOptions: Option[Compiler.Options],
-    sourceOptions: Option[SourceOptions] = None
-)
-
-object PlutusV1Header {
-    inline def code(inline code: Any)(using options: Compiler.Options): PlutusV1Header = {
-        val sir = Compiler.compileInline(code)
-        PlutusV1Header(
-            ScriptSource.Code(sir, options),
-            ScriptMetadata(Some(options))
-        )
-    }
-    
-    def validator(validator: Validator)(using options: Compiler.Options): PlutusV1Header = {
-        val sir = Compiler.compileInline(validator.validate)
-        PlutusV1Header(
-            ScriptSource.ValidatorCode(sir, options),
-            ScriptMetadata(Some(options))
-        )
-    }
-    
-    // for cbored inputs, we always lose the compiler options, since it was given to us in the compiled form
-    def cbored(bytes: Array[Byte]): PlutusV1Header = {
-        val program = DeBruijnedProgram.fromCbor(bytes).toProgram
-        PlutusV1Header(
-            ScriptSource.Cbor(program),
-            ScriptMetadata(None)
-        )
+class Application(contracts: Seq[CompiledContract], title: String, description: String) {
+    def blueprint: Blueprint = {
+        contracts.map(_.source).collect {
+            case Validator(value, options) =>
+            // The only branch where we know datum and redeemer types without requiring the caller to supply them
+                ???
+            case Code(value, options) => ???
+            case Unknown              => ???
+        }
     }
 }
 
-object PlutusV2Header {
-    inline def code(inline code: Any)(using options: Compiler.Options): PlutusV2Header = {
-        val sir = Compiler.compileInline(code)
-        PlutusV2Header(
-            ScriptSource.Code(sir, options),
-            ScriptMetadata(Some(options))
-        )
-    }
-    
-    def validator(validator: Validator)(using options: Compiler.Options): PlutusV2Header = {
-        val sir = Compiler.compileInline(validator.validate)
-        PlutusV2Header(
-            ScriptSource.ValidatorCode(sir, options),
-            ScriptMetadata(Some(options))
-        )
-    }
-    
-    def cbored(bytes: Array[Byte]): PlutusV2Header = {
-        val program = DeBruijnedProgram.fromCbor(bytes).toProgram
-        PlutusV2Header(
-            ScriptSource.Cbor(program),
-            ScriptMetadata(None)
-        )
-    }
-}
+trait CompiledContract {
+    def source: PreCompilationState
+    def compilationResult: Array[
+      Byte
+    ] // feels like there should be a `Cbor` wrapper, kind of like `KeepRaw` or `Hash`
+    class PlutusV3(
+        override val source: PreCompilationState,
+        override val compilationResult: Array[Byte]
+    ) extends CompiledContract {
 
-object PlutusV3Header {
-    inline def code(inline code: Any)(using options: Compiler.Options): PlutusV3Header = {
-        val sir = Compiler.compileInline(code)
-        PlutusV3Header(
-            ScriptSource.Code(sir, options),
-            ScriptMetadata(Some(options))
-        )
+        def asProgram: Program = DeBruijnedProgram.fromCbor(compilationResult).toProgram
+        def asScript: PlutusScript = Script.PlutusV3(ByteString.fromArray(compilationResult))
     }
-    
-    def validator(validator: Validator)(using options: Compiler.Options): PlutusV3Header = {
-        val sir = Compiler.compileInline(validator.validate)
-        PlutusV3Header(
-            ScriptSource.ValidatorCode(sir, options),
-            ScriptMetadata(Some(options))
-        )
-    }
-    
-    def cbored(bytes: Array[Byte]): PlutusV3Header = {
-        val program = DeBruijnedProgram.fromCbor(bytes).toProgram
-        PlutusV3Header(
-            ScriptSource.Cbor(program),
-            ScriptMetadata(None)
-        )
-    }
-}
 
-object ScriptHeader {
-    object v1 {
-        inline def code(inline code: Any)(using options: Compiler.Options): PlutusV1Header = 
-            PlutusV1Header.code(code)
-        
-        def validator(validator: Validator)(using options: Compiler.Options): PlutusV1Header = 
-            PlutusV1Header.validator(validator)
-        
-        def cbored(bytes: Array[Byte]): PlutusV1Header = 
-            PlutusV1Header.cbored(bytes)
+    object PlutusV3 {
+        def apply(v: Validator): PlutusV3 = {
+            val options = summon[Compiler.Options]
+            val program = Compiler.compileInline(v.validate).toUplcOptimized(options)().plutusV3
+            new PlutusV3(PreCompilationState.Validator(v, options), program.cborEncoded)
+        }
+
+        inline def apply(inline code: Any): PlutusV3 = {
+            val options = summon[Compiler.Options]
+            val program = Compiler.compileInline(code).toUplcOptimized(options)().plutusV3
+            new PlutusV3(PreCompilationState.Code(code, options), program.cborEncoded)
+        }
+
+        def fromCbor(bytes: Array[Byte]): PlutusV3 = new PlutusV3(
+          PreCompilationState.Unknown,
+          bytes
+        )
     }
-    
-    object v2 {
-        inline def code(inline code: Any)(using options: Compiler.Options): PlutusV2Header = 
-            PlutusV2Header.code(code)
-        
-        def validator(validator: Validator)(using options: Compiler.Options): PlutusV2Header = 
-            PlutusV2Header.validator(validator)
-        
-        def cbored(bytes: Array[Byte]): PlutusV2Header = 
-            PlutusV2Header.cbored(bytes)
-    }
-    
-    object v3 {
-        inline def code(inline code: Any)(using options: Compiler.Options): PlutusV3Header = 
-            PlutusV3Header.code(code)
-        
-        def validator(validator: Validator)(using options: Compiler.Options): PlutusV3Header = 
-            PlutusV3Header.validator(validator)
-        
-        def cbored(bytes: Array[Byte]): PlutusV3Header = 
-            PlutusV3Header.cbored(bytes)
+
+    enum PreCompilationState {
+        case Code(value: Any, options: Compiler.Options)
+        case Validator(value: scalus.prelude.Validator, options: Compiler.Options)
+        case Unknown
     }
 }
