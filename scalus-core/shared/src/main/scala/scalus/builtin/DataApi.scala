@@ -14,7 +14,7 @@ import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
-trait DataApi {
+private trait DataApi {
     extension (self: Data)
         def dataHash: ByteString =
             Builtins.blake2b_256(Builtins.serialiseData(self))
