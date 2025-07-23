@@ -5,14 +5,21 @@ import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 import scalus.cardano.ledger.Language
 import scalus.cardano.plutus.contract.blueprint.Blueprint.Preamble
 
+import java.io.File
+import java.nio.file.Files
+
 case class Blueprint(
     preamble: Preamble,
     validators: Seq[Validator] = Nil,
 ) {
-    def show(indentation: Int = 2): String =
+    def show: String = printJson()
+
+    def printJson(indentation: Int = 2): String =
         writeToString(this, WriterConfig.withIndentionStep(indentation))
 
     def addValidator(v: Validator): Blueprint = copy(validators = validators.appended(v))
+
+    def writeToFile(f: File): Unit = Files.writeString(f.toPath, show)
 }
 
 object Blueprint {

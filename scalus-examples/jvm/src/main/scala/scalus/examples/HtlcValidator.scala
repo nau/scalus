@@ -5,6 +5,8 @@ import scalus.Compiler.compile
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.builtin.{ByteString, Data, FromData, ToData}
+import scalus.cardano.plutus.contract.blueprint.Blueprint
+import scalus.cardano.tbd.Application
 import scalus.ledger.api.v3.*
 import scalus.prelude.{*, given}
 import scalus.uplc.Program
@@ -93,5 +95,18 @@ object HtlcValidator extends Validator:
           backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
         ).plutusV3
     }
+
+    @Ignore
+    val application: Application = {
+        Application.ofSingleValidator[ContractDatum, Action](
+          "Hashed timelocked contract",
+          "Releases funds when recipient reveals hash preimage before deadline, otherwise refunds to sender.",
+          "1.0.0",
+          HtlcValidator
+        )
+    }
+
+    @Ignore
+    val bluerprint: Blueprint = application.blueprint
 
 end HtlcValidator

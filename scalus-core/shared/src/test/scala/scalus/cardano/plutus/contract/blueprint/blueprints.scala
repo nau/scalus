@@ -4,7 +4,7 @@ import scalus.buildinfo.BuildInfo
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.ledger.Script
 import scalus.ledger.api.v1.PosixTime
-import scalus.{Compile, prelude, toUplc}
+import scalus.toUplc
 
 private val bytes = compile((ctx: Data) => ()).toUplc().plutusV3.cborEncoded
 val emptyScript = Script.PlutusV3(ByteString.fromArray(bytes))

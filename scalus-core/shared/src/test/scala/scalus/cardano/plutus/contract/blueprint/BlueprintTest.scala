@@ -11,7 +11,7 @@ class BlueprintTest extends AnyFunSuite {
         val bp = blueprint.mkBlueprint(title, description, emptyScript)
         val expected = blueprintedScript(title, description)
 
-        assert(bp.show(0) == expected)
+        assert(bp.printJson(0) == expected)
     }
 
     // This case is covered by the following tests, keeping this test to check compatibility with aiken.
@@ -27,5 +27,53 @@ class BlueprintTest extends AnyFunSuite {
         val redeemerSchema = PlutusDataSchema.derived[Action]
 
         assert(datumSchema.show() == ContractDatum.schema)
+    }
+
+    test("should produce correct schemas for tuples") {
+        val tuple2Schema = PlutusDataSchema.derived[(Int, String)]
+        assert(tuple2Schema.dataType.contains(DataType.PairBuiltin))
+        assert(tuple2Schema.title.contains("Tuple2"))
+        assert(tuple2Schema.items.isDefined)
+        assert(tuple2Schema.items.get.length == 2)
+        val items = tuple2Schema.items.get
+        assert(items(0).dataType.contains(DataType.Integer))
+        assert(items(1).dataType.contains(DataType.StringBuiltin))
+    }
+
+    test("should produce correct schemas for nested tuples") {
+        val nestedTupleSchema = PlutusDataSchema.derived[(Int, (String, Boolean))]
+
+        assert(nestedTupleSchema.dataType.contains(DataType.PairBuiltin))
+        assert(nestedTupleSchema.items.isDefined)
+        assert(nestedTupleSchema.items.get.length == 2)
+
+        val secondItem = nestedTupleSchema.items.get(1)
+        assert(secondItem.dataType.contains(DataType.PairBuiltin))
+        assert(secondItem.items.isDefined)
+        assert(secondItem.items.get.length == 2)
+    }
+
+    test("should produce correct schemas for case classes with tuple fields") {
+        case class TestCaseClass(
+            name: String,
+            coordinates: (Int, Int)
+        )
+
+        val schema = PlutusDataSchema.derived[TestCaseClass]
+
+        assert(schema.dataType.contains(DataType.Constructor))
+        assert(schema.title.contains("TestCaseClass"))
+        assert(schema.fields.isDefined)
+        assert(schema.fields.get.length == 2)
+
+        val coordinatesField = schema.fields.get(1)
+        assert(coordinatesField.title.contains("coordinates"))
+        assert(coordinatesField.dataType.contains(DataType.PairBuiltin))
+        assert(coordinatesField.items.isDefined)
+        assert(coordinatesField.items.get.length == 2)
+
+        val tupleItems = coordinatesField.items.get
+        assert(tupleItems(0).dataType.contains(DataType.Integer))
+        assert(tupleItems(1).dataType.contains(DataType.Integer))
     }
 }

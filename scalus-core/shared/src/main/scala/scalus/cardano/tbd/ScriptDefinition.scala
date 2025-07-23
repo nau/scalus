@@ -32,6 +32,16 @@ object Application {
         val preamble = mkPreamble(title, description, Language.PlutusV3)
         new Application(preamble, contracts)
     }
+
+    inline def ofSingleValidator[D, R](
+        title: String,
+        description: String,
+        version: String,
+        inline v: Validator
+    ): Application = {
+        val contract = PlutusV3.create[D, R](v)
+        Application(title, description, version, Seq(contract))
+    }
 }
 
 /** A smart contract compiled with Scalus. */

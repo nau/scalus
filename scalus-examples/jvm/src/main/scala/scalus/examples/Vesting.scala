@@ -10,6 +10,7 @@ import scalus.builtin.Data
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.ledger.api.v1.Value.getLovelace
 import scalus.Compiler.compile
+import scalus.cardano.tbd.Application
 
 case class VestingDatum(
     beneficiary: PubKeyHash,
@@ -125,5 +126,13 @@ object Vesting extends Validator:
 object VestingScript {
 
     inline def compiled(using scalus.Compiler.Options) = compile(Vesting.validate)
+
+    def application: Application = Application
+        .ofSingleValidator[VestingDatum, VestingRedeemer](
+          "Vesting validator",
+          "Time-locked token distribution with linear vesting schedule",
+          "1.0.0",
+          Vesting
+        )
 
 }

@@ -2,6 +2,7 @@ package scalus.examples
 
 import scalus.*
 import scalus.Compiler.compile
+import scalus.cardano.tbd.Application
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
@@ -76,4 +77,14 @@ object OptimizedPreimage {
     // val cbor = Cbor.encode(flatEncoded).toByteArray
     // val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
     val doubleCborHex: String = programV1.doubleCborHex
+}
+
+object PreimageValidatorScript {
+    def application: Application = Application
+        .ofSingleValidator[(ByteString, ByteString), ByteString](
+          "Preimage validator",
+          "Hash preimage verification with signature validation",
+          "1.0.0",
+          PreimageValidatorV3
+        )
 }

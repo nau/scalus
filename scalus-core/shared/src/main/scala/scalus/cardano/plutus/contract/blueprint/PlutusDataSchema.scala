@@ -12,7 +12,8 @@ case class PlutusDataSchema(
     description: Option[String] = None,
     anyOf: Option[List[PlutusDataSchema]] = None,
     index: Option[Int] = None,
-    fields: Option[List[PlutusDataSchema]] = None
+    fields: Option[List[PlutusDataSchema]] = None,
+    items: Option[List[PlutusDataSchema]] = None
 ) {
     def show(indentation: Int = 2): String =
         writeToString(this, WriterConfig.withIndentionStep(indentation))
@@ -29,6 +30,8 @@ object PlutusDataSchema {
 
         if isPrimitive(tpe) then {
             deriveForPrimitive(tpe)
+        } else if isTuple(tpe) then {
+            deriveForTuple(tpe)
         } else if symbol.flags.is(Flags.Case) && !symbol.flags.is(Flags.Enum) then {
             deriveForCaseClass(symbol)
         } else if !symbol.flags.is(Flags.Case) && symbol.flags.is(Flags.Enum) then {
@@ -46,7 +49,8 @@ object PlutusDataSchema {
         tpe.show match {
             case "scala.Int" | "scala.Long" | "scala.BigInt" =>
                 '{ PlutusDataSchema(dataType = Some(DataType.Integer)) }
-            case "scala.Array[scala.Byte]" | "scala.collection.immutable.List[scala.Byte]" =>
+            case "scalus.builtin.ByteString" | "scala.Array[scala.Byte]" |
+                "scala.collection.immutable.List[scala.Byte]" =>
                 '{ PlutusDataSchema(dataType = Some(DataType.Bytes)) }
             case "scala.Boolean" =>
                 '{ PlutusDataSchema(dataType = Some(DataType.BooleanBuiltin)) }
@@ -132,14 +136,40 @@ object PlutusDataSchema {
     private def generateFieldSchema(using
         Quotes
     )(name: String, tpe: quotes.reflect.TypeRepr): Expr[PlutusDataSchema] =
+        import quotes.reflect.*
 
-        val dataType = resolveFieldDataType(tpe)
+        if isTuple(tpe) then {
+            // Handle tuple fields specially - generate full schema including items
+            tpe match {
+                case AppliedType(_, args) if args.length == 2 =>
+                    val firstItemSchema = deriveSchemaImpl(using
+                      args(0).asType.asInstanceOf[Type[Any]]
+                    )
+                    val secondItemSchema = deriveSchemaImpl(using
+                      args(1).asType.asInstanceOf[Type[Any]]
+                    )
 
-        '{
-            PlutusDataSchema(
-              dataType = $dataType,
-              title = Some(${ Expr(name) })
-            )
+                    val itemsExpr = Expr.ofList(List(firstItemSchema, secondItemSchema))
+
+                    '{
+                        PlutusDataSchema(
+                          dataType = Some(DataType.PairBuiltin),
+                          title = Some(${ Expr(name) }),
+                          items = Some($itemsExpr)
+                        )
+                    }
+                case _ =>
+                    report.errorAndAbort(s"Unsupported tuple type in field: ${tpe.show}")
+            }
+        } else {
+            val dataType = resolveFieldDataType(tpe)
+
+            '{
+                PlutusDataSchema(
+                  dataType = $dataType,
+                  title = Some(${ Expr(name) })
+                )
+            }
         }
 
     @tailrec
@@ -165,6 +195,8 @@ object PlutusDataSchema {
                 case _ =>
                     '{ Some(DataType.Constructor) }
             }
+        } else if isTuple(tpe) then {
+            '{ Some(DataType.PairBuiltin) }
         } else {
             val symbol = tpe.typeSymbol
             if symbol.flags.is(Flags.Case) && !symbol.flags.is(Flags.Enum) then {
@@ -184,8 +216,39 @@ object PlutusDataSchema {
             }
         }
 
-    private def isPrimitive(using Quotes)(tpe: quotes.reflect.TypeRepr): Boolean =
+    private def isTuple(using Quotes)(tpe: quotes.reflect.TypeRepr): Boolean =
+        import quotes.reflect.*
+        val symbolName = tpe.typeSymbol.name
+        symbolName == "Tuple2"
 
+    private def deriveForTuple(using
+        Quotes
+    )(tpe: quotes.reflect.TypeRepr): Expr[PlutusDataSchema] =
+        import quotes.reflect.*
+
+        tpe match {
+            case AppliedType(_, args) if args.length == 2 =>
+                val firstItemSchema = deriveSchemaImpl(using args(0).asType.asInstanceOf[Type[Any]])
+                val secondItemSchema = deriveSchemaImpl(using
+                  args(1).asType.asInstanceOf[Type[Any]]
+                )
+
+                val itemsExpr = Expr.ofList(List(firstItemSchema, secondItemSchema))
+
+                '{
+                    PlutusDataSchema(
+                      dataType = Some(DataType.PairBuiltin),
+                      title = Some("Tuple2"),
+                      items = Some($itemsExpr)
+                    )
+                }
+            case _ =>
+                report.errorAndAbort(
+                  s"Unsupported tuple type: ${tpe.show}. The only currently supported tuple is a pair."
+                )
+        }
+
+    private def isPrimitive(using Quotes)(tpe: quotes.reflect.TypeRepr): Boolean =
         tpe.show match {
             case "scala.Int" | "scala.Long" | "scala.math.BigInt" | "scala.Boolean" |
                 "java.lang.String" =>
