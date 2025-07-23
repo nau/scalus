@@ -2355,7 +2355,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     }
 
-    /*
     test("compile scala methd with zero arguments in non-var position") {
 
         val compiled = compile {
@@ -2371,4 +2370,3 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(evaluated == scalus.uplc.Term.Const(Constant.Integer(0)))
 
     }
-     */
