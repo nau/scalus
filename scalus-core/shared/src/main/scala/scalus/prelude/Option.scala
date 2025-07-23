@@ -9,6 +9,7 @@ import Ord.*
 
 /** Alternative to `scala.Option` in onchain code.
   * @tparam A
+  *   the type of the element contained in the [[Option]]
   */
 enum Option[+A]:
     // note, that order of cases matters, as it is used in serialization
@@ -18,12 +19,32 @@ enum Option[+A]:
 @Compile
 object Option {
 
-    /** Constructs an `Option` from a value. If the value is `null`, it returns `None`, otherwise
-      * `Some(value)`.
+    /** Constructs an `Option` from a value. If the value is [[null]], it returns [[None]],
+      * otherwise [[Some(value)]].
+      *
+      * @tparam A
+      *   the type of the element contained the [[Option]]
+      *
+      * @return
+      *   Some(value) if value != null, None if value == null
+      *
+      * @example
+      *   {{{
+      *   Option.apply(null) == Option.None
+      *   Option.apply("1").get == "1"
+      *   }}}
       */
     @Ignore
     inline def apply[A](x: A): Option[A] = if x == null then None else Some(x)
 
+    /** @return
+      *   an empty Option instance [[None]].
+      *
+      * @example
+      *   {{{
+      *  Option.apply(null) == Option.empty
+      *   }}}
+      */
     inline def empty[A]: Option[A] = None
 
     given optionEq[A](using eq: Eq[A]): Eq[Option[A]] = (a: Option[A], b: Option[A]) =>
@@ -63,6 +84,11 @@ object Option {
         }
 
     extension [A](self: Option[Option[A]]) {
+
+        /** @return
+          *   if the outer [[Option]] is non-empty, returns an options inside of id. Otherwise,
+          *   returns [[None]]
+          */
         def flatten: Option[A] = self match
             case None    => None
             case Some(a) => a
