@@ -28,10 +28,7 @@ class SIRTyper(using Context) {
     private val cachedDataDecl: MutableSymbolMap[DataDecl] = new MutableSymbolMap()
 
     def sirTypeInEnv(tp: Type, env0: SIRTypeEnv): SIRType = {
-        val env =
-            if tp =:= Symbols.requiredClass("scalus.ledger.api.v3.TxInfo").info then
-                env0.copy(trace = true)
-            else env0
+        val env = env0
         val retval =
             try sirTypeInEnvWithErr(tp.widen, env)
             catch
@@ -46,11 +43,7 @@ class SIRTyper(using Context) {
     }
 
     private def sirTypeInEnvWithErr(tp: Type, env0: SIRTypeEnv): SIRType =
-        val env =
-            if tp.typeSymbol.fullName.toString == "scalus.builtin.FromDataInstances$._$$anon" then {
-                println(s"tp=${tp}")
-                env0.copy(trace = true)
-            } else env0
+        val env = env0
         if env.trace then {
             println(
               s"sirTypeInEnvWithErr ${tp.show},  env=${env}"
@@ -213,6 +206,7 @@ class SIRTyper(using Context) {
             tryMakeBuiltinType(sym, types, env) orElse
             tryMakeFunctionalInterface(tp, sym, env) orElse
             tryMakeCaseClassOrCaseParent(tp, sym, types, env) orElse
+            tryMakeSynomimVaragsType(tp, sym, types, env) orElse
             tryMakeNonCaseModule(tp, sym, types, env)).getOrElse {
 //            val name = sym.fullName.show
 //            val typeArgs = types.map(_.show)
@@ -621,6 +615,25 @@ class SIRTyper(using Context) {
           typeParams,
           AnnotationsDecl.fromSym(typeSymbol)
         )
+    }
+
+    private def tryMakeSynomimVaragsType(
+        tp: Type,
+        typeSymbol: Symbol,
+        tpArgs: List[SIRType],
+        env: SIRTypeEnv
+    ): Option[SIRType] = {
+        if typeSymbol == Symbols.requiredClass("scala.collection.immutable.Seq") then {
+            tpArgs match
+                case List(elemType) =>
+                    Some(SIRType.Varargs(elemType))
+                case _ =>
+                    throw TypingException(
+                      tp,
+                      env.pos,
+                      s"Seq type should have one type argument, found ${tpArgs.length}"
+                    )
+        } else None
     }
 
     private def tryMakeNonCaseModule(

@@ -205,11 +205,13 @@ class CompilerPluginEvalTest extends AnyFunSuite {
         assert(sir.toUplc().evaluate == Term.Const(Constant.ByteString(hex"deadbeef")))
     }
 
-    /*
     test("compile valargs") {
+        pending
+        /*
+        import scalus.prelude.*
         val compiled = compile {
             def sum(x: BigInt*): BigInt = {
-                x.foldLeft(BigInt(0))(_ + _)
+                x.list.foldLeft(BigInt(0))(_ + _)
             }
 
             val result = sum(1, 2, 3, 4, 5)
@@ -220,9 +222,7 @@ class CompilerPluginEvalTest extends AnyFunSuite {
         val uplc = compiled.toUplc(generateErrorTraces = true)
         val evaluated = uplc.evaluate
         assert(evaluated == scalus.uplc.Term.Const(Constant.Integer(15)))
-
+         */
     }
-    
-     */
 
 }

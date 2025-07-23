@@ -2460,6 +2460,34 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   ExpressionNotSupported("'while' expression", tree.srcPos),
                   SIR.Error("Unsupported while expression", AnnotationsDecl.fromSrcPos(tree.srcPos))
                 )
+            case SeqLiteral(elems, elemtpt) =>
+                val sirElemType = sirTypeInEnv(elemtpt.tpe, tree.srcPos, env)
+                val sirElems = elems.map(compileExpr(env, _))
+                val listType = SIRType.List(sirElemType)
+                val listDataDecl = SIRType.List.dataDecl
+                val nil0: AnnotatedSIR = SIR.Constr(
+                  SIRType.List.Nil.constrDecl.name,
+                  SIRType.List.dataDecl,
+                  Nil,
+                  listType,
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
+                )
+                val list = sirElems.foldRight(nil0) { (elem, acc) =>
+                    SIR.Constr(
+                      SIRType.List.Cons.name,
+                      listDataDecl,
+                      List(elem, acc),
+                      listType,
+                      AnnotationsDecl.fromSrcPos(tree.srcPos)
+                    )
+                }
+                SIR.Constr(
+                  SIRType.Varargs.name,
+                  SIRType.Varargs.dataDecl,
+                  List(list),
+                  SIRType.Varargs(sirElemType),
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
+                )
             case x =>
                 println(s"Not supported expression, tree=${x}")
                 error(
@@ -2508,6 +2536,8 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             case e: TypingException =>
                 if e.cause == null then report.error(e.getMessage, e.pos)
                 else report.error(e.getMessage + " caused by " + e.cause.getMessage, e.pos)
+                if env.trace then e.printStackTrace()
+                if true then throw e
                 SIRType.TypeNothing
     }
 
