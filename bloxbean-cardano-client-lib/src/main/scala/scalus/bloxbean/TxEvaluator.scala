@@ -29,9 +29,7 @@ import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3
 
 import java.nio.file.StandardOpenOption
-import scalus.uplc.Constant
-import scalus.uplc.DeBruijnedProgram
-import scalus.uplc.Term
+import scalus.uplc.{eval, Constant, DeBruijnedProgram, Term}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.utils.Hex
@@ -429,7 +427,7 @@ class TxEvaluator(
         val spender = mode match
             case EvaluatorMode.EVALUATE_AND_COMPUTE_COST => CountingBudgetSpender()
             case EvaluatorMode.VALIDATE =>
-                scalus.bloxbean.RestrictingBudgetSpenderWithScripDump(
+                eval.RestrictingBudgetSpenderWithScriptDump(
                   budget,
                   debugDumpFilesForTesting
                 )
@@ -502,9 +500,9 @@ class TxEvaluator(
         collectedRedeemers
     }
 
-    @deprecated("Use scalus.bloxbean.RestrictingBudgetSpenderWithScripDump instead", "0.10.1")
+    @deprecated("Use scalus.uplc.eval.RestrictingBudgetSpenderWithScriptDump instead", "0.10.1")
     class RestrictingBudgetSpenderWithScripDump(maxBudget: ExBudget)
-        extends scalus.bloxbean.RestrictingBudgetSpenderWithScripDump(
+        extends eval.RestrictingBudgetSpenderWithScriptDump(
           maxBudget,
           debugDumpFilesForTesting
         )

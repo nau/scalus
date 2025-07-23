@@ -671,7 +671,7 @@ object NoBudgetSpender extends BudgetSpender {
     def getSpentBudget: ExBudget = ExBudget.zero
 }
 
-final class RestrictingBudgetSpender(val maxBudget: ExBudget) extends BudgetSpender {
+class RestrictingBudgetSpender(val maxBudget: ExBudget) extends BudgetSpender {
     private var cpuLeft: Long = maxBudget.cpu
     private var memoryLeft: Long = maxBudget.memory
 

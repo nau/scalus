@@ -41,7 +41,7 @@ object ToDataMacros {
     def deriveToDataCaseClassApply[A: Type](
         a: Expr[A],
         constrIdx: Int
-    )(using Quotes): Expr[Data] = {
+    )(using quotes0: Quotes): Expr[Data] = {
         import quotes.reflect.*
 
         val classSym = TypeTree.of[A].symbol
@@ -57,7 +57,7 @@ object ToDataMacros {
         Something ike:
           a match
             case A(field1, field2, ...) =>
-              mkConstr(
+              constrData(
                 BigInt($constrIdx),
                 mkCons(field1.toData, mkCons(field2.toData, ...))
               )
@@ -71,8 +71,9 @@ object ToDataMacros {
                 Bind(symbol, Wildcard())
             }
             val rhs = genRhs(bindingsSymbols).asTerm
+            val uncheckedProdTerm = annotateUnchecked(using quotes0)(prodTerm)
             Match(
-              prodTerm,
+              uncheckedProdTerm,
               scala.List(CaseDef(Unapply(Ident(unapplyRef), Nil, bindings), None, rhs))
             )
         }
@@ -105,7 +106,9 @@ object ToDataMacros {
 
     }
 
-    def deriveToDataSumCaseClassApply[A: Type](value: Expr[A])(using Quotes): Expr[Data] = {
+    def deriveToDataSumCaseClassApply[A: Type](
+        value: Expr[A]
+    )(using quotes0: Quotes): Expr[Data] = {
         import quotes.reflect.*
         val tpe = TypeRepr.of[A].dealias.widen
         val originTpe = tpe
@@ -186,14 +189,15 @@ object ToDataMacros {
                       rhs
                     )
             }
-            val m = Match(prodTerm, cases)
+            val uncheckedProdTerm = annotateUnchecked(using quotes0)(prodTerm)
+            val m = Match(uncheckedProdTerm, cases)
             m
         }
 
         genMatch(value.asTerm).asExprOf[Data]
     }
 
-    def deriveEnumMacro[T: Type](using Quotes): Expr[ToData[T]] = {
+    def deriveEnumMacro[T: Type](using quotes0: Quotes): Expr[ToData[T]] = {
         import quotes.reflect.*
 
         val constrTpe = TypeRepr.of[T]
@@ -257,8 +261,13 @@ object ToDataMacros {
                       rhs
                     )
             }
+            // val uncheckedAnn: Term = New(
+            //  TypeIdent(Symbol.requiredClass("scala.unchecked"))
+            // )
+            // val annotatedType = Annotated(Inferred(prodTerm.tpe), uncheckedAnn)
+            val uncheckedProdTerm = annotateUnchecked(using quotes0)(prodTerm)
             val m =
-                Match(prodTerm, cases)
+                Match(uncheckedProdTerm, cases)
             m
         }
 
@@ -286,7 +295,7 @@ object ToDataMacros {
       Something ike:
         a match
           case A(field1, field2, ...) =>
-            mkConstr(
+            constrData(
               BigInt($constrIdx),
               mkCons(field1.toData, mkCons(field2.toData, ...))
             )
@@ -364,6 +373,15 @@ object ToDataMacros {
                       s"Cannot derive ToData for ${Type.show[A]} (can't find index of constructor in ${firstSealedBaseClass})"
                     )
                 else myIndex
+    }
+
+    private def annotateUnchecked(using
+        q: Quotes
+    )(prodTerm: q.reflect.Term): q.reflect.Term = {
+        import q.reflect.*
+        val uncheckedAnn: Term = New(TypeIdent(Symbol.requiredClass("scala.unchecked")))
+        val annotatedType = Annotated(Inferred(prodTerm.tpe), uncheckedAnn)
+        Typed(prodTerm, annotatedType)
     }
 
 }

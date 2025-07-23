@@ -5,17 +5,17 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.*
 import scalus.builtin.ByteString.hex
-import scalus.builtin.Data.toData
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
+// note that this import is needed, compiler warning is a false positive
+import scalus.builtin.Data.toData
 import scalus.uplc.*
-import scalus.uplc.Term
 import scalus.uplc.Term.*
 import scalus.uplc.eval.{PlutusVM, Result}
 
 import scala.language.implicitConversions
 
-class S3LoweringAsdfTest extends AnyFunSuite {
+class S3LoweringDataAccessTest extends AnyFunSuite {
 
     given PlutusVM = PlutusVM.makePlutusV3VM()
 

@@ -38,11 +38,11 @@ class SIRTypeUnifyTest extends AnyFunSuite {
 
         val consTp = SIRType.List.Cons(tA)
 
-        println(s"listTp = ${listTp.show}, consTp = ${consTp.show}")
+        // println(s"listTp = ${listTp.show}, consTp = ${consTp.show}")
 
         val lub = SIRType.leastUpperBound(listTp, consTp)
 
-        println(s"lub = ${lub.show}")
+        // println(s"lub = ${lub.show}")
 
         assert(
           lub ~=~ SIRType.List(SIRType.FreeUnificator)

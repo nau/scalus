@@ -124,8 +124,8 @@ class CardanoAddressTest extends AnyFunSuite {
     }
 
     test("StakePayload should handle stake and script types") {
-        val stakePayload = StakePayload.stakeKey(sampleStakeHash)
-        val scriptPayload = StakePayload.script(sampleScriptHash)
+        val stakePayload = StakePayload.Stake(sampleStakeHash)
+        val scriptPayload = StakePayload.Script(sampleScriptHash)
 
         assert(stakePayload.asHash == sampleStakeHash)
         assert(scriptPayload.asHash == sampleScriptHash)
@@ -176,8 +176,8 @@ class CardanoAddressTest extends AnyFunSuite {
     }
 
     test("StakeAddress should calculate correct type IDs and headers") {
-        val stakeAddr = StakeAddress(Network.Mainnet, StakePayload.stakeKey(sampleStakeHash))
-        val scriptStakeAddr = StakeAddress(Network.Mainnet, StakePayload.script(sampleScriptHash))
+        val stakeAddr = StakeAddress(Network.Mainnet, StakePayload.Stake(sampleStakeHash))
+        val scriptStakeAddr = StakeAddress(Network.Mainnet, StakePayload.Script(sampleScriptHash))
 
         assert(stakeAddr.typeId == 0x0e)
         assert(scriptStakeAddr.typeId == 0x0f)
@@ -198,7 +198,7 @@ class CardanoAddressTest extends AnyFunSuite {
         assert(bytes.length == 57) // 1 header + 28 payment + 28 delegation
         assert(bytes.bytes(0) == 0x01) // header
 
-        val stakeAddr = StakeAddress(Network.Mainnet, StakePayload.stakeKey(sampleStakeHash))
+        val stakeAddr = StakeAddress(Network.Mainnet, StakePayload.Stake(sampleStakeHash))
         val stakeBytes = stakeAddr.toBytes
         assert(stakeBytes.length == 29) // 1 header + 28 hash
         assert(stakeBytes.bytes(0) == 0xe1.toByte)
@@ -273,7 +273,7 @@ class CardanoAddressTest extends AnyFunSuite {
         val normalAddr = ShelleyAddress(Network.Mainnet, payment, delegation)
         val scriptAddr = ShelleyAddress(Network.Mainnet, scriptPayment, delegation)
         val enterpriseAddr = ShelleyAddress(Network.Mainnet, payment, ShelleyDelegationPart.Null)
-        val stakeAddr = StakeAddress(Network.Mainnet, StakePayload.stakeKey(sampleStakeHash))
+        val stakeAddr = StakeAddress(Network.Mainnet, StakePayload.Stake(sampleStakeHash))
 
         assert(normalAddr.hasScript == false)
         assert(scriptAddr.hasScript == true)
@@ -291,7 +291,7 @@ class CardanoAddressTest extends AnyFunSuite {
         val delegation = ShelleyDelegationPart.keyHash(sampleStakeHash)
         val shelleyAddr = ShelleyAddress(Network.Mainnet, payment, delegation)
 
-        val stakeAddr = Address.shelleyToStake(shelleyAddr)
+        val stakeAddr = shelleyAddr.toStakeAddress
         assert(stakeAddr.isSuccess)
 
         val convertedStake = stakeAddr.get
@@ -300,7 +300,7 @@ class CardanoAddressTest extends AnyFunSuite {
 
         // Test conversion failure for enterprise address
         val enterpriseAddr = ShelleyAddress(Network.Mainnet, payment, ShelleyDelegationPart.Null)
-        val enterpriseConversion = Address.shelleyToStake(enterpriseAddr)
+        val enterpriseConversion = enterpriseAddr.toStakeAddress
         assert(enterpriseConversion.isFailure)
     }
 
@@ -333,8 +333,8 @@ class CardanoAddressTest extends AnyFunSuite {
         assert(mainnetShelley.hrp == Success("addr"))
         assert(testnetShelley.hrp == Success("addr_test"))
 
-        val mainnetStake = StakeAddress(Network.Mainnet, StakePayload.stakeKey(sampleStakeHash))
-        val testnetStake = StakeAddress(Network.Testnet, StakePayload.stakeKey(sampleStakeHash))
+        val mainnetStake = StakeAddress(Network.Mainnet, StakePayload.Stake(sampleStakeHash))
+        val testnetStake = StakeAddress(Network.Testnet, StakePayload.Stake(sampleStakeHash))
 
         assert(mainnetStake.hrp == Success("stake"))
         assert(testnetStake.hrp == Success("stake_test"))

@@ -265,12 +265,6 @@ enum StakePayload {
 
 object StakePayload {
 
-    /** Create from stake key hash */
-    def stakeKey(hash: StakeKeyHash): StakePayload = Stake(hash)
-
-    /** Create from script hash */
-    def script(hash: ScriptHash): StakePayload = Script(hash)
-
     /** Parse from bytes - assumes 28-byte hash */
     def fromBytes(bytes: Array[Byte], isScript: Boolean): Try[StakePayload] = Try {
         require(bytes.length == 28, s"Invalid hash size: ${bytes.length}, expected 28")
@@ -339,6 +333,21 @@ case class ShelleyAddress(
     def scriptHash: Option[ScriptHash] = payment match
         case ShelleyPaymentPart.Script(hash) => Some(hash)
         case _                               => None
+
+    /** Convert Shelley address to Stake address if it has delegation */
+    def toStakeAddress: Try[StakeAddress] =
+        delegation match
+            case ShelleyDelegationPart.Key(hash) =>
+                Success(StakeAddress(network, StakePayload.Stake(hash)))
+            case ShelleyDelegationPart.Script(hash) =>
+                Success(StakeAddress(network, StakePayload.Script(hash)))
+            case _ =>
+                Failure(
+                  new IllegalArgumentException(
+                    "Cannot convert address without delegation to stake address"
+                  )
+                )
+
 }
 
 /** A decoded Stake address for delegation purposes */
@@ -411,7 +420,7 @@ case class ByronAddress(bytes: ByteString) extends Address {
   *
   * Provides common functionality and properties shared across different address types
   */
-trait Address {
+sealed trait Address {
 
     /** Get type ID */
     def typeId: Byte
@@ -460,19 +469,6 @@ object Address {
             catch case NonFatal(exception) => r.validationFailure(exception.getMessage)
         }
 
-    /** Convert Shelley address to Stake address if it has delegation */
-    def shelleyToStake(shelleyAddr: ShelleyAddress): Try[StakeAddress] =
-        shelleyAddr.delegation match
-            case ShelleyDelegationPart.Key(hash) =>
-                Success(StakeAddress(shelleyAddr.network, StakePayload.Stake(hash)))
-            case ShelleyDelegationPart.Script(hash) =>
-                Success(StakeAddress(shelleyAddr.network, StakePayload.Script(hash)))
-            case _ =>
-                Failure(
-                  new IllegalArgumentException(
-                    "Cannot convert address without delegation to stake address"
-                  )
-                )
     // Internal helper functions for variable-length encoding per CIP-19
 
     // Address parsing and construction functions

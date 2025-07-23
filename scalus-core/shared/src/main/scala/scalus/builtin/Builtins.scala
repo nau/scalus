@@ -176,56 +176,25 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
             case Data.I(_)         => iCase
             case Data.B(_)         => bCase
 
-    @deprecated("use constrData", "0.6")
-    def mkConstr(ctor: BigInt, args: List[Data]): Data = Data.Constr(ctor.toLong, args.toList)
     def constrData(ctor: BigInt, args: List[Data]): Data = Data.Constr(ctor.toLong, args.toList)
-    @deprecated("use mapData", "0.6")
-    def mkMap(values: List[Pair[Data, Data]]): Data =
-        Data.Map(values.toList.map(p => (p.fst, p.snd)))
     def mapData(values: List[Pair[Data, Data]]): Data =
         Data.Map(values.toList.map(p => (p.fst, p.snd)))
-    @deprecated("use listData", "0.6")
-    def mkList(values: List[Data]): Data = Data.List(values.toList)
     def listData(values: List[Data]): Data = Data.List(values.toList)
-    @deprecated("use iData", "0.6")
-    def mkI(value: BigInt): Data = Data.I(value)
     def iData(value: BigInt): Data = Data.I(value)
-    @deprecated("use bData", "0.6")
-    def mkB(value: ByteString): Data = Data.B(value)
     def bData(value: ByteString): Data = Data.B(value)
-    @deprecated("use unConstrData", "0.6")
-    def unsafeDataAsConstr(d: Data): Pair[BigInt, List[Data]] = d match
-        case Data.Constr(constr, args) => Pair(constr: BigInt, List(args*))
-        case _                         => throw new Exception(s"not a constructor but $d")
     def unConstrData(d: Data): Pair[BigInt, List[Data]] = d match
         case Data.Constr(constr, args) => Pair(constr: BigInt, List(args*))
         case _                         => throw new Exception(s"not a constructor but $d")
-    @deprecated("use unListData", "0.6")
-    def unsafeDataAsList(d: Data): List[Data] = d match
-        case Data.List(values) => List(values*)
-        case _                 => throw new Exception(s"not a list but $d")
     def unListData(d: Data): List[Data] = d match
         case Data.List(values) => List(values*)
         case _                 => throw new Exception(s"not a list but $d")
-    @deprecated("use unMapData", "0.6")
-    def unsafeDataAsMap(d: Data): List[Pair[Data, Data]] = d match
-        case Data.Map(values) => List(values.map(Pair.apply)*)
-        case _                => throw new Exception(s"not a list but $d")
 
     def unMapData(d: Data): List[Pair[Data, Data]] = d match
         case Data.Map(values) => List(values.map(Pair.apply)*)
         case _                => throw new Exception(s"not a list but $d")
-    @deprecated("use unIData", "0.6")
-    def unsafeDataAsI(d: Data): BigInt = d match
-        case Data.I(value) => value
-        case _             => throw new Exception(s"not an integer but $d")
     def unIData(d: Data): BigInt = d match
         case Data.I(value) => value
         case _             => throw new Exception(s"not an integer but $d")
-    @deprecated("use unBData", "0.6")
-    def unsafeDataAsB(d: Data): ByteString = d match
-        case Data.B(value) => value
-        case _             => throw new Exception(s"not a bytestring but $d")
     def unBData(d: Data): ByteString = d match
         case Data.B(value) => value
         case _             => throw new Exception(s"not a bytestring but $d")

@@ -404,6 +404,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.6" % "test",
       libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1",
+      libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.0" % "test",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )
@@ -460,6 +461,12 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       publish / skip := false
+    )
+    .jvmSettings(
+      // temporary, needed for current PlutusScriptEvaluator implementation
+      // TODO: remove when PlutusScriptEvaluator uses different logger
+      libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
     )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",

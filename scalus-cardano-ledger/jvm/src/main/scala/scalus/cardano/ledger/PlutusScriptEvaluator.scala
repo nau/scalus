@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 
 import org.slf4j.LoggerFactory
-import scalus.bloxbean.{EvaluatorMode, RestrictingBudgetSpenderWithScripDump, TxEvaluationException}
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*
@@ -19,12 +18,22 @@ import scalus.uplc.{Constant, DeBruijnedProgram, Term}
 import java.nio.file.{Files, Paths}
 import scala.collection.immutable
 
+private[scalus] enum EvaluatorMode extends Enum[EvaluatorMode] {
+    case EvaluateAndComputeCost, Validate
+}
+
+private[scalus] class PlutusScriptEvaluationException(
+    message: String,
+    cause: Throwable,
+    val logs: Array[String]
+) extends RuntimeException(message, cause)
+
 private[scalus] class PlutusScriptEvaluator(
     val slotConfig: SlotConfig,
     val initialBudget: ExBudget,
     val protocolMajorVersion: MajorProtocolVersion,
     val costModels: CostModels,
-    val mode: EvaluatorMode = EvaluatorMode.EVALUATE_AND_COMPUTE_COST,
+    val mode: EvaluatorMode = EvaluatorMode.EvaluateAndComputeCost,
     val debugDumpFilesForTesting: Boolean = false
 ) {
 
@@ -403,14 +412,14 @@ private[scalus] class PlutusScriptEvaluator(
 
         // Create budget spender based on evaluation mode
         val spender = mode match
-            case EvaluatorMode.EVALUATE_AND_COMPUTE_COST => CountingBudgetSpender()
-            case EvaluatorMode.VALIDATE                  =>
+            case EvaluatorMode.EvaluateAndComputeCost => CountingBudgetSpender()
+            case EvaluatorMode.Validate               =>
                 // Create budget from redeemer execution units
                 val budget = ExBudget.fromCpuAndMemory(
                   cpu = redeemer.exUnits.steps,
                   memory = redeemer.exUnits.memory
                 )
-                RestrictingBudgetSpenderWithScripDump(budget, debugDumpFilesForTesting)
+                RestrictingBudgetSpenderWithScriptDump(budget, debugDumpFilesForTesting)
 
         val logger = Log()
         // Execute the script
@@ -422,9 +431,9 @@ private[scalus] class PlutusScriptEvaluator(
                 println()
                 println(s"Script ${vm.language} ${redeemer.tag} evaluation failed: ${e.getMessage}")
 //                println(e.env.view.reverse.take(20).mkString("\n"))
-                throw new TxEvaluationException(e.getMessage, e, logger.getLogs)
+                throw new PlutusScriptEvaluationException(e.getMessage, e, logger.getLogs)
             case e: Exception =>
-                throw new TxEvaluationException(e.getMessage, e, logger.getLogs)
+                throw new PlutusScriptEvaluationException(e.getMessage, e, logger.getLogs)
     }
 
     /** Dump script information for debugging purposes.

@@ -1,6 +1,5 @@
 package scalus.bloxbean
 
-import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
@@ -16,7 +15,7 @@ import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
 import upickle.default.read
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Paths
 
 class PlutusScriptEvaluatorTest extends AnyFunSuite {
     private val params: ProtocolParams = read[ProtocolParams](
@@ -124,7 +123,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
           costModels = costModels,
           debugDumpFilesForTesting = false
         )
-        //        dumpTxInfo(tx, utxos)
+        //        DebugUtils.dumpTxInfo(tx, utxos)
 
         val redeemers = evaluator.evalPhaseTwo(tx, utxos)
         for (actual, expected) <- redeemers.zip(tx.witnessSet.redeemers.get.value.toIndexedSeq) do
@@ -162,25 +161,5 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
 //        utxoResolver.copyToResources(tx)
         utxoResolver.resolveUtxos(tx)
 //        Map.empty
-    }
-
-    private def dumpTxInfo(
-        tx: Transaction,
-        utxos: Map[TransactionInput, TransactionOutput]
-    ): Unit = {
-        val txhash = tx.id.toHex
-        Files.write(Paths.get(s"tx-$txhash.cbor"), Cbor.encode(tx).toByteArray)
-        Files.deleteIfExists(Paths.get("scalus.log"))
-        storeInsOutsInCborFiles(utxos, txhash)
-    }
-
-    private def storeInsOutsInCborFiles(
-        utxos: Map[TransactionInput, TransactionOutput],
-        txhash: String
-    ): Unit = {
-        val ins = Cbor.encode(utxos.keys.toIndexedSeq).toByteArray
-        val outs = Cbor.encode(utxos.values.toIndexedSeq).toByteArray
-        Files.write(Path.of(s"ins-$txhash.cbor"), ins)
-        Files.write(Path.of(s"outs-$txhash.cbor"), outs)
     }
 }

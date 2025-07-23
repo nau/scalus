@@ -27,6 +27,9 @@ case class Transaction(
     @transient lazy val validityInterval: ValidityInterval =
         ValidityInterval(body.value.validityStartSlot, body.value.ttl)
 
+    def toCbor: Array[Byte] = {
+        Cbor.encode(this).toByteArray
+    }
 }
 
 object Transaction {
@@ -35,6 +38,11 @@ object Transaction {
         witnessSet: TransactionWitnessSet,
     ): Transaction =
         new Transaction(KeepRaw(body), witnessSet, isValid = true, auxiliaryData = None)
+
+    def fromCbor(bytes: Array[Byte]): Transaction = {
+        given OriginalCborByteArray = OriginalCborByteArray(bytes)
+        Cbor.decode(bytes).to[Transaction].value
+    }
 
     /** CBOR codec for Transaction */
     given Encoder[Transaction] = Encoder.derived
