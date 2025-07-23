@@ -14,14 +14,32 @@ object G1 {
     /** BLS12 G1 zero element.
       *
       * This is the point at infinity in the BLS12-381 G1 group
+      *
+      * @note
+      *   This is a function, not a constant deliberately. Being a constant would make it always
+      *   initialize in your Plutus script (which is not cheap) even if the BLS12-381 is not used in
+      *   the evaluated code. Hence, to avoid multiple initializations, please create a local
+      *   variable in the scope where you need it, like:
+      *   {{{
+      *     val zeroG1 = G1.zero
+      *   }}}
       */
-    val zero: BLS12_381_G1_Element = uncompress(
+    def zero: BLS12_381_G1_Element = uncompress(
       hex"c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
     )
 
     /** The compressed generator of the G1 group of the BLS12-381 curve.
+      *
+      * @note
+      *   This is a function, not a constant deliberately. Being a constant would make it always
+      *   initialize in your Plutus script (which is not cheap) even if the BLS12-381 is not used in
+      *   the evaluated code. Hence, to avoid multiple initializations, please create a local
+      *   variable in the scope where you need it, like:
+      *   {{{
+      *     val genG1 = G1.generator
+      *   }}}
       */
-    val generator: BLS12_381_G1_Element = uncompress(
+    def generator: BLS12_381_G1_Element = uncompress(
       hex"97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb"
     )
 
