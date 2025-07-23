@@ -14,7 +14,7 @@ enum List[+A]:
     case Cons(head: A, tail: List[A]) extends List[A]
 
 @Compile
-object List:
+object List {
     import Option.*
 
     /** Returns an empty list.
@@ -185,8 +185,10 @@ object List:
       *   `a` and `b`.
       * @example
       *   {{{
-      *   List.map2(List(BigInt(1), BigInt(2)), List(BigInt(3), BigInt(4)))(_ + _) === Cons(BigInt(4), Cons(BigInt(6), Nil))
-      *   List.map2(List.empty[BigInt], List(BigInt(1), BigInt(2)))(_ + _) === Nil
+      *   val list1 = Cons(BigInt(1), Cons(BigInt(2), Nil))
+      *   val list2 = Cons(BigInt(3), Cons(BigInt(4), Nil))
+      *   List.map2(list1, list2)(_ + _) === Cons(BigInt(4), Cons(BigInt(6), Nil))
+      *   List.map2(List.empty[BigInt], list1)(_ + _) === Nil
       *   }}}
       */
     def map2[A, B, C](a: List[A], b: List[B])(f: (A, B) => C): List[C] =
@@ -242,7 +244,14 @@ object List:
                         val order = headLhs <=> headRhs
                         if order.nonEqual then order else tailLhs <=> tailRhs
 
-    extension [A: Ord](self: List[A])
+    extension [A](elem: A) {
+
+        /** Alias on prepended */
+        inline def +:[B >: A](l: List[B]): List[B] = l.prepended(elem)
+    }
+
+    extension [A: Ord](self: List[A]) {
+
         /** Sorts the list using the quicksort algorithm.
           *
           * This method sorts the elements of the list in ascending order based on the provided
@@ -263,10 +272,32 @@ object List:
                     val before = tail.filter { elem => (elem <=> head).isLess }.quicksort
                     val after = tail.filter { elem => !(elem <=> head).isLess }.quicksort
                     before ++ after.prepended(head)
+    }
 
-    extension [A](self: List[A])
+    extension [A](self: List[List[A]]) {
+
+        /** Flattens a list of lists into a single list.
+          *
+          * This method concatenates all inner lists into a single list.
+          *
+          * @return
+          *   A new list containing all elements from the inner lists.
+          * @example
+          *   {{{
+          *   val list = Cons(Cons(BigInt(1), Cons(BigInt(2), Nil)), Cons(Cons(BigInt(3), Cons(BigInt(4), Nil)), Nil))
+          *   list.flatten === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Cons(BigInt(4), Nil))))
+          *   List.empty[List[BigInt]].flatten === Nil
+          *   }}}
+          */
+        def flatten: List[A] = self.foldRight(List.empty[A]) { (innerList, acc) =>
+            innerList ++ acc
+        }
+    }
+
+    extension [A](self: List[A]) {
+
         /** Alias for at */
-        inline def !!(idx: BigInt): A = self.at(idx)
+        inline def !!(idx: BigInt): A = at(idx)
 
         /** Checks if the list is empty.
           *
@@ -552,6 +583,9 @@ object List:
         inline def prependedAll[B >: A](other: List[B]): List[B] = other match
             case Nil              => self
             case Cons(head, tail) => Cons(head, tail.appendedAll(self))
+
+        /** Alias on prependedAll */
+        inline def ++:[B >: A](other: List[B]): List[B] = other.prependedAll(self)
 
         /** Appends an element to the end of the list.
           *
@@ -1058,7 +1092,7 @@ object List:
         def dropRight(skip: BigInt): List[A] =
             if skip <= 0 then self
             else
-                self.foldRight((List.empty[A], skip)) { (head, acc) =>
+                foldRight((List.empty[A], skip)) { (head, acc) =>
                     if acc._2 > 0 then (Nil, acc._2 - 1)
                     else (Cons(head, acc._1), acc._2)
                 }._1
@@ -1161,7 +1195,7 @@ object List:
         def takeRight(count: BigInt): List[A] =
             if count <= 0 then Nil
             else
-                self.foldRight((List.empty[A], BigInt(0))) { (head, acc) =>
+                foldRight((List.empty[A], BigInt(0))) { (head, acc) =>
                     if acc._2 > count then acc
                     else (Cons(head, acc._1), acc._2 + 1)
                 }._1
@@ -1236,12 +1270,11 @@ object List:
           */
         @tailrec
         def difference[B >: A](other: List[B])(using eq: Eq[B]): List[A] = {
-            if self.isEmpty then Nil
+            if isEmpty then Nil
             else
                 other match
-                    case Nil => self
-                    case Cons(head, tail) =>
-                        (self.deleteFirst(head): List[A]).difference(tail)
+                    case Nil              => self
+                    case Cons(head, tail) => (deleteFirst(head): List[A]).difference(tail)
         }
 
         /** Returns a list consisting of all elements except the last element of this list.
@@ -1315,30 +1348,5 @@ object List:
             val buf = mutable.ListBuffer.empty[A]
             for e <- self do buf.addOne(e)
             buf.toList
-
-    extension [A](elem: A)
-        /** Alias on prepended */
-        inline def +:[B >: A](l: List[B]): List[B] = l.prepended(elem)
-    extension [A](left: List[A])
-        /** Alias on prependedAll */
-        inline def ++:[B >: A](other: List[B]): List[B] = other.prependedAll(left)
-
-    extension [A](self: scala.Seq[A])
-        /** Converts a [[scala.Seq]] to a `List`.
-          *
-          * This method is only available offchain.
-          *
-          * @return
-          *   A `List[A]` containing all the elements from this sequence in the same order.
-          * @example
-          *   {{{
-          *   scala.Seq.empty[BigInt].asScalus === List.empty[BigInt]
-          *
-          *   val seq: scala.Seq[BigInt] = scala.Seq(BigInt(1), BigInt(2), BigInt(3))
-          *   seq.asScalus === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
-          *   }}}
-          */
-        @Ignore
-        def asScalus: List[A] = self match
-            case scala.Seq()            => Nil
-            case scala.Seq(head, tail*) => Cons(head, tail.asScalus)
+    }
+}

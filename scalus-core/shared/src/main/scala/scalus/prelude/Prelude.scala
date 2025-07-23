@@ -274,55 +274,6 @@ inline def impossible(): Nothing = throw new ImpossibleLedgerStateError
   */
 inline def ??? : Nothing = throw new NotImplementedError
 
-@deprecated("Use `scalus.prelude.Option` instead")
-enum Maybe[+A]:
-    @deprecated("Use `scalus.prelude.Option.None` instead") case Nothing extends Maybe[Nothing]
-    @deprecated("Use `scalus.prelude.Option.Some` instead") case Just(value: A)
-
-@Compile
-@deprecated("Use `scalus.prelude.Option` instead")
-object Maybe {
-
-    /** Constructs a `Maybe` from a value. If the value is `null`, it returns `Nothing`, otherwise
-      * `Just(value)`.
-      */
-    @Ignore
-    @deprecated("Use `scalus.prelude.Option.apply` instead")
-    inline def apply[A](x: A): Maybe[A] = if x == null then Nothing else Just(x)
-
-    extension [A](m: Maybe[A])
-        /** Converts a `Maybe` to an [[Option]] */
-        @Ignore
-        @deprecated("Use `scalus.prelude.Option.asScala` instead")
-        def toOption: scala.Option[A] = m match
-            case Nothing => scala.None
-            case Just(a) => scala.Some(a)
-
-        @deprecated("Use `scalus.prelude.Option.map` instead")
-        def map[B](f: A => B): Maybe[B] = m match
-            case Nothing => Nothing
-            case Just(a) => Just(f(a))
-
-    /** Converts an [[Option]] to a `Maybe` */
-    @Ignore
-    @deprecated("Use `scalus.prelude.Option.asScalus` instead")
-    def fromOption[A](o: scala.Option[A]): Maybe[A] = o match
-        case scala.None    => Nothing
-        case scala.Some(a) => Just(a)
-
-    @deprecated("Use `scalus.prelude.Option.optionEq` instead")
-    given maybeEq[A](using eq: Eq[A]): Eq[Maybe[A]] = (a: Maybe[A], b: Maybe[A]) =>
-        a match
-            case Nothing =>
-                b match
-                    case Nothing => true
-                    case Just(a) => false
-            case Just(value) =>
-                b match
-                    case Nothing      => false
-                    case Just(value2) => value === value2
-}
-
 enum These[+A, +B]:
     case This(a: A)
     case That(b: B)
@@ -355,6 +306,41 @@ object Rational:
     given Eq[Rational] = (lhs: Rational, rhs: Rational) =>
         lhs.numerator * rhs.denominator === rhs.numerator * lhs.denominator
 
+    given Ord[Rational] = (lhs: Rational, rhs: Rational) =>
+        import Ord.*
+        lhs.numerator * rhs.denominator <=> rhs.numerator * lhs.denominator
+
     given rationalFromData: FromData[Rational] = FromData.derived
 
     given rationalToData: ToData[Rational] = ToData.derived
+
+extension [A](self: scala.Seq[A]) {
+
+    /** Converts a [[scala.Seq]] to a `List`.
+      *
+      * This method is only available offchain.
+      *
+      * @return
+      *   A `List[A]` containing all the elements from this sequence in the same order.
+      * @example
+      *   {{{
+      *   scala.Seq.empty[BigInt].asScalus === List.empty[BigInt]
+      *
+      *   val seq: scala.Seq[BigInt] = scala.Seq(BigInt(1), BigInt(2), BigInt(3))
+      *   seq.asScalus === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+      *   }}}
+      */
+    @Ignore
+    def asScalus: List[A] = self match
+        case scala.Seq()            => List.Nil
+        case scala.Seq(head, tail*) => List.Cons(head, tail.asScalus)
+}
+
+extension [A](self: scala.Option[A]) {
+
+    /** Converts a [[scala.Option]] to an `Option` */
+    @Ignore
+    def asScalus: Option[A] = self match
+        case scala.None    => Option.None
+        case scala.Some(a) => Option.Some(a)
+}
