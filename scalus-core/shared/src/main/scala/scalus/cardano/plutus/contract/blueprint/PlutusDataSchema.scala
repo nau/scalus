@@ -1,5 +1,5 @@
 package scalus.cardano.plutus.contract.blueprint
-import com.github.plokhotnyuk.jsoniter_scala.core.{JsonValueCodec, WriterConfig, writeToString}
+import com.github.plokhotnyuk.jsoniter_scala.core.{writeToString, JsonValueCodec, WriterConfig}
 import com.github.plokhotnyuk.jsoniter_scala.macros.{CodecMakerConfig, JsonCodecMaker}
 import scalus.cardano.plutus.contract.blueprint.PlutusDataSchema.given_JsonValueCodec_PlutusDataSchema
 

@@ -1,5 +1,5 @@
 package scalus.cardano.plutus.contract.blueprint
-import scalus.prelude.{Validator, Option}
+import scalus.prelude.{Option, Validator}
 import scalus.builtin.Data
 import scalus.ledger.api.v3.{TxInfo, TxOutRef}
 import scalus.Compile

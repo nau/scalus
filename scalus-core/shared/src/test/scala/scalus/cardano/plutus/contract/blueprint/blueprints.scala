@@ -4,8 +4,7 @@ import scalus.buildinfo.BuildInfo
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.ledger.Script
 import scalus.ledger.api.v1.PosixTime
-import scalus.ledger.api.v3.{TxInfo, TxOutRef}
-import scalus.{Compile, plutusV3, prelude, toUplc}
+import scalus.{Compile, prelude, toUplc}
 
 private val bytes = compile((ctx: Data) => ()).toUplc().plutusV3.cborEncoded
 val emptyScript = Script.PlutusV3(ByteString.fromArray(bytes))
@@ -114,6 +113,5 @@ object HtlcValidatorInputs {
                                       |  ]
                                       |}""".stripMargin
     }
-    
 
 }
