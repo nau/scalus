@@ -115,12 +115,5 @@ object HtlcValidatorInputs {
                                       |}""".stripMargin
     }
     
-    @Compile
-    object EmptyValidator extends scalus.prelude.Validator:
-        override def spend(
-        datum: prelude.Option[Data],
-        redeemer: Data,
-        tx: TxInfo,
-        ownRef: TxOutRef
-    ): Unit = ()
+
 }

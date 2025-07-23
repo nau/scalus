@@ -1,21 +1,24 @@
 package scalus.cardano.tbd
 
 import scalus.*
-import scalus.builtin.ByteString
 import scalus.cardano.ledger.{Language, PlutusScript, Script}
 import scalus.cardano.plutus.contract.blueprint
 import scalus.cardano.plutus.contract.blueprint.Blueprint.Preamble
-import scalus.cardano.plutus.contract.blueprint.{Blueprint, PlutusDataSchema, TypeDescription, mkPreamble}
+import scalus.cardano.plutus.contract.blueprint.{mkPreamble, Blueprint, PlutusDataSchema, TypeDescription}
 import scalus.prelude.Validator
 import scalus.sir.SIR
 import scalus.uplc.{Program, Term}
 
+/** A description of a Scalus application, containing one or more contracts.
+  */
 case class Application(
     preamble: Preamble,
     contracts: Seq[CompiledContract],
 ) {
+
+    /** A CIP-57 compliant Blueprint, describing the application. */
     def blueprint: Blueprint = {
-        Blueprint(preamble, validators = contracts.map(_.bpv))
+        Blueprint(preamble, validators = contracts.map(_.describeValidator))
     }
 }
 
@@ -31,32 +34,52 @@ object Application {
     }
 }
 
+/** A smart contract compiled with Scalus. */
 trait CompiledContract {
     def asProgram: Program
 
     def asScript: PlutusScript
 
-    def bpv: blueprint.Validator
+    def describeValidator: blueprint.Validator
 
     def sir: SIR
 }
-class PlutusV3(val sir: SIR, val bpv: blueprint.Validator) extends CompiledContract {
+case class PlutusV3(
+    title: String,
+    description: String,
+    sir: SIR,
+    datumSchema: PlutusDataSchema,
+    redeemerSchema: PlutusDataSchema
+) extends CompiledContract {
     private val uplc: Term = sir.toUplcOptimized()
+
+    def describeValidator: blueprint.Validator = {
+        blueprint.Validator(
+          title = title,
+          datum = Some(TypeDescription(schema = datumSchema)),
+          redeemer = Some(TypeDescription(schema = redeemerSchema)),
+          compiledCode = Some(asScript.script.toHex),
+          hash = Some(asScript.scriptHash.toHex)
+        )
+    }
     def asProgram: Program = uplc.plutusV3
-    def asScript: PlutusScript = Script.PlutusV3(asProgram.cborByteString)
+
+    def asScript: Script.PlutusV3 = Script.PlutusV3(asProgram.cborByteString)
 }
 
 object PlutusV3 {
-    inline def create[D, R](inline v: Validator): PlutusV3 = {
+    inline def create[D, R](inline v: Validator): PlutusV3 =
+        create[D, R](v, v.getClass.getSimpleName)
+
+    inline def create[D, R](
+        inline v: Validator,
+        title: String,
+        description: String = ""
+    ): PlutusV3 = {
         val sir = Compiler.compileInline((scData: scalus.builtin.Data) => v.validate(scData))
-        val title = v.getClass.getName
-        val datum = PlutusDataSchema.derived[D]
-        val redeemer = PlutusDataSchema.derived[R]
-        val bpv = blueprint.Validator(
-          title = title,
-          datum = Some(TypeDescription(schema = datum)),
-          redeemer = Some(TypeDescription(schema = redeemer))
-        )
-        new PlutusV3(sir, bpv)
+        val title = v.getClass.getSimpleName
+        val datumSchema = PlutusDataSchema.derived[D]
+        val redeemerSchema = PlutusDataSchema.derived[R]
+        PlutusV3(title, description, sir, datumSchema, redeemerSchema)
     }
 }
