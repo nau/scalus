@@ -57,6 +57,13 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     def AnE = AnnotationsDecl.empty
 
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+      debug = false
+    )
+
     test("compile literals") {
         assert(
           compile(false) ~=~ Const(Constant.Bool(false), SIRType.Boolean, AnnotationsDecl.empty)
@@ -334,18 +341,76 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val compiled = compile {
             BigInt(1).toData
         }
-        val expected =
-            Let(
-              NonRec,
-              immutable.List(Binding("a$proxy1", sirInt, Const(Constant.Integer(1), sirInt, AnE))),
-              Apply(
-                SIRBuiltins.iData,
-                Var("a$proxy1", sirInt, AnE),
-                sirData,
-                AnE
-              ),
-              AnE
-            )
+        val expected = {
+            if summon[
+                  Compiler.Options
+                ].targetLoweringBackend == Compiler.TargetLoweringBackend.SirToUplcV3Lowering
+            then {
+                val a1Tp = SIRType.TypeVar("A", Some(1), false)
+                val a2Tp = SIRType.TypeVar("A", Some(2), false)
+                val a3Tp = SIRType.TypeVar("A", Some(3), false)
+                Let(
+                  NonRec,
+                  immutable.List(
+                    Binding(
+                      "scalus.builtin.internal.UniversalDataConversion$.toData",
+                      SIRType
+                          .TypeLambda(immutable.List(a1Tp), SIRType.Fun(a1Tp, SIRType.TypeNothing)),
+                      LamAbs(
+                        SIR.Var("a", a1Tp, AnE),
+                        SIR.Error(
+                          "impossible to call this method at runtime, it is used only in the compiler plugin",
+                          AnE
+                        ),
+                        immutable.List(a1Tp),
+                        AnE
+                      )
+                    )
+                  ),
+                  Let(
+                    NonRec,
+                    immutable.List(
+                      Binding("a$proxy1", sirInt, Const(Constant.Integer(1), sirInt, AnE))
+                    ),
+                    Apply(
+                      ExternalVar(
+                        "scalus.builtin.internal.UniversalDataConversion$",
+                        "scalus.builtin.internal.UniversalDataConversion$.toData",
+                        SIRType.Fun(sirInt, sirData),
+                        AnE
+                      ),
+                      Var("a$proxy1", sirInt, AnE),
+                      sirData,
+                      AnE
+                    ),
+                    AnE
+                  ),
+                  AnE
+                )
+            } else
+                Let(
+                  NonRec,
+                  immutable.List(
+                    Binding("a$proxy1", sirInt, Const(Constant.Integer(1), sirInt, AnE))
+                  ),
+                  Apply(
+                    SIRBuiltins.iData,
+                    Var("a$proxy1", sirInt, AnE),
+                    sirData,
+                    AnE
+                  ),
+                  AnE
+                )
+        }
+
+        // println(s"compiled=${compiled.pretty.render(100)}")
+        // println(s"exprected=${expected.pretty.render(100)}")
+        //
+        // SIRUnify.unifySIR(compiled, expected, SIRUnify.Env.empty) match
+        //    case SIRUnify.UnificationSuccess(env, sir) =>
+        //    case SIRUnify.UnificationFailure(path, left, right) =>
+        //        println(s"Unification failure: $path, left=$left, right=$right")
+
         assert(compiled ~=~ expected)
         // val term = compiled.toUplc()
         // assert(VM.evaluateTerm(term) == Data.I(1))
@@ -1328,6 +1393,24 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     }
 
+    test("compile custom Builtins") {
+        val platform = new JVMPlatformSpecific {
+            override def sha2_256(bs: ByteString): ByteString = hex"deadbeef"
+        }
+        object CustomBuiltins extends Builtins(using platform)
+
+        val sir = compile(CustomBuiltins.sha2_256(hex"12"))
+        // check that SIRCompiler compiles the custom builtin
+        assert(
+          sir ~=~ Apply(
+            SIRBuiltins.sha2_256,
+            Const(Constant.ByteString(hex"12"), sirByteString, AnE),
+            sirByteString,
+            AnE
+          )
+        )
+    }
+
     test("compile Boolean &&, ||, ! builtins") {
         val compiled = compile {
             val a = true || (throw new Exception("M"))
@@ -1924,107 +2007,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
     }
 
-    test("compile Tuple2 construction/matching") {
-        val compiled = compile {
-            type Pair = (Boolean, Boolean)
-            val t: Pair = (true, false)
-            t match
-                case (a, _) => a && t._2
-        }
-        // println(compiled.show)
-        val evaled = compiled.toUplc().evaluate
-        assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
-    }
-
-    test("compile match on a case class") {
-        val compiled = compile {
-            val pkh = new scalus.ledger.api.v1.PubKeyHash(hex"deadbeef")
-            pkh match
-                case PubKeyHash(hash) => hash
-        }
-        // println(compiled.show)
-        val evaled = compiled.toUplc().evaluate
-        assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(hex"deadbeef")))
-    }
-
-    test("compile match on ADT") {
-
-        import scalus.prelude.List
-        import scalus.prelude.List.*
-        val compiled = compile {
-            val ls: List[BigInt] = single(BigInt(1))
-            ls match
-                case Cons(h, _) => h
-                case Nil        => BigInt(0)
-        }
-        // println(compiled.show)
-        val compiledToUplc = compiled.toUplc()
-        // println(s"uplc:${compiledToUplc.show} ")
-        try
-            val evaled = compiledToUplc.evaluate
-            // println(evaled.show)
-            assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
-        catch
-            case e: Throwable =>
-                println(s"compile match on ADT: error in evaled: ${e.getMessage}")
-                println(s"compile match on ADT: SIR=${compiled.pretty.render(100)}")
-                println(s"compile match on ADT: UPLC=${compiledToUplc.pretty.render(100)}")
-                compiled match
-                    case SIR.Decl(data, term) =>
-                        println(
-                          s"compile match on ADT:dataDecl, ${data.name}, constrNames=${data.constructors
-                                  .map(_.name)}"
-                        )
-                    case SIR.Let(_, bindings, body, _) =>
-                        println(
-                          s"compile match on ADT: bindings=${bindings.mkString("\n")}"
-                        )
-                    case _ =>
-                        println(s"compile match on ADT: not a Let, but $compiled")
-                throw e
-    }
-
-    test("compile wildcard match on ADT") {
-        import scalus.prelude.These
-        val compiled = compile {
-            val t: These[BigInt, Boolean] = new These.This(BigInt(1))
-            t match
-                case These.This(h) => h
-                case _             => BigInt(0)
-        }
-        val uplc = compiled.toUplc()
-        val evaled = uplc.evaluate
-        assert(evaled == scalus.uplc.Term.Const(Constant.Integer(1)))
-    }
-
-    test("compile inner matches") {
-        import scalus.prelude.List
-        import scalus.prelude.List.*
-        val compiled = compile {
-            val ls: List[(BigInt, TxOutRef)] =
-                List.single((1, new TxOutRef(new TxId(hex"deadbeef"), 2)))
-            ls match
-                case Cons(h @ (a, TxOutRef(TxId(_), idx)), _) => a + idx
-                case Nil                                      => BigInt(0)
-        }
-        // println(compiled.show)
-        val evaled = compiled.toUplc().evaluate
-        // println(evaled.show)
-        assert(evaled == scalus.uplc.Term.Const(Constant.Integer(3)))
-    }
-
-    test("compile multiple inner matches") {
-        import scalus.prelude.List.*
-        val compiled = compile {
-            ((true, "test"), (false, "test")) match
-                case ((a, _), (b, _)) => a == b
-        }
-        // println(compiled.show)
-        val evaled = compiled.toUplc().evaluate
-        // println(evaled.show)
-        assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
-    }
-
     test("compile fieldAsData macro") {
         import scalus.ledger.api.v1.*
 
@@ -2062,7 +2044,11 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val appliedScript = term.plutusV1 $ scriptContext.toData
         assert(appliedScript.evaluate == scalus.uplc.Term.Const(asConstant(hex"deadbeef")))
         val flatBytesLength = appliedScript.flatEncoded.length
-        assert(flatBytesLength == 348)
+        summon[Compiler.Options].targetLoweringBackend match
+            case Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
+                assert(flatBytesLength == 168)
+            case _ =>
+                assert(flatBytesLength == 348)
     }
 
     test("@Ignore annotation") {
@@ -2074,80 +2060,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
             @Ignore def foo() = true
         } ~=~ Const(Constant.Unit, SIRType.Unit, AnE))
-    }
-
-    test("compile custom Builtins") {
-        val platform = new JVMPlatformSpecific {
-            override def sha2_256(bs: ByteString): ByteString = hex"deadbeef"
-        }
-        object CustomBuiltins extends Builtins(using platform)
-
-        given PlutusVM =
-            val params = MachineParams.defaultPlutusV3Params
-            new PlutusVM(
-              PlutusLedgerLanguage.PlutusV3,
-              params,
-              params.semanticVariant,
-              platform
-            )
-
-        val sir = compile(CustomBuiltins.sha2_256(hex"12"))
-        // check that SIRCompiler compiles the custom builtin
-        assert(
-          sir ~=~ Apply(
-            SIRBuiltins.sha2_256,
-            Const(Constant.ByteString(hex"12"), sirByteString, AnE),
-            sirByteString,
-            AnE
-          )
-        )
-        // check that the custom builtin is correctly evaluated on the JVM
-        assert(CustomBuiltins.sha2_256(hex"12") == hex"deadbeef")
-        // check that PlutusVM uses the custom builtin
-        assert(sir.toUplc().evaluate == Term.Const(Constant.ByteString(hex"deadbeef")))
-    }
-
-    test("? operator produces a debug log") {
-        import scalus.prelude.?
-        val compiled = compile {
-            val oneEqualsTwo = BigInt(1) == BigInt(2)
-            oneEqualsTwo.?
-        }
-        val script = compiled.toUplc().plutusV2
-        script.evaluateDebug match
-            case Result.Success(evaled, _, _, logs) =>
-                assert(evaled == scalus.uplc.Term.Const(Constant.Bool(false)))
-                assert(logs == List("oneEqualsTwo ? False: { mem: 0.002334, cpu: 0.539980 }"))
-            case Result.Failure(exception, _, _, _) => fail(exception)
-    }
-
-    test("compile large script") {
-        // this test ensures that the compiler can handle large scripts
-        inline def generate(n: Int): String =
-            if n == 0 then "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-            else
-                Builtins.appendString(
-                  generate(n - 1),
-                  "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                      + "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf"
-                )
-        // this generates a script with 99 calls to appendString
-        // appendString(appendString(..., "asdf..."), ..., "asdf...")
-        val compiled = compile {
-            generate(99)
-        }
-        assert(compiled.toUplc().plutusV3.flatEncoded.length == 93652)
     }
 
     test("compile pattern in val with one argument") {

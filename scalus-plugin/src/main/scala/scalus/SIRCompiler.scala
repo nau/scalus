@@ -2503,7 +2503,12 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
     }
 
     protected def sirTypeInEnv(tp: Type, env: SIRTypeEnv): SIRType = {
-        typer.sirTypeInEnv(tp, env)
+        try typer.sirTypeInEnv(tp, env)
+        catch
+            case e: TypingException =>
+                if e.cause == null then report.error(e.getMessage, e.pos)
+                else report.error(e.getMessage + " caused by " + e.cause.getMessage, e.pos)
+                SIRType.TypeNothing
     }
 
     private def isVirtualCall(@unused tree: Tree, qualifier: Tree, name: Name): Boolean = {

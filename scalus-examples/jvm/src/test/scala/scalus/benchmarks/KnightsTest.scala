@@ -23,14 +23,14 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
     val printComparison = true
 
     test("100_4x4") {
-        val result = Compiler
-            .compile {
-                val result = runKnights(100, 4)
-                val expected: Solution = List.empty
-                require(result === expected)
-            }
-            .toUplcOptimized(false)
-            .evaluateDebug
+        val sir = Compiler.compile {
+            val result = runKnights(100, 4)
+            val expected: Solution = List.empty
+            require(result === expected)
+        }
+        val lw = sir.toLoweredValue()
+        println(lw.pretty.render(100))
+        val result = sir.toUplcOptimized(false).evaluateDebug
 
         val scalusBudget =
             if summon[

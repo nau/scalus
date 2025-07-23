@@ -15,6 +15,14 @@ import scala.language.implicitConversions
 
 class OptionTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     private given PlutusVM = PlutusVM.makePlutusV2VM()
+
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
+    )
+
     test("eq") {
         assert((prelude.Option.None: prelude.Option[String]) === prelude.Option.None)
         assert(prelude.Option.Some(BigInt(1)) === prelude.Option.Some(BigInt(1)))

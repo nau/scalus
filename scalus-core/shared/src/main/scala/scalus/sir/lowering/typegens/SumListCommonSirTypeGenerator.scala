@@ -458,42 +458,64 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
         lctx: LoweringContext
     ): LoweredValue = {
         // Nil, Cons
-        var nilCase: Option[SIR.Case] = None
-        var consCase: Option[SIR.Case] = None
-        var wildcardCase: Option[SIR.Case] = None
+        var optNilCase: Option[SIR.Case] = None
+        var optConsCase: Option[SIR.Case] = None
+        var optWildcardCase: Option[SIR.Case] = None
         var noBindingInConsCase = false
         matchData.cases.foreach { cs =>
             cs.pattern match
                 case SIR.Pattern.Constr(constrDecl, _, _)
                     if constrDecl.name == "scalus.prelude.List$.Nil" =>
-                    nilCase = Some(cs)
+                    optNilCase = Some(cs)
                 case SIR.Pattern.Constr(constrDecl, _, _)
                     if constrDecl.name == "scalus.prelude.List$.Cons" =>
-                    consCase = Some(cs)
+                    optConsCase = Some(cs)
                 case SIR.Pattern.Wildcard =>
-                    wildcardCase = Some(cs)
+                    optWildcardCase = Some(cs)
                 case _ =>
                     throw LoweringException(s"Unknown pattern ${cs.pattern}", cs.anns.pos)
         }
         val isUnchecked = matchData.anns.data.contains("unchecked")
-        if nilCase.isEmpty then
-            if wildcardCase.nonEmpty then nilCase = wildcardCase
-            else if !isUnchecked then
-                throw LoweringException("No Nil case in match", matchData.anns.pos)
-        if consCase.isEmpty then
-            if wildcardCase.nonEmpty then
-                consCase = wildcardCase
-                noBindingInConsCase = true
-            else if !isUnchecked then
-                throw LoweringException("No Cons case in match", matchData.anns.pos)
+        val nilCase = optNilCase
+            .orElse(optWildcardCase)
+            .getOrElse(
+              if !isUnchecked then
+                  throw LoweringException("No Nil case in match", matchData.anns.pos)
+              else {
+                  SIR.Case(
+                    SIR.Pattern.Wildcard,
+                    SIR.Error(
+                      s"Unexpected case at ${matchData.anns.pos.show} ",
+                      AnnotationsDecl(matchData.anns.pos)
+                    ),
+                    AnnotationsDecl(matchData.anns.pos)
+                  )
+              }
+            )
+        val consCase = optConsCase
+            .orElse(optWildcardCase)
+            .getOrElse(
+              if !isUnchecked then
+                  throw LoweringException("No Cons case in match", matchData.anns.pos)
+              else {
+                  SIR.Case(
+                    SIR.Pattern.Wildcard,
+                    SIR.Error(
+                      s"Unexpected case at ${matchData.anns.pos.show} ",
+                      AnnotationsDecl(matchData.anns.pos)
+                    ),
+                    AnnotationsDecl(matchData.anns.pos)
+                  )
+              }
+            )
 
-        val (consHeadName, consTailName) = consCase.get.pattern match
+        val (consHeadName, consTailName) = consCase.pattern match
             case SIR.Pattern.Constr(constrDecl, List(h, t), _) =>
                 (h, t)
             case SIR.Pattern.Constr(_, _, _) =>
                 throw LoweringException(
-                  s"Cons case should have two bindings, but found ${consCase.get.pattern}",
-                  consCase.get.anns.pos
+                  s"Cons case should have two bindings, but found ${consCase.pattern}",
+                  consCase.anns.pos
                 )
             case SIR.Pattern.Wildcard =>
                 ("_head", "_tail")
@@ -569,14 +591,14 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
         val resType = optTargetType.getOrElse(matchData.tp)
 
         val loweredConsBody = lctx
-            .lower(consCase.get.body, Some(resType))
-            .maybeUpcast(resType, consCase.get.anns.pos)
+            .lower(consCase.body, Some(resType))
+            .maybeUpcast(resType, consCase.anns.pos)
 
         lctx.scope = prevScope
 
         val loweredNilBody = lctx
-            .lower(nilCase.get.body, Some(resType))
-            .maybeUpcast(resType, nilCase.get.anns.pos)
+            .lower(nilCase.body, Some(resType))
+            .maybeUpcast(resType, nilCase.anns.pos)
 
         if SIRType.isProd(loweredScrutinee.sirType) then
             val constrDecl = SIRType
@@ -607,9 +629,9 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
               matchData.anns.pos
             )
             val loweredConsBodyR =
-                loweredConsBody.toRepresentation(resRepr, consCase.get.anns.pos)
+                loweredConsBody.toRepresentation(resRepr, consCase.anns.pos)
             val loweredNilBodyR =
-                loweredNilBody.toRepresentation(resRepr, nilCase.get.anns.pos)
+                loweredNilBody.toRepresentation(resRepr, nilCase.anns.pos)
 
             if resType == SIRType.FreeUnificator then
                 throw LoweringException(
