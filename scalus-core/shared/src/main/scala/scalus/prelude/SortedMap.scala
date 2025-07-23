@@ -521,6 +521,24 @@ object SortedMap {
             go(self.toList)
         }
 
+        /** Retrieves the value associated with a key, or fails if the key is not present.
+          *
+          * @param key
+          *   the key to retrieve the value for
+          * @return
+          *   the value associated with the key
+          * @throws NoSuchElementException
+          *   if the key is not present in the map
+          * @example
+          *   {{{
+          *   SortedMap.singleton("key", "value").at("key") === "value"
+          *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).at("a") === 1
+          *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).at("c") // throws NoSuchElementException
+          *   SortedMap.empty.at("key") // throws NoSuchElementException
+          *   }}}
+          */
+        def at(key: A): B = get(key).getOrFail("Undefined key in SortedMap.at")
+
         /** Checks if the `SortedMap` contains a key.
           *
           * @param key

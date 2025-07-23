@@ -167,7 +167,7 @@ object AssocMap {
 
     given assocMapEq[A: Eq, B: Eq]: Eq[AssocMap[A, B]] =
         (lhs: AssocMap[A, B], rhs: AssocMap[A, B]) =>
-            lhs.toList.length === rhs.toList.length && lhs.toList.forall { case (key, lhsValue) =>
+            lhs.size === rhs.size && lhs.toList.forall { case (key, lhsValue) =>
                 rhs.get(key) match
                     case None           => false
                     case Some(rhsValue) => lhsValue === rhsValue

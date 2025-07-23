@@ -21,7 +21,7 @@ class SortedMapTest extends StdlibTestKit {
     test("unsafeFromList") {
         check { (list: List[(BigInt, BigInt)]) =>
             val strictlyAscendingList =
-                list.unique(using Eq.keyPairEq).quicksort(using Ord.keyPairOrd)
+                list.distinct(using Eq.keyPairEq).quicksort(using Ord.keyPairOrd)
             SortedMap.unsafeFromList(strictlyAscendingList).toList === strictlyAscendingList
         }
 
@@ -44,7 +44,7 @@ class SortedMapTest extends StdlibTestKit {
     test("fromList") {
         check { (list: List[(BigInt, BigInt)]) =>
             val strictlyAscendingList =
-                list.unique(using Eq.keyPairEq).quicksort(using Ord.keyPairOrd)
+                list.distinct(using Eq.keyPairEq).quicksort(using Ord.keyPairOrd)
             SortedMap.fromList(list).toList === strictlyAscendingList
         }
 
@@ -64,7 +64,7 @@ class SortedMapTest extends StdlibTestKit {
     test("fromStrictlyAscendingList") {
         check { (list: List[(BigInt, BigInt)]) =>
             val strictlyAscendingList =
-                list.unique(using Eq.keyPairEq).quicksort(using Ord.keyPairOrd)
+                list.distinct(using Eq.keyPairEq).quicksort(using Ord.keyPairOrd)
             SortedMap
                 .fromStrictlyAscendingList(strictlyAscendingList)
                 .toList === strictlyAscendingList
@@ -127,7 +127,7 @@ class SortedMapTest extends StdlibTestKit {
 
         check { (lhs: SortedMap[BigInt, BigInt], rhs: SortedMap[BigInt, BigInt]) =>
             val result = SortedMap.union(lhs, rhs)
-            val keys = (lhs.keys ++ rhs.keys).unique
+            val keys = (lhs.keys ++ rhs.keys).distinct
             val expected = keys.foldLeft(SortedMap.empty[BigInt, These[BigInt, BigInt]]) {
                 (acc, key) =>
                     acc.insert(
@@ -1020,6 +1020,56 @@ class SortedMapTest extends StdlibTestKit {
               )
               .get(BigInt(4)),
           Option.None
+        )
+    }
+
+    test("at") {
+        check { (map: SortedMap[BigInt, BigInt], key: BigInt) =>
+            val result =
+                try Option.Some(map.at(key))
+                catch case NonFatal(exception) => Option.None
+
+            val expected = map.toList.findMap { case (k, v) =>
+                if k === key then Option.Some(v) else Option.None
+            }
+
+            result === expected
+        }
+
+        assertEvalFails[NoSuchElementException](
+          SortedMap.empty[BigInt, BigInt].at(BigInt(1))
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).at(BigInt(1)),
+          BigInt(1)
+        )
+
+        assertEvalFails[NoSuchElementException](
+          SortedMap.singleton(BigInt(1), BigInt(1)).at(BigInt(0))
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .at(BigInt(2)),
+          BigInt(2)
+        )
+
+        assertEvalFails[NoSuchElementException](
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .at(BigInt(4))
         )
     }
 
