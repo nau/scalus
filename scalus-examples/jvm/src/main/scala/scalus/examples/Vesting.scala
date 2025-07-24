@@ -132,7 +132,7 @@ object VestingScript {
           "Vesting validator",
           "Time-locked token distribution with linear vesting schedule",
           "1.0.0",
-          Vesting
+          Vesting.validate
         )
 
 }

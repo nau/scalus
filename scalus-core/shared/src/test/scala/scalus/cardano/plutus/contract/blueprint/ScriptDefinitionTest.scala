@@ -1,16 +1,17 @@
 package scalus.cardano.plutus.contract.blueprint
-import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.cardano.plutus.contract.blueprint.HtlcValidatorInputs.{Action, ContractDatum}
 import scalus.cardano.tbd.{Application, PlutusV3}
 import scalus.uplc.Program
 
-@Ignore
 class ScriptDefinitionTest extends AnyFunSuite {
 
-    ignore("should compile the user program the same as they would compile it themselves") {
-        val scriptDefinition = PlutusV3.create[ContractDatum, Action](EmptyValidator)
+    test("should compile the user program the same as they would compile it themselves") {
+        val scriptDefinition = PlutusV3.create[ContractDatum, Action](
+          "empty validator",
+          code = EmptyValidator.validate
+        )
         val app = Application(
           "Test title",
           "Test description",
@@ -20,9 +21,6 @@ class ScriptDefinitionTest extends AnyFunSuite {
 
         val program: Program = Compiler.compile(EmptyValidator.validate).toUplcOptimized().plutusV3
         assert(program.cborEncoded sameElements app.contracts.head.asProgram.cborEncoded)
-
-//         val programSir = program.term.show
-//         val appDefinitionSir = app.contracts.head.asProgram.term.show
 
     }
 }

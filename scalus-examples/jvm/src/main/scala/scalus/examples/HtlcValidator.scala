@@ -102,7 +102,7 @@ object HtlcValidator extends Validator:
           "Hashed timelocked contract",
           "Releases funds when recipient reveals hash preimage before deadline, otherwise refunds to sender.",
           "1.0.0",
-          HtlcValidator
+          HtlcValidator.validate
         )
     }
 

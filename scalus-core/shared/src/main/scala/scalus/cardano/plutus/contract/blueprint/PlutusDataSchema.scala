@@ -20,24 +20,31 @@ case class PlutusDataSchema(
 }
 
 object PlutusDataSchema {
-    inline def derived[T]: PlutusDataSchema = ${ deriveSchemaImpl[T] }
+    inline def derived[T]: Option[PlutusDataSchema] = ${ deriveSchemaImpl[T] }
 
-    private def deriveSchemaImpl[T: Type](using Quotes): Expr[PlutusDataSchema] =
+    private def deriveSchemaImpl[T: Type](using Quotes): Expr[Option[PlutusDataSchema]] =
         import quotes.reflect.*
 
         val tpe = TypeRepr.of[T].dealias.widen
         val symbol = tpe.typeSymbol
 
-        if isPrimitive(tpe) then {
-            deriveForPrimitive(tpe)
+        if isUnit(tpe) then {
+            '{ None }
+        } else if isPrimitive(tpe) then {
+            val schema = deriveForPrimitive(tpe)
+            '{ Some($schema) }
         } else if isTuple(tpe) then {
-            deriveForTuple(tpe)
+            val schema = deriveForTuple(tpe)
+            '{ Some($schema) }
         } else if symbol.flags.is(Flags.Case) && !symbol.flags.is(Flags.Enum) then {
-            deriveForCaseClass(symbol)
+            val schema = deriveForCaseClass(symbol)
+            '{ Some($schema) }
         } else if !symbol.flags.is(Flags.Case) && symbol.flags.is(Flags.Enum) then {
-            deriveForEnumRoot(symbol)
+            val schema = deriveForEnumRoot(symbol)
+            '{ Some($schema) }
         } else if symbol.flags.is(Flags.Case) && symbol.flags.is(Flags.Enum) then {
-            generateForEnumLeafWithIndex(symbol, 0)
+            val schema = generateForEnumLeafWithIndex(symbol, 0)
+            '{ Some($schema) }
         } else {
             report.errorAndAbort(s"Unsupported type for schema generation: ${tpe.show}")
         }
@@ -133,6 +140,27 @@ object PlutusDataSchema {
             }
         }
 
+    private def deriveSchemaForField[T: Type](using Quotes): Expr[PlutusDataSchema] =
+        import quotes.reflect.*
+        val tpe = TypeRepr.of[T].dealias.widen
+        val symbol = tpe.typeSymbol
+
+        if isUnit(tpe) then {
+            report.errorAndAbort("Unit type cannot be used as a field")
+        } else if isPrimitive(tpe) then {
+            deriveForPrimitive(tpe)
+        } else if isTuple(tpe) then {
+            deriveForTuple(tpe)
+        } else if symbol.flags.is(Flags.Case) && !symbol.flags.is(Flags.Enum) then {
+            deriveForCaseClass(symbol)
+        } else if !symbol.flags.is(Flags.Case) && symbol.flags.is(Flags.Enum) then {
+            deriveForEnumRoot(symbol)
+        } else if symbol.flags.is(Flags.Case) && symbol.flags.is(Flags.Enum) then {
+            generateForEnumLeafWithIndex(symbol, 0)
+        } else {
+            report.errorAndAbort(s"Unsupported type for schema generation: ${tpe.show}")
+        }
+
     private def generateFieldSchema(using
         Quotes
     )(name: String, tpe: quotes.reflect.TypeRepr): Expr[PlutusDataSchema] =
@@ -142,10 +170,10 @@ object PlutusDataSchema {
             // Handle tuple fields specially - generate full schema including items
             tpe match {
                 case AppliedType(_, args) if args.length == 2 =>
-                    val firstItemSchema = deriveSchemaImpl(using
+                    val firstItemSchema = deriveSchemaForField(using
                       args(0).asType.asInstanceOf[Type[Any]]
                     )
-                    val secondItemSchema = deriveSchemaImpl(using
+                    val secondItemSchema = deriveSchemaForField(using
                       args(1).asType.asInstanceOf[Type[Any]]
                     )
 
@@ -217,7 +245,6 @@ object PlutusDataSchema {
         }
 
     private def isTuple(using Quotes)(tpe: quotes.reflect.TypeRepr): Boolean =
-        import quotes.reflect.*
         val symbolName = tpe.typeSymbol.name
         symbolName == "Tuple2"
 
@@ -228,8 +255,10 @@ object PlutusDataSchema {
 
         tpe match {
             case AppliedType(_, args) if args.length == 2 =>
-                val firstItemSchema = deriveSchemaImpl(using args(0).asType.asInstanceOf[Type[Any]])
-                val secondItemSchema = deriveSchemaImpl(using
+                val firstItemSchema = deriveSchemaForField(using
+                  args(0).asType.asInstanceOf[Type[Any]]
+                )
+                val secondItemSchema = deriveSchemaForField(using
                   args(1).asType.asInstanceOf[Type[Any]]
                 )
 
@@ -247,6 +276,9 @@ object PlutusDataSchema {
                   s"Unsupported tuple type: ${tpe.show}. The only currently supported tuple is a pair."
                 )
         }
+
+    private def isUnit(using Quotes)(tpe: quotes.reflect.TypeRepr): Boolean =
+        tpe.show == "scala.Unit" || tpe.show == "Unit"
 
     private def isPrimitive(using Quotes)(tpe: quotes.reflect.TypeRepr): Boolean =
         tpe.show match {

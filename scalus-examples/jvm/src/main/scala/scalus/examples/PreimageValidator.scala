@@ -85,6 +85,6 @@ object PreimageValidatorScript {
           "Preimage validator",
           "Hash preimage verification with signature validation",
           "1.0.0",
-          PreimageValidatorV3
+          PreimageValidatorV3.validate
         )
 }

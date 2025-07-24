@@ -2,6 +2,7 @@ package scalus.examples
 
 import scalus.*
 import scalus.builtin.{Builtins, ByteString, Data}
+import scalus.cardano.tbd.Application
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.Value.*
 import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
@@ -108,5 +109,15 @@ object PaymentSplitter extends DataParameterizedValidator {
                 // max number of payers ≈ 250 (16kB / 28 bytes / 2 (inputs and outputs))
                 // thus, up to 250 lovelace of reminder is possible, so we can ignore it
 
+    }
+
+    @Ignore
+    def application: Application = {
+        Application.ofSingleValidator[List[ByteString], Unit](
+          "Payment splitter",
+          "Allows to split payouts equally among a list of specified payees",
+          "1.0.0",
+          PaymentSplitter.validate
+        )
     }
 }

@@ -17,20 +17,20 @@ class BlueprintTest extends AnyFunSuite {
     // This case is covered by the following tests, keeping this test to check compatibility with aiken.
     // https://github.com/aiken-lang/aiken/blob/main/crates/aiken-project/src/blueprint/snapshots/aiken_project__blueprint__validator__tests__generics.snap#L57
     test("should produce correct schemas for `enum` types") {
-        val intervalSchema = PlutusDataSchema.derived[Interval]
+        val intervalSchema = PlutusDataSchema.derived[Interval].get
 
         assert(intervalSchema.show() == Interval.schema)
     }
 
     test("should produce correct schemas for `HtlcValidator` input types") {
-        val datumSchema = PlutusDataSchema.derived[ContractDatum]
-        val redeemerSchema = PlutusDataSchema.derived[Action]
+        val datumSchema = PlutusDataSchema.derived[ContractDatum].get
+        val redeemerSchema = PlutusDataSchema.derived[Action].get
 
         assert(datumSchema.show() == ContractDatum.schema)
     }
 
     test("should produce correct schemas for tuples") {
-        val tuple2Schema = PlutusDataSchema.derived[(Int, String)]
+        val tuple2Schema = PlutusDataSchema.derived[(Int, String)].get
         assert(tuple2Schema.dataType.contains(DataType.PairBuiltin))
         assert(tuple2Schema.title.contains("Tuple2"))
         assert(tuple2Schema.items.isDefined)
@@ -41,7 +41,7 @@ class BlueprintTest extends AnyFunSuite {
     }
 
     test("should produce correct schemas for nested tuples") {
-        val nestedTupleSchema = PlutusDataSchema.derived[(Int, (String, Boolean))]
+        val nestedTupleSchema = PlutusDataSchema.derived[(Int, (String, Boolean))].get
 
         assert(nestedTupleSchema.dataType.contains(DataType.PairBuiltin))
         assert(nestedTupleSchema.items.isDefined)
@@ -59,7 +59,7 @@ class BlueprintTest extends AnyFunSuite {
             coordinates: (Int, Int)
         )
 
-        val schema = PlutusDataSchema.derived[TestCaseClass]
+        val schema = PlutusDataSchema.derived[TestCaseClass].get
 
         assert(schema.dataType.contains(DataType.Constructor))
         assert(schema.title.contains("TestCaseClass"))
@@ -75,5 +75,11 @@ class BlueprintTest extends AnyFunSuite {
         val tupleItems = coordinatesField.items.get
         assert(tupleItems(0).dataType.contains(DataType.Integer))
         assert(tupleItems(1).dataType.contains(DataType.Integer))
+    }
+
+    test("should return None for Unit type") {
+        val unitSchema = PlutusDataSchema.derived[Unit]
+
+        assert(unitSchema.isEmpty)
     }
 }
