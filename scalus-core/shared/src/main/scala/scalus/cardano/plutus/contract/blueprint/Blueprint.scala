@@ -2,7 +2,9 @@ package scalus.cardano.plutus.contract.blueprint
 
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
-import scalus.cardano.ledger.Language
+import scalus.buildinfo.BuildInfo
+import scalus.cardano.ledger.{Language, PlutusScript, Script}
+import scalus.utils.Hex.toHex
 
 import java.io.File
 import java.nio.file.Files
@@ -19,6 +21,61 @@ case class Blueprint private[blueprint] (
     def addValidator(v: Validator): Blueprint = copy(validators = validators.appended(v))
 
     def writeToFile(f: File): Unit = Files.writeString(f.toPath, show)
+}
+
+object Blueprint {
+
+    given JsonValueCodec[Blueprint] = JsonCodecMaker.make
+
+    /** Returns a CIP-57 compliant [[Blueprint]] based on the provided [[validator]].
+      *
+      * The returned `Blueprint` always contains only 1 validator.
+      *
+      * To specify the `redeemer` and `datum` schemas, use [[Blueprint.newBuilder()]].
+      *
+      * @param contractTitle
+      *   the title of the "blueprintee" contract
+      * @param description
+      *   the description of the "blueprintee" contact
+      * @param validatorScript
+      *   the script of the validator
+      */
+    def apply(
+        contractTitle: String,
+        description: String,
+        validatorScript: PlutusScript
+    ): Blueprint = {
+        val preamble = mkPreamble(contractTitle, description, validatorScript.language)
+        val blueprintValidator = mkValidator(validatorScript)
+        Blueprint(preamble, Seq(blueprintValidator))
+    }
+
+    def fromJson(s: String): Blueprint = readFromString(s)
+
+    private[blueprint] def mkPreamble(
+        title: String,
+        description: String,
+        version: Language
+    ): Preamble = Preamble(
+      title = title,
+      description = Some(description),
+      compiler = Some(CompilerInfo("scalus", Some(BuildInfo.version))),
+      plutusVersion = Some(version)
+    )
+
+    private def mkValidator(validatorScript: Script) = {
+        val cbor = validatorScript match {
+            case Script.PlutusV1(script) => script.toHex
+            case Script.PlutusV2(script) => script.toHex
+            case Script.PlutusV3(script) => script.toHex
+            case Script.Native(script)   => script.toCbor.toHex
+        }
+        Validator(
+          "validator",
+          compiledCode = Some(cbor),
+          hash = Some(validatorScript.scriptHash.toHex)
+        )
+    }
 }
 
 private[blueprint] case class Preamble(
@@ -49,10 +106,6 @@ private[blueprint] object Preamble {
             out.writeVal(x.show)
     }
     given JsonValueCodec[Preamble] = JsonCodecMaker.make
-}
-private[blueprint] object Blueprint {
-
-    given JsonValueCodec[Blueprint] = JsonCodecMaker.make
 }
 
 extension (lang: Language) {

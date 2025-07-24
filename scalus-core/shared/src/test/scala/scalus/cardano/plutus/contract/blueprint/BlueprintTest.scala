@@ -1,5 +1,6 @@
 package scalus.cardano.plutus.contract.blueprint
 import org.scalatest.funsuite.AnyFunSuite
+import scalus.builtin.Data
 import scalus.cardano.plutus.contract.blueprint
 import scalus.cardano.plutus.contract.blueprint.HtlcValidatorInputs.{Action, ContractDatum}
 
@@ -8,10 +9,14 @@ class BlueprintTest extends AnyFunSuite {
     test("should produce a correct JSON value") {
         val title = "title"
         val description = "description"
-        val bp = blueprint.mkBlueprint(title, description, emptyScript)
+        val bp = Blueprint(title, description, emptyScript)
         val expected = blueprintedScript(title, description)
 
         assert(bp.toJson(0) == expected)
+    }
+
+    test("should be deserializable from JSON") {
+        assert(Blueprint.fromJson(SampleBlueprint.stringValue) == SampleBlueprint.value)
     }
 
     // This case is covered by the following tests, keeping this test to check compatibility with aiken.

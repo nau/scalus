@@ -30,7 +30,7 @@ object Application {
         version: String,
         contracts: Seq[CompiledContract]
     ): Application = {
-        val preamble = mkPreamble(title, description, Language.PlutusV3)
+        val preamble = Blueprint.mkPreamble(title, description, Language.PlutusV3)
         new Application(preamble, contracts)
     }
 
