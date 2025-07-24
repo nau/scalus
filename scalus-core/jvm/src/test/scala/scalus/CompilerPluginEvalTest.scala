@@ -206,8 +206,8 @@ class CompilerPluginEvalTest extends AnyFunSuite {
     }
 
     test("compile valargs") {
-        pending
-        /*
+        // pending
+
         import scalus.prelude.*
         val compiled = compile {
             def sum(x: BigInt*): BigInt = {
@@ -222,7 +222,13 @@ class CompilerPluginEvalTest extends AnyFunSuite {
         val uplc = compiled.toUplc(generateErrorTraces = true)
         val evaluated = uplc.evaluate
         assert(evaluated == scalus.uplc.Term.Const(Constant.Integer(15)))
-         */
+
+        def mySum(x: BigInt*) = {
+            x.list.foldLeft(BigInt(0))(_ + _)
+        }
+        val jvmResult = mySum(1, 2, 3, 4, 5)
+        assert(jvmResult == 15)
+
     }
 
 }
