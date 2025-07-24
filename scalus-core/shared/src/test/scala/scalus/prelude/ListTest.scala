@@ -361,10 +361,7 @@ class ListTest extends StdlibTestKit {
 
     test("at") {
         forAll(bigIntListAndIndexGen) { (list: List[BigInt], index: BigInt) =>
-            val scalusResult =
-                try Some(list.at(index))
-                catch case NonFatal(exception) => Option.None
-
+            val scalusResult = liftThrowableToOption(list.at(index))
             val scalaResult = list.asScala.lift(index.toInt)
 
             assert(scalaResult.asScalus === scalusResult)
@@ -383,10 +380,7 @@ class ListTest extends StdlibTestKit {
 
     test("!!") {
         forAll(bigIntListAndIndexGen) { (list: List[BigInt], index: BigInt) =>
-            val scalusResult =
-                try Some(list.!!(index))
-                catch case NonFatal(exception) => Option.None
-
+            val scalusResult = liftThrowableToOption(list.!!(index))
             val scalaResult = list.asScala.lift(index.toInt)
 
             assert(scalaResult.asScalus === scalusResult)
@@ -1143,13 +1137,8 @@ class ListTest extends StdlibTestKit {
 
     test("last") {
         check { (list: List[BigInt]) =>
-            val scalusResult =
-                try Some(list.last)
-                catch case NonFatal(exception) => Option.None
-
-            val scalaResult =
-                try Some(list.asScala.last)
-                catch case NonFatal(exception) => Option.None
+            val scalusResult = liftThrowableToOption(list.last)
+            val scalaResult = liftThrowableToOption(list.asScala.last)
 
             scalusResult === scalaResult
         }
@@ -1178,13 +1167,8 @@ class ListTest extends StdlibTestKit {
 
     test("head") {
         check { (list: List[BigInt]) =>
-            val scalusResult =
-                try Some(list.head)
-                catch case NonFatal(exception) => Option.None
-
-            val scalaResult =
-                try Some(list.asScala.head)
-                catch case NonFatal(exception) => Option.None
+            val scalusResult = liftThrowableToOption(list.head)
+            val scalaResult = liftThrowableToOption(list.asScala.head)
 
             scalusResult === scalaResult
         }
@@ -1228,13 +1212,8 @@ class ListTest extends StdlibTestKit {
 
     test("tail") {
         check { (list: List[BigInt]) =>
-            val scalusResult =
-                try Some(list.tail)
-                catch case NonFatal(exception) => Option.None
-
-            val scalaResult =
-                try Some(list.asScala.tail.asScalus)
-                catch case NonFatal(exception) => Option.None
+            val scalusResult = liftThrowableToOption(list.tail)
+            val scalaResult = liftThrowableToOption(list.asScala.tail.asScalus)
 
             scalusResult === scalaResult
         }
@@ -1530,13 +1509,8 @@ class ListTest extends StdlibTestKit {
 
     test("init") {
         check { (list: List[BigInt]) =>
-            val scalusResult =
-                try Some(list.init)
-                catch case NonFatal(exception) => Option.None
-
-            val scalaResult =
-                try Some(list.asScala.init.asScalus)
-                catch case NonFatal(exception) => Option.None
+            val scalusResult = liftThrowableToOption(list.init)
+            val scalaResult = liftThrowableToOption(list.asScala.init.asScalus)
 
             scalusResult === scalaResult
         }

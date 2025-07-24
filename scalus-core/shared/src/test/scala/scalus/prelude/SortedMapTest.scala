@@ -1025,9 +1025,7 @@ class SortedMapTest extends StdlibTestKit {
 
     test("at") {
         check { (map: SortedMap[BigInt, BigInt], key: BigInt) =>
-            val result =
-                try Option.Some(map.at(key))
-                catch case NonFatal(exception) => Option.None
+            val result = liftThrowableToOption(map.at(key))
 
             val expected = map.toList.findMap { case (k, v) =>
                 if k === key then Option.Some(v) else Option.None

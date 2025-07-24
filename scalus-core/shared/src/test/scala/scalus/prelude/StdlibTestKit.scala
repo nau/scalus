@@ -8,6 +8,7 @@ import scalus.uplc.test.ArbitraryInstances
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+import scala.util.control.NonFatal
 import scala.reflect.ClassTag
 
 export org.scalacheck.{Arbitrary, Gen}
@@ -17,7 +18,11 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
     export scalus.builtin.Data.{fromData, toData}
     export Eq.given
     export Ord.*
-    export scala.util.control.NonFatal
+
+    protected final inline def liftThrowableToOption[A](inline code: A): Option[A] = {
+        try Option.Some(code)
+        catch case NonFatal(exception) => Option.None
+    }
 
     protected final inline def assertEvalFails[E <: Throwable: ClassTag](inline code: Any): Unit = {
         var isExceptionThrown = false
