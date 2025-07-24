@@ -299,9 +299,12 @@ class SortedMapTest extends StdlibTestKit {
     }
 
     test("Ord") {
-        assertEvalEq(
-          SortedMap.empty[BigInt, BigInt] <=> SortedMap.empty[BigInt, BigInt],
-          Order.Equal
+        assertEval(
+          (SortedMap.empty[BigInt, BigInt] <=> SortedMap.empty[BigInt, BigInt]).isEqual
+        )
+
+        assertEval(
+          SortedMap.empty[BigInt, BigInt].equiv(SortedMap.empty[BigInt, BigInt])
         )
 
         assertEvalEq(
