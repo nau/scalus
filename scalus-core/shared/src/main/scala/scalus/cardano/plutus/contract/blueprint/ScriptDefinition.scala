@@ -1,10 +1,8 @@
-package scalus.cardano.tbd
+package scalus.cardano.plutus.contract.blueprint
 
 import scalus.*
 import scalus.cardano.ledger.{Language, PlutusScript, Script}
 import scalus.cardano.plutus.contract.blueprint
-import scalus.cardano.plutus.contract.blueprint.Blueprint.Preamble
-import scalus.cardano.plutus.contract.blueprint.{mkPreamble, Blueprint, PlutusDataSchema, TypeDescription}
 import scalus.sir.SIR
 import scalus.uplc.{Program, Term}
 

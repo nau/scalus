@@ -2,7 +2,7 @@ package scalus.examples
 
 import scalus.*
 import scalus.builtin.{Builtins, ByteString, Data}
-import scalus.cardano.tbd.Application
+import scalus.cardano.plutus.contract.blueprint.{Application, Blueprint}
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.Value.*
 import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}
@@ -110,8 +110,9 @@ object PaymentSplitter extends DataParameterizedValidator {
                 // thus, up to 250 lovelace of reminder is possible, so we can ignore it
 
     }
+}
+object PaymentSplitterContract {
 
-    @Ignore
     def application: Application = {
         Application.ofSingleValidator[List[ByteString], Unit](
           "Payment splitter",
@@ -120,4 +121,6 @@ object PaymentSplitter extends DataParameterizedValidator {
           PaymentSplitter.validate
         )
     }
+
+    def blueprint: Blueprint = application.blueprint
 }

@@ -34,7 +34,11 @@ package object blueprint {
         Blueprint(preamble, Seq(blueprintValidator))
     }
 
-    def mkPreamble(title: String, description: String, version: Language) = Blueprint.Preamble(
+    private[blueprint] def mkPreamble(
+        title: String,
+        description: String,
+        version: Language
+    ): Preamble = Preamble(
       title = title,
       description = Some(description),
       compiler = Some(CompilerInfo("scalus", Some(BuildInfo.version))),
@@ -43,10 +47,10 @@ package object blueprint {
 
     private def mkValidator(validatorScript: Script) = {
         val cbor = validatorScript match {
-            case PlutusV1(script)      => script.toHex
-            case PlutusV2(script)      => script.toHex
-            case PlutusV3(script)      => script.toHex
-            case Script.Native(script) => script.toCbor.toHex
+            case Script.PlutusV1(script) => script.toHex
+            case Script.PlutusV2(script) => script.toHex
+            case Script.PlutusV3(script) => script.toHex
+            case Script.Native(script)   => script.toCbor.toHex
         }
         Validator(
           "validator",

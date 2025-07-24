@@ -3,18 +3,17 @@ package scalus.cardano.plutus.contract.blueprint
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 import scalus.cardano.ledger.Language
-import scalus.cardano.plutus.contract.blueprint.Blueprint.Preamble
 
 import java.io.File
 import java.nio.file.Files
 
-case class Blueprint(
+case class Blueprint private[blueprint] (
     preamble: Preamble,
     validators: Seq[Validator] = Nil,
 ) {
-    def show: String = printJson()
+    def show: String = toJson()
 
-    def printJson(indentation: Int = 2): String =
+    def toJson(indentation: Int = 2): String =
         writeToString(this, WriterConfig.withIndentionStep(indentation))
 
     def addValidator(v: Validator): Blueprint = copy(validators = validators.appended(v))
@@ -22,37 +21,36 @@ case class Blueprint(
     def writeToFile(f: File): Unit = Files.writeString(f.toPath, show)
 }
 
-object Blueprint {
+private[blueprint] case class Preamble(
+    title: String,
+    description: Option[String] = None,
+    version: Option[String] = None,
+    compiler: Option[CompilerInfo] = None,
+    plutusVersion: Option[Language] = None,
+    license: Option[String] = None
+)
 
-    case class Preamble(
-        title: String,
-        description: Option[String] = None,
-        version: Option[String] = None,
-        compiler: Option[CompilerInfo] = None,
-        plutusVersion: Option[Language] = None,
-        license: Option[String] = None
-    )
+private[blueprint] object Preamble {
+    given JsonValueCodec[Language] = new JsonValueCodec[Language] {
+        override def nullValue: Language = Language.PlutusV3
 
-    object Preamble {
-        given JsonValueCodec[Language] = new JsonValueCodec[Language] {
-            override def nullValue: Language = Language.PlutusV3
+        override def decodeValue(in: JsonReader, default: Language): Language =
+            in.readString("") match {
+                case "v1" => Language.PlutusV1
+                case "v2" => Language.PlutusV2
+                case "v3" => Language.PlutusV3
+                case x =>
+                    throw new RuntimeException(
+                      s"Error when reading blueprint plutus version. Expected one of [v1, v2, v3], got $x"
+                    )
+            }
 
-            override def decodeValue(in: JsonReader, default: Language): Language =
-                in.readString("") match {
-                    case "v1" => Language.PlutusV1
-                    case "v2" => Language.PlutusV2
-                    case "v3" => Language.PlutusV3
-                    case x =>
-                        throw new RuntimeException(
-                          s"Error when reading blueprint plutus version. Expected one of [v1, v2, v3], got $x"
-                        )
-                }
-
-            override def encodeValue(x: Language, out: JsonWriter): Unit =
-                out.writeVal(x.show)
-        }
-        given JsonValueCodec[Preamble] = JsonCodecMaker.make
+        override def encodeValue(x: Language, out: JsonWriter): Unit =
+            out.writeVal(x.show)
     }
+    given JsonValueCodec[Preamble] = JsonCodecMaker.make
+}
+private[blueprint] object Blueprint {
 
     given JsonValueCodec[Blueprint] = JsonCodecMaker.make
 }
@@ -65,15 +63,15 @@ extension (lang: Language) {
     }
 }
 
-case class CompilerInfo(
+private[blueprint] case class CompilerInfo(
     name: String,
     version: Option[String] = None
 )
-object CompilerInfo {
+private[blueprint] object CompilerInfo {
     given JsonValueCodec[CompilerInfo] = JsonCodecMaker.make
 }
 
-case class Validator(
+private[blueprint] case class Validator(
     title: String,
     description: Option[String] = None,
     redeemer: Option[TypeDescription] = None,
@@ -83,22 +81,22 @@ case class Validator(
     hash: Option[String] = None
 )
 
-object Validator {
+private[blueprint] object Validator {
     given JsonValueCodec[Validator] = JsonCodecMaker.make
 }
 
-case class TypeDescription(
+private[blueprint] case class TypeDescription(
     title: Option[String] = None,
     description: Option[String] = None,
     purpose: Option[Purpose] = None,
     schema: PlutusDataSchema
 )
 
-object TypeDescription {
+private[blueprint] object TypeDescription {
     given JsonValueCodec[TypeDescription] = JsonCodecMaker.make
 }
 
-enum DataType(val value: String) {
+private[blueprint] enum DataType(val value: String) {
     case Integer extends DataType("integer")
     case Bytes extends DataType("bytes")
     case List extends DataType("list")
@@ -113,7 +111,7 @@ enum DataType(val value: String) {
     case ListBuiltin extends DataType("#list")
 }
 
-object DataType {
+private[blueprint] object DataType {
     given JsonValueCodec[DataType] = new JsonValueCodec[DataType] {
         override def nullValue: DataType = DataType.Integer
 
@@ -127,7 +125,7 @@ object DataType {
     }
 }
 
-enum Purpose {
+private[blueprint] enum Purpose {
     case Spend
     case Mint
     case Withdraw
@@ -135,7 +133,7 @@ enum Purpose {
     case OneOf(purposes: Seq[Purpose]) extends Purpose
 }
 
-object Purpose {
+private[blueprint] object Purpose {
     given JsonValueCodec[Purpose] = new JsonValueCodec[Purpose] {
         override def nullValue: Purpose = Purpose.Spend
 

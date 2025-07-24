@@ -11,7 +11,7 @@ class BlueprintTest extends AnyFunSuite {
         val bp = blueprint.mkBlueprint(title, description, emptyScript)
         val expected = blueprintedScript(title, description)
 
-        assert(bp.printJson(0) == expected)
+        assert(bp.toJson(0) == expected)
     }
 
     // This case is covered by the following tests, keeping this test to check compatibility with aiken.
@@ -19,14 +19,14 @@ class BlueprintTest extends AnyFunSuite {
     test("should produce correct schemas for `enum` types") {
         val intervalSchema = PlutusDataSchema.derived[Interval].get
 
-        assert(intervalSchema.show() == Interval.schema)
+        assert(intervalSchema.toJson() == Interval.schema)
     }
 
     test("should produce correct schemas for `HtlcValidator` input types") {
         val datumSchema = PlutusDataSchema.derived[ContractDatum].get
         val redeemerSchema = PlutusDataSchema.derived[Action].get
 
-        assert(datumSchema.show() == ContractDatum.schema)
+        assert(datumSchema.toJson() == ContractDatum.schema)
     }
 
     test("should produce correct schemas for tuples") {

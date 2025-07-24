@@ -2,10 +2,10 @@ package scalus.examples
 
 import scalus.*
 import scalus.Compiler.compile
-import scalus.cardano.tbd.Application
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.cardano.plutus.contract.blueprint.{Application, Blueprint}
 import scalus.ledger.api.v2.*
 import scalus.prelude.*
 import scalus.sir.SIR
@@ -79,7 +79,7 @@ object OptimizedPreimage {
     val doubleCborHex: String = programV1.doubleCborHex
 }
 
-object PreimageValidatorScript {
+object PreimageValidatorContract:
     def application: Application = Application
         .ofSingleValidator[(ByteString, ByteString), ByteString](
           "Preimage validator",
@@ -87,4 +87,7 @@ object PreimageValidatorScript {
           "1.0.0",
           PreimageValidatorV3.validate
         )
-}
+
+    def blueprint: Blueprint = application.blueprint
+
+end PreimageValidatorContract
