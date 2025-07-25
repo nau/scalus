@@ -17,10 +17,6 @@ case class Application(
     def blueprint: Blueprint = {
         Blueprint(preamble, validators = contracts.map(_.describeValidator))
     }
-
-    inline def addValidator[D, R](validatorTitle: String, inline code: Any): Application = {
-        copy(contracts = contracts :+ PlutusV3.create(validatorTitle, code = code))
-    }
 }
 
 object Application {
@@ -40,7 +36,7 @@ object Application {
         version: String,
         inline code: Any
     ): Application = {
-        val contract = PlutusV3.create[D, R](title, code = code)
+        val contract = PlutusV3.create[D, R](title)(code)
         Application(title, description, version, Seq(contract))
     }
 }
@@ -82,9 +78,8 @@ object PlutusV3 {
 
     inline def create[D, R](
         title: String,
-        description: String = "",
-        inline code: Any,
-    ): PlutusV3 = {
+        description: String = ""
+    )(inline code: Any): PlutusV3 = {
         val sir = Compiler.compileInline(code)
         val datumSchema = PlutusDataSchema.derived[D]
         val redeemerSchema = PlutusDataSchema.derived[R]

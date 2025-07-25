@@ -29,7 +29,6 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             require(result === expected)
         }
         val lw = sir.toLoweredValue()
-        println(lw.pretty.render(100))
         val result = sir.toUplcOptimized(false).evaluateDebug
 
         val scalusBudget =

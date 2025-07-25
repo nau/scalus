@@ -7,9 +7,8 @@ import scalus.uplc.Program
 class ScriptDefinitionTest extends AnyFunSuite {
 
     test("should compile the user program the same as they would compile it themselves") {
-        val scriptDefinition = PlutusV3.create[ContractDatum, Action](
-          "empty validator",
-          code = EmptyValidator.validate
+        val scriptDefinition = PlutusV3.create[ContractDatum, Action]("empty validator")(code =
+            EmptyValidator.validate
         )
         val app = Application(
           "Test title",

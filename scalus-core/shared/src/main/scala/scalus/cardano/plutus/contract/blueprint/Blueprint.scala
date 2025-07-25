@@ -59,7 +59,7 @@ object Blueprint {
     ): Preamble = Preamble(
       title = title,
       description = Some(description),
-      compiler = Some(CompilerInfo("scalus", Some(BuildInfo.version))),
+      compiler = Some(CompilerInfo.currentScalus),
       plutusVersion = Some(version)
     )
 
@@ -108,20 +108,13 @@ object Preamble {
     given JsonValueCodec[Preamble] = JsonCodecMaker.make
 }
 
-extension (lang: Language) {
-    def show: String = lang match {
-        case Language.PlutusV1 => "v1"
-        case Language.PlutusV2 => "v2"
-        case Language.PlutusV3 => "v3"
-    }
-}
-
 case class CompilerInfo(
     name: String,
     version: Option[String] = None
 )
 object CompilerInfo {
     given JsonValueCodec[CompilerInfo] = JsonCodecMaker.make
+    val currentScalus: CompilerInfo = CompilerInfo("scalus", Some(BuildInfo.version))
 }
 
 case class Validator(
