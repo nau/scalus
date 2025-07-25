@@ -31,15 +31,13 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
                       ClassTag(exception.getClass) == summon[ClassTag[E]],
                       s"Expected exception of type ${summon[ClassTag[E]]}, but got $exception"
                     )
-
                     val result = Compiler.compileInline(code).toUplc(true).evaluateDebug
                     result match
                         case failure: Result.Failure =>
-                            val errorMessage = result.logs.last
-
+                            val thrown = failure.exception
                             assert(
-                              errorMessage.contains(exception.getMessage),
-                              s"Expected error message '${exception.getMessage}', but got '$errorMessage'"
+                              thrown.getMessage.contains(exception.getMessage),
+                              s"Expected error message '${exception.getMessage}', but got '${thrown.getMessage}'"
                             )
                         case _ =>
                             fail(s"Expected failure, but got success: $result")
