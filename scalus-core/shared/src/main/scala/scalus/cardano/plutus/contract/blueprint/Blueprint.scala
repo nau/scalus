@@ -9,7 +9,7 @@ import scalus.utils.Hex.toHex
 import java.io.File
 import java.nio.file.Files
 
-case class Blueprint private[blueprint] (
+case class Blueprint(
     preamble: Preamble,
     validators: Seq[Validator] = Nil,
 ) {
@@ -52,7 +52,7 @@ object Blueprint {
 
     def fromJson(s: String): Blueprint = readFromString(s)
 
-    private[blueprint] def mkPreamble(
+    def mkPreamble(
         title: String,
         description: String,
         version: Language
@@ -78,7 +78,7 @@ object Blueprint {
     }
 }
 
-private[blueprint] case class Preamble(
+case class Preamble(
     title: String,
     description: Option[String] = None,
     version: Option[String] = None,
@@ -87,7 +87,7 @@ private[blueprint] case class Preamble(
     license: Option[String] = None
 )
 
-private[blueprint] object Preamble {
+object Preamble {
     given JsonValueCodec[Language] = new JsonValueCodec[Language] {
         override def nullValue: Language = Language.PlutusV3
 
@@ -116,15 +116,15 @@ extension (lang: Language) {
     }
 }
 
-private[blueprint] case class CompilerInfo(
+case class CompilerInfo(
     name: String,
     version: Option[String] = None
 )
-private[blueprint] object CompilerInfo {
+object CompilerInfo {
     given JsonValueCodec[CompilerInfo] = JsonCodecMaker.make
 }
 
-private[blueprint] case class Validator(
+case class Validator(
     title: String,
     description: Option[String] = None,
     redeemer: Option[TypeDescription] = None,
@@ -134,22 +134,22 @@ private[blueprint] case class Validator(
     hash: Option[String] = None
 )
 
-private[blueprint] object Validator {
+object Validator {
     given JsonValueCodec[Validator] = JsonCodecMaker.make
 }
 
-private[blueprint] case class TypeDescription(
+case class TypeDescription(
     title: Option[String] = None,
     description: Option[String] = None,
     purpose: Option[Purpose] = None,
     schema: PlutusDataSchema
 )
 
-private[blueprint] object TypeDescription {
+object TypeDescription {
     given JsonValueCodec[TypeDescription] = JsonCodecMaker.make
 }
 
-private[blueprint] enum DataType(val value: String) {
+enum DataType(val value: String) {
     case Integer extends DataType("integer")
     case Bytes extends DataType("bytes")
     case List extends DataType("list")
@@ -164,7 +164,7 @@ private[blueprint] enum DataType(val value: String) {
     case ListBuiltin extends DataType("#list")
 }
 
-private[blueprint] object DataType {
+object DataType {
     given JsonValueCodec[DataType] = new JsonValueCodec[DataType] {
         override def nullValue: DataType = DataType.Integer
 
@@ -178,7 +178,7 @@ private[blueprint] object DataType {
     }
 }
 
-private[blueprint] enum Purpose {
+enum Purpose {
     case Spend
     case Mint
     case Withdraw
@@ -186,7 +186,7 @@ private[blueprint] enum Purpose {
     case OneOf(purposes: Seq[Purpose]) extends Purpose
 }
 
-private[blueprint] object Purpose {
+object Purpose {
     given JsonValueCodec[Purpose] = new JsonValueCodec[Purpose] {
         override def nullValue: Purpose = Purpose.Spend
 
