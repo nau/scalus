@@ -5,6 +5,7 @@ import scalus.Compiler.compile
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
+import scalus.cardano.plutus.contract.blueprint.{Application, Blueprint}
 import scalus.ledger.api.v2.*
 import scalus.prelude.*
 import scalus.sir.SIR
@@ -77,3 +78,16 @@ object OptimizedPreimage {
     // val cborHex = Utils.bytesToHex(Cbor.encode(flatEncoded).toByteArray)
     val doubleCborHex: String = programV1.doubleCborHex
 }
+
+object PreimageValidatorContract:
+    def application: Application = Application
+        .ofSingleValidator[(ByteString, ByteString), ByteString](
+          "Preimage validator",
+          "Hash preimage verification with signature validation",
+          "1.0.0",
+          PreimageValidatorV3.validate
+        )
+
+    def blueprint: Blueprint = application.blueprint
+
+end PreimageValidatorContract
