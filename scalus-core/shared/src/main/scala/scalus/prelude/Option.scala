@@ -59,6 +59,9 @@ object Option {
                     case None         => false
                     case Some(value2) => value === value2
 
+    // empties
+    given emptyOptionEq: Eq[Option[Nothing]] = (_, _) => true
+
     given optionOrd[A](using ord: Ord[A]): Ord[Option[A]] = (a: Option[A], b: Option[A]) =>
         a match
             case None =>
