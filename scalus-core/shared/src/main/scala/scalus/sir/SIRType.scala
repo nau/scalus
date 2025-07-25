@@ -308,9 +308,11 @@ object SIRType {
 
         object Cons {
 
+            val name = "scalus.prelude.List$.Cons"
+
             def buildConstr(a: TypeVar, listSum: SIRType): ConstrDecl = {
                 ConstrDecl(
-                  "scalus.prelude.List$.Cons",
+                  name,
                   scala.List(TypeBinding("head", a), TypeBinding("tail", listSum)),
                   scala.List(a),
                   scala.List(a),
@@ -355,11 +357,13 @@ object SIRType {
 
     object Pair {
 
+        val name = "scalus.builtin.Pair"
+
         val constrDecl = {
             val A = TypeVar("A", None, true)
             val B = TypeVar("B", None, true)
             ConstrDecl(
-              "scalus.builtin.Pair",
+              name,
               scala.List(TypeBinding("fst", A), TypeBinding("snd", B)),
               scala.List(A, B),
               scala.Nil,
@@ -400,6 +404,37 @@ object SIRType {
         def unapply(x: SIRType): Option[(SIRType, SIRType)] = x match {
             case CaseClass(`constrDecl`, scala.List(a, b), None) => Some((a, b))
             case _                                               => None
+        }
+
+    }
+
+    object Varargs {
+        val name = "scala.prelude.Varargs"
+
+        val constrDecl = {
+            val hash = name.hashCode
+            val a = TypeVar("A", Some(hash), true)
+            ConstrDecl(
+              name,
+              scala.List(TypeBinding("list", SIRType.List(a))),
+              scala.List(a),
+              scala.Nil,
+              AnnotationsDecl.empty
+            )
+        }
+
+        val dataDecl = {
+            DataDecl(name, scala.List(constrDecl), scala.Nil, AnnotationsDecl.empty)
+        }
+
+        def apply(a: SIRType): SIRType =
+            CaseClass(constrDecl, scala.List(a), None)
+
+        def unapply(x: SIRType): Option[SIRType] = {
+            x match
+                case CaseClass(constrDecl, scala.List(a), scala.None) if constrDecl.name == name =>
+                    Some(a)
+                case _ => scala.None
         }
 
     }
