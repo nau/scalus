@@ -6,6 +6,32 @@ import scalus.cardano.plutus.contract.blueprint.PlutusDataSchema.given_JsonValue
 import scala.annotation.tailrec
 import scala.quoted.*
 
+/** The description of the data shape of a validator parameter, datum or redemeer.
+  *
+  * For user types, the schema should generally be [[PlutusDataSchema.derived]] as opposed to
+  * manually assembled.
+  *
+  * If assembled directly, it should be compliant with https://cips.cardano.org/cip/CIP-57.
+  *
+  * Namely, composite types should be represented as [[DataType.Constructor]]s, with properly
+  * indexed fields, tuples of arity >3 should be [[DataType.List]]s with respective items, and pairs
+  * should be [[DataType.PairBuiltin]]. See `BlueprintTest` for derivation examples and
+  * expectations.
+  *
+  * @see
+  *   [[DataType]] for type description
+  *
+  * @see
+  *   [[Data]] for more info about onchain data types
+  *
+  * @note
+  *   the types described by these schemas are used as datums, redeemers and parameters. As such,
+  *   only onchain data should be described by `PlutusDataSchema`. Therefore, attempting to derive
+  *   schemas for types that cannot be on chain will lead to compile time errors. Generally, if one
+  *   can derive [[scalus.builtin.Data.FromData]] for a type, one can also do so for the schema. If
+  *   one cannot derive [[scalus.builtin.Data.FromData]], it means that the type cannot exist on
+  *   chain, and therefore should not be described with `PlutusDataSchema`
+  */
 case class PlutusDataSchema(
     dataType: Option[DataType] = None,
     title: Option[String] = None,
@@ -15,11 +41,22 @@ case class PlutusDataSchema(
     fields: Option[List[PlutusDataSchema]] = None,
     items: Option[List[PlutusDataSchema]] = None
 ) {
+
+    def show = toJson()
+
     def toJson(indentation: Int = 2): String =
         writeToString(this, WriterConfig.withIndentionStep(indentation))
 }
 
 object PlutusDataSchema {
+
+    /** Derives the schema for a specified type.
+      * @tparam T
+      *   the type to derive the schema for
+      *
+      * @note
+      *   can only be used for onchain types
+      */
     inline def derived[T]: Option[PlutusDataSchema] = ${ deriveSchemaImpl[T] }
 
     private def deriveSchemaImpl[T: Type](using Quotes): Expr[Option[PlutusDataSchema]] =
