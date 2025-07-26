@@ -41,6 +41,9 @@ case class PlutusDataSchema(
     fields: Option[List[PlutusDataSchema]] = None,
     items: Option[List[PlutusDataSchema]] = None
 ) {
+
+    def show = toJson()
+
     def toJson(indentation: Int = 2): String =
         writeToString(this, WriterConfig.withIndentionStep(indentation))
 }
