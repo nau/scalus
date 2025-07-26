@@ -39,8 +39,10 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
                     result match
                         case failure: Result.Failure =>
                             val thrown = failure.exception
-                            if (thrown != exception) {
-                                alert("exception thrown by the UPLC evaluator did not equal or contain the expected exception.")
+                            if thrown != exception then {
+                                alert(
+                                  "exception thrown by the UPLC evaluator did not equal or contain the expected exception."
+                                )
                             }
                         case _ =>
                             fail(s"Expected failure, but got success: $result")
