@@ -2171,7 +2171,15 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
               sirTypeInEnv(tree.tpe, tree.srcPos, env),
               AnnotationsDecl.fromSrcPos(tree.srcPos)
             )
-        else compileExpr2(env.copy(level = env.level + 1), tree)
+        else {
+            try compileExpr2(env.copy(level = env.level + 1), tree)
+            catch
+                case NonFatal(e) =>
+                    println(s"compileExpr: NonFatal exception: ${e.getMessage}")
+                    println(s"expr:  ${tree.show}");
+                    println(s"Error during compileExpr2,  tree=${tree}")
+                    throw e
+        }
     }
 
     private def compileExpr2(env: Env, tree: Tree)(using Context): AnnotatedSIR = {
@@ -2297,7 +2305,33 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             case Apply(app @ Select(f, nme.apply), args)
                 if app.symbol.fullName.show == "scala.Tuple2$.apply" =>
                 compileNewConstructor(env, tree.tpe, tree.tpe, args, tree)
-
+            // extension 'list' on immutableSeq as varargs
+            case Apply(TypeApply(listCn, List(targ)), List(x))
+                if x.tpe.widen.typeSymbol == Symbols.requiredClass(
+                  "scala.collection.immutable.Seq"
+                ) &&
+                    listCn.symbol.name.show == "list" =>
+                val elemType = x.tpe.widen match
+                    case AppliedType(tycon, List(elemType)) =>
+                        elemType
+                    case AnnotatedType(AppliedType(tycon, List(elemType)), annot) =>
+                        elemType
+                    case _ =>
+                        error(
+                          GenericError(
+                            s"Expected a Seq type, but found ${x.tpe.widen.show}: tree ${x.tpe.widen}",
+                            x.srcPos
+                          ),
+                          defn.NothingType
+                        )
+                val sirElemType = sirTypeInEnv(elemType, tree.srcPos, env)
+                val xSir = compileExpr(env, x)
+                SIR.Select(
+                  xSir,
+                  "list",
+                  SIRType.List(sirElemType),
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
+                )
             /* case class Test(a: Int)
              * val t = Test(42)
              * is translated to
@@ -2460,6 +2494,34 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                   ExpressionNotSupported("'while' expression", tree.srcPos),
                   SIR.Error("Unsupported while expression", AnnotationsDecl.fromSrcPos(tree.srcPos))
                 )
+            case SeqLiteral(elems, elemtpt) =>
+                val sirElemType = sirTypeInEnv(elemtpt.tpe, tree.srcPos, env)
+                val sirElems = elems.map(compileExpr(env, _))
+                val listType = SIRType.List(sirElemType)
+                val listDataDecl = SIRType.List.dataDecl
+                val nil0: AnnotatedSIR = SIR.Constr(
+                  SIRType.List.Nil.constrDecl.name,
+                  SIRType.List.dataDecl,
+                  Nil,
+                  listType,
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
+                )
+                val list = sirElems.foldRight(nil0) { (elem, acc) =>
+                    SIR.Constr(
+                      SIRType.List.Cons.name,
+                      listDataDecl,
+                      List(elem, acc),
+                      listType,
+                      AnnotationsDecl.fromSrcPos(tree.srcPos)
+                    )
+                }
+                SIR.Constr(
+                  SIRType.Varargs.name,
+                  SIRType.Varargs.dataDecl,
+                  List(list),
+                  SIRType.Varargs(sirElemType),
+                  AnnotationsDecl.fromSrcPos(tree.srcPos)
+                )
             case x =>
                 println(s"Not supported expression, tree=${x}")
                 error(
@@ -2503,7 +2565,14 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
     }
 
     protected def sirTypeInEnv(tp: Type, env: SIRTypeEnv): SIRType = {
-        typer.sirTypeInEnv(tp, env)
+        try typer.sirTypeInEnv(tp, env)
+        catch
+            case e: TypingException =>
+                if e.cause == null then report.error(e.getMessage, e.pos)
+                else report.error(e.getMessage + " caused by " + e.cause.getMessage, e.pos)
+                if env.trace then e.printStackTrace()
+                if true then throw e
+                SIRType.TypeNothing
     }
 
     private def isVirtualCall(@unused tree: Tree, qualifier: Tree, name: Name): Boolean = {

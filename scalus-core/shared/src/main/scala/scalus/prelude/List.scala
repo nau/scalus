@@ -247,7 +247,7 @@ object List {
     extension [A](elem: A) {
 
         /** Alias on prepended */
-        inline def +:[B >: A](l: List[B]): List[B] = l.prepended(elem)
+        inline def +:[B >: A](list: List[B]): List[B] = list.prepended(elem)
     }
 
     extension [A: Ord](self: List[A]) {
@@ -361,7 +361,7 @@ object List {
           *   list.at(BigInt(-1)) // throws NoSuchElementException
           *   }}}
           */
-        def at(index: BigInt): A = get(index).getOrFail("Index out of bounds")
+        def at(index: BigInt): A = get(index).getOrFail("Index out of bounds in List.at")
 
         /** Retrieves the element at the specified index in the list.
           *
@@ -580,9 +580,13 @@ object List {
           *   list.prependedAll(List(BigInt(1), BigInt(2))) === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
           *   }}}
           */
-        inline def prependedAll[B >: A](other: List[B]): List[B] = other match
-            case Nil              => self
-            case Cons(head, tail) => Cons(head, tail.appendedAll(self))
+        inline def prependedAll[B >: A](other: List[B]): List[B] = {
+            def go(lst: List[B]): List[B] = lst match
+                case Nil              => self
+                case Cons(head, tail) => Cons(head, go(tail))
+
+            if self.nonEmpty then go(other) else other
+        }
 
         /** Alias on prependedAll */
         inline def ++:[B >: A](other: List[B]): List[B] = other.prependedAll(self)
@@ -1196,7 +1200,7 @@ object List {
             if count <= 0 then Nil
             else
                 foldRight((List.empty[A], BigInt(0))) { (head, acc) =>
-                    if acc._2 > count then acc
+                    if acc._2 >= count then acc
                     else (Cons(head, acc._1), acc._2 + 1)
                 }._1
 
@@ -1232,16 +1236,16 @@ object List {
           * @tparam B
           *   The type of elements being compared, which must be a supertype of `A`
           * @return
-          *   A new list containing only unique elements in their original order
+          *   A new list containing only distinct elements in their original order
           * @example
           *   {{{
-          *   List.empty[BigInt].unique === Nil
+          *   List.empty[BigInt].distinct === Nil
           *
           *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(1), Cons(BigInt(3), Nil))))
-          *   list.unique === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          *   list.distinct === Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
           *   }}}
           */
-        def unique[B >: A](using eq: Eq[B]): List[A] =
+        def distinct[B >: A](using eq: Eq[B]): List[A] =
             foldLeft(List.empty[A]) { (acc, elem) =>
                 if acc.exists(_ === elem) then acc
                 else Cons(elem, acc)
@@ -1260,39 +1264,39 @@ object List {
           *   A new list containing elements from this list that do not appear in the other list
           * @example
           *   {{{
-          *   List.empty[BigInt].difference(List(BigInt(1), BigInt(2))) === Nil
+          *   List.empty[BigInt].diff(List(BigInt(1), BigInt(2))) === Nil
           *
           *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
-          *   list.difference(List(BigInt(2))) === Cons(BigInt(1), Cons(BigInt(3), Nil))
-          *   list.difference(Nil) === list
-          *   list.difference(list) === Nil
+          *   list.diff(List(BigInt(2))) === Cons(BigInt(1), Cons(BigInt(3), Nil))
+          *   list.diff(Nil) === list
+          *   list.diff(list) === Nil
           *   }}}
           */
         @tailrec
-        def difference[B >: A](other: List[B])(using eq: Eq[B]): List[A] = {
+        def diff[B >: A](other: List[B])(using eq: Eq[B]): List[A] = {
             if isEmpty then Nil
             else
                 other match
                     case Nil              => self
-                    case Cons(head, tail) => (deleteFirst(head): List[A]).difference(tail)
+                    case Cons(head, tail) => (deleteFirst(head): List[A]).diff(tail)
         }
 
-        /** Returns a list consisting of all elements except the last element of this list.
-          *
-          * This is equivalent to `dropRight(1)`.
+        /** Returns a new list containing all elements except the last element of this list or
+          * throws an exception if the list is empty.
           *
           * @return
-          *   A new list containing all elements except the last one
+          *   A new list containing all elements except the last.
+          * @throws NoSuchElementException
+          *   If the list is empty.
           * @example
           *   {{{
-          *   List.empty[BigInt].init === Nil
-          *
           *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
           *   list.init === Cons(BigInt(1), Cons(BigInt(2), Nil))
-          *   Cons(BigInt(1), Nil).init === Nil
+          *   List.empty[BigInt].init // throw NoSuchElementException
           *   }}}
           */
-        inline def init: List[A] = dropRight(1)
+        inline def init: List[A] =
+            if isEmpty then throw new NoSuchElementException("init of empty list") else dropRight(1)
 
         /** Returns a new list with elements in reverse order.
           *
@@ -1314,14 +1318,6 @@ object List {
           *   The function to apply to each element.
           * @example
           *   {{{
-          *   var sum1 = BigInt(0)
-          *   List.empty[BigInt].foreach(elem => sum1 += elem)
-          *   sum1 === BigInt(0)
-          *
-          *   var sum2 = BigInt(0)
-          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
-          *   list.foreach(elem => sum2 += elem)
-          *   sum2 === BigInt(6)
           *   }}}
           */
         @tailrec

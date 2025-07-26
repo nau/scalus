@@ -8,17 +8,21 @@ import scalus.uplc.test.ArbitraryInstances
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import scala.reflect.ClassTag
 import scala.util.control.NonFatal
+import scala.reflect.ClassTag
 
 export org.scalacheck.{Arbitrary, Gen}
 
 class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     export org.scalatestplus.scalacheck.Checkers.*
-    export org.scalacheck.Prop.forAll
     export scalus.builtin.Data.{fromData, toData}
     export Eq.given
     export Ord.*
+
+    protected final inline def liftThrowableToOption[A](inline code: A): Option[A] = {
+        try Option.Some(code)
+        catch case NonFatal(exception) => Option.None
+    }
 
     protected final inline def assertEvalFails[E <: Throwable: ClassTag](inline code: Any): Unit = {
         var isExceptionThrown = false
@@ -44,7 +48,7 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
                     isExceptionThrown = true
 
         if !isExceptionThrown then
-            fail(s"Expected exception of type ${summon[ClassTag[E]]}, but no exception was thrown")
+            fail(s"Expected exception of type ${summon[ClassTag[E]]}, but got success: $code")
     }
 
     protected final inline def assertEvalEq[T: Eq](inline code: T, inline expected: T): Unit = {
