@@ -15,7 +15,8 @@ import scala.quoted.*
   *
   * Namely, composite types should be represented as [[DataType.Constructor]]s, with properly
   * indexed fields, tuples of arity >3 should be [[DataType.List]]s with respective items, and pairs
-  * should be [[DataType.PairBuiltin]].
+  * should be [[DataType.PairBuiltin]]. See `BlueprintTest` for derivation examples and
+  * expectations.
   *
   * @see
   *   [[DataType]] for type description
