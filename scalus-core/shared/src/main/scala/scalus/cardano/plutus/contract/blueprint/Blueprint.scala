@@ -9,10 +9,24 @@ import scalus.utils.Hex.toHex
 import java.io.File
 import java.nio.file.Files
 
+/** A CIP-57 compliant description of a set of validators.
+  *
+  * Each validator description contains schemas [[PlutusDataSchema]] of the datum and redeemer
+  * formats expected by the contracts.
+  *
+  * @see
+  *   https://cips.cardano.org/cip/CIP-57
+  */
 case class Blueprint(
     preamble: Preamble,
     validators: Seq[Validator] = Nil,
 ) {
+
+    /** @return
+      *   a JSON string representing this blueprint. The returned string is compliant with a
+      *   respective CIP-57 JSON Schema and can be used for deserialization, such that
+      *   `Blueprint(myBlueprint.show) == myBlueprint` always holds.
+      */
     def show: String = toJson()
 
     def toJson(indentation: Int = 2): String =
@@ -45,23 +59,12 @@ object Blueprint {
         description: String,
         validatorScript: PlutusScript
     ): Blueprint = {
-        val preamble = mkPreamble(contractTitle, description, validatorScript.language)
+        val preamble = Preamble(contractTitle, description, validatorScript.language)
         val blueprintValidator = mkValidator(validatorScript)
         Blueprint(preamble, Seq(blueprintValidator))
     }
 
     def fromJson(s: String): Blueprint = readFromString(s)
-
-    def mkPreamble(
-        title: String,
-        description: String,
-        version: Language
-    ): Preamble = Preamble(
-      title = title,
-      description = Some(description),
-      compiler = Some(CompilerInfo.currentScalus),
-      plutusVersion = Some(version)
-    )
 
     private def mkValidator(validatorScript: Script) = {
         val cbor = validatorScript match {
@@ -78,6 +81,11 @@ object Blueprint {
     }
 }
 
+/** An object that holds blueprint metadata. Does not include information about contracts and
+  * instead contains apps title and description, compiler information, plutus version used, etc.
+  *
+  * For applications that only have 1 validator, the preamble data may repeat that of the validator.
+  */
 case class Preamble(
     title: String,
     description: Option[String] = None,
@@ -88,6 +96,13 @@ case class Preamble(
 )
 
 object Preamble {
+    def apply(title: String, description: String, version: Language): Preamble = Preamble(
+      title = title,
+      description = Some(description),
+      compiler = Some(CompilerInfo.currentScalus),
+      plutusVersion = Some(version)
+    )
+
     given JsonValueCodec[Language] = new JsonValueCodec[Language] {
         override def nullValue: Language = Language.PlutusV3
 
