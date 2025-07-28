@@ -69,6 +69,13 @@ class DerivingTest extends AnyFunSuite {
 
     protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
+    )
+
     /*
     test("Compile To/From Data for AE1") {
 

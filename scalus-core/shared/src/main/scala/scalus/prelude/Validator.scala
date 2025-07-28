@@ -7,11 +7,15 @@ import scalus.ledger.api.v3.*
 trait Validator {
 
     def validate(scData: Data): Unit = {
+        log("Validator.validate:0")
         val sc = scData.to[ScriptContext]
+        log("Validator.validate:1")
         sc.scriptInfo match
             case ScriptInfo.MintingScript(currencySymbol) =>
+                val validator2_1 = log("Validator.validate:2.1")
                 mint(sc.redeemer, currencySymbol, sc.txInfo)
             case ScriptInfo.SpendingScript(txOutRef, datum) =>
+                val validator2_2 = log("Validator.validate:2.2")
                 spend(datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.RewardingScript(credential) =>
                 reward(sc.redeemer, credential, sc.txInfo)
