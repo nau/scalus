@@ -28,6 +28,19 @@ class PlutusScriptEvaluationException(
     val logs: Array[String]
 ) extends RuntimeException(message, cause)
 
+/** Lookup table for resolving scripts and datums during evaluation.
+  *
+  * @param scripts
+  *   Map from script hash to script
+  * @param datums
+  *   Map from datum hash to datum data
+  */
+case class LookupTable(
+    scripts: Map[ScriptHash, Script],
+    // cache of `getDatum`
+    datums: Map[DataHash, Data]
+)
+
 /** Evaluates Plutus V1, V2 or V3 scripts using the provided transaction and UTxO set.
   *
   * @note
@@ -48,19 +61,6 @@ class PlutusScriptEvaluator(
     val mode: EvaluatorMode = EvaluatorMode.EvaluateAndComputeCost,
     val debugDumpFilesForTesting: Boolean = false
 ) {
-
-    /** Lookup table for resolving scripts and datums during evaluation.
-      *
-      * @param scripts
-      *   Map from script hash to script
-      * @param datums
-      *   Map from datum hash to datum data
-      */
-    case class LookupTable(
-        scripts: Map[ScriptHash, Script],
-        // cache of `getDatum`
-        datums: Map[DataHash, Data]
-    )
 
     private val log = LoggerFactory.getLogger(getClass.getName)
 
@@ -93,7 +93,7 @@ class PlutusScriptEvaluator(
           )
         )
 
-    /** Perform Phase 2 transaction evaluation.
+    /** Evaluates Plutus scripts in a transaction.
       *
       * This is the main evaluation orchestrator that:
       *   1. Extracts redeemers from the transaction
@@ -101,11 +101,20 @@ class PlutusScriptEvaluator(
       *   3. Evaluates each redeemer sequentially
       *   4. Tracks total budget consumption
       *   5. Returns all evaluated redeemers
+      *
+      * @param tx
+      *   The transaction containing Plutus scripts and redeemers
+      * @param utxos
+      *   The UTxO set used for script resolution
+      * @return
+      *   Seq of evaluated redeemers with updated execution units
+      * @throws IllegalStateException
+      *   if the transaction does not contain redeemers or if any script resolution fails
       */
-    def evalPhaseTwo(
+    def evalPlutusScripts(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput],
-    ): collection.Seq[Redeemer] = {
+    ): Seq[Redeemer] = {
         log.debug(s"Starting Phase 2 evaluation for transaction: ${tx.id}")
 
         val redeemers = tx.witnessSet.redeemers
@@ -159,9 +168,9 @@ class PlutusScriptEvaluator(
       *   4. Executes the script using the appropriate Plutus VM
       *   5. Returns the redeemer with computed execution units
       */
-    def evalRedeemer(
+    private def evalRedeemer(
         tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
+        datums: Seq[(DataHash, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
         lookupTable: LookupTable
@@ -375,7 +384,7 @@ class PlutusScriptEvaluator(
       */
     private def evalPlutusV1Script(
         tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
+        datums: Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
         script: ByteString,
@@ -402,7 +411,7 @@ class PlutusScriptEvaluator(
       */
     private def evalPlutusV2Script(
         tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
+        datums: Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
         script: ByteString,
@@ -429,7 +438,7 @@ class PlutusScriptEvaluator(
       */
     private def evalPlutusV3Script(
         tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
+        datums: Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
         script: ByteString,
