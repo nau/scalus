@@ -3,81 +3,89 @@ package scalus.cardano.plutus.contract.blueprint
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
 import scalus.buildinfo.BuildInfo
-import scalus.cardano.ledger.{Language, PlutusScript}
-import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
+import scalus.cardano.ledger.{Language, PlutusScript, Script}
+import scalus.utils.Hex.toHex
 
+import java.io.File
+import java.nio.file.Files
+
+/** A CIP-57 compliant description of a set of validators.
+  *
+  * Each validator description contains schemas [[PlutusDataSchema]] of the datum and redeemer
+  * formats expected by the contracts.
+  *
+  * @see
+  *   https://cips.cardano.org/cip/CIP-57
+  */
 case class Blueprint(
     preamble: Preamble,
     validators: Seq[Validator] = Nil,
 ) {
-    def show(indentation: Int = 2): String =
+
+    /** @return
+      *   a JSON string representing this blueprint. The returned string is compliant with a
+      *   respective CIP-57 JSON Schema and can be used for deserialization, such that
+      *   `Blueprint(myBlueprint.show) == myBlueprint` always holds.
+      */
+    def show: String = toJson()
+
+    def toJson(indentation: Int = 2): String =
         writeToString(this, WriterConfig.withIndentionStep(indentation))
+
+    def addValidator(v: Validator): Blueprint = copy(validators = validators.appended(v))
+
+    def writeToFile(f: File): Unit = Files.writeString(f.toPath, show)
 }
 
 object Blueprint {
-    private[blueprint] case class Builder(
-        title: String,
-        description: Option[String] = None,
-        validatorScript: Option[PlutusScript] = None,
-        redeemerSchema: Option[PlutusDataSchema] = None,
-        datumSchema: Option[PlutusDataSchema] = None,
-        paramSchemas: Option[List[PlutusDataSchema]] = None
-    ) {
-
-        def withDescription(d: String): Builder = copy(description = Some(d))
-
-        def withScript(script: PlutusScript): Builder = copy(validatorScript = Some(script))
-
-        inline def withDatum[T]: Builder = {
-            val ds = PlutusDataSchema.derived[T]
-            copy(datumSchema = Some(ds))
-        }
-
-        inline def withRedeemer[T]: Builder = {
-            val rs = PlutusDataSchema.derived[T]
-            copy(redeemerSchema = Some(rs))
-        }
-
-        inline def withParam[T]: Builder = {
-            val ps = PlutusDataSchema.derived[T]
-            copy(paramSchemas = paramSchemas.map(ps :: _))
-        }
-
-        def build: Blueprint = {
-            for {
-                validatorScript <- this.validatorScript
-                datumSchema <- this.datumSchema
-                redeemerSchema <- this.redeemerSchema
-            } yield {
-                val preamble = Preamble(
-                  title = title,
-                  description = description,
-                  compiler = Some(CompilerInfo("scalus", Some(BuildInfo.version))),
-                  plutusVersion = Some(validatorScript.language)
-                )
-                val cbor = validatorScript match {
-                    case PlutusV1(script) => script.toHex
-                    case PlutusV2(script) => script.toHex
-                    case PlutusV3(script) => script.toHex
-                }
-                val validator = Validator(
-                  "validator",
-                  compiledCode = Some(cbor),
-                  hash = Some(validatorScript.scriptHash.toHex),
-                  datum = Some(Argument(schema = datumSchema)),
-                  redeemer = Some(Argument(schema = redeemerSchema)),
-                  parameters = paramSchemas.map(_.map(schema => Argument(schema = schema)))
-                )
-                Blueprint(preamble, Seq(validator))
-            }
-        }.get
-    }
-
-    def newBuilder(title: String): Builder = Builder(title)
 
     given JsonValueCodec[Blueprint] = JsonCodecMaker.make
+
+    /** Returns a CIP-57 compliant [[Blueprint]] based on the provided [[validator]].
+      *
+      * The returned `Blueprint` always contains only 1 validator.
+      *
+      * To specify the `redeemer` and `datum` schemas, use [[Blueprint.newBuilder()]].
+      *
+      * @param contractTitle
+      *   the title of the "blueprintee" contract
+      * @param description
+      *   the description of the "blueprintee" contact
+      * @param validatorScript
+      *   the script of the validator
+      */
+    def apply(
+        contractTitle: String,
+        description: String,
+        validatorScript: PlutusScript
+    ): Blueprint = {
+        val preamble = Preamble(contractTitle, description, validatorScript.language)
+        val blueprintValidator = mkValidator(validatorScript)
+        Blueprint(preamble, Seq(blueprintValidator))
+    }
+
+    def fromJson(s: String): Blueprint = readFromString(s)
+
+    private def mkValidator(validatorScript: Script) = {
+        val cbor = validatorScript match {
+            case Script.PlutusV1(script) => script.toHex
+            case Script.PlutusV2(script) => script.toHex
+            case Script.PlutusV3(script) => script.toHex
+            case Script.Native(script)   => script.toCbor.toHex
+        }
+        Validator(
+          "validator",
+          compiledCode = Some(cbor),
+          hash = Some(validatorScript.scriptHash.toHex)
+        )
+    }
 }
 
+/** An object that holds blueprint metadata. Does not include information about contracts and
+  * instead contains apps title and description, compiler information, plutus version used, etc.
+  *
+  * For applications that only have 1 validator, the preamble data may repeat that of the validator.
+  */
 case class Preamble(
     title: String,
     description: Option[String] = None,
@@ -88,6 +96,13 @@ case class Preamble(
 )
 
 object Preamble {
+    def apply(title: String, description: String, version: Language): Preamble = Preamble(
+      title = title,
+      description = Some(description),
+      compiler = Some(CompilerInfo.currentScalus),
+      plutusVersion = Some(version)
+    )
+
     given JsonValueCodec[Language] = new JsonValueCodec[Language] {
         override def nullValue: Language = Language.PlutusV3
 
@@ -108,28 +123,21 @@ object Preamble {
     given JsonValueCodec[Preamble] = JsonCodecMaker.make
 }
 
-extension (lang: Language) {
-    def show: String = lang match {
-        case Language.PlutusV1 => "v1"
-        case Language.PlutusV2 => "v2"
-        case Language.PlutusV3 => "v3"
-    }
-}
-
 case class CompilerInfo(
     name: String,
     version: Option[String] = None
 )
 object CompilerInfo {
     given JsonValueCodec[CompilerInfo] = JsonCodecMaker.make
+    val currentScalus: CompilerInfo = CompilerInfo("scalus", Some(BuildInfo.version))
 }
 
 case class Validator(
     title: String,
     description: Option[String] = None,
-    redeemer: Option[Argument] = None,
-    datum: Option[Argument] = None,
-    parameters: Option[List[Argument]] = None,
+    redeemer: Option[TypeDescription] = None,
+    datum: Option[TypeDescription] = None,
+    parameters: Option[List[TypeDescription]] = None,
     compiledCode: Option[String] = None,
     hash: Option[String] = None
 )
@@ -138,15 +146,15 @@ object Validator {
     given JsonValueCodec[Validator] = JsonCodecMaker.make
 }
 
-case class Argument(
+case class TypeDescription(
     title: Option[String] = None,
     description: Option[String] = None,
     purpose: Option[Purpose] = None,
     schema: PlutusDataSchema
 )
 
-object Argument {
-    given JsonValueCodec[Argument] = JsonCodecMaker.make
+object TypeDescription {
+    given JsonValueCodec[TypeDescription] = JsonCodecMaker.make
 }
 
 enum DataType(val value: String) {

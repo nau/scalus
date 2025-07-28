@@ -173,6 +173,14 @@ object Language {
     /** Gets the language from an ID */
     def fromId(id: Int): Language = fromOrdinal(id)
 
+    extension (lang: Language) {
+        def show: String = lang match {
+            case Language.PlutusV1 => "v1"
+            case Language.PlutusV2 => "v2"
+            case Language.PlutusV3 => "v3"
+        }
+    }
+
     /** CBOR encoder for Language */
     given Encoder[Language] = Encoder { (w, language) =>
         w.writeInt(language.languageId)

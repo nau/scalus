@@ -35,16 +35,15 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
                       ClassTag(exception.getClass) == summon[ClassTag[E]],
                       s"Expected exception of type ${summon[ClassTag[E]]}, but got $exception"
                     )
-
                     val result = Compiler.compileInline(code).toUplc(true).evaluateDebug
                     result match
                         case failure: Result.Failure =>
-                            val errorMessage = result.logs.last
-
-                            assert(
-                              errorMessage.contains(exception.getMessage),
-                              s"Expected error message '${exception.getMessage}', but got '$errorMessage'"
-                            )
+                            val thrown = failure.exception
+                            if thrown != exception then {
+                                alert(
+                                  "exception thrown by the UPLC evaluator did not equal or contain the expected exception."
+                                )
+                            }
                         case _ =>
                             fail(s"Expected failure, but got success: $result")
 

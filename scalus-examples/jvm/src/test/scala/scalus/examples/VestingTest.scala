@@ -114,7 +114,7 @@ class VestingTest extends AnyFunSuite, ScalusTest {
         )
 
         // debugPrint(txInfo, vestingDatum, redeemer)
-        VestingScript.compiled.runScript(scriptContext)
+        VestingContract.compiled.runScript(scriptContext)
     }
 
     // Success cases
@@ -327,7 +327,7 @@ class VestingTest extends AnyFunSuite, ScalusTest {
           )
         )
 
-        val result = VestingScript.compiled.runScript(scriptContext)
+        val result = VestingContract.compiled.runScript(scriptContext)
         assert(
           result.isSuccess,
           "Second partial withdrawal should succeed at 75% of vesting period"
@@ -533,10 +533,10 @@ class VestingTest extends AnyFunSuite, ScalusTest {
         )
         // debugPrint(txInfo, vestingDatum, redeemer)
 
-        val firstResult = VestingScript.compiled.runScript(scriptContext)
+        val firstResult = VestingContract.compiled.runScript(scriptContext)
         assert(firstResult.isFailure, "First withdrawal should succeed")
 
-        val secondResult = VestingScript.compiled.runScript(scriptContext2)
+        val secondResult = VestingContract.compiled.runScript(scriptContext2)
         assert(secondResult.isFailure, "Second withdrawal should fail")
     }
 

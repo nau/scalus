@@ -10,6 +10,7 @@ import scalus.builtin.Data
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.ledger.api.v1.Value.getLovelace
 import scalus.Compiler.compile
+import scalus.cardano.plutus.contract.blueprint.{Application, Blueprint}
 
 case class VestingDatum(
     beneficiary: PubKeyHash,
@@ -122,8 +123,18 @@ object Vesting extends Validator:
             case _ => fail("Expected inline datum")
     }
 
-object VestingScript {
+object VestingContract:
 
     inline def compiled(using scalus.Compiler.Options) = compile(Vesting.validate)
 
-}
+    def application: Application = Application
+        .ofSingleValidator[VestingDatum, VestingRedeemer](
+          "Vesting validator",
+          "Time-locked token distribution with linear vesting schedule",
+          "1.0.0",
+          Vesting.validate
+        )
+
+    def blueprint: Blueprint = application.blueprint
+
+end VestingContract
