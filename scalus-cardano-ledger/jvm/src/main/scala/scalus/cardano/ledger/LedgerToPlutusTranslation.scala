@@ -610,7 +610,7 @@ object LedgerToPlutusTranslation {
               val purpose = getScriptPurposeV2(tx, redeemer)
               purpose -> redeemer.data
           })),
-          data = AssocMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1.toHex))),
+          data = AssocMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
           id = v1.TxId(tx.id)
         )
     }
@@ -670,7 +670,7 @@ object LedgerToPlutusTranslation {
               val purpose = getScriptPurposeV3(tx, redeemer)
               purpose -> redeemer.data
           })),
-          data = AssocMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1.toHex))),
+          data = AssocMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
           id = v3.TxId(tx.id),
           votes = getVotingProcedures(body.votingProcedures),
           proposalProcedures =
