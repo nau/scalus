@@ -83,6 +83,66 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         assert(redeemerResult.exUnits.steps == 3732764L)
     }
 
+    test("TxEvaluator PlutusV3") {
+        val evaluator = PlutusScriptEvaluator(
+          SlotConfig.Mainnet,
+          initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
+          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          costModels = costModels
+        )
+
+        inline def requiredPubKeyHash =
+            hex"e1ac75d278929abc5e113cd1cd611a35af2520e7b3056ecac3da186b"
+
+        val pubKeyValidator =
+            compile(PubKeyValidator.validatorV2(requiredPubKeyHash))
+                .toUplc()
+                .plutusV3
+        val s = Script.PlutusV3(ByteString.unsafeFromArray(pubKeyValidator.cborEncoded))
+        val input = TransactionInput(Hash(platform.blake2b_256(ByteString.fromString("asdf"))), 0)
+        val datum = Data.unit
+        val dataHash: DataHash = Hash(platform.blake2b_256(datum.toCborByteString))
+        val addr =
+            "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"
+        val utxo = Map(
+          input -> TransactionOutput(
+            address = ShelleyAddress(
+              Network.Mainnet,
+              payment = ShelleyPaymentPart.Script(s.scriptHash),
+              delegation = Null
+            ),
+            datumOption = Some(DatumOption.Hash(dataHash)),
+            value = Value.lovelace(2)
+          )
+        )
+        val redeemer = Redeemer(RedeemerTag.Spend, 0, Data.unit, ExUnits(0, 0))
+        val tx = Transaction(
+          TransactionBody(
+            inputs = Set(input),
+            outputs = Vector(
+              Sized(
+                TransactionOutput(
+                  address = Address.fromBech32(addr),
+                  value = Value.lovelace(2)
+                )
+              )
+            ),
+            fee = Coin(0),
+            requiredSigners = Set(Hash(requiredPubKeyHash)),
+          ),
+          witnessSet = TransactionWitnessSet(
+            redeemers = Some(KeepRaw(Redeemers(redeemer))),
+            plutusV3Scripts = Set(s),
+            plutusData = KeepRaw(TaggedSet(KeepRaw(datum))),
+          ),
+        )
+        val redeemers = evaluator.evalPhaseTwo(tx, utxo)
+        assert(redeemers.size == 1)
+        val redeemerResult = redeemers.head
+        assert(redeemerResult.exUnits.memory == 13375L)
+        assert(redeemerResult.exUnits.steps == 3732764L)
+    }
+
     test("evaluate block 11544748") {
         pending
         validateBlock(11544748)

@@ -138,3 +138,59 @@ class ParseScriptInfoTest extends AnyFunSuite:
         assert(result.isSuccess)
         assert(ParseScriptInfo.validate(scriptContext) == false)
     }
+
+class ParseScriptInfoOldBackendTest extends AnyFunSuite:
+
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+      debug = false
+    )
+
+    test("ScriptInfo parsing") {
+        val scriptContext =
+            ScriptContext(
+              TxInfo(
+                Nil,
+                Nil,
+                Nil,
+                BigInt(0),
+                Value.zero,
+                Nil,
+                AssocMap.empty,
+                Interval.always,
+                Cons(PubKeyHash(hex"deadbeef"), Nil),
+                AssocMap.empty,
+                AssocMap.empty,
+                TxId(hex"bb"),
+                AssocMap.empty,
+                Nil,
+                Option.None,
+                Option.None
+              ),
+              hex"deadbeef".toData,
+              ScriptInfo.SpendingScript(
+                TxOutRef(TxId(hex"deadbeef"), 0),
+                Option.Some(hex"aaaaaaaa".toData)
+              )
+            )
+
+        val compiled = compile { ParseScriptInfo.validate }
+
+        // println(compiled.pretty.render(100))
+        // println(s"compiled type:  ${compiled.tp.show}")
+        val term = compiled.toUplc()
+
+        // println(term.pretty.render(100))
+
+        val scriptContextData = scriptContext.toData
+        val appliedValidator = term.plutusV3 $ scriptContextData
+
+        // val appliedValidator = term $ Term.Const(Constant.Data(scriptContextData))
+        given PlutusVM = PlutusVM.makePlutusV1VM()
+        val result = appliedValidator.deBruijnedProgram.evaluateDebug
+        // println(result)
+        assert(result.isSuccess)
+        assert(ParseScriptInfo.validate(scriptContext) == false)
+    }
