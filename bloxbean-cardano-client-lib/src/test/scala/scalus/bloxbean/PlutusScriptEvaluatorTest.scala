@@ -136,7 +136,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             plutusData = KeepRaw(TaggedSet(KeepRaw(datum))),
           ),
         )
-        val redeemers = evaluator.evalPhaseTwo(tx, utxo)
+        val redeemers = evaluator.evalPlutusScripts(tx, utxo)
         assert(redeemers.size == 1)
         val redeemerResult = redeemers.head
         assert(redeemerResult.exUnits.memory == 12775L)
