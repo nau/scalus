@@ -10,6 +10,7 @@ import scalus.prelude.log
 
 @Compile
 object PubKeyValidator {
+    
     def validator(datum: Unit, redeemer: Unit, ctx: Data) = {
         val txinfo = unConstrData(unConstrData(ctx).snd.head).snd
         val signatories = unListData(txinfo.tail.tail.tail.tail.tail.tail.tail.head)

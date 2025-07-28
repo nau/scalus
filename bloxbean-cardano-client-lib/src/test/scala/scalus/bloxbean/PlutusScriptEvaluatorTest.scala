@@ -95,7 +95,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             hex"e1ac75d278929abc5e113cd1cd611a35af2520e7b3056ecac3da186b"
 
         val pubKeyValidator =
-            compile(PubKeyValidator.validatorV2(requiredPubKeyHash))
+            compile(PubKeyValidator.validatorV3(requiredPubKeyHash))
                 .toUplc()
                 .plutusV3
         val s = Script.PlutusV3(ByteString.unsafeFromArray(pubKeyValidator.cborEncoded))
@@ -139,8 +139,8 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         val redeemers = evaluator.evalPhaseTwo(tx, utxo)
         assert(redeemers.size == 1)
         val redeemerResult = redeemers.head
-        assert(redeemerResult.exUnits.memory == 13375L)
-        assert(redeemerResult.exUnits.steps == 3732764L)
+        assert(redeemerResult.exUnits.memory == 12775L)
+        assert(redeemerResult.exUnits.steps == 3636764L)
     }
 
     test("evaluate block 11544748") {
