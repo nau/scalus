@@ -8,7 +8,10 @@
 - CIP-57 Blueprints support
 - improved Scalus standard library and tests
 - `PlutusScriptEvaluator` for evaluating Plutus scripts using Scalus ledger domain types
+- `ScriptDataHashGenerator` for computing script integrity hash
+- added and improved Cardano Ledger rules
 - Arbitrary instances for Plutus domain types
+- Vesting example
 
 ### Fixed
 
@@ -17,6 +20,7 @@
 ### Changed
 
 - Plutus `Value` uses `SortedMap` instead of `AssocMap`
+- improved Cardano Ledger classes
 
 ## 0.10.4 (2025-07-16)
 
