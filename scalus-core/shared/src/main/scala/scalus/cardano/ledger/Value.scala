@@ -8,10 +8,6 @@ case class Value(coin: Coin, assets: ledger.MultiAsset) {
     // Validate multi-asset map
     validateMultiAsset(assets)
 
-    def binOp(op: (Long, Long) => Long)(rhs: Value): Value = (this, rhs) match
-        case (Value(coin1, assets1), Value(coin2, assets2)) =>
-            Value(Coin(op(coin1.value, coin2.value)), ledger.MultiAsset.binOp(op)(assets1, assets2))
-
     def +(rhs: Value): Value = binOp(_ + _)(rhs)
 
     def -(rhs: Value): Value = binOp(_ - _)(rhs)
@@ -29,6 +25,10 @@ case class Value(coin: Coin, assets: ledger.MultiAsset) {
           "MultiAsset cannot contain zeros"
         )
     }
+
+    private def binOp(op: (Long, Long) => Long)(rhs: Value): Value = (this, rhs) match
+        case (Value(coin1, assets1), Value(coin2, assets2)) =>
+            Value(Coin(op(coin1.value, coin2.value)), ledger.MultiAsset.binOp(op)(assets1, assets2))
 }
 
 object Value:

@@ -19,7 +19,7 @@ object ValueNotConservedUTxOValidator extends STS.Validator {
         val mint = txBody.mint.getOrElse(MultiAsset.empty)
 
         val consumed = {
-            val inputs = txBody.inputs
+            val inputs = txBody.inputs.view
                 .map { input =>
                     state.utxo.get(input) match {
                         case Some(output) => output.value
@@ -80,7 +80,7 @@ object ValueNotConservedUTxOValidator extends STS.Validator {
                   policy -> assets.filter((_, value) => value < 0)
               })
             )
-            val outputs = txBody.outputs
+            val outputs = txBody.outputs.view
                 .map(_.value.value)
                 .foldLeft(Value.zero)(_ + _)
             val shelleyTotalDepositsTxCerts: Coin = Coin.zero // FIXME: implement

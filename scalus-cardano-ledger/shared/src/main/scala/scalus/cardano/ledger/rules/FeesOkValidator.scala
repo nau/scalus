@@ -108,12 +108,7 @@ object FeesOkValidator extends STS.Validator {
                         .getOrElse(Value.zero)
                     if !(
                           totalSumOfCollaterals.assets.isEmpty && collateralReturnOutputValue.assets.isEmpty ||
-                              MultiAsset
-                                  .binOp(_ - _)(
-                                    totalSumOfCollaterals.assets,
-                                    collateralReturnOutputValue.assets
-                                  )
-                                  .isEmpty
+                              (totalSumOfCollaterals.assets - collateralReturnOutputValue.assets).isEmpty
                         )
                     then
                         break(
