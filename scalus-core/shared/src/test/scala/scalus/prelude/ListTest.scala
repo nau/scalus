@@ -260,6 +260,13 @@ class ListTest extends StdlibTestKit {
     }
 
     test("flatten") {
+        given [T: Arbitrary]: Arbitrary[List[T]] = Arbitrary {
+            for {
+                size <- Gen.choose(0, 10)
+                list <- Gen.listOfN(size, Arbitrary.arbitrary[T])
+            } yield list.asScalus
+        }
+
         check { (list: List[List[BigInt]]) =>
             val scalusResult = list.flatten
             val scalaResult = list.asScala.flatMap(_.asScala)
