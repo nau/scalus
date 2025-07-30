@@ -101,7 +101,8 @@ object SirTypeUplcGenerator {
                 then ProductCaseOneElementSirTypeGenerator(SIRTypeUplcByteStringGenerator)
                 else if constrDecl.name == "scalus.prelude.AssocMap" || constrDecl.name == "scalus.prelude.SortedMap"
                 then MapSirTypeGenerator
-                else if constrDecl.name == "scalus.prelude.Varargs" then {
+                else if constrDecl.name == "scalus.prelude.Varargs" || constrDecl.name == "scalus.ledger.api.v1.Value"
+                then {
                     val paramType =
                         SIRType.substitute(
                           constrDecl.params.head.tp,
