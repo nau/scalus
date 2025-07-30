@@ -22,13 +22,13 @@ class PairListVarArgsInitTest extends AnyFunSuite {
         val sir = compile {
             val expected = PairListVarArgsInitCaseClass("test", scalus.prelude.List((1, 2), (3, 4)))
         }
-        println(sir.pretty.render(100))
+        // println(sir.pretty.render(100))
         // val lw = sir.toLoweredValue()
         // println(lw.pretty.render(100))
         val uplc = sir.toUplc(generateErrorTraces = true)
         // println(uplc.pretty.render(100))
         val result = uplc.evaluateDebug
-        println(s"result=$result")
+        // println(s"result=$result")
         assert(result.isSuccess)
     }
 
@@ -39,7 +39,7 @@ class PairListVarArgsInitTest extends AnyFunSuite {
         }
         val uplc = sir.toUplc(generateErrorTraces = true)
         val result = uplc.evaluateDebug
-        println(s"result=$result")
+        // println(s"result=$result")
         assert(result.isSuccess)
     }
 
