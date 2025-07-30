@@ -18,17 +18,42 @@ import scalus.uplc.{Constant, DeBruijnedProgram, Term}
 import java.nio.file.{Files, Paths}
 import scala.collection.immutable
 
-private[scalus] enum EvaluatorMode extends Enum[EvaluatorMode] {
+enum EvaluatorMode extends Enum[EvaluatorMode] {
     case EvaluateAndComputeCost, Validate
 }
 
-private[scalus] class PlutusScriptEvaluationException(
+class PlutusScriptEvaluationException(
     message: String,
     cause: Throwable,
     val logs: Array[String]
 ) extends RuntimeException(message, cause)
 
-private[scalus] class PlutusScriptEvaluator(
+/** Lookup table for resolving scripts and datums during evaluation.
+  *
+  * @param scripts
+  *   Map from script hash to script
+  * @param datums
+  *   Map from datum hash to datum data
+  */
+case class LookupTable(
+    scripts: Map[ScriptHash, Script],
+    // cache of `getDatum`
+    datums: Map[DataHash, Data]
+)
+
+/** Evaluates Plutus V1, V2 or V3 scripts using the provided transaction and UTxO set.
+  *
+  * @note
+  *   It's an experimental API and may change in future versions, even in patch releases.
+  *
+  * @param slotConfig
+  * @param initialBudget
+  * @param protocolMajorVersion
+  * @param costModels
+  * @param mode
+  * @param debugDumpFilesForTesting
+  */
+class PlutusScriptEvaluator(
     val slotConfig: SlotConfig,
     val initialBudget: ExBudget,
     val protocolMajorVersion: MajorProtocolVersion,
@@ -36,19 +61,6 @@ private[scalus] class PlutusScriptEvaluator(
     val mode: EvaluatorMode = EvaluatorMode.EvaluateAndComputeCost,
     val debugDumpFilesForTesting: Boolean = false
 ) {
-
-    /** Lookup table for resolving scripts and datums during evaluation.
-      *
-      * @param scripts
-      *   Map from script hash to script
-      * @param datums
-      *   Map from datum hash to datum data
-      */
-    case class LookupTable(
-        scripts: Map[ScriptHash, Script],
-        // cache of `getDatum`
-        datums: Map[DataHash, Data]
-    )
 
     private val log = LoggerFactory.getLogger(getClass.getName)
 
@@ -80,6 +92,109 @@ private[scalus] class PlutusScriptEvaluator(
             protocolMajorVersion
           )
         )
+
+    /** Evaluates Plutus scripts in a transaction.
+      *
+      * This is the main evaluation orchestrator that:
+      *   1. Extracts redeemers from the transaction
+      *   2. Builds datum and script lookup tables
+      *   3. Evaluates each redeemer sequentially
+      *   4. Tracks total budget consumption
+      *   5. Returns all evaluated redeemers
+      *
+      * @param tx
+      *   The transaction containing Plutus scripts and redeemers
+      * @param utxos
+      *   The UTxO set used for script resolution
+      * @return
+      *   Seq of evaluated redeemers with updated execution units
+      * @throws IllegalStateException
+      *   if the transaction does not contain redeemers or if any script resolution fails
+      */
+    def evalPlutusScripts(
+        tx: Transaction,
+        utxos: Map[TransactionInput, TransactionOutput],
+    ): Seq[Redeemer] = {
+        log.debug(s"Starting Phase 2 evaluation for transaction: ${tx.id}")
+
+        val redeemers = tx.witnessSet.redeemers
+            .getOrElse(throw new IllegalStateException("Transaction does not contain redeemers"))
+            .value
+            .toIndexedSeq
+
+        // Build datum lookup table with hash mapping
+        // According to Babbage spec, we lookup datums only in witness set
+        // and do not consider reference input inline datums
+        // (getDatum, Figure 3: Functions related to scripts)
+        val datumsMapping = tx.witnessSet.plutusData.value.toIndexedSeq.view.map { datum =>
+            datum.dataHash -> datum.value
+        }.toSeq
+
+        val lookupTable =
+            val scripts = getAllResolvedScripts(tx, utxos)
+            LookupTable(scripts, datumsMapping.toMap)
+
+        log.debug(
+          s"Built lookup table with ${lookupTable.scripts.size} scripts and ${lookupTable.datums.size} datums"
+        )
+
+        // Evaluate each redeemer
+        var remainingBudget = initialBudget
+        val evaluatedRedeemers = for redeemer <- redeemers yield
+            val evaluatedRedeemer = evalRedeemer(tx, datumsMapping, utxos, redeemer, lookupTable)
+
+            // Log execution unit differences for debugging
+            if evaluatedRedeemer.exUnits != redeemer.exUnits then
+                log.debug(s"ExUnits changed: ${redeemer.exUnits} -> ${evaluatedRedeemer.exUnits}")
+
+            // Update remaining budget (safe subtraction as evaluation would fail if budget exceeded)
+            remainingBudget = ExBudget.fromCpuAndMemory(
+              remainingBudget.cpu - evaluatedRedeemer.exUnits.steps,
+              remainingBudget.memory - evaluatedRedeemer.exUnits.memory
+            )
+
+            evaluatedRedeemer
+
+        log.debug(s"Phase 2 evaluation completed. Remaining budget: $remainingBudget")
+        evaluatedRedeemers
+    }
+
+    /** Evaluate a single redeemer and its associated script.
+      *
+      * This is the core evaluation method that:
+      *   1. Resolves the script and datum for the redeemer
+      *   2. Builds the appropriate script context for the Plutus version
+      *   3. Applies the script arguments (datum, redeemer, context)
+      *   4. Executes the script using the appropriate Plutus VM
+      *   5. Returns the redeemer with computed execution units
+      */
+    private def evalRedeemer(
+        tx: Transaction,
+        datums: Seq[(DataHash, Data)],
+        utxos: Map[TransactionInput, TransactionOutput],
+        redeemer: Redeemer,
+        lookupTable: LookupTable
+    ): Redeemer = {
+        val scriptAndData = findScript(tx, redeemer, lookupTable, utxos)
+        val result = scriptAndData match
+            case (Script.PlutusV1(script), datum) =>
+                evalPlutusV1Script(tx, datums, utxos, redeemer, script, datum)
+
+            case (Script.PlutusV2(script), datum) =>
+                evalPlutusV2Script(tx, datums, utxos, redeemer, script, datum)
+
+            case (Script.PlutusV3(script), datum) =>
+                evalPlutusV3Script(tx, datums, utxos, redeemer, script, datum)
+
+            case (_: Script.Native, _) =>
+                throw new IllegalStateException("Native script evaluation not supported in Phase 2")
+
+        val cost = result.budget
+        log.debug(s"Evaluation result: $result")
+
+        // Return redeemer with computed execution units
+        redeemer.copy(exUnits = ExUnits(memory = cost.memory, steps = cost.cpu))
+    }
 
     /** Resolve the script and datum associated with a redeemer.
       *
@@ -265,48 +380,11 @@ private[scalus] class PlutusScriptEvaluator(
             case _ => None
     }
 
-    /** Evaluate a single redeemer and its associated script.
-      *
-      * This is the core evaluation method that:
-      *   1. Resolves the script and datum for the redeemer
-      *   2. Builds the appropriate script context for the Plutus version
-      *   3. Applies the script arguments (datum, redeemer, context)
-      *   4. Executes the script using the appropriate Plutus VM
-      *   5. Returns the redeemer with computed execution units
-      */
-    private def evalRedeemer(
-        tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
-        utxos: Map[TransactionInput, TransactionOutput],
-        redeemer: Redeemer,
-        lookupTable: LookupTable
-    ): Redeemer = {
-        val scriptAndData = findScript(tx, redeemer, lookupTable, utxos)
-        val result = scriptAndData match
-            case (Script.PlutusV1(script), datum) =>
-                evalPlutusV1Script(tx, datums, utxos, redeemer, script, datum)
-
-            case (Script.PlutusV2(script), datum) =>
-                evalPlutusV2Script(tx, datums, utxos, redeemer, script, datum)
-
-            case (Script.PlutusV3(script), datum) =>
-                evalPlutusV3Script(tx, datums, utxos, redeemer, script, datum)
-
-            case (_: Script.Native, _) =>
-                throw new IllegalStateException("Native script evaluation not supported in Phase 2")
-
-        val cost = result.budget
-        log.debug(s"Evaluation result: $result")
-
-        // Return redeemer with computed execution units
-        redeemer.copy(exUnits = ExUnits(memory = cost.memory, steps = cost.cpu))
-    }
-
     /** Evaluate a Plutus V1 script with the V1 script context.
       */
     private def evalPlutusV1Script(
         tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
+        datums: Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
         script: ByteString,
@@ -333,7 +411,7 @@ private[scalus] class PlutusScriptEvaluator(
       */
     private def evalPlutusV2Script(
         tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
+        datums: Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
         script: ByteString,
@@ -360,7 +438,7 @@ private[scalus] class PlutusScriptEvaluator(
       */
     private def evalPlutusV3Script(
         tx: Transaction,
-        datums: collection.Seq[(ByteString, Data)],
+        datums: Seq[(ByteString, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
         script: ByteString,
@@ -450,63 +528,6 @@ private[scalus] class PlutusScriptEvaluator(
           java.nio.file.StandardOpenOption.CREATE,
           java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
         )
-    }
-
-    /** Perform Phase 2 transaction evaluation.
-      *
-      * This is the main evaluation orchestrator that:
-      *   1. Extracts redeemers from the transaction
-      *   2. Builds datum and script lookup tables
-      *   3. Evaluates each redeemer sequentially
-      *   4. Tracks total budget consumption
-      *   5. Returns all evaluated redeemers
-      */
-    def evalPhaseTwo(
-        tx: Transaction,
-        utxos: Map[TransactionInput, TransactionOutput],
-    ): collection.Seq[Redeemer] = {
-        log.debug(s"Starting Phase 2 evaluation for transaction: ${tx.id}")
-
-        val redeemers = tx.witnessSet.redeemers
-            .getOrElse(throw new IllegalStateException("Transaction does not contain redeemers"))
-            .value
-            .toIndexedSeq
-
-        // Build datum lookup table with hash mapping
-        // According to Babbage spec, we lookup datums only in witness set
-        // and do not consider reference input inline datums
-        // (getDatum, Figure 3: Functions related to scripts)
-        val datumsMapping = tx.witnessSet.plutusData.value.toIndexedSeq.view.map { datum =>
-            datum.dataHash -> datum.value
-        }.toSeq
-
-        val lookupTable =
-            val scripts = getAllResolvedScripts(tx, utxos)
-            LookupTable(scripts, datumsMapping.toMap)
-
-        log.debug(
-          s"Built lookup table with ${lookupTable.scripts.size} scripts and ${lookupTable.datums.size} datums"
-        )
-
-        // Evaluate each redeemer
-        var remainingBudget = initialBudget
-        val evaluatedRedeemers = for redeemer <- redeemers yield
-            val evaluatedRedeemer = evalRedeemer(tx, datumsMapping, utxos, redeemer, lookupTable)
-
-            // Log execution unit differences for debugging
-            if evaluatedRedeemer.exUnits != redeemer.exUnits then
-                log.debug(s"ExUnits changed: ${redeemer.exUnits} -> ${evaluatedRedeemer.exUnits}")
-
-            // Update remaining budget (safe subtraction as evaluation would fail if budget exceeded)
-            remainingBudget = ExBudget.fromCpuAndMemory(
-              remainingBudget.cpu - evaluatedRedeemer.exUnits.steps,
-              remainingBudget.memory - evaluatedRedeemer.exUnits.memory
-            )
-
-            evaluatedRedeemer
-
-        log.debug(s"Phase 2 evaluation completed. Remaining budget: $remainingBudget")
-        evaluatedRedeemers
     }
 
     // Placeholder methods for building script contexts and purposes

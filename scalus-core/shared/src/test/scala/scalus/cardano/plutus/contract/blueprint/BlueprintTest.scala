@@ -1,6 +1,5 @@
 package scalus.cardano.plutus.contract.blueprint
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.Data
 import scalus.cardano.plutus.contract.blueprint
 import scalus.cardano.plutus.contract.blueprint.HtlcValidatorInputs.{Action, ContractDatum}
 

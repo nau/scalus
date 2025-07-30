@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.11.0 (2025-07-28)
+
+### Added
+
+- new more efficient UPLC codegen
+- CIP-57 Blueprints support
+- improved Scalus standard library and tests
+- `PlutusScriptEvaluator` for evaluating Plutus scripts using Scalus ledger domain types
+- `ScriptDataHashGenerator` for computing script integrity hash
+- added and improved Cardano Ledger rules
+- Arbitrary instances for Plutus domain types
+- Vesting example
+
+### Fixed
+
+- avoid expensive G1/G2 zero/generator constants initialization
+
+### Changed
+
+- Plutus `Value` uses `SortedMap` instead of `AssocMap`
+- improved Cardano Ledger classes
+
+## 0.10.4 (2025-07-16)
+
+### Fixed
+
+- large BigInt encoding occasionally added an extra byte to the CBOR encoding
+- mint value doesn't contain 0 Ada in Plutus V3 scripts
+
+## 0.10.3 (2025-07-16)
+
+### Added
+
+- updated to a new Maven Central repository
+
+## 0.10.2 (2025-07-07)
+
+### Added
+
+- lazy cost model loading in `ScalusTransactionEvaluator`
+
+### Fixed
+
+- BLS builtins serialization
+- cost parameters for `divideInteger`, `modInteger`, `quotientInteger`, `remainderInteger`
+
 ## 0.10.1 (2025-06-04)
 
 ### Added
@@ -177,11 +223,13 @@ Nothing changed, just pushed the wrong commit under 0.8.1.
 
 Scalus CEK and cost calculation implementation is now feature complete.
 
-We were able to validate transactions from whole Cardano Epoch 484 using Scalus and Cardano Client Lib.
+We were able to validate transactions from whole Cardano Epoch 484 using Scalus and Cardano Client
+Lib.
 
 ### Added
 
-- `ScalusTransactionEvaluator` - Cardano Client Lib (CCL) `TransactionEvaluator` implementation. You can now use Scalus
+- `ScalusTransactionEvaluator` - Cardano Client Lib (CCL) `TransactionEvaluator` implementation. You
+  can now use Scalus
   to evaluate scripts and their costs off-chain during transaction building.
 - SIR and UPLC optimizations: `RemoveRecursivity`, `EtaReduce`
 - `evaluateScriptRestricting` mode
@@ -206,7 +254,8 @@ We were able to validate transactions from whole Cardano Epoch 484 using Scalus 
 
 ### Added
 
-- compile `==`, `!=` operators as Plutus builtins for `Boolean`, `ByteString`, `String` and `Data` types
+- compile `==`, `!=` operators as Plutus builtins for `Boolean`, `ByteString`, `String` and `Data`
+  types
 - `++` operator, `size` and `length` functions for `ByteString`
 
 ### Fixed
@@ -233,7 +282,8 @@ We were able to validate transactions from whole Cardano Epoch 484 using Scalus 
 ### Added
 
 - better error messages in the compiler
-- Scalus Intermediate Representation (SIR) now has a version number (requires recompilation of existing SIR)
+- Scalus Intermediate Representation (SIR) now has a version number (requires recompilation of
+  existing SIR)
 - SIR and UPLC pretty printers can print normal and syntax highlighted code using XTerm colors
 - UPLC pretty printer outputs a better indented code
 - added Blake2b 224 builtin implementation on JVM

@@ -68,7 +68,10 @@ case class MultiAsset(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]) {
 object MultiAsset {
     val zero: MultiAsset = MultiAsset(SortedMap.empty)
     val empty: MultiAsset = zero
-    def binOp(op: (Long, Long) => Long)(self: MultiAsset, other: MultiAsset): MultiAsset = {
+
+    private[ledger] def binOp(
+        op: (Long, Long) => Long
+    )(self: MultiAsset, other: MultiAsset): MultiAsset = {
         val assets: SortedMap[PolicyId, SortedMap[AssetName, Long]] =
             (self.assets.keySet ++ other.assets.keySet).view
                 .flatMap { policyId =>

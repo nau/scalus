@@ -25,16 +25,17 @@ class OptionTest extends StdlibTestKit {
 
     test("ord") {
         check { (pair: (Int, Int)) =>
+            import Ord.*
+
             val (left, right) = pair
             val leftOpt = prelude.Option(BigInt(left))
             val rightOpt = prelude.Option(BigInt(right))
-            leftOpt.gt(Option.empty) && rightOpt.gt(
-              Option.empty
-            ) && (if left > right then {
-                      leftOpt gt rightOpt
-                  } else if left < right then {
-                      leftOpt lt rightOpt
-                  } else leftOpt equiv rightOpt)
+            leftOpt > Option.empty && rightOpt > Option.empty
+            && (if left > right then {
+                    leftOpt > rightOpt
+                } else if left < right then {
+                    leftOpt < rightOpt
+                } else leftOpt equiv rightOpt)
         }
 
 //        assertEval(

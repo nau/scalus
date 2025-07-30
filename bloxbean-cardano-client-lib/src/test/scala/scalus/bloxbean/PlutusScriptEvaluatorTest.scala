@@ -76,7 +76,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             plutusData = KeepRaw(TaggedSet(KeepRaw(datum))),
           ),
         )
-        val redeemers = evaluator.evalPhaseTwo(tx, utxo)
+        val redeemers = evaluator.evalPlutusScripts(tx, utxo)
         assert(redeemers.size == 1)
         val redeemerResult = redeemers.head
         assert(redeemerResult.exUnits.memory == 13375L)
@@ -136,7 +136,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             plutusData = KeepRaw(TaggedSet(KeepRaw(datum))),
           ),
         )
-        val redeemers = evaluator.evalPhaseTwo(tx, utxo)
+        val redeemers = evaluator.evalPlutusScripts(tx, utxo)
         assert(redeemers.size == 1)
         val redeemerResult = redeemers.head
         assert(redeemerResult.exUnits.memory == 12775L)
@@ -185,7 +185,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         )
         //        DebugUtils.dumpTxInfo(tx, utxos)
 
-        val redeemers = evaluator.evalPhaseTwo(tx, utxos)
+        val redeemers = evaluator.evalPlutusScripts(tx, utxos)
         for (actual, expected) <- redeemers.zip(tx.witnessSet.redeemers.get.value.toIndexedSeq) do
             assert(actual.exUnits.memory <= expected.exUnits.memory)
             assert(actual.exUnits.steps <= expected.exUnits.steps, actual)

@@ -5,6 +5,7 @@ import scalus.Ignore
 import scalus.builtin.Builtins.*
 import scalus.builtin.{ByteString, Data, FromData, ToData}
 import scalus.macros.Macros
+import Ord.{<=>, Order}
 
 import scala.annotation.nowarn
 import scalus.cardano.onchain.{ImpossibleLedgerStateError, OnchainError, RequirementError}
@@ -76,12 +77,13 @@ extension [A](x: A)
     inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
     inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
 
-type Ord[-A] = (A, A) => Ord.Order
-
-val Ord: OrdCompanion.type = OrdCompanion
+@FunctionalInterface
+trait Ord[-A] extends Function2[A, A, Ord.Order] with scalus.CompileDerivations {
+    override def apply(lhs: A, rhs: A): Ord.Order
+}
 
 @Compile
-object OrdCompanion:
+object Ord:
     inline def apply[A: Ord]: Ord[A] = summon[Ord[A]]
 
     enum Order:
@@ -91,15 +93,11 @@ object OrdCompanion:
 
     extension (self: Order)
         def isLess: Boolean = self match { case Less => true; case _ => false }
-        def isLessEqual: Boolean = self match {
-            case Less => true; case Equal => true; case _ => false
-        }
+        def isLessEqual: Boolean = self match { case Greater => false; case _ => true }
         def isGreater: Boolean = self match { case Greater => true; case _ => false }
-        def isGreaterEqual: Boolean = self match {
-            case Greater => true; case Equal => true; case _ => false
-        }
+        def isGreaterEqual: Boolean = self match { case Less => false; case _ => true }
         def isEqual: Boolean = self match { case Equal => true; case _ => false }
-        inline def nonEqual: Boolean = !isEqual
+        def nonEqual: Boolean = self match { case Equal => false; case _ => true }
 
     end extension
 
@@ -109,20 +107,31 @@ object OrdCompanion:
             case Greater => rhs.isGreater
             case Equal   => rhs.isEqual
 
+    given Ord[Order] = (lhs, rhs) =>
+        lhs match
+            case Less    => if rhs.isLess then Equal else Less
+            case Greater => if rhs.isGreater then Equal else Greater
+            case Equal =>
+                rhs match
+                    case Less    => Greater
+                    case Greater => Less
+                    case Equal   => Equal
+
     extension [A: Ord](self: A)
-        inline def <=>(inline other: A): Order = Ord[A].compare(self, other)
-        def lt(other: A): Boolean = (self <=> other).isLess
-        def lteq(other: A): Boolean = (self <=> other).isLessEqual
-        def gt(other: A): Boolean = (self <=> other).isGreater
-        def gteq(other: A): Boolean = (self <=> other).isGreaterEqual
+        inline def <=>(inline other: A): Ord.Order = Ord[A].compare(self, other)
+        def <(other: A): Boolean = (self <=> other).isLess
+        def <=(other: A): Boolean = (self <=> other).isLessEqual
+        def >(other: A): Boolean = (self <=> other).isGreater
+        def >=(other: A): Boolean = (self <=> other).isGreaterEqual
         def equiv(other: A): Boolean = (self <=> other).isEqual
+        def nonEquiv(other: A): Boolean = (self <=> other).nonEqual
 
     end extension
 
     def by[A, B: Ord](mapper: A => B): Ord[A] = (lhs: A, rhs: A) => mapper(lhs) <=> mapper(rhs)
 
     extension [A](self: Ord[A])
-        inline def compare(inline lhs: A, inline rhs: A): Order = self(lhs, rhs)
+        inline def compare(inline lhs: A, inline rhs: A): Order = self.apply(lhs, rhs)
 
         def orElse(other: Ord[A]): Ord[A] = (lhs: A, rhs: A) =>
             val order = self.compare(lhs, rhs)
@@ -139,14 +148,34 @@ object OrdCompanion:
         else if equalsByteString(x, y) then Equal
         else Greater
 
+    extension (self: ByteString)
+        inline def <(other: ByteString): Boolean = lessThanByteString(self, other)
+        inline def <=(other: ByteString): Boolean = lessThanEqualsByteString(self, other)
+        inline def >(other: ByteString): Boolean = lessThanByteString(other, self)
+        inline def >=(other: ByteString): Boolean = lessThanEqualsByteString(other, self)
+        inline def equiv(other: ByteString): Boolean = equalsByteString(self, other)
+        inline def nonEquiv(other: ByteString): Boolean = !equalsByteString(self, other)
+
+    end extension
+
     given Ord[BigInt] = (x: BigInt, y: BigInt) =>
         if lessThanInteger(x, y) then Less else if lessThanInteger(y, x) then Greater else Equal
+
+    extension (self: BigInt)
+        inline def <(other: BigInt): Boolean = lessThanInteger(self, other)
+        inline def <=(other: BigInt): Boolean = lessThanEqualsInteger(self, other)
+        inline def >(other: BigInt): Boolean = lessThanInteger(other, self)
+        inline def >=(other: BigInt): Boolean = lessThanEqualsInteger(other, self)
+        inline def equiv(other: BigInt): Boolean = equalsInteger(self, other)
+        inline def nonEquiv(other: BigInt): Boolean = !equalsInteger(self, other)
+
+    end extension
 
     given [A: Ord, B: Ord]: Ord[(A, B)] = Ord.by[(A, B), A](_._1).orElseBy(_._2)
 
     def keyPairOrd[A: Ord, B]: Ord[(A, B)] = Ord.by[(A, B), A](_._1)
 
-end OrdCompanion
+end Ord
 
 inline def log(msg: String): Unit = trace(msg)(())
 inline def identity[A](value: A): A = value
@@ -307,7 +336,6 @@ object Rational:
         lhs.numerator * rhs.denominator === rhs.numerator * lhs.denominator
 
     given Ord[Rational] = (lhs: Rational, rhs: Rational) =>
-        import Ord.*
         lhs.numerator * rhs.denominator <=> rhs.numerator * lhs.denominator
 
     given rationalFromData: FromData[Rational] = FromData.derived

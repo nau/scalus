@@ -4,7 +4,6 @@ import scalus.*
 import scalus.builtin.Builtins.{multiplyInteger, remainderInteger}
 import scalus.prelude.{*, given}
 import scalus.prelude.Eq.given
-import scalus.prelude.Ord.*
 import scalus.uplc.*
 import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -36,7 +35,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             if summon[
                   scalus.Compiler.Options
                 ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-            then ExBudget(ExCPU(148279_342639L), ExMemory(513_226542L))
+            then ExBudget(ExCPU(148252_408171L), ExMemory(513_120810L))
             else if summon[
                   scalus.Compiler.Options
                 ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering
@@ -258,7 +257,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
         val scalusBudget =
             summon[scalus.Compiler.Options].targetLoweringBackend match
                 case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    ExBudget(ExCPU(588618_435325L), ExMemory(200_1478161L))
+                    ExBudget(ExCPU(588618_435325L), ExMemory(2001_478161L))
                 case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     ExBudget(ExCPU(115775_218834L), ExMemory(645_799142L))
                 case _ =>
@@ -519,7 +518,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
         val scalusBudget = {
             summon[scalus.Compiler.Options].targetLoweringBackend match {
                 case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    ExBudget(ExCPU(125219_8783781L), ExMemory(4272_660383L))
+                    ExBudget(ExCPU(1_252198_783781L), ExMemory(4272_660383L))
                 case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     ExBudget(ExCPU(235822_700067L), ExMemory(1315_097779L))
                 case scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>

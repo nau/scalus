@@ -219,50 +219,37 @@ class ListTest extends StdlibTestKit {
             scalusResult === scalaResult
         }
 
-        assertEvalEq(
-          List.empty[BigInt] <=> List.empty[BigInt],
-          Order.Equal
+        assertEval((List.empty[BigInt] <=> List.empty[BigInt]).isEqual)
+
+        assertEval((List.single(BigInt(1)) <=> List.single(BigInt(1))).isEqual)
+
+        assertEval(
+          (
+            Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil))) <=>
+                Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+          ).isEqual
         )
 
-        assertEvalEq(
-          List.single(BigInt(1)) <=> List.single(BigInt(1)),
-          Order.Equal
+        assertEval((List.empty[BigInt] <=> List.single(BigInt(1))).isLess)
+
+        assertEval((List.single(BigInt(1)) <=> List.single(BigInt(2))).isLess)
+
+        assertEval(
+          (
+            Cons(BigInt(1), Cons(BigInt(2), Nil)) <=>
+                Cons(BigInt(1), Cons(BigInt(3), Nil))
+          ).isLess
         )
 
-        assertEvalEq(
-          Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil))) <=>
-              Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil))),
-          Order.Equal
-        )
+        assertEval((List.single(BigInt(1)) <=> List.empty[BigInt]).isGreater)
 
-        assertEvalEq(
-          List.empty[BigInt] <=> List.single(BigInt(1)),
-          Order.Less
-        )
+        assertEval((List.single(BigInt(2)) <=> List.single(BigInt(1))).isGreater)
 
-        assertEvalEq(
-          List.single(BigInt(1)) <=> List.single(BigInt(2)),
-          Order.Less
-        )
-
-        assertEvalEq(
-          Cons(BigInt(1), Cons(BigInt(2), Nil)) <=> Cons(BigInt(1), Cons(BigInt(3), Nil)),
-          Order.Less
-        )
-
-        assertEvalEq(
-          List.single(BigInt(1)) <=> List.empty[BigInt],
-          Order.Greater
-        )
-
-        assertEvalEq(
-          List.single(BigInt(2)) <=> List.single(BigInt(1)),
-          Order.Greater
-        )
-
-        assertEvalEq(
-          Cons(BigInt(1), Cons(BigInt(3), Nil)) <=> Cons(BigInt(1), Cons(BigInt(2), Nil)),
-          Order.Greater
+        assertEval(
+          (
+            Cons(BigInt(1), Cons(BigInt(3), Nil)) <=>
+                Cons(BigInt(1), Cons(BigInt(2), Nil))
+          ).isGreater
         )
     }
 
@@ -285,6 +272,13 @@ class ListTest extends StdlibTestKit {
     }
 
     test("flatten") {
+        given [T: Arbitrary]: Arbitrary[List[T]] = Arbitrary {
+            for {
+                size <- Gen.choose(0, 10)
+                list <- Gen.listOfN(size, Arbitrary.arbitrary[T])
+            } yield list.asScalus
+        }
+
         check { (list: List[List[BigInt]]) =>
             val scalusResult = list.flatten
             val scalaResult = list.asScala.flatMap(_.asScala)

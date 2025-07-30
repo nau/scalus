@@ -4,7 +4,7 @@ import scalus.Compile
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data.fromData
 import scalus.builtin.{Data, FromData, ToData}
-import Ord.*
+import Ord.{<=>, Order}
 import scalus.cardano.onchain.RequirementError
 import scala.annotation.tailrec
 
@@ -58,6 +58,8 @@ object SortedMap {
       *   {{{
       *   SortedMap.unsafeFromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).toList === List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))
       *   }}}
+      * @see
+      *   [[fromList]] or [[fromStrictlyAscendingList]] for a safe version that validates the input
       */
     def unsafeFromList[A, B](lst: List[(A, B)]): SortedMap[A, B] = SortedMap(lst)
 
@@ -99,12 +101,12 @@ object SortedMap {
       * @return
       *   a `SortedMap` containing the key-value pairs from the list, or fails if the list is not in
       *   strictly ascending order
-      * @throws RequirementError
+      * @throws scalus.cardano.onchain.RequirementError
       *   if the list is not in strictly ascending order
       * @example
       *   {{{
       *   SortedMap.fromStrictlyAscendingList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).toList === List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))
-      *   SortedMap.fromStrictlyAscendingList(List.Cons(("a", 1), List.Cons(("a", 2), List.Nil))) // throws RequirementError
+      *   SortedMap.fromStrictlyAscendingList(List.Cons(("a", 1), List.Cons(("a", 2), List.Nil))) // throws scalus.cardano.onchain.RequirementError
       *   }}}
       */
     def fromStrictlyAscendingList[A: Ord, B](

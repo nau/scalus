@@ -197,7 +197,7 @@ object BlocksValidation:
                 try
                     val utxos = utxoResolver.resolveUtxos(tx)
                     if tx.isValid && tx.witnessSet.redeemers.nonEmpty then {
-                        val redeemers = evaluator.evalPhaseTwo(tx, utxos)
+                        val redeemers = evaluator.evalPlutusScripts(tx, utxos)
                         redeemers.zip(tx.witnessSet.redeemers.get.value.toIndexedSeq).foreach {
                             case (res, redeemer) =>
                                 if res.exUnits > redeemer.exUnits then

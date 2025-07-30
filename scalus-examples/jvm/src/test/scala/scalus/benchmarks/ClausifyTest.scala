@@ -5,7 +5,7 @@ import scala.annotation.nowarn
 import scalus.*
 import scalus.prelude.{*, given}
 import scalus.prelude.Eq.given
-import scalus.prelude.Ord.*
+import scalus.prelude.Ord.{<=>, Order}
 import scalus.uplc.*
 import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -1016,7 +1016,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
             .toUplcOptimized(false)
             .evaluateDebug
 
-        val scalusBudget = ExBudget(ExCPU(162132640183L), ExMemory(535467999L))
+        val scalusBudget = ExBudget(ExCPU(161509066439L), ExMemory(533020143L))
         // val scalusBudget = ExBudget(ExCPU(37733187149L), ExMemory(214968623L))
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)

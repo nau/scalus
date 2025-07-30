@@ -299,94 +299,98 @@ class SortedMapTest extends StdlibTestKit {
     }
 
     test("Ord") {
-        assertEvalEq(
-          SortedMap.empty[BigInt, BigInt] <=> SortedMap.empty[BigInt, BigInt],
-          Order.Equal
+        assertEval((SortedMap.empty[BigInt, BigInt] <=> SortedMap.empty[BigInt, BigInt]).isEqual)
+
+        assertEval(
+          (
+            SortedMap.singleton(BigInt(0), BigInt(0)) <=>
+                SortedMap.singleton(BigInt(0), BigInt(0))
+          ).isEqual
         )
 
-        assertEvalEq(
-          SortedMap.singleton(BigInt(0), BigInt(0)) <=> SortedMap.singleton(BigInt(0), BigInt(0)),
-          Order.Equal
-        )
-
-        assertEvalEq(
-          SortedMap
-              .fromStrictlyAscendingList(
-                List.Cons(
-                  (BigInt(1), BigInt(1)),
+        assertEval(
+          (
+            SortedMap
+                .fromStrictlyAscendingList(
                   List.Cons(
-                    (BigInt(2), BigInt(2)),
-                    List.Nil
+                    (BigInt(1), BigInt(1)),
+                    List.Cons(
+                      (BigInt(2), BigInt(2)),
+                      List.Nil
+                    )
+                  )
+                ) <=> SortedMap
+                .fromStrictlyAscendingList(
+                  List.Cons(
+                    (BigInt(1), BigInt(1)),
+                    List.Cons(
+                      (BigInt(2), BigInt(2)),
+                      List.Nil
+                    )
                   )
                 )
-              ) <=> SortedMap
-              .fromStrictlyAscendingList(
-                List.Cons(
-                  (BigInt(1), BigInt(1)),
+          ).isEqual
+        )
+
+        assertEval(
+          (SortedMap.empty[BigInt, BigInt] <=> SortedMap.singleton(BigInt(1), BigInt(1))).isLess
+        )
+
+        assertEval(
+          (
+            SortedMap.singleton(BigInt(0), BigInt(0)) <=>
+                SortedMap.singleton(BigInt(1), BigInt(1))
+          ).isLess
+        )
+
+        assertEval(
+          (
+            SortedMap
+                .fromStrictlyAscendingList(
                   List.Cons(
-                    (BigInt(2), BigInt(2)),
-                    List.Nil
+                    (BigInt(1), BigInt(1)),
+                    List.Cons(
+                      (BigInt(2), BigInt(2)),
+                      List.Nil
+                    )
+                  )
+                ) <=> SortedMap.singleton(BigInt(3), BigInt(3))
+          ).isLess
+        )
+
+        assertEval(
+          (SortedMap.singleton(BigInt(1), BigInt(1)) <=> SortedMap.empty[BigInt, BigInt]).isGreater
+        )
+
+        assertEval(
+          (
+            SortedMap.singleton(BigInt(1), BigInt(1)) <=>
+                SortedMap.singleton(BigInt(0), BigInt(0))
+          ).isGreater
+        )
+
+        assertEval(
+          (
+            SortedMap
+                .fromStrictlyAscendingList(
+                  List.Cons(
+                    (BigInt(1), BigInt(1)),
+                    List.Cons(
+                      (BigInt(2), BigInt(2)),
+                      List.Nil
+                    )
+                  )
+                ) <=> SortedMap
+                .fromStrictlyAscendingList(
+                  List.Cons(
+                    (BigInt(0), BigInt(0)),
+                    List.Cons(
+                      (BigInt(2), BigInt(2)),
+                      List.Nil
+                    )
                   )
                 )
-              ),
-          Order.Equal
-        )
-
-        assertEvalEq(
-          SortedMap.empty[BigInt, BigInt] <=> SortedMap.singleton(BigInt(1), BigInt(1)),
-          Order.Less
-        )
-
-        assertEvalEq(
-          SortedMap.singleton(BigInt(0), BigInt(0)) <=> SortedMap.singleton(BigInt(1), BigInt(1)),
-          Order.Less
-        )
-
-        assertEvalEq(
-          SortedMap
-              .fromStrictlyAscendingList(
-                List.Cons(
-                  (BigInt(1), BigInt(1)),
-                  List.Cons(
-                    (BigInt(2), BigInt(2)),
-                    List.Nil
-                  )
-                )
-              ) <=> SortedMap.singleton(BigInt(3), BigInt(3)),
-          Order.Less
-        )
-
-        assertEvalEq(
-          SortedMap.singleton(BigInt(1), BigInt(1)) <=> SortedMap.empty[BigInt, BigInt],
-          Order.Greater
-        )
-
-        assertEvalEq(
-          SortedMap.singleton(BigInt(1), BigInt(1)) <=> SortedMap.singleton(BigInt(0), BigInt(0)),
-          Order.Greater
-        )
-
-        assertEvalEq(
-          SortedMap
-              .fromStrictlyAscendingList(
-                List.Cons(
-                  (BigInt(1), BigInt(1)),
-                  List.Cons(
-                    (BigInt(2), BigInt(2)),
-                    List.Nil
-                  )
-                )
-              ) <=> SortedMap
-              .fromStrictlyAscendingList(
-                List.Cons(
-                  (BigInt(0), BigInt(0)),
-                  List.Cons(
-                    (BigInt(2), BigInt(2)),
-                    List.Nil
-                  )
-                )
-              ),
-          Order.Greater
+          ).isGreater
         )
     }
 

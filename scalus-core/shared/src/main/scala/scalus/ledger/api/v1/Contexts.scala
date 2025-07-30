@@ -577,10 +577,25 @@ object TxInfo {
     given FromData[TxInfo] = FromData.derived
 
     extension (self: TxInfo) {
+
+        /** Finds an input by its out reference.
+          *
+          * @param outRef
+          *   The output reference to find.
+          * @return
+          *   An `Option` containing the found input, or `None` if not found.
+          */
         def findOwnInput(outRef: TxOutRef): Option[TxInInfo] = {
             Utils.findInput(self.inputs, outRef)
         }
 
+        /** Finds all outputs that match a given script hash.
+          *
+          * @param scriptHash
+          *   The script hash to match against the outputs' addresses.
+          * @return
+          *   A list of outputs that match the script hash.
+          */
         def findOwnScriptOutputs(scriptHash: ValidatorHash): List[TxOut] = {
             Utils.findScriptOutputs(self.outputs, scriptHash)
         }
