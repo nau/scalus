@@ -3,7 +3,8 @@ import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network}
-import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, Coin, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
+import scalus.cardano.ledger.TransactionException.ValueNotConservedUTxOException
+import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, Coin, TransactionException, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
 import scalus.ledger.babbage.ProtocolParams
 import upickle.default.read
 
@@ -33,6 +34,8 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
             .amount(paymentAmount)
             .using(utxo)
             .balanceAndCalculateFees(myAddress)
+            .right
+            .get
         assert(tx.body.value.outputs.size == 2)
         assert(tx.body.value.outputs.exists(_.value.address == myAddress))
         assert(tx.body.value.outputs.exists(_.value.address == faucet))
@@ -56,16 +59,16 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
             Value.lovelace(1_000L)
           )
         )
+        // exceeds available lovelace
+        val paymentAmount = 10_000L
+        val tx = TxBuilder(params, Network.Testnet)
+            .payTo(faucet)
+            .amount(Value.lovelace(paymentAmount))
+            .using(utxo)
+            .balanceAndCalculateFees(myAddress)
 
-        assertThrows[IllegalStateException] {
-            // exceeds available lovelace
-            val paymentAmount = 10_000L
-            TxBuilder(params, Network.Testnet)
-                .payTo(faucet)
-                .amount(Value.lovelace(paymentAmount))
-                .using(utxo)
-                .balanceAndCalculateFees(myAddress)
-        }
+        val exception = tx.left.get
+        assert(exception.isInstanceOf[ValueNotConservedUTxOException])
     }
     test(
       "should throw when trying to create a transaction where outputs cover the input, but don't cover the fee"
@@ -85,13 +88,12 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
 
         // Technically available, but not with a fee
         val paymentAmount = availableLovelace - Value.lovelace(1L)
-        assertThrows[IllegalStateException] {
-            TxBuilder(params, Network.Testnet)
-                .payTo(faucet)
-                .amount(paymentAmount)
-                .using(utxo)
-                .balanceAndCalculateFees(myAddress)
-        }
+        val tx = TxBuilder(params, Network.Testnet)
+            .payTo(faucet)
+            .amount(paymentAmount)
+            .using(utxo)
+            .balanceAndCalculateFees(myAddress)
+        assert(tx.left.get.isInstanceOf[TransactionException.IllegalArgumentException])
 
     }
 }

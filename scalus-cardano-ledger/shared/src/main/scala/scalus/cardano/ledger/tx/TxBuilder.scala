@@ -1,7 +1,7 @@
 package scalus.cardano.ledger.tx
 import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.utils.MinTransactionFee
+import scalus.cardano.ledger.utils.{MinTransactionFee, TxBalance}
 import scalus.ledger.babbage.ProtocolParams
 
 import scala.annotation.tailrec
@@ -22,76 +22,68 @@ case class TxBuilder(
         copy(soFar = soFar.copy(witnessSet = wSet))
     }
 
-    def balanceAndCalculateFees(changeAddress: Address): Transaction = {
-        val consumed = calculateConsumedValue(soFar.body.value)
-        val outputsValue = calculateProducedValue(soFar.body.value)
-
-        if consumed.coin < outputsValue.coin then {
-            throw new IllegalStateException(
-              s"Insufficient funds: consumed ${consumed.coin}, needed at least ${outputsValue.coin}"
-            )
-        }
-
-        @tailrec
-        def go(currentTx: Transaction): Transaction = {
-            val txBody = currentTx.body.value
-            val consumed = calculateConsumedValue(txBody)
-            val outputsOnly = calculateProducedValue(txBody)
-            val fee = txBody.fee
-            val totalNeeded = Value(outputsOnly.coin + fee)
-            val diffLong = consumed.coin.value - totalNeeded.coin.value
-            if diffLong == 0 then {
-                currentTx
-            } else if diffLong > 0 then {
-                val diff = Coin(diffLong)
-                val change = TransactionOutput(changeAddress, Value(diff))
-                val newOutputs = txBody.outputs :+ Sized(change)
-                val newTx = currentTx.copy(body = KeepRaw(txBody.copy(outputs = newOutputs)))
-
-                MinTransactionFee(newTx, utxos, protocolParams) match {
-                    case Right(correctFee) =>
-                        val newTxWithFee =
-                            newTx.copy(body = KeepRaw(newTx.body.value.copy(fee = correctFee)))
-                        val newOutputsValue =
-                            newTx.body.value.outputs.map(_.value.value).foldLeft(Value.zero)(_ + _)
-                        val newTotalNeeded = Value(newOutputsValue.coin + correctFee)
-                        if consumed.coin >= newTotalNeeded.coin then {
-                            go(newTxWithFee)
-                        } else {
-                            val txWithoutChange =
-                                currentTx.copy(body = KeepRaw(txBody.copy(fee = correctFee)))
-                            go(txWithoutChange)
-                        }
-                    case Left(error) =>
-                        throw new IllegalStateException(
-                          s"Failed to calculate fees: $error. tx: $currentTx"
-                        )
-                }
-            } else {
-                throw new IllegalStateException(
-                  s"Insufficient funds to cover outputs and fees: consumed ${consumed.coin}, needed ${totalNeeded.coin}"
+    def balanceAndCalculateFees(changeAddress: Address): Either[TransactionException, Transaction] =
+        TxBalance.consumed(soFar, CertState.empty, utxos, protocolParams).flatMap { consumed =>
+            val produced = TxBalance.produced(soFar)
+            if consumed.coin < produced.coin then {
+                Left(
+                  TransactionException.ValueNotConservedUTxOException(soFar.id, consumed, produced)
                 )
+            } else {
+
+                @tailrec
+                def go(currentTx: Transaction): Either[TransactionException, Transaction] = {
+                    val txBody = currentTx.body.value
+                    val currentProduced = TxBalance.produced(currentTx)
+                    val diffLong = consumed.coin.value - currentProduced.coin.value
+                    if diffLong == 0 then {
+                        Right(currentTx)
+                    } else if diffLong > 0 then {
+                        val diff = Coin(diffLong)
+                        val change = TransactionOutput(changeAddress, Value(diff))
+                        val newOutputs = txBody.outputs :+ Sized(change)
+                        val newTx =
+                            currentTx.copy(body = KeepRaw(txBody.copy(outputs = newOutputs)))
+
+                        MinTransactionFee(newTx, utxos, protocolParams) match {
+                            case Right(correctFee) =>
+                                val newTxWithFee = newTx
+                                    .copy(body = KeepRaw(newTx.body.value.copy(fee = correctFee)))
+                                val newProduced = TxBalance.produced(newTxWithFee)
+                                if consumed.coin >= newProduced.coin then {
+                                    go(newTxWithFee)
+                                } else {
+                                    val txWithoutChange =
+                                        currentTx
+                                            .copy(body = KeepRaw(txBody.copy(fee = correctFee)))
+                                    go(txWithoutChange)
+                                }
+                            case Left(error) =>
+                                Left(
+                                  TransactionException
+                                      .IllegalArgumentException(s"Failed to calculate fees: $error")
+                                )
+                        }
+                    } else {
+                        Left(
+                          TransactionException
+                              .IllegalArgumentException("Insufficient funds to cover transaction")
+                        )
+                    }
+                }
+
+                val initialTx = MinTransactionFee(soFar, utxos, protocolParams).left
+                    .map(err =>
+                        TransactionException
+                            .IllegalArgumentException(s"Failed to calculate initial fees: $err")
+                    )
+                    .map(estimatedFee =>
+                        soFar.copy(body = KeepRaw(soFar.body.value.copy(fee = estimatedFee)))
+                    )
+
+                initialTx.flatMap(go)
             }
         }
-
-        val initialTx = MinTransactionFee(soFar, utxos, protocolParams) match {
-            case Right(estimatedFee) =>
-                soFar.copy(body = KeepRaw(soFar.body.value.copy(fee = estimatedFee)))
-            case Left(error) =>
-                throw new IllegalStateException(s"Failed to calculate initial fees: $error")
-        }
-
-        go(initialTx)
-    }
-
-    private def calculateConsumedValue(txBody: TransactionBody): Value = txBody.inputs
-        .flatMap(utxos.get)
-        .foldLeft(Value.zero)((acc, v) => acc + v.value)
-
-    private def calculateProducedValue(txBody: TransactionBody): Value =
-        txBody.outputs
-            .map(_.value.value)
-            .foldLeft(Value.zero)(_ + _)
 }
 
 object TxBuilder {
@@ -115,10 +107,16 @@ case class PayTo(
     def using(address: Address): PayTo =
         copy(utxoProvider = Some(UtxoProvider.utxosFromAddress(address, targetValue = count)))
 
-    private def prepareTx: Either[String, TxBuilder] = {
+    private def prepareTx: Either[TransactionException, TxBuilder] = {
         for {
-            utxos <- utxoProvider.map(_.utxos).toRight("No UTXO provider specified")
-            amount <- count.toRight("No amount specified")
+            utxos <- utxoProvider
+                .map(_.utxos)
+                .toRight(
+                  TransactionException.IllegalArgumentException("No UTXO provider specified")
+                )
+            amount <- count.toRight(
+              TransactionException.IllegalArgumentException("No amount specified")
+            )
         } yield {
             val output = TransactionOutput(destination, amount)
             val newOutputs = builder.soFar.body.value.outputs :+ Sized(output)
@@ -132,8 +130,8 @@ case class PayTo(
         }
     }
 
-    def balanceAndCalculateFees(changeAddress: Address): Transaction =
-        prepareTx.right.get.balanceAndCalculateFees(changeAddress)
+    def balanceAndCalculateFees(changeAddress: Address): Either[TransactionException, Transaction] =
+        prepareTx.flatMap(_.balanceAndCalculateFees(changeAddress))
 
 }
 
