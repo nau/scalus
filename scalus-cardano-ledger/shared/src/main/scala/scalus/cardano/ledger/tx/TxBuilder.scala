@@ -24,13 +24,21 @@ case class TxBuilder(
     }
 
     def balanceAndCalculateFees(changeAddress: Address): Transaction = {
+        val consumed = calculateConsumedValue(soFar.body.value)
+        val outputsValue = calculateProducedValue(soFar.body.value)
+        
+        if consumed.coin < outputsValue.coin then {
+            throw new IllegalStateException(s"Insufficient funds: consumed ${consumed.coin}, needed at least ${outputsValue.coin}")
+        }
+
         @tailrec
         def go(currentTx: Transaction): Transaction = {
             val txBody = currentTx.body.value
             val consumed = calculateConsumedValue(txBody)
-            val produced = calculateProducedValue(txBody)
-            val fee = currentTx.body.value.fee
-            val diff = consumed.coin - produced.coin
+            val outputsOnly = calculateProducedValue(txBody)
+            val fee = txBody.fee
+            val totalNeeded = Value(outputsOnly.coin + fee)
+            val diff = consumed.coin - totalNeeded.coin
 
             if diff == Coin.zero then {
                 currentTx
@@ -38,17 +46,36 @@ case class TxBuilder(
                 val change = TransactionOutput(changeAddress, Value(diff))
                 val newOutputs = txBody.outputs :+ Sized(change)
                 val newTx = currentTx.copy(body = KeepRaw(txBody.copy(outputs = newOutputs)))
+                
                 MinTransactionFee(newTx, utxos, protocolParams) match {
                     case Right(correctFee) =>
-                        go(newTx.copy(body = KeepRaw(newTx.body.value.copy(fee = correctFee))))
+                        val newTxWithFee = newTx.copy(body = KeepRaw(newTx.body.value.copy(fee = correctFee)))
+                        val newOutputsValue = newTx.body.value.outputs.map(_.value.value).foldLeft(Value.zero)(_ + _)
+                        val newTotalNeeded = Value(newOutputsValue.coin + correctFee)
+                        if consumed.coin >= newTotalNeeded.coin then {
+                            go(newTxWithFee)
+                        } else {
+                            val txWithoutChange = currentTx.copy(body = KeepRaw(txBody.copy(fee = correctFee)))
+                            go(txWithoutChange)
+                        }
                     case Left(error) =>
                         throw new IllegalStateException(
                           s"Failed to calculate fees: $error. tx: $currentTx"
                         )
                 }
-            } else throw new IllegalStateException("does not converge")
+            } else {
+                throw new IllegalStateException(s"Insufficient funds to cover outputs and fees: consumed ${consumed.coin}, needed ${totalNeeded.coin}")
+            }
         }
-        go(soFar)
+        
+        val initialTx = MinTransactionFee(soFar, utxos, protocolParams) match {
+            case Right(estimatedFee) => 
+                soFar.copy(body = KeepRaw(soFar.body.value.copy(fee = estimatedFee)))
+            case Left(error) =>
+                throw new IllegalStateException(s"Failed to calculate initial fees: $error")
+        }
+        
+        go(initialTx)
     }
 
     private def calculateConsumedValue(txBody: TransactionBody): Value = txBody.inputs
@@ -58,7 +85,7 @@ case class TxBuilder(
     private def calculateProducedValue(txBody: TransactionBody): Value =
         txBody.outputs
             .map(_.value.value)
-            .foldLeft(Value.zero)(_ + _) + Value(txBody.fee)
+            .foldLeft(Value.zero)(_ + _)
 }
 
 object TxBuilder {
@@ -99,37 +126,6 @@ case class PayTo(
         }
     }
 
-}
-
-object Api {
-    def main(args: Array[String]): Unit = {
-        val params: ProtocolParams = read[ProtocolParams](
-          this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-        )(using ProtocolParams.blockfrostParamsRW)
-        val myAddress = Address.fromString(
-          "addr_test1qp462993av9uxkrlc5ke8cltze7u435yrdhtfuylcpxsve290xc2fdt7tszwd829m0depehw2ewkzwjyv0gus7mzk6vqslffwq"
-        )
-        val faucet =
-            Address.fromString("addr_test1vqeux7xwusdju9dvsj8h7mca9aup2k439kfmwy773xxc2hcu7zy99")
-        val hash = TransactionHash.fromHex(
-          "147f02a87b363ee674c4924b6119ac47b0b99e72522212d9b4f1c6cecb4840b4"
-        )
-        val utxo: UTxO = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(
-            myAddress,
-            Value.lovelace(9_994_832_739L)
-          )
-        )
-
-        TxBuilder(params, Network.Testnet)
-            .payTo(faucet)
-            .amount(Value.lovelace(10_000_000L))
-            .using(utxo)
-            .prepareTx
-            .right
-            .get
-            .balanceAndCalculateFees(myAddress)
-    }
 }
 
 trait UtxoProvider {
