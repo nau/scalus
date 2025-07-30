@@ -1,9 +1,8 @@
 package scalus.cardano.ledger.tx
 import scalus.cardano.address.{Address, Network}
-import scalus.cardano.ledger.utils.MinTransactionFee
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.utils.MinTransactionFee
 import scalus.ledger.babbage.ProtocolParams
-import upickle.default.read
 
 import scala.annotation.tailrec
 
