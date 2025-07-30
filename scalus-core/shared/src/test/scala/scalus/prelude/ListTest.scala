@@ -32,6 +32,18 @@ class ListTest extends StdlibTestKit {
 
             scalaResult.asScalus === scalusResult && scalusResult.asScala == scalaResult
         }
+
+        assertEvalEq(
+          List(BigInt(1), BigInt(2), BigInt(3)),
+          Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
+        )
+    }
+
+    test("apply list of pairs") {
+        assertEvalEq(
+          List((BigInt(1), BigInt(2)), (BigInt(3), BigInt(4))),
+          Cons((BigInt(1), BigInt(2)), Cons((BigInt(3), BigInt(4)), Nil))
+        )
     }
 
     test("from IterableOnce") {

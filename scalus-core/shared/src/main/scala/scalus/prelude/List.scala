@@ -47,8 +47,7 @@ object List {
       *   List() === Nil
       *   }}}
       */
-    @Ignore
-    def apply[A](args: A*): List[A] = from(args)
+    def apply[A](args: A*): List[A] = args.list
 
     /** Creates a list from any Scala iterable collection.
       *

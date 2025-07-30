@@ -29,6 +29,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             require(result === expected)
         }
         val lw = sir.toLoweredValue()
+        // println(s"Lowered value: ${lw.pretty.render(100)}")
         val result = sir.toUplcOptimized(false).evaluateDebug
 
         val scalusBudget =
@@ -62,509 +63,191 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
                 val result = runKnights(100, 6)
 
                 import scalus.prelude.List.*
-                val expected: Solution = Cons(
+                val expected: Solution = List(
                   (
                     0,
                     ChessSet(
                       size = 6,
                       moveNumber = 36,
                       start = Option.Some((1, 1)),
-                      visited = Cons(
+                      visited = List(
                         (3, 2),
-                        Cons(
-                          (5, 3),
-                          Cons(
-                            (6, 1),
-                            Cons(
-                              (4, 2),
-                              Cons(
-                                (3, 4),
-                                Cons(
-                                  (2, 6),
-                                  Cons(
-                                    (4, 5),
-                                    Cons(
-                                      (6, 6),
-                                      Cons(
-                                        (5, 4),
-                                        Cons(
-                                          (6, 2),
-                                          Cons(
-                                            (4, 1),
-                                            Cons(
-                                              (2, 2),
-                                              Cons(
-                                                (1, 4),
-                                                Cons(
-                                                  (3, 3),
-                                                  Cons(
-                                                    (2, 1),
-                                                    Cons(
-                                                      (1, 3),
-                                                      Cons(
-                                                        (2, 5),
-                                                        Cons(
-                                                          (4, 6),
-                                                          Cons(
-                                                            (6, 5),
-                                                            Cons(
-                                                              (4, 4),
-                                                              Cons(
-                                                                (5, 2),
-                                                                Cons(
-                                                                  (6, 4),
-                                                                  Cons(
-                                                                    (5, 6),
-                                                                    Cons(
-                                                                      (3, 5),
-                                                                      Cons(
-                                                                        (1, 6),
-                                                                        Cons(
-                                                                          (2, 4),
-                                                                          Cons(
-                                                                            (1, 2),
-                                                                            Cons(
-                                                                              (3, 1),
-                                                                              Cons(
-                                                                                (4, 3),
-                                                                                Cons(
-                                                                                  (5, 1),
-                                                                                  Cons(
-                                                                                    (6, 3),
-                                                                                    Cons(
-                                                                                      (5, 5),
-                                                                                      Cons(
-                                                                                        (3, 6),
-                                                                                        Cons(
-                                                                                          (1, 5),
-                                                                                          Cons(
-                                                                                            (2, 3),
-                                                                                            Cons(
-                                                                                              (
-                                                                                                1,
-                                                                                                1
-                                                                                              ),
-                                                                                              Nil
-                                                                                            )
-                                                                                          )
-                                                                                        )
-                                                                                      )
-                                                                                    )
-                                                                                  )
-                                                                                )
-                                                                              )
-                                                                            )
-                                                                          )
-                                                                        )
-                                                                      )
-                                                                    )
-                                                                  )
-                                                                )
-                                                              )
-                                                            )
-                                                          )
-                                                        )
-                                                      )
-                                                    )
-                                                  )
-                                                )
-                                              )
-                                            )
-                                          )
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              )
-                            )
-                          )
-                        )
+                        (5, 3),
+                        (6, 1),
+                        (4, 2),
+                        (3, 4),
+                        (2, 6),
+                        (4, 5),
+                        (6, 6),
+                        (5, 4),
+                        (6, 2),
+                        (4, 1),
+                        (2, 2),
+                        (1, 4),
+                        (3, 3),
+                        (2, 1),
+                        (1, 3),
+                        (2, 5),
+                        (4, 6),
+                        (6, 5),
+                        (4, 4),
+                        (5, 2),
+                        (6, 4),
+                        (5, 6),
+                        (3, 5),
+                        (1, 6),
+                        (2, 4),
+                        (1, 2),
+                        (3, 1),
+                        (4, 3),
+                        (5, 1),
+                        (6, 3),
+                        (5, 5),
+                        (3, 6),
+                        (1, 5),
+                        (2, 3),
+                        (1, 1)
                       )
                     )
                   ),
-                  Cons(
-                    (
-                      0,
-                      ChessSet(
-                        size = 6,
-                        moveNumber = 36,
-                        start = Option.Some((1, 1)),
-                        visited = Cons(
-                          (3, 2),
-                          Cons(
-                            (5, 3),
-                            Cons(
-                              (6, 1),
-                              Cons(
-                                (4, 2),
-                                Cons(
-                                  (3, 4),
-                                  Cons(
-                                    (2, 2),
-                                    Cons(
-                                      (4, 1),
-                                      Cons(
-                                        (6, 2),
-                                        Cons(
-                                          (5, 4),
-                                          Cons(
-                                            (6, 6),
-                                            Cons(
-                                              (4, 5),
-                                              Cons(
-                                                (2, 6),
-                                                Cons(
-                                                  (1, 4),
-                                                  Cons(
-                                                    (3, 3),
-                                                    Cons(
-                                                      (2, 1),
-                                                      Cons(
-                                                        (1, 3),
-                                                        Cons(
-                                                          (2, 5),
-                                                          Cons(
-                                                            (4, 6),
-                                                            Cons(
-                                                              (6, 5),
-                                                              Cons(
-                                                                (4, 4),
-                                                                Cons(
-                                                                  (5, 2),
-                                                                  Cons(
-                                                                    (6, 4),
-                                                                    Cons(
-                                                                      (5, 6),
-                                                                      Cons(
-                                                                        (3, 5),
-                                                                        Cons(
-                                                                          (1, 6),
-                                                                          Cons(
-                                                                            (2, 4),
-                                                                            Cons(
-                                                                              (1, 2),
-                                                                              Cons(
-                                                                                (3, 1),
-                                                                                Cons(
-                                                                                  (4, 3),
-                                                                                  Cons(
-                                                                                    (5, 1),
-                                                                                    Cons(
-                                                                                      (6, 3),
-                                                                                      Cons(
-                                                                                        (5, 5),
-                                                                                        Cons(
-                                                                                          (3, 6),
-                                                                                          Cons(
-                                                                                            (1, 5),
-                                                                                            Cons(
-                                                                                              (
-                                                                                                2,
-                                                                                                3
-                                                                                              ),
-                                                                                              Cons(
-                                                                                                (
-                                                                                                  1,
-                                                                                                  1
-                                                                                                ),
-                                                                                                Nil
-                                                                                              )
-                                                                                            )
-                                                                                          )
-                                                                                        )
-                                                                                      )
-                                                                                    )
-                                                                                  )
-                                                                                )
-                                                                              )
-                                                                            )
-                                                                          )
-                                                                        )
-                                                                      )
-                                                                    )
-                                                                  )
-                                                                )
-                                                              )
-                                                            )
-                                                          )
-                                                        )
-                                                      )
-                                                    )
-                                                  )
-                                                )
-                                              )
-                                            )
-                                          )
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              )
-                            )
-                          )
-                        )
-                      )
-                    ),
-                    Cons(
-                      (
-                        0,
-                        ChessSet(
-                          size = 6,
-                          moveNumber = 36,
-                          start = Option.Some((1, 1)),
-                          visited = Cons(
-                            (3, 2),
-                            Cons(
-                              (5, 3),
-                              Cons(
-                                (6, 1),
-                                Cons(
-                                  (4, 2),
-                                  Cons(
-                                    (3, 4),
-                                    Cons(
-                                      (2, 2),
-                                      Cons(
-                                        (1, 4),
-                                        Cons(
-                                          (2, 6),
-                                          Cons(
-                                            (4, 5),
-                                            Cons(
-                                              (6, 6),
-                                              Cons(
-                                                (5, 4),
-                                                Cons(
-                                                  (6, 2),
-                                                  Cons(
-                                                    (4, 1),
-                                                    Cons(
-                                                      (3, 3),
-                                                      Cons(
-                                                        (2, 1),
-                                                        Cons(
-                                                          (1, 3),
-                                                          Cons(
-                                                            (2, 5),
-                                                            Cons(
-                                                              (4, 6),
-                                                              Cons(
-                                                                (6, 5),
-                                                                Cons(
-                                                                  (4, 4),
-                                                                  Cons(
-                                                                    (5, 2),
-                                                                    Cons(
-                                                                      (6, 4),
-                                                                      Cons(
-                                                                        (5, 6),
-                                                                        Cons(
-                                                                          (3, 5),
-                                                                          Cons(
-                                                                            (1, 6),
-                                                                            Cons(
-                                                                              (2, 4),
-                                                                              Cons(
-                                                                                (1, 2),
-                                                                                Cons(
-                                                                                  (3, 1),
-                                                                                  Cons(
-                                                                                    (4, 3),
-                                                                                    Cons(
-                                                                                      (5, 1),
-                                                                                      Cons(
-                                                                                        (6, 3),
-                                                                                        Cons(
-                                                                                          (5, 5),
-                                                                                          Cons(
-                                                                                            (3, 6),
-                                                                                            Cons(
-                                                                                              (
-                                                                                                1,
-                                                                                                5
-                                                                                              ),
-                                                                                              Cons(
-                                                                                                (
-                                                                                                  2,
-                                                                                                  3
-                                                                                                ),
-                                                                                                Cons(
-                                                                                                  (
-                                                                                                    1,
-                                                                                                    1
-                                                                                                  ),
-                                                                                                  Nil
-                                                                                                )
-                                                                                              )
-                                                                                            )
-                                                                                          )
-                                                                                        )
-                                                                                      )
-                                                                                    )
-                                                                                  )
-                                                                                )
-                                                                              )
-                                                                            )
-                                                                          )
-                                                                        )
-                                                                      )
-                                                                    )
-                                                                  )
-                                                                )
-                                                              )
-                                                            )
-                                                          )
-                                                        )
-                                                      )
-                                                    )
-                                                  )
-                                                )
-                                              )
-                                            )
-                                          )
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              )
-                            )
-                          )
-                        )
-                      ),
-                      Cons(
-                        (
-                          0,
-                          ChessSet(
-                            size = 6,
-                            moveNumber = 36,
-                            start = Option.Some((1, 1)),
-                            visited = Cons(
-                              (3, 2),
-                              Cons(
-                                (5, 3),
-                                Cons(
-                                  (6, 1),
-                                  Cons(
-                                    (4, 2),
-                                    Cons(
-                                      (3, 4),
-                                      Cons(
-                                        (2, 6),
-                                        Cons(
-                                          (1, 4),
-                                          Cons(
-                                            (2, 2),
-                                            Cons(
-                                              (4, 1),
-                                              Cons(
-                                                (6, 2),
-                                                Cons(
-                                                  (5, 4),
-                                                  Cons(
-                                                    (6, 6),
-                                                    Cons(
-                                                      (4, 5),
-                                                      Cons(
-                                                        (3, 3),
-                                                        Cons(
-                                                          (2, 1),
-                                                          Cons(
-                                                            (1, 3),
-                                                            Cons(
-                                                              (2, 5),
-                                                              Cons(
-                                                                (4, 6),
-                                                                Cons(
-                                                                  (6, 5),
-                                                                  Cons(
-                                                                    (4, 4),
-                                                                    Cons(
-                                                                      (5, 2),
-                                                                      Cons(
-                                                                        (6, 4),
-                                                                        Cons(
-                                                                          (5, 6),
-                                                                          Cons(
-                                                                            (3, 5),
-                                                                            Cons(
-                                                                              (1, 6),
-                                                                              Cons(
-                                                                                (2, 4),
-                                                                                Cons(
-                                                                                  (1, 2),
-                                                                                  Cons(
-                                                                                    (3, 1),
-                                                                                    Cons(
-                                                                                      (4, 3),
-                                                                                      Cons(
-                                                                                        (5, 1),
-                                                                                        Cons(
-                                                                                          (6, 3),
-                                                                                          Cons(
-                                                                                            (5, 5),
-                                                                                            Cons(
-                                                                                              (
-                                                                                                3,
-                                                                                                6
-                                                                                              ),
-                                                                                              Cons(
-                                                                                                (
-                                                                                                  1,
-                                                                                                  5
-                                                                                                ),
-                                                                                                Cons(
-                                                                                                  (
-                                                                                                    2,
-                                                                                                    3
-                                                                                                  ),
-                                                                                                  Cons(
-                                                                                                    (1, 1),
-                                                                                                    Nil
-                                                                                                  )
-                                                                                                )
-                                                                                              )
-                                                                                            )
-                                                                                          )
-                                                                                        )
-                                                                                      )
-                                                                                    )
-                                                                                  )
-                                                                                )
-                                                                              )
-                                                                            )
-                                                                          )
-                                                                        )
-                                                                      )
-                                                                    )
-                                                                  )
-                                                                )
-                                                              )
-                                                            )
-                                                          )
-                                                        )
-                                                      )
-                                                    )
-                                                  )
-                                                )
-                                              )
-                                            )
-                                          )
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              )
-                            )
-                          )
-                        ),
-                        Nil
+                  (
+                    0,
+                    ChessSet(
+                      size = 6,
+                      moveNumber = 36,
+                      start = Option.Some((1, 1)),
+                      visited = List(
+                        (3, 2),
+                        (5, 3),
+                        (6, 1),
+                        (4, 2),
+                        (3, 4),
+                        (2, 2),
+                        (4, 1),
+                        (6, 2),
+                        (5, 4),
+                        (6, 6),
+                        (4, 5),
+                        (2, 6),
+                        (1, 4),
+                        (3, 3),
+                        (2, 1),
+                        (1, 3),
+                        (2, 5),
+                        (4, 6),
+                        (6, 5),
+                        (4, 4),
+                        (5, 2),
+                        (6, 4),
+                        (5, 6),
+                        (3, 5),
+                        (1, 6),
+                        (2, 4),
+                        (1, 2),
+                        (3, 1),
+                        (4, 3),
+                        (5, 1),
+                        (6, 3),
+                        (5, 5),
+                        (3, 6),
+                        (1, 5),
+                        (2, 3),
+                        (1, 1)
                       )
                     )
-                  )
+                  ),
+                  (
+                    0,
+                    ChessSet(
+                      size = 6,
+                      moveNumber = 36,
+                      start = Option.Some((1, 1)),
+                      visited = List(
+                        (3, 2),
+                        (5, 3),
+                        (6, 1),
+                        (4, 2),
+                        (3, 4),
+                        (2, 2),
+                        (1, 4),
+                        (2, 6),
+                        (4, 5),
+                        (6, 6),
+                        (5, 4),
+                        (6, 2),
+                        (4, 1),
+                        (3, 3),
+                        (2, 1),
+                        (1, 3),
+                        (2, 5),
+                        (4, 6),
+                        (6, 5),
+                        (4, 4),
+                        (5, 2),
+                        (6, 4),
+                        (5, 6),
+                        (3, 5),
+                        (1, 6),
+                        (2, 4),
+                        (1, 2),
+                        (3, 1),
+                        (4, 3),
+                        (5, 1),
+                        (6, 3),
+                        (5, 5),
+                        (3, 6),
+                        (1, 5),
+                        (2, 3),
+                        (1, 1)
+                      )
+                    )
+                  ),
+                  (
+                    0,
+                    ChessSet(
+                      size = 6,
+                      moveNumber = 36,
+                      start = Option.Some((1, 1)),
+                      visited = List(
+                        (3, 2),
+                        (5, 3),
+                        (6, 1),
+                        (4, 2),
+                        (3, 4),
+                        (2, 6),
+                        (1, 4),
+                        (2, 2),
+                        (4, 1),
+                        (6, 2),
+                        (5, 4),
+                        (6, 6),
+                        (4, 5),
+                        (3, 3),
+                        (2, 1),
+                        (1, 3),
+                        (2, 5),
+                        (4, 6),
+                        (6, 5),
+                        (4, 4),
+                        (5, 2),
+                        (6, 4),
+                        (5, 6),
+                        (3, 5),
+                        (1, 6),
+                        (2, 4),
+                        (1, 2),
+                        (3, 1),
+                        (4, 3),
+                        (5, 1),
+                        (6, 3),
+                        (5, 5),
+                        (3, 6),
+                        (1, 5),
+                        (2, 3),
+                        (1, 1)
+                      )
+                    )
+                  ),
                 )
 
                 require(result === expected)
@@ -575,11 +258,12 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
         val scalusBudget =
             summon[scalus.Compiler.Options].targetLoweringBackend match
                 case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    ExBudget(ExCPU(588854_806623L), ExMemory(2006_317953L))
+                    ExBudget(ExCPU(588618_435325L), ExMemory(200_1478161L))
                 case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     ExBudget(ExCPU(115775_218834L), ExMemory(645_799142L))
                 case _ =>
                     throw new IllegalStateException("Unsupported target lowering backend")
+        if !result.isSuccess then println(s"Result:  $result")
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)
 
@@ -604,207 +288,71 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
                       size = 8,
                       moveNumber = 64,
                       start = Option.Some((1, 1)),
-                      visited = Cons(
+                      visited = List(
                         (3, 2),
-                        Cons(
-                          (4, 4),
-                          Cons(
-                            (5, 6),
-                            Cons(
-                              (6, 4),
-                              Cons(
-                                (8, 5),
-                                Cons(
-                                  (7, 7),
-                                  Cons(
-                                    (6, 5),
-                                    Cons(
-                                      (8, 4),
-                                      Cons(
-                                        (7, 2),
-                                        Cons(
-                                          (5, 3),
-                                          Cons(
-                                            (3, 4),
-                                            Cons(
-                                              (4, 6),
-                                              Cons(
-                                                (5, 8),
-                                                Cons(
-                                                  (6, 6),
-                                                  Cons(
-                                                    (4, 5),
-                                                    Cons(
-                                                      (3, 7),
-                                                      Cons(
-                                                        (1, 8),
-                                                        Cons(
-                                                          (2, 6),
-                                                          Cons(
-                                                            (4, 7),
-                                                            Cons(
-                                                              (5, 5),
-                                                              Cons(
-                                                                (6, 3),
-                                                                Cons(
-                                                                  (5, 1),
-                                                                  Cons(
-                                                                    (4, 3),
-                                                                    Cons(
-                                                                      (3, 5),
-                                                                      Cons(
-                                                                        (5, 4),
-                                                                        Cons(
-                                                                          (7, 3),
-                                                                          Cons(
-                                                                            (8, 1),
-                                                                            Cons(
-                                                                              (6, 2),
-                                                                              Cons(
-                                                                                (4, 1),
-                                                                                Cons(
-                                                                                  (2, 2),
-                                                                                  Cons(
-                                                                                    (1, 4),
-                                                                                    Cons(
-                                                                                      (3, 3),
-                                                                                      Cons(
-                                                                                        (2, 5),
-                                                                                        Cons(
-                                                                                          (1, 3),
-                                                                                          Cons(
-                                                                                            (2, 1),
-                                                                                            Cons(
-                                                                                              (
-                                                                                                4,
-                                                                                                2
-                                                                                              ),
-                                                                                              Cons(
-                                                                                                (
-                                                                                                  6,
-                                                                                                  1
-                                                                                                ),
-                                                                                                Cons(
-                                                                                                  (
-                                                                                                    8,
-                                                                                                    2
-                                                                                                  ),
-                                                                                                  Cons(
-                                                                                                    (7, 4),
-                                                                                                    Cons(
-                                                                                                      (8, 6),
-                                                                                                      Cons(
-                                                                                                        (7, 8),
-                                                                                                        Cons(
-                                                                                                          (5, 7),
-                                                                                                          Cons(
-                                                                                                            (3, 8),
-                                                                                                            Cons(
-                                                                                                              (1, 7),
-                                                                                                              Cons(
-                                                                                                                (3, 6),
-                                                                                                                Cons(
-                                                                                                                  (2, 8),
-                                                                                                                  Cons(
-                                                                                                                    (1, 6),
-                                                                                                                    Cons(
-                                                                                                                      (2, 4),
-                                                                                                                      Cons(
-                                                                                                                        (1, 2),
-                                                                                                                        Cons(
-                                                                                                                          (3, 1),
-                                                                                                                          Cons(
-                                                                                                                            (5, 2),
-                                                                                                                            Cons(
-                                                                                                                              (7, 1),
-                                                                                                                              Cons(
-                                                                                                                                (8, 3),
-                                                                                                                                Cons(
-                                                                                                                                  (7, 5),
-                                                                                                                                  Cons(
-                                                                                                                                    (8, 7),
-                                                                                                                                    Cons(
-                                                                                                                                      (6, 8),
-                                                                                                                                      Cons(
-                                                                                                                                        (7, 6),
-                                                                                                                                        Cons(
-                                                                                                                                          (8, 8),
-                                                                                                                                          Cons(
-                                                                                                                                            (6, 7),
-                                                                                                                                            Cons(
-                                                                                                                                              (4, 8),
-                                                                                                                                              Cons(
-                                                                                                                                                (2, 7),
-                                                                                                                                                Cons(
-                                                                                                                                                  (1, 5),
-                                                                                                                                                  Cons(
-                                                                                                                                                    (2, 3),
-                                                                                                                                                    Cons(
-                                                                                                                                                      (1, 1),
-                                                                                                                                                      Nil
-                                                                                                                                                    )
-                                                                                                                                                  )
-                                                                                                                                                )
-                                                                                                                                              )
-                                                                                                                                            )
-                                                                                                                                          )
-                                                                                                                                        )
-                                                                                                                                      )
-                                                                                                                                    )
-                                                                                                                                  )
-                                                                                                                                )
-                                                                                                                              )
-                                                                                                                            )
-                                                                                                                          )
-                                                                                                                        )
-                                                                                                                      )
-                                                                                                                    )
-                                                                                                                  )
-                                                                                                                )
-                                                                                                              )
-                                                                                                            )
-                                                                                                          )
-                                                                                                        )
-                                                                                                      )
-                                                                                                    )
-                                                                                                  )
-                                                                                                )
-                                                                                              )
-                                                                                            )
-                                                                                          )
-                                                                                        )
-                                                                                      )
-                                                                                    )
-                                                                                  )
-                                                                                )
-                                                                              )
-                                                                            )
-                                                                          )
-                                                                        )
-                                                                      )
-                                                                    )
-                                                                  )
-                                                                )
-                                                              )
-                                                            )
-                                                          )
-                                                        )
-                                                      )
-                                                    )
-                                                  )
-                                                )
-                                              )
-                                            )
-                                          )
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              )
-                            )
-                          )
-                        )
+                        (4, 4),
+                        (5, 6),
+                        (6, 4),
+                        (8, 5),
+                        (7, 7),
+                        (6, 5),
+                        (8, 4),
+                        (7, 2),
+                        (5, 3),
+                        (3, 4),
+                        (4, 6),
+                        (5, 8),
+                        (6, 6),
+                        (4, 5),
+                        (3, 7),
+                        (1, 8),
+                        (2, 6),
+                        (4, 7),
+                        (5, 5),
+                        (6, 3),
+                        (5, 1),
+                        (4, 3),
+                        (3, 5),
+                        (5, 4),
+                        (7, 3),
+                        (8, 1),
+                        (6, 2),
+                        (4, 1),
+                        (2, 2),
+                        (1, 4),
+                        (3, 3),
+                        (2, 5),
+                        (1, 3),
+                        (2, 1),
+                        (4, 2),
+                        (6, 1),
+                        (8, 2),
+                        (7, 4),
+                        (8, 6),
+                        (7, 8),
+                        (5, 7),
+                        (3, 8),
+                        (1, 7),
+                        (3, 6),
+                        (2, 8),
+                        (1, 6),
+                        (2, 4),
+                        (1, 2),
+                        (3, 1),
+                        (5, 2),
+                        (7, 1),
+                        (8, 3),
+                        (7, 5),
+                        (8, 7),
+                        (6, 8),
+                        (7, 6),
+                        (8, 8),
+                        (6, 7),
+                        (4, 8),
+                        (2, 7),
+                        (1, 5),
+                        (2, 3),
+                        (1, 1)
                       )
                     )
                   ),
@@ -815,207 +363,71 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
                         size = 8,
                         moveNumber = 64,
                         start = Option.Some((1, 1)),
-                        visited = Cons(
+                        visited = List(
                           (3, 2),
-                          Cons(
-                            (4, 4),
-                            Cons(
-                              (5, 6),
-                              Cons(
-                                (7, 7),
-                                Cons(
-                                  (8, 5),
-                                  Cons(
-                                    (6, 4),
-                                    Cons(
-                                      (7, 2),
-                                      Cons(
-                                        (8, 4),
-                                        Cons(
-                                          (6, 5),
-                                          Cons(
-                                            (5, 3),
-                                            Cons(
-                                              (3, 4),
-                                              Cons(
-                                                (4, 6),
-                                                Cons(
-                                                  (5, 8),
-                                                  Cons(
-                                                    (6, 6),
-                                                    Cons(
-                                                      (4, 5),
-                                                      Cons(
-                                                        (3, 7),
-                                                        Cons(
-                                                          (1, 8),
-                                                          Cons(
-                                                            (2, 6),
-                                                            Cons(
-                                                              (4, 7),
-                                                              Cons(
-                                                                (5, 5),
-                                                                Cons(
-                                                                  (6, 3),
-                                                                  Cons(
-                                                                    (5, 1),
-                                                                    Cons(
-                                                                      (4, 3),
-                                                                      Cons(
-                                                                        (3, 5),
-                                                                        Cons(
-                                                                          (5, 4),
-                                                                          Cons(
-                                                                            (7, 3),
-                                                                            Cons(
-                                                                              (8, 1),
-                                                                              Cons(
-                                                                                (6, 2),
-                                                                                Cons(
-                                                                                  (4, 1),
-                                                                                  Cons(
-                                                                                    (2, 2),
-                                                                                    Cons(
-                                                                                      (1, 4),
-                                                                                      Cons(
-                                                                                        (3, 3),
-                                                                                        Cons(
-                                                                                          (2, 5),
-                                                                                          Cons(
-                                                                                            (1, 3),
-                                                                                            Cons(
-                                                                                              (
-                                                                                                2,
-                                                                                                1
-                                                                                              ),
-                                                                                              Cons(
-                                                                                                (
-                                                                                                  4,
-                                                                                                  2
-                                                                                                ),
-                                                                                                Cons(
-                                                                                                  (
-                                                                                                    6,
-                                                                                                    1
-                                                                                                  ),
-                                                                                                  Cons(
-                                                                                                    (8, 2),
-                                                                                                    Cons(
-                                                                                                      (7, 4),
-                                                                                                      Cons(
-                                                                                                        (8, 6),
-                                                                                                        Cons(
-                                                                                                          (7, 8),
-                                                                                                          Cons(
-                                                                                                            (5, 7),
-                                                                                                            Cons(
-                                                                                                              (3, 8),
-                                                                                                              Cons(
-                                                                                                                (1, 7),
-                                                                                                                Cons(
-                                                                                                                  (3, 6),
-                                                                                                                  Cons(
-                                                                                                                    (2, 8),
-                                                                                                                    Cons(
-                                                                                                                      (1, 6),
-                                                                                                                      Cons(
-                                                                                                                        (2, 4),
-                                                                                                                        Cons(
-                                                                                                                          (1, 2),
-                                                                                                                          Cons(
-                                                                                                                            (3, 1),
-                                                                                                                            Cons(
-                                                                                                                              (5, 2),
-                                                                                                                              Cons(
-                                                                                                                                (7, 1),
-                                                                                                                                Cons(
-                                                                                                                                  (8, 3),
-                                                                                                                                  Cons(
-                                                                                                                                    (7, 5),
-                                                                                                                                    Cons(
-                                                                                                                                      (8, 7),
-                                                                                                                                      Cons(
-                                                                                                                                        (6, 8),
-                                                                                                                                        Cons(
-                                                                                                                                          (7, 6),
-                                                                                                                                          Cons(
-                                                                                                                                            (8, 8),
-                                                                                                                                            Cons(
-                                                                                                                                              (6, 7),
-                                                                                                                                              Cons(
-                                                                                                                                                (4, 8),
-                                                                                                                                                Cons(
-                                                                                                                                                  (2, 7),
-                                                                                                                                                  Cons(
-                                                                                                                                                    (1, 5),
-                                                                                                                                                    Cons(
-                                                                                                                                                      (2, 3),
-                                                                                                                                                      Cons(
-                                                                                                                                                        (1, 1),
-                                                                                                                                                        Nil
-                                                                                                                                                      )
-                                                                                                                                                    )
-                                                                                                                                                  )
-                                                                                                                                                )
-                                                                                                                                              )
-                                                                                                                                            )
-                                                                                                                                          )
-                                                                                                                                        )
-                                                                                                                                      )
-                                                                                                                                    )
-                                                                                                                                  )
-                                                                                                                                )
-                                                                                                                              )
-                                                                                                                            )
-                                                                                                                          )
-                                                                                                                        )
-                                                                                                                      )
-                                                                                                                    )
-                                                                                                                  )
-                                                                                                                )
-                                                                                                              )
-                                                                                                            )
-                                                                                                          )
-                                                                                                        )
-                                                                                                      )
-                                                                                                    )
-                                                                                                  )
-                                                                                                )
-                                                                                              )
-                                                                                            )
-                                                                                          )
-                                                                                        )
-                                                                                      )
-                                                                                    )
-                                                                                  )
-                                                                                )
-                                                                              )
-                                                                            )
-                                                                          )
-                                                                        )
-                                                                      )
-                                                                    )
-                                                                  )
-                                                                )
-                                                              )
-                                                            )
-                                                          )
-                                                        )
-                                                      )
-                                                    )
-                                                  )
-                                                )
-                                              )
-                                            )
-                                          )
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              )
-                            )
-                          )
+                          (4, 4),
+                          (5, 6),
+                          (7, 7),
+                          (8, 5),
+                          (6, 4),
+                          (7, 2),
+                          (8, 4),
+                          (6, 5),
+                          (5, 3),
+                          (3, 4),
+                          (4, 6),
+                          (5, 8),
+                          (6, 6),
+                          (4, 5),
+                          (3, 7),
+                          (1, 8),
+                          (2, 6),
+                          (4, 7),
+                          (5, 5),
+                          (6, 3),
+                          (5, 1),
+                          (4, 3),
+                          (3, 5),
+                          (5, 4),
+                          (7, 3),
+                          (8, 1),
+                          (6, 2),
+                          (4, 1),
+                          (2, 2),
+                          (1, 4),
+                          (3, 3),
+                          (2, 5),
+                          (1, 3),
+                          (2, 1),
+                          (4, 2),
+                          (6, 1),
+                          (8, 2),
+                          (7, 4),
+                          (8, 6),
+                          (7, 8),
+                          (5, 7),
+                          (3, 8),
+                          (1, 7),
+                          (3, 6),
+                          (2, 8),
+                          (1, 6),
+                          (2, 4),
+                          (1, 2),
+                          (3, 1),
+                          (5, 2),
+                          (7, 1),
+                          (8, 3),
+                          (7, 5),
+                          (8, 7),
+                          (6, 8),
+                          (7, 6),
+                          (8, 8),
+                          (6, 7),
+                          (4, 8),
+                          (2, 7),
+                          (1, 5),
+                          (2, 3),
+                          (1, 1)
                         )
                       )
                     ),
@@ -1026,207 +438,71 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
                           size = 8,
                           moveNumber = 64,
                           start = Option.Some((1, 1)),
-                          visited = Cons(
+                          visited = List(
                             (3, 2),
-                            Cons(
-                              (4, 4),
-                              Cons(
-                                (6, 5),
-                                Cons(
-                                  (8, 4),
-                                  Cons(
-                                    (7, 2),
-                                    Cons(
-                                      (5, 3),
-                                      Cons(
-                                        (3, 4),
-                                        Cons(
-                                          (4, 6),
-                                          Cons(
-                                            (5, 8),
-                                            Cons(
-                                              (7, 7),
-                                              Cons(
-                                                (5, 6),
-                                                Cons(
-                                                  (6, 4),
-                                                  Cons(
-                                                    (8, 5),
-                                                    Cons(
-                                                      (6, 6),
-                                                      Cons(
-                                                        (4, 5),
-                                                        Cons(
-                                                          (3, 7),
-                                                          Cons(
-                                                            (1, 8),
-                                                            Cons(
-                                                              (2, 6),
-                                                              Cons(
-                                                                (4, 7),
-                                                                Cons(
-                                                                  (5, 5),
-                                                                  Cons(
-                                                                    (6, 3),
-                                                                    Cons(
-                                                                      (5, 1),
-                                                                      Cons(
-                                                                        (4, 3),
-                                                                        Cons(
-                                                                          (3, 5),
-                                                                          Cons(
-                                                                            (5, 4),
-                                                                            Cons(
-                                                                              (7, 3),
-                                                                              Cons(
-                                                                                (8, 1),
-                                                                                Cons(
-                                                                                  (6, 2),
-                                                                                  Cons(
-                                                                                    (4, 1),
-                                                                                    Cons(
-                                                                                      (2, 2),
-                                                                                      Cons(
-                                                                                        (1, 4),
-                                                                                        Cons(
-                                                                                          (3, 3),
-                                                                                          Cons(
-                                                                                            (2, 5),
-                                                                                            Cons(
-                                                                                              (
-                                                                                                1,
-                                                                                                3
-                                                                                              ),
-                                                                                              Cons(
-                                                                                                (
-                                                                                                  2,
-                                                                                                  1
-                                                                                                ),
-                                                                                                Cons(
-                                                                                                  (
-                                                                                                    4,
-                                                                                                    2
-                                                                                                  ),
-                                                                                                  Cons(
-                                                                                                    (6, 1),
-                                                                                                    Cons(
-                                                                                                      (8, 2),
-                                                                                                      Cons(
-                                                                                                        (7, 4),
-                                                                                                        Cons(
-                                                                                                          (8, 6),
-                                                                                                          Cons(
-                                                                                                            (7, 8),
-                                                                                                            Cons(
-                                                                                                              (5, 7),
-                                                                                                              Cons(
-                                                                                                                (3, 8),
-                                                                                                                Cons(
-                                                                                                                  (1, 7),
-                                                                                                                  Cons(
-                                                                                                                    (3, 6),
-                                                                                                                    Cons(
-                                                                                                                      (2, 8),
-                                                                                                                      Cons(
-                                                                                                                        (1, 6),
-                                                                                                                        Cons(
-                                                                                                                          (2, 4),
-                                                                                                                          Cons(
-                                                                                                                            (1, 2),
-                                                                                                                            Cons(
-                                                                                                                              (3, 1),
-                                                                                                                              Cons(
-                                                                                                                                (5, 2),
-                                                                                                                                Cons(
-                                                                                                                                  (7, 1),
-                                                                                                                                  Cons(
-                                                                                                                                    (8, 3),
-                                                                                                                                    Cons(
-                                                                                                                                      (7, 5),
-                                                                                                                                      Cons(
-                                                                                                                                        (8, 7),
-                                                                                                                                        Cons(
-                                                                                                                                          (6, 8),
-                                                                                                                                          Cons(
-                                                                                                                                            (7, 6),
-                                                                                                                                            Cons(
-                                                                                                                                              (8, 8),
-                                                                                                                                              Cons(
-                                                                                                                                                (6, 7),
-                                                                                                                                                Cons(
-                                                                                                                                                  (4, 8),
-                                                                                                                                                  Cons(
-                                                                                                                                                    (2, 7),
-                                                                                                                                                    Cons(
-                                                                                                                                                      (1, 5),
-                                                                                                                                                      Cons(
-                                                                                                                                                        (2, 3),
-                                                                                                                                                        Cons(
-                                                                                                                                                          (1, 1),
-                                                                                                                                                          Nil
-                                                                                                                                                        )
-                                                                                                                                                      )
-                                                                                                                                                    )
-                                                                                                                                                  )
-                                                                                                                                                )
-                                                                                                                                              )
-                                                                                                                                            )
-                                                                                                                                          )
-                                                                                                                                        )
-                                                                                                                                      )
-                                                                                                                                    )
-                                                                                                                                  )
-                                                                                                                                )
-                                                                                                                              )
-                                                                                                                            )
-                                                                                                                          )
-                                                                                                                        )
-                                                                                                                      )
-                                                                                                                    )
-                                                                                                                  )
-                                                                                                                )
-                                                                                                              )
-                                                                                                            )
-                                                                                                          )
-                                                                                                        )
-                                                                                                      )
-                                                                                                    )
-                                                                                                  )
-                                                                                                )
-                                                                                              )
-                                                                                            )
-                                                                                          )
-                                                                                        )
-                                                                                      )
-                                                                                    )
-                                                                                  )
-                                                                                )
-                                                                              )
-                                                                            )
-                                                                          )
-                                                                        )
-                                                                      )
-                                                                    )
-                                                                  )
-                                                                )
-                                                              )
-                                                            )
-                                                          )
-                                                        )
-                                                      )
-                                                    )
-                                                  )
-                                                )
-                                              )
-                                            )
-                                          )
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              )
-                            )
+                            (4, 4),
+                            (6, 5),
+                            (8, 4),
+                            (7, 2),
+                            (5, 3),
+                            (3, 4),
+                            (4, 6),
+                            (5, 8),
+                            (7, 7),
+                            (5, 6),
+                            (6, 4),
+                            (8, 5),
+                            (6, 6),
+                            (4, 5),
+                            (3, 7),
+                            (1, 8),
+                            (2, 6),
+                            (4, 7),
+                            (5, 5),
+                            (6, 3),
+                            (5, 1),
+                            (4, 3),
+                            (3, 5),
+                            (5, 4),
+                            (7, 3),
+                            (8, 1),
+                            (6, 2),
+                            (4, 1),
+                            (2, 2),
+                            (1, 4),
+                            (3, 3),
+                            (2, 5),
+                            (1, 3),
+                            (2, 1),
+                            (4, 2),
+                            (6, 1),
+                            (8, 2),
+                            (7, 4),
+                            (8, 6),
+                            (7, 8),
+                            (5, 7),
+                            (3, 8),
+                            (1, 7),
+                            (3, 6),
+                            (2, 8),
+                            (1, 6),
+                            (2, 4),
+                            (1, 2),
+                            (3, 1),
+                            (5, 2),
+                            (7, 1),
+                            (8, 3),
+                            (7, 5),
+                            (8, 7),
+                            (6, 8),
+                            (7, 6),
+                            (8, 8),
+                            (6, 7),
+                            (4, 8),
+                            (2, 7),
+                            (1, 5),
+                            (2, 3),
+                            (1, 1),
                           )
                         )
                       ),
@@ -1243,7 +519,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
         val scalusBudget = {
             summon[scalus.Compiler.Options].targetLoweringBackend match {
                 case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    ExBudget(ExCPU(1_252562_596241L), ExMemory(4279_346603L))
+                    ExBudget(ExCPU(125219_8783781L), ExMemory(4272_660383L))
                 case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     ExBudget(ExCPU(235822_700067L), ExMemory(1315_097779L))
                 case scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>
@@ -1433,11 +709,12 @@ object KnightsTest:
         queue: Queue[A],
         grow: A => List[A],
         done: A => Boolean
-    ): Queue[A] =
+    ): Queue[A] = {
         if depth === BigInt(0) || queue.isEmpty then emptyQueue[A]
         else if done(queue.head) then
             depthSearch(depth - 1, queue.removeFront, grow, done).appendFront(queue.head)
         else depthSearch(depth - 1, queue.removeFront.appendAllFront(grow(queue.head)), grow, done)
+    }
 
     def runKnights(depth: BigInt, boardSize: BigInt): Solution =
         depthSearch(depth, root(boardSize), grow, isDone).toList

@@ -101,7 +101,16 @@ object SirTypeUplcGenerator {
                 then ProductCaseOneElementSirTypeGenerator(SIRTypeUplcByteStringGenerator)
                 else if constrDecl.name == "scalus.prelude.AssocMap" || constrDecl.name == "scalus.prelude.SortedMap"
                 then MapSirTypeGenerator
-                else
+                else if constrDecl.name == "scalus.prelude.Varargs" then {
+                    val paramType =
+                        SIRType.substitute(
+                          constrDecl.params.head.tp,
+                          constrDecl.typeParams.zip(typeArgs).toMap,
+                          Map.empty
+                        )
+                    val paramTypeGen = SirTypeUplcGenerator(paramType)
+                    ProductCaseOneElementSirTypeGenerator(paramTypeGen)
+                } else
                     val hasFun = containsFun(constrDecl, new IdentityHashMap[SIRType, SIRType]())
                     if constrDecl.name == "scalus.prelude.List$.Nil" || constrDecl.name == "scalus.prelude.List$.Cons"
                     then

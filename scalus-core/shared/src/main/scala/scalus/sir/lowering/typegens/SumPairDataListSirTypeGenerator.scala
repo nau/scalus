@@ -23,7 +23,7 @@ object SumPairDataListSirTypeGenerator extends SumListCommonSirTypeGenerator {
     override def defaultTypeVarReperesentation(tp: SIRType)(using
         LoweringContext
     ): LoweredValueRepresentation = {
-        SumCaseClassRepresentation.SumDataPairList
+        SumCaseClassRepresentation.SumDataList
     }
 
     override def defaultListRepresentation(using LoweringContext): LoweredValueRepresentation = {

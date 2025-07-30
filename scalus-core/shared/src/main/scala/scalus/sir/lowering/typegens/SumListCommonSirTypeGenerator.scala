@@ -437,11 +437,11 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
             Doc.text("ListMatch") + PrettyPrinter.inBraces(
               listInput.docRef(ctx) + Doc.space + Doc.text("match") +
                   (
-                    (
+                    Doc.line + (
                       Doc.text("Cons") + PrettyPrinter.inParens(
                         consHead.docRef(ctx) + Doc.text(",") + consTail.docRef(ctx)
                       ) + Doc.text(" =>") + consBody.docRef(ctx).nested(2)
-                    ).grouped +
+                    ).grouped + Doc.line +
                         (Doc.text("Nil") + Doc
                             .text(" =>") + nilBody.docRef(ctx).nested(2)).grouped
                   ).aligned

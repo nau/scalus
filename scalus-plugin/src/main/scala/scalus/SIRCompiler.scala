@@ -766,10 +766,16 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 val valType =
                     if isNoArgsMethod(e.symbol) then SIRType.Fun(SIRType.Unit, origType)
                     else origType
+                val (moduleName, valName) =
+                    if e.symbol.owner.fullName.toString == "scalus.prelude" then
+                        if e.symbol.fullName.toString == "scalus.prelude.List" then
+                            ("scalus.prelude.List$", "scalus.prelude.List$.apply")
+                        else (e.symbol.owner.fullName.toString, e.symbol.name.show)
+                    else (e.symbol.owner.fullName.toString, e.symbol.fullName.toString)
                 (
                   SIR.ExternalVar(
-                    e.symbol.owner.fullName.toString,
-                    e.symbol.fullName.toString,
+                    moduleName,
+                    valName,
                     valType,
                     AnnotationsDecl.fromSymIn(e.symbol, e.srcPos.sourcePos)
                   ),
@@ -2501,7 +2507,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 val listDataDecl = SIRType.List.dataDecl
                 val nil0: AnnotatedSIR = SIR.Constr(
                   SIRType.List.Nil.constrDecl.name,
-                  SIRType.List.dataDecl,
+                  listDataDecl,
                   Nil,
                   listType,
                   AnnotationsDecl.fromSrcPos(tree.srcPos)

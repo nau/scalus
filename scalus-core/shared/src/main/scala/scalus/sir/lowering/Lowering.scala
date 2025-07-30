@@ -119,8 +119,20 @@ object Lowering {
                         )
             case ev @ SIR.ExternalVar(moduleName, name, tp, _) =>
                 // SIRLinker made usual variable from names.
+                if lctx.debug then
+                    lctx.log(
+                      s"Lowering external variable: ${ev.pretty.render(100)}\n" +
+                          s"  name = $name\n" +
+                          s"  tp = ${tp.show}\n"
+                    )
                 val myVar = lctx.scope.getByName(name) match
-                    case Some(value) => value
+                    case Some(value) =>
+                        if lctx.debug then {
+                            lctx.log(
+                              s"Found external variable $name in the scope at ${ev.anns.pos.file}:${ev.anns.pos.startLine}"
+                            )
+                        }
+                        value
                     case None =>
                         throw LoweringException(
                           s"External variable $name not found in the scope at ${ev.anns.pos.file}:${ev.anns.pos.startLine}",
@@ -155,7 +167,9 @@ object Lowering {
                 val retval = lvLamAbs(
                   param,
                   lctx.typeGenerator(param.tp).defaultRepresentation(param.tp),
-                  _id => summon[LoweringContext].lower(term, optTermTargetType),
+                  _id => {
+                      summon[LoweringContext].lower(term, optTermTargetType)
+                  },
                   anns.pos
                 )
                 if lctx.debug then
@@ -191,7 +205,15 @@ object Lowering {
                                 ???
                     case _ =>
                 }
-                SirTypeUplcGenerator(loweredScrutinee.sirType).genSelect(sel, loweredScrutinee)
+                val generator = lctx.typeGenerator(loweredScrutinee.sirType)
+                val retval = generator.genSelect(sel, loweredScrutinee)
+                if lctx.debug then {
+                    lctx.log(
+                      s"Lowered SIR.Select: ${sir.pretty.render(100)}\n" +
+                          s"  retval = ${retval.pretty.render(100)}\n"
+                    )
+                }
+                retval
             case sirConst @ SIR.Const(const, tp, anns) =>
                 StaticLoweredValue(
                   sirConst,
@@ -274,8 +296,10 @@ object Lowering {
                 val prevScope = lctx.scope
                 if recursivity == NonRec then
                     val bindingValues = bindings.map { b =>
+                        var prevDebug = lctx.debug
                         val rhs = lowerSIR(b.value).maybeUpcast(b.tp, anns.pos)
                         val varId = lctx.uniqueVarName(b.name)
+                        lctx.debug = prevDebug
                         val varVal = VariableLoweredValue(
                           id = varId,
                           name = b.name,
@@ -337,10 +361,10 @@ object Lowering {
                   s"  f = ${app.f.pretty.render(100)}\n"
             )
         val prevDebug = lctx.debug
-        lctx.debug = false
+        // lctx.debug = false
         val fun = lowerSIR(app.f)
         val arg = lowerSIR(app.arg)
-        lctx.debug = prevDebug
+        // lctx.debug = prevDebug
         val result =
             try
                 lvApply(

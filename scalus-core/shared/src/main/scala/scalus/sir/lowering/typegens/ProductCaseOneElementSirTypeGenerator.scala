@@ -205,7 +205,10 @@ case class ProductCaseOneElementSirTypeGenerator(
               s"Expected select on ${name}, got ${sel.field}",
               sel.anns.pos
             )
-        else argLoweredValue(loweredScrutinee)
+        else {
+            val retval = argLoweredValue(loweredScrutinee)
+            argLoweredValue(loweredScrutinee)
+        }
     }
 
     override def genMatch(
