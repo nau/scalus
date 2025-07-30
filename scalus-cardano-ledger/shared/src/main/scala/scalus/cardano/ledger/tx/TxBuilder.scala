@@ -25,9 +25,11 @@ case class TxBuilder(
     def balanceAndCalculateFees(changeAddress: Address): Transaction = {
         val consumed = calculateConsumedValue(soFar.body.value)
         val outputsValue = calculateProducedValue(soFar.body.value)
-        
+
         if consumed.coin < outputsValue.coin then {
-            throw new IllegalStateException(s"Insufficient funds: consumed ${consumed.coin}, needed at least ${outputsValue.coin}")
+            throw new IllegalStateException(
+              s"Insufficient funds: consumed ${consumed.coin}, needed at least ${outputsValue.coin}"
+            )
         }
 
         @tailrec
@@ -37,24 +39,27 @@ case class TxBuilder(
             val outputsOnly = calculateProducedValue(txBody)
             val fee = txBody.fee
             val totalNeeded = Value(outputsOnly.coin + fee)
-            val diff = consumed.coin - totalNeeded.coin
-
-            if diff == Coin.zero then {
+            val diffLong = consumed.coin.value - totalNeeded.coin.value
+            if diffLong == 0 then {
                 currentTx
-            } else if diff > Coin.zero then {
+            } else if diffLong > 0 then {
+                val diff = Coin(diffLong)
                 val change = TransactionOutput(changeAddress, Value(diff))
                 val newOutputs = txBody.outputs :+ Sized(change)
                 val newTx = currentTx.copy(body = KeepRaw(txBody.copy(outputs = newOutputs)))
-                
+
                 MinTransactionFee(newTx, utxos, protocolParams) match {
                     case Right(correctFee) =>
-                        val newTxWithFee = newTx.copy(body = KeepRaw(newTx.body.value.copy(fee = correctFee)))
-                        val newOutputsValue = newTx.body.value.outputs.map(_.value.value).foldLeft(Value.zero)(_ + _)
+                        val newTxWithFee =
+                            newTx.copy(body = KeepRaw(newTx.body.value.copy(fee = correctFee)))
+                        val newOutputsValue =
+                            newTx.body.value.outputs.map(_.value.value).foldLeft(Value.zero)(_ + _)
                         val newTotalNeeded = Value(newOutputsValue.coin + correctFee)
                         if consumed.coin >= newTotalNeeded.coin then {
                             go(newTxWithFee)
                         } else {
-                            val txWithoutChange = currentTx.copy(body = KeepRaw(txBody.copy(fee = correctFee)))
+                            val txWithoutChange =
+                                currentTx.copy(body = KeepRaw(txBody.copy(fee = correctFee)))
                             go(txWithoutChange)
                         }
                     case Left(error) =>
@@ -63,17 +68,19 @@ case class TxBuilder(
                         )
                 }
             } else {
-                throw new IllegalStateException(s"Insufficient funds to cover outputs and fees: consumed ${consumed.coin}, needed ${totalNeeded.coin}")
+                throw new IllegalStateException(
+                  s"Insufficient funds to cover outputs and fees: consumed ${consumed.coin}, needed ${totalNeeded.coin}"
+                )
             }
         }
-        
+
         val initialTx = MinTransactionFee(soFar, utxos, protocolParams) match {
-            case Right(estimatedFee) => 
+            case Right(estimatedFee) =>
                 soFar.copy(body = KeepRaw(soFar.body.value.copy(fee = estimatedFee)))
             case Left(error) =>
                 throw new IllegalStateException(s"Failed to calculate initial fees: $error")
         }
-        
+
         go(initialTx)
     }
 
@@ -108,7 +115,7 @@ case class PayTo(
     def using(address: Address): PayTo =
         copy(utxoProvider = Some(UtxoProvider.utxosFromAddress(address, targetValue = count)))
 
-    def prepareTx: Either[String, TxBuilder] = {
+    private def prepareTx: Either[String, TxBuilder] = {
         for {
             utxos <- utxoProvider.map(_.utxos).toRight("No UTXO provider specified")
             amount <- count.toRight("No amount specified")
@@ -124,6 +131,9 @@ case class PayTo(
             builder.copy(soFar = newTx, utxoProvider = utxoProvider)
         }
     }
+
+    def balanceAndCalculateFees(changeAddress: Address): Transaction =
+        prepareTx.right.get.balanceAndCalculateFees(changeAddress)
 
 }
 
