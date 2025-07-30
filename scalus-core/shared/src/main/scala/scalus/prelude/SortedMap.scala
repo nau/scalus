@@ -59,7 +59,7 @@ object SortedMap {
       *   SortedMap.unsafeFromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).toList === List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))
       *   }}}
       * @see
-      *   [[fromList]] or [[fromStrictlyAscendingList]] for a safe version that validates the input
+      *   [[fromList]] or [[fromStrictlyAscendingList]] for safe versions
       */
     def unsafeFromList[A, B](lst: List[(A, B)]): SortedMap[A, B] = SortedMap(lst)
 
@@ -76,6 +76,9 @@ object SortedMap {
       *   SortedMap.fromList(List.Cons(("b", 2), List.Cons(("a", 1), List.Nil))).toList === List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))
       *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("a", 2), List.Nil))).toList === List.Cons(("a", 1), List.Nil)
       *   }}}
+      * @see
+      *   [[unsafeFromList]] for an unfiltered unsafe version or [[fromStrictlyAscendingList]] for a
+      *   faster stricter version
       */
     def fromList[A: Ord, B](lst: List[(A, B)]): SortedMap[A, B] = {
         def insertIfDoesNotExist(lst: List[(A, B)], key: A, value: B): List[(A, B)] = lst match
@@ -108,6 +111,9 @@ object SortedMap {
       *   SortedMap.fromStrictlyAscendingList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).toList === List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))
       *   SortedMap.fromStrictlyAscendingList(List.Cons(("a", 1), List.Cons(("a", 2), List.Nil))) // throws scalus.cardano.onchain.RequirementError
       *   }}}
+      * @see
+      *   [[unsafeFromList]] for an unsafe fast or [[fromList]] for a safe slow versions that don't
+      *   require strictly ascending order
       */
     def fromStrictlyAscendingList[A: Ord, B](
         lst: List[(A, B)]
@@ -213,7 +219,8 @@ object SortedMap {
         (lhs: SortedMap[A, B], rhs: SortedMap[A, B]) => lhs.toList <=> rhs.toList
 
     /** Provides a `FromData` instance for `SortedMap[A, B]` where both key and value types are
-      * instances of `FromData`.
+      * instances of `FromData`. There is no validation that the keys are in strictly ascending
+      * order
       */
     given sortedMapFromData[A: FromData, B: FromData]: FromData[SortedMap[A, B]] =
         (d: Data) =>
@@ -228,6 +235,27 @@ object SortedMap {
                       loop(ls.tail)
                     )
             SortedMap(loop(unMapData(d)))
+
+    /** Provides a validating `FromData` instance for `SortedMap[A, B]` where both key and value
+      * types are instances of `FromData`. This method ensures that the keys are in strictly
+      * ascending order using `Ord[A]` instance for keys.
+      *
+      * @throws scalus.cardano.onchain.RequirementError
+      *   if the keys are not in strictly ascending order
+      */
+    def sortedMapFromDataWithValidation[A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
+        (d: Data) =>
+            def loop(
+                ls: scalus.builtin.List[scalus.builtin.Pair[Data, Data]]
+            ): scalus.prelude.List[(A, B)] =
+                if ls.isEmpty then Nil
+                else
+                    val pair = ls.head
+                    Cons(
+                      (fromData[A](pair.fst), fromData[B](pair.snd)),
+                      loop(ls.tail)
+                    )
+            SortedMap.fromStrictlyAscendingList(loop(unMapData(d)))
 
     /** Provides a `ToData` instance for `SortedMap[A, B]` where both key and value types are
       * instances of `ToData`.

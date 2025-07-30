@@ -146,13 +146,16 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
           withScriptContext(
             validator,
             List(TxInInfo(hoskyMintTxOutRef, hoskyMintTxOut)),
-            SortedMap.singleton(
+            Value(
               hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
-              SortedMap
-                  .empty[ByteString, BigInt]
-                  .insert(hex"484f534b59", BigInt("1000000000000000"))
-                  .insert(hex"deadbeef", BigInt("1000000000000000"))
-            )
+              hex"484f534b59",
+              BigInt("1000000000000000")
+            ) +
+                Value(
+                  hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235",
+                  hex"deadbeef",
+                  BigInt("1000000000000000")
+                )
           )
         )
     }
@@ -170,7 +173,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
-        assert(flatSize == 2213)
+        assert(flatSize == 2210)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
     }
 
@@ -183,7 +186,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV2(appliedValidator).flatEncoded.length
-        assert(flatSize == 2869)
+        assert(flatSize == 2866)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
     }
 
@@ -197,7 +200,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
-        assert(flatSize == 1041)
+        assert(flatSize == 1054)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
     }
 }

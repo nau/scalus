@@ -67,8 +67,8 @@ trait ArbitraryInstances extends test.ArbitraryInstances {
         policyId <- genPolicyId
         tokens <- Gen.listOf(genToken)
     yield
-        val assets = SortedMap.fromList(List.from(tokens))
-        SortedMap.fromList(List((policyId, assets)))
+        val assets = List.from(tokens)
+        Value.fromList(List((policyId, assets)))
 
     def genLovelace: Gen[Value] = genAmount.map(Value.lovelace)
 

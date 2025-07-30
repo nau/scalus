@@ -1,36 +1,34 @@
 package scalus.ledger.api.v1
 
-import scalus.Compile
-import scalus.Ignore
-import scalus.prelude.SortedMap
+import scalus.{Compile, Ignore}
 import scalus.builtin.ByteString
 import scalus.builtin.Builtins.*
-import scalus.prelude.List
-import scalus.prelude.Option
+import scalus.builtin.Data.{fromData, toData}
+import scalus.builtin.{Data, FromData, ToData}
+import scalus.prelude
+import scalus.prelude.{List, Option, SortedMap}
 import scalus.prelude.These
 import scalus.prelude.These.*
-import scalus.prelude
-import scalus.prelude.Eq
-import scalus.prelude.Ord
+import scalus.prelude.{Eq, Ord}
 import scalus.prelude.Ord.{<=>, Order}
 import scalus.prelude.{!==, given}
 import scala.annotation.tailrec
 
+case class Value private (toSortedMap: SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]])
+
 @Compile
-object Value:
+object Value {
+
     /** A value representing zero units of any currency or token.
-      *
-      * This is represented as an empty `SortedMap`, meaning it contains no currency symbols or
-      * tokens.
       *
       * @example
       *   {{{
-      *   Value.zero === SortedMap.empty[CurrencySymbol, SortedMap[TokenName, BigInt]]
       *   Value.zero.isZero === true
+      *   Value.zero.quantityOf(ByteString.fromString("currencySymbol"), ByteString.fromString("tokenName")) === BigInt(0)
       *   Value.zero.getLovelace === BigInt(0)
       *   }}}
       */
-    val zero: Value = SortedMap.empty
+    val zero: Value = Value(SortedMap.empty)
 
     /** Creates a `Value` containing the specified amount of a specific currency and token. If the
       * amount is zero, it returns `Value.zero`.
@@ -50,13 +48,16 @@ object Value:
       *
       *   val policyId: CurrencySymbol = ByteString.fromString("currencySymbol")
       *   val tokenName: TokenName = ByteString.fromString("tokenName")
-      *   Value(policyId, tokenName, BigInt(100)) === SortedMap.singleton(policyId, SortedMap.singleton(tokenName, BigInt(100)))
+      *   val value = Value(policyId, tokenName, BigInt(100))
+      *   value.quantityOf(policyId, tokenName) === BigInt(100)
+      *   value.getLovelace === BigInt(0)
+      *   value.isZero === false
       *
       *   Value(policyId, tokenName, BigInt(0)) === Value.zero
       *   }}}
       */
     def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value =
-        if v !== BigInt(0) then SortedMap.singleton(cs, SortedMap.singleton(tn, v)) else zero
+        if v !== BigInt(0) then Value(SortedMap.singleton(cs, SortedMap.singleton(tn, v))) else zero
 
     /** Creates a `Value` representing a specific amount of ADA in lovelace.
       *
@@ -69,9 +70,9 @@ object Value:
       *   A new `Value` containing only the specified amount of Lovelace
       * @example
       *   {{{
-      *   Value.lovelace(BigInt(1000000)) === SortedMap.singleton(Value.adaCurrencySymbol, SortedMap.singleton(Value.adaTokenName, BigInt(1000000)))
       *   Value.lovelace(BigInt(1000000)) === Value(Value.adaCurrencySymbol, Value.adaTokenName, BigInt(1000000))
       *   Value.lovelace(BigInt(1000000)).getLovelace === BigInt(1000000)
+      *   Value.lovelace(BigInt(1000000)).quantityOf(ByteString.fromString("currencySymbol"), ByteString.fromString("tokenName")) === BigInt(0)
       *   Value.lovelace(BigInt(0)) === Value.zero
       *   }}}
       */
@@ -100,14 +101,15 @@ object Value:
       *   Value.unsafeFromList(tokens)
       *   }}}
       * @see
-      *   [[fromList]] for a safe version that validates the input
+      *   [[fromList]] or [[fromStrictlyAscendingListWithNonZeroAmounts]] for safe versions
       */
     def unsafeFromList(
         list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
-    ): Value =
-        SortedMap.unsafeFromList(
-          list.map { pair => (pair._1, SortedMap.unsafeFromList(pair._2)) }
-        )
+    ): Value = Value(
+      SortedMap.unsafeFromList(
+        list.map { pair => (pair._1, SortedMap.unsafeFromList(pair._2)) }
+      )
+    )
 
     /** Creates a `Value` from a list of currency symbols paired with their token amounts, filtering
       * out zero amounts.
@@ -115,7 +117,6 @@ object Value:
       * This method safely constructs a `Value` by:
       *   - Removing all tokens with zero amounts
       *   - Removing currency symbols that have no remaining tokens after filtering
-      *   - Converting the filtered lists to `SortedMap`s
       *
       * @param list
       *   A list of tuples containing currency symbols and their associated token amounts
@@ -135,21 +136,23 @@ object Value:
       *   Value.fromList(tokens) === Value.lovelace(BigInt(1000000))
       *   }}}
       * @see
-      *   [[unsafeFromList]] for an unfiltered version
+      *   [[unsafeFromList]] for an unfiltered unsafe version or
+      *   [[fromStrictlyAscendingListWithNonZeroAmounts]] for a faster stricter version
       */
     def fromList(
         list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
-    ): Value =
-        SortedMap.fromList(
-          list.filterMap { pair =>
-              val tokens = pair._2.filterMap { case (tn, v) =>
-                  if v !== BigInt(0) then Option.Some((tn, v)) else Option.None
-              }
+    ): Value = Value(
+      SortedMap.fromList(
+        list.filterMap { pair =>
+            val tokens = pair._2.filterMap { case (tn, v) =>
+                if v !== BigInt(0) then Option.Some((tn, v)) else Option.None
+            }
 
-              if tokens.nonEmpty then Option.Some((pair._1, SortedMap.fromList(tokens)))
-              else Option.None
-          }
-        )
+            if tokens.nonEmpty then Option.Some((pair._1, SortedMap.fromList(tokens)))
+            else Option.None
+        }
+      )
+    )
 
     /** Creates a `Value` from a strictly ascending list of currency symbols and token amounts,
       * requiring non-zero amounts.
@@ -187,22 +190,23 @@ object Value:
       *   Value.fromStrictlyAscendingListWithNonZeroAmounts(invalidTokens) // Throws RequirementError
       *   }}}
       * @see
-      *   [[fromList]] for a more permissive version that filters invalid entries
+      *   [[unsafeFromList]] for an unsafe fast version or [[fromList]] for a more permissive slow
+      *   version that filters invalid entries
       */
     def fromStrictlyAscendingListWithNonZeroAmounts(
         list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
-    ): Value = {
-        SortedMap.fromStrictlyAscendingList(
-          list.map { case (currencySymbol, tokens) =>
-              scalus.prelude.require(
-                tokens.nonEmpty && tokens.forall { case (_, v) => v !== BigInt(0) },
-                "Token amounts must be non-zero and token lists must not be empty"
-              )
+    ): Value = Value(
+      SortedMap.fromStrictlyAscendingList(
+        list.map { case (currencySymbol, tokens) =>
+            scalus.prelude.require(
+              tokens.nonEmpty && tokens.forall { case (_, v) => v !== BigInt(0) },
+              "Token amounts must be non-zero and token lists must not be empty"
+            )
 
-              (currencySymbol, SortedMap.fromStrictlyAscendingList(tokens))
-          }
-        )
-    }
+            (currencySymbol, SortedMap.fromStrictlyAscendingList(tokens))
+        }
+      )
+    )
 
     /** The currency symbol for ADA, represented as an empty `ByteString`.
       *
@@ -342,7 +346,9 @@ object Value:
       *   Value.negate(value1) === value2
       *   }}}
       */
-    def negate(v: Value): Value = v.mapValues { _.mapValues { subtractInteger(0, _) } }
+    def negate(v: Value): Value = Value(v.toSortedMap.mapValues {
+        _.mapValues { subtractInteger(0, _) }
+    })
 
     /** Adds two `Value` instances together, combining their token amounts.
       *
@@ -460,7 +466,7 @@ object Value:
       */
     @Ignore
     def debugToString(v: Value): String = {
-        val pairs = v.toList.asScala.map { case (cs, tokens) =>
+        val pairs = v.toSortedMap.toList.asScala.map { case (cs, tokens) =>
             val tokenPairs = tokens.toList.asScala.map { case (tn, amount) =>
                 s"#${tn.toHex}: $amount"
             }
@@ -523,12 +529,14 @@ object Value:
       *   }}}
       */
     given valueOrd: Ord[Value] = (a, b) => {
-        val values = SortedMap.union(a, b).toList.flatMap { case (cs, tokens) =>
-            tokens match
-                case These.These(v1, v2) => SortedMap.union(v1, v2).toList.map { case (_, v) => v }
-                case This(v1)            => v1.toList.map { case (_, v) => These.This(v) }
-                case That(v2)            => v2.toList.map { case (_, v) => These.That(v) }
-        }
+        val values =
+            SortedMap.union(a.toSortedMap, b.toSortedMap).toList.flatMap { case (cs, tokens) =>
+                tokens match
+                    case These.These(v1, v2) =>
+                        SortedMap.union(v1, v2).toList.map { case (_, v) => v }
+                    case This(v1) => v1.toList.map { case (_, v) => These.This(v) }
+                    case That(v2) => v2.toList.map { case (_, v) => These.That(v) }
+            }
 
         @tailrec
         def go(lst: List[These[BigInt, BigInt]]): Ord.Order = lst match
@@ -547,6 +555,32 @@ object Value:
 
         go(values)
     }
+
+    given valueToData: ToData[Value] = _.toSortedMap.toData
+
+    given valueFromData: FromData[Value] =
+        (data: Data) => {
+            Value(
+              fromData[SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]]](data)
+            )
+        }
+
+    def valueFromDataWithValidation: FromData[Value] =
+        (data: Data) => {
+            given [A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
+                SortedMap.sortedMapFromDataWithValidation
+
+            val payload = fromData[SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]]](data)
+
+            scalus.prelude.require(
+              payload.forall { case (_, tokens) =>
+                  tokens.nonEmpty && tokens.forall { case (_, v) => v !== BigInt(0) }
+              },
+              "Token amounts must be non-zero and token lists must not be empty"
+            )
+
+            Value(payload)
+        }
 
     extension (v: Value)
         /** Extension alias for [[Value.negate]]. */
@@ -598,7 +632,7 @@ object Value:
           *   nonZeroValue.isZero === false
           *   }}}
           */
-        inline def isZero: Boolean = v.isEmpty
+        inline def isZero: Boolean = v.toSortedMap.isEmpty
 
         /** Gets the amount of a specific token in a currency symbol from a `Value`.
           *
@@ -631,7 +665,7 @@ object Value:
         def quantityOf(
             cs: CurrencySymbol,
             tn: TokenName
-        ): BigInt = v.get(cs) match
+        ): BigInt = v.toSortedMap.get(cs) match
             case Option.Some(tokens) => tokens.get(tn).getOrElse(0)
             case Option.None         => 0
 
@@ -664,7 +698,7 @@ object Value:
           *   value.withoutLovelace === withoutAda
           *   }}}
           */
-        def withoutLovelace: Value = v.delete(adaCurrencySymbol)
+        def withoutLovelace: Value = Value(v.toSortedMap.delete(adaCurrencySymbol))
 
         /** Flattens the `Value` into a list of currency symbol, token name, and amount triples.
           *
@@ -696,7 +730,7 @@ object Value:
           *   }}}
           */
         def flatten: List[(CurrencySymbol, TokenName, BigInt)] =
-            v.foldRight(List.empty) { case (pair1, acc1) =>
+            v.toSortedMap.foldRight(List.empty) { case (pair1, acc1) =>
                 pair1._2.foldRight(acc1) { case (pair2, acc2) =>
                     List.Cons((pair1._1, pair2._1, pair2._2), acc2)
                 }
@@ -737,18 +771,19 @@ object Value:
     private def unionVal(
         l: Value,
         r: Value
-    ): SortedMap[CurrencySymbol, SortedMap[TokenName, These[BigInt, BigInt]]] =
+    ): SortedMap[CurrencySymbol, SortedMap[TokenName, These[BigInt, BigInt]]] = {
         val combined: SortedMap[
           CurrencySymbol,
           prelude.These[SortedMap[TokenName, BigInt], SortedMap[TokenName, BigInt]]
-        ] = SortedMap.union(l, r)
+        ] = SortedMap.union(l.toSortedMap, r.toSortedMap)
         combined.mapValues {
             case These.These(v1, v2) => SortedMap.union(v1, v2)
             case This(v1)            => v1.mapValues { These.This(_) }
             case That(v2)            => v2.mapValues { These.That(_) }
         }
+    }
 
-    private def unionWith(op: (BigInt, BigInt) => BigInt)(a: Value, b: Value): Value =
+    private def unionWith(op: (BigInt, BigInt) => BigInt)(a: Value, b: Value): Value = {
         val combined = unionVal(a, b)
         val unThese: These[BigInt, BigInt] => BigInt = {
             case These.These(v1, v2) => op(v1, v2)
@@ -756,15 +791,19 @@ object Value:
             case That(v2)            => op(0, v2)
         }
 
-        SortedMap.unsafeFromList(
-          combined.toList.filterMap { pair =>
-              val tokens = pair._2.toList.filterMap { case (tn, v) =>
-                  val value = unThese(v)
-                  if value !== BigInt(0) then Option.Some((tn, value))
-                  else Option.None
-              }
+        Value(
+          SortedMap.unsafeFromList(
+            combined.toList.filterMap { pair =>
+                val tokens = pair._2.toList.filterMap { case (tn, v) =>
+                    val value = unThese(v)
+                    if value !== BigInt(0) then Option.Some((tn, value))
+                    else Option.None
+                }
 
-              if tokens.nonEmpty then Option.Some((pair._1, SortedMap.unsafeFromList(tokens)))
-              else Option.None
-          }
+                if tokens.nonEmpty then Option.Some((pair._1, SortedMap.unsafeFromList(tokens)))
+                else Option.None
+            }
+          )
         )
+    }
+}

@@ -16,7 +16,9 @@ export org.scalacheck.{Arbitrary, Gen}
 class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     export org.scalatestplus.scalacheck.Checkers.*
     export scalus.builtin.Data.{fromData, toData}
+    export scalus.prelude.{Eq, Ord}
     export Eq.given
+    export scalus.prelude.{!==, ===}
     export Ord.{<=>, Order}
 
     protected final inline def liftThrowableToOption[A](inline code: A): Option[A] = {

@@ -21,7 +21,6 @@ type PosixTime = BigInt
 @deprecated("Use `Interval` instead", "0.7.0")
 type POSIXTimeRange = Interval
 type PosixTimeRange = Interval
-type Value = SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]]
 
 @deprecated("Not needed, use companion object of appropriate type instead")
 object FromDataInstances {

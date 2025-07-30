@@ -230,52 +230,39 @@ object LedgerToPlutusTranslation {
       */
     def getValue(value: Value): v1.Value = {
         // Add ADA entry if not empty
-        val adaEntry =
-            if value.coin.value > 0 then
-                Seq(
-                  ByteString.empty -> prelude.SortedMap
-                      .singleton(ByteString.empty, BigInt(value.coin.value))
-                )
-            else Seq.empty
-        val allEntries = adaEntry ++ value.assets.assets.view.map { case (policyId, assets) =>
-            val assetMap = prelude.SortedMap.fromList(prelude.List.from(assets.view.map:
-                (assetName, amount) => assetName.bytes -> BigInt(amount)))
-            policyId -> assetMap
-        }
-        prelude.SortedMap.fromList(prelude.List.from(allEntries))
-    }
+        val adaValue = v1.Value.lovelace(BigInt(value.coin.value))
 
-    /** Convert multi-asset values for minting context.
-      *
-      * Minting contexts require special handling to ensure ADA is always included in the value map,
-      * even when no ADA is being minted.
-      */
-    def getMintValueV1V2(mint: Option[Mint]): v1.Value = {
-        // Always include ADA entry with zero value for minting
-        val assets = mint.getOrElse(MultiAsset.empty)
-        val adaEntry = Seq(
-          ByteString.empty -> prelude.SortedMap.singleton(ByteString.empty, BigInt(0))
+        val assetsValue = v1.Value.fromList(
+          prelude.List.from(
+            value.assets.assets.view.map { case (policyId, assets) =>
+                val assetList = prelude.List.from(assets.view.map { (assetName, amount) =>
+                    assetName.bytes -> BigInt(amount)
+                })
+                policyId -> assetList
+            }
+          )
         )
-        val allEntries = adaEntry ++ assets.assets.view.map { case (policyId, assets) =>
-            val assetMap = prelude.SortedMap.fromList(prelude.List.from(assets.view.map:
-                (assetName, amount) => assetName.bytes -> BigInt(amount)))
-            policyId -> assetMap
-        }
-        prelude.SortedMap.fromList(prelude.List.from(allEntries))
+
+        adaValue + assetsValue
     }
 
     /** Convert multi-asset values for minting context.
-      *
-      * In Plutus V3, minting value can not contain zero ADA entry, so we handle it differently.
       */
-    def getMintValueV3(mint: Option[Mint]): v1.Value = {
+    def getMintValue(mint: Option[Mint]): v1.Value = {
         val assets = mint.getOrElse(MultiAsset.empty)
-        val allEntries = assets.assets.view.map { case (policyId, assets) =>
-            val assetMap = prelude.SortedMap.fromList(prelude.List.from(assets.view.map:
-                (assetName, amount) => assetName.bytes -> BigInt(amount)))
-            policyId -> assetMap
-        }
-        prelude.SortedMap.fromList(prelude.List.from(allEntries))
+
+        val assetsValue = v1.Value.fromList(
+          prelude.List.from(
+            assets.assets.view.map { case (policyId, assets) =>
+                val assetList = prelude.List.from(assets.view.map { (assetName, amount) =>
+                    assetName.bytes -> BigInt(amount)
+                })
+                policyId -> assetList
+            }
+          )
+        )
+
+        assetsValue
     }
 
     /** Create TxOut for Plutus V1 script contexts.
@@ -559,7 +546,7 @@ object LedgerToPlutusTranslation {
           inputs = prelude.List.from(body.inputs.toSeq.sorted.map(getTxInInfoV1(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV1)),
           fee = v1.Value.lovelace(body.fee.value),
-          mint = getMintValueV1V2(body.mint),
+          mint = getMintValue(body.mint),
           dcert = prelude.List.from(body.certificates.toIndexedSeq.map(getDCert)),
           withdrawals = getWithdrawals(body.withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
@@ -596,7 +583,7 @@ object LedgerToPlutusTranslation {
               prelude.List.from(body.referenceInputs.toSeq.sorted.map(getTxInInfoV2(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
           fee = v1.Value.lovelace(body.fee.value),
-          mint = getMintValueV1V2(body.mint),
+          mint = getMintValue(body.mint),
           dcert = prelude.List.from(body.certificates.toIndexedSeq.map(getDCert)),
           withdrawals = AssocMap.unsafeFromList(getWithdrawals(body.withdrawals)),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
@@ -656,7 +643,7 @@ object LedgerToPlutusTranslation {
               prelude.List.from(body.referenceInputs.toSeq.sorted.map(getTxInInfoV3(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
           fee = body.fee.value,
-          mint = getMintValueV3(body.mint),
+          mint = getMintValue(body.mint),
           certificates = prelude.List.from(body.certificates.toIndexedSeq.map(getTxCertV3)),
           withdrawals = AssocMap.unsafeFromList(withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),

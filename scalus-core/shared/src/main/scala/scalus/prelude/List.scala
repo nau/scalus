@@ -214,7 +214,7 @@ object List {
     given listFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
         def loop(ls: scalus.builtin.List[Data]): scalus.prelude.List[A] =
             if ls.isEmpty then List.Nil
-            else new List.Cons(fromData[A](ls.head), loop(ls.tail))
+            else List.Cons(fromData[A](ls.head), loop(ls.tail))
         loop(unListData(d))
 
     /** Provides an `Eq` instance for `List[A]` where value type is instances of `Eq`. */
