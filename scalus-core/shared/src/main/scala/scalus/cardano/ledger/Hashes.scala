@@ -100,12 +100,19 @@ object ScriptHash {
 }
 type DataHash = Hash[Blake2b_256, HashPurpose.DataHash]
 type MetadataHash = Hash[Blake2b_256, HashPurpose.MetadataHash]
-type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
 type BlockHash = Hash[Blake2b_256, HashPurpose.BlockHash]
 type AuxiliaryDataHash = Hash[Blake2b_256, HashPurpose.AuxiliaryDataHash]
 type VrfKeyHash = Hash[Blake2b_256, HashPurpose.VrfKeyHash]
 type PoolKeyHash = Hash[Blake2b_224, HashPurpose.PoolKeyHash]
 type StakeKeyHash = Hash[Blake2b_224, HashPurpose.StakeKeyHash]
+
+type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
+object TransactionHash {
+    def fromHex(hex: String): TransactionHash = {
+        val bytes = ByteString.fromHex(hex)
+        Hash[Blake2b_256, HashPurpose.TransactionHash](bytes)
+    }
+}
 
 /** Represents a hash of the script data
   *
