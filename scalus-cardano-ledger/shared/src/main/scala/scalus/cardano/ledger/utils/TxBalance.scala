@@ -3,6 +3,9 @@ import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
 import scalus.cardano.ledger.*
 import scalus.ledger.babbage.ProtocolParams
 
+import scala.util.boundary
+import scala.util.boundary.break
+
 object TxBalance {
 
     def consumed(
@@ -10,14 +13,14 @@ object TxBalance {
         certState: CertState,
         utxo: UTxO,
         protocolParams: ProtocolParams
-    ): Either[BadInputsUTxOException, Value] = {
+    ): Either[BadInputsUTxOException, Value] = boundary {
         val txBody = tx.body.value
         val mint = txBody.mint.getOrElse(MultiAsset.empty)
         val inputs = txBody.inputs
             .map { input =>
                 utxo.get(input) match {
                     case Some(output) => output.value
-                    case None => return Left(TransactionException.BadInputsUTxOException(tx.id))
+                    case None => break(Left(TransactionException.BadInputsUTxOException(tx.id)))
                 }
             }
             .foldLeft(Value.zero)(_ + _)
@@ -86,9 +89,5 @@ object TxBalance {
             getProducedMaryValue + Value(txBody.donation.getOrElse(Coin.zero))
         val getProducedValue = conwayProducedValue
         getProducedValue
-    }
-    
-    def balance(tx: Transaction, UTxO: UTxO) = {
-        
     }
 }
