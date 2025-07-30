@@ -1,11 +1,7 @@
 package scalus.cardano.ledger.utils
-import scalus.cardano.ledger.TransactionException.{BadInputsUTxOException, ValueNotConservedUTxOException}
-import scalus.cardano.ledger.rules.ValueNotConservedUTxOValidator.success
+import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
+import scalus.cardano.ledger.*
 import scalus.ledger.babbage.ProtocolParams
-import scalus.cardano.ledger.{CertState, Certificate, Coin, Credential, MultiAsset, Transaction, TransactionBody, TransactionException, UTxO, Value}
-
-import scala.util.boundary
-import scala.util.boundary.break
 
 object TxBalance {
 
@@ -90,5 +86,9 @@ object TxBalance {
             getProducedMaryValue + Value(txBody.donation.getOrElse(Coin.zero))
         val getProducedValue = conwayProducedValue
         getProducedValue
+    }
+    
+    def balance(tx: Transaction, UTxO: UTxO) = {
+        
     }
 }
