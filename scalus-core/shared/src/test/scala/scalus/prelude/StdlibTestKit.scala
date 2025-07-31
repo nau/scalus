@@ -40,11 +40,18 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
                     val result = Compiler.compileInline(code).toUplc(true).evaluateDebug
                     result match
                         case failure: Result.Failure =>
-                            val thrown = failure.exception
-                            if thrown != exception then {
-                                alert(
-                                  "exception thrown by the UPLC evaluator did not equal or contain the expected exception."
-                                )
+                            result.logs.lastOption match {
+                                case Some(message) =>
+                                    assert(message.contains(exception.getMessage))
+                                case None =>
+                                    // if the error occurred due to an erroneously called builtin, e.g. / by zero,
+                                    // there won't be a respective log, but the CEK exception message is going to include
+                                    // the root error.
+                                    assert(
+                                      failure.exception.getMessage.contains(
+                                        exception.getClass.getName
+                                      )
+                                    )
                             }
                         case _ =>
                             fail(s"Expected failure, but got success: $result")
