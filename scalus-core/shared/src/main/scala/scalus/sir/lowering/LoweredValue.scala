@@ -70,7 +70,9 @@ trait LoweredValue {
 
     /** Upcast the value to the target type if needed.
       */
-    def maybeUpcast(targetType: SIRType, pos: SIRPosition)(using LoweringContext): LoweredValue = {
+    def maybeUpcast(targetType: SIRType, pos: SIRPosition)(using
+        lctx: LoweringContext
+    ): LoweredValue = {
         SIRUnify.topLevelUnifyType(sirType, targetType, SIRUnify.Env.empty.withoutUpcasting) match
             case SIRUnify.UnificationSuccess(env, tp) =>
                 this
@@ -80,14 +82,15 @@ trait LoweredValue {
                 val parentsSeq =
                     SIRUnify.subtypeSeq(sirType, targetType, SIRUnify.Env.empty)
                 if parentsSeq.isEmpty then {
-                    println(
-                      s"first unify failure: path = ${path}, left = ${l}, right = ${r}"
-                    )
-                    val debugUnification = SIRUnify.topLevelUnifyType(
-                      sirType,
-                      targetType,
-                      SIRUnify.Env.empty.withoutUpcasting.withDebug
-                    )
+                    if lctx.debug then
+                        lctx.log(
+                          s"LoweredValue.maybeUpcast: first unify failure: path = ${path}, left = ${l}, right = ${r}"
+                        )
+                        val debugUnification = SIRUnify.topLevelUnifyType(
+                          sirType,
+                          targetType,
+                          SIRUnify.Env.empty.withoutUpcasting.withDebug
+                        )
                     throw LoweringException(
                       s"Cannot upcast ${this.sirType.show} to ${targetType.show}",
                       pos
@@ -286,9 +289,6 @@ class VariableLoweredValue(
         Set(this) ++ optRhs.map(rhs => rhs.usedUplevelVars).getOrElse(Set.empty)
 
     override def termInternal(gctx: TermGenerationContext): Term = {
-        if id == "x$126" then
-            println("generating term for x$126")
-            // Thread.dumpStack()
         if gctx.generatedVars.contains(id) then Term.Var(NamedDeBruijn(id))
         else
             optRhs match {
@@ -820,7 +820,7 @@ object LoweredValue {
                   case failure @ SIRUnify.UnificationFailure(path, l, r) =>
                       // if we cannot unify types, we need to upcast
                       //  to the target type.
-                      println("Unification failure: " + failure)
+                      lctx.warn("Unification failure: " + failure, inPos)
                       SIRType.FreeUnificator
               }
             )
@@ -920,6 +920,10 @@ object LoweredValue {
                         case LambdaRepresentation(inRepr, outRepr) =>
                             (other, inRepr)
                         case _ =>
+                            lctx.warn(
+                              s"Warning: function application with non-lambda representation",
+                              f.pos
+                            )
                             (other, lctx.typeGenerator(other).defaultRepresentation(other))
                     }
 
@@ -934,7 +938,6 @@ object LoweredValue {
                 // lctx.log(
                 //  s"lvApply: f.representation = ${f.representation.doc.render(100)}, arg.representation = ${arg.representation.doc.render(100)}"
                 // )
-                println(s"f.debugMark=${f.debugMark}")
                 // f.createdEx.printStackTrace()
                 lctx.log(
                   s"lvApply: targetArgType = ${targetArgType.show}, targetArgRepresentation = $targetArgRepresentation"
@@ -1008,7 +1011,7 @@ object LoweredValue {
               f.sirType,
               argInTargetRepresentation.sirType,
               Map.empty,
-              debug = lctx.debug
+              // debug = lctx.debug
             )
             if lctx.debug then lctx.log(s"lvApply1: calculatedResType = ${calculatedResType.show}")
 
@@ -1041,18 +1044,10 @@ object LoweredValue {
                     SIRUnify.topLevelUnifyType(
                       ctBody,
                       resBody,
-                      SIRUnify.Env.empty.withUpcasting.setDebug(lctx.debug)
+                      SIRUnify.Env.empty.withUpcasting // .setDebug(lctx.debug)
                     ) match {
                         case SIRUnify.UnificationSuccess(env, tp) =>
                             // tp is ok, now try get typevars only from resultedSize
-                            if lctx.debug then {
-                                println(
-                                  s"lvApply: env filledTypes keys = ${env.filledTypes.keys.map(_.show)}"
-                                )
-                                println(
-                                  s"lvApply: env eqTypes keys = ${env.eqTypes.keys.map(_.show)}"
-                                )
-                            }
 
                             val ctResFree = ctRes.filterNot(env.filledTypes.contains)
                             val resTpsFree = resTps.filterNot(tv =>
@@ -1083,8 +1078,6 @@ object LoweredValue {
                                 SIRType.partitionGround(ctResFree ++ resTpsFree, ntp)
                             if grounded.nonEmpty then SIRType.TypeLambda(grounded, ntp) else ntp
                         case failure @ SIRUnify.UnificationFailure(path, l, r) =>
-                            println("!!!: unifucation failure, createsAt:")
-                            failure.createEx.printStackTrace()
                             val lString = l match
                                 case tp: SIRType =>
                                     tp.show
@@ -1409,7 +1402,6 @@ object LoweredValue {
               SIRUnify.Env.empty.withoutUpcasting
             ) match {
                 case SIRUnify.UnificationSuccess(_, tp) =>
-                    if lctx.debug then println("cast successful without upcasting")
                     // if we can unify types, we can return the expression as is
                     castedValue(changeRepresentation = false, printWarning = false)
                 case SIRUnify.UnificationFailure(_, _, _) =>

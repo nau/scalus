@@ -21,7 +21,7 @@ abstract class BaseRepresentationProxyLoweredValue(
   * generated code)
   */
 final class RepresentationProxyLoweredValue(
-    input: LoweredValue,
+    val input: LoweredValue,
     override val representation: LoweredValueRepresentation,
     override val pos: SIRPosition
 ) extends BaseRepresentationProxyLoweredValue(input, representation, pos) {
@@ -42,6 +42,24 @@ final class RepresentationProxyLoweredValue(
           representation.doc
         ) + Doc.text(")")
         input.docRef(ctx).bracketBy(left, right)
+    }
+
+}
+
+object RepresentationProxyLoweredValue {
+
+    def apply(
+        input: LoweredValue,
+        representation: LoweredValueRepresentation,
+        pos: SIRPosition
+    ): RepresentationProxyLoweredValue = {
+        input match
+            case proxy: RepresentationProxyLoweredValue =>
+                if proxy.representation == representation then
+                    proxy // no need to create a new proxy if the representation is the same
+                else new RepresentationProxyLoweredValue(input, representation, pos)
+            case _ =>
+                new RepresentationProxyLoweredValue(input, representation, pos)
     }
 
 }

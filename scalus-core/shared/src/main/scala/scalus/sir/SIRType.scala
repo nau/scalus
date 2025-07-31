@@ -409,7 +409,7 @@ object SIRType {
     }
 
     object Varargs {
-        val name = "scala.prelude.Varargs"
+        val name = "scalus.prelude.Varargs"
 
         val constrDecl = {
             val hash = name.hashCode

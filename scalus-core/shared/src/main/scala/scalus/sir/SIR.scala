@@ -266,9 +266,9 @@ object SIR:
     case class ExternalVar(moduleName: String, name: String, tp: SIRType, anns: AnnotationsDecl)
         extends AnnotatedSIR {
 
-        if moduleName == "scalus.prelude.Varargs$package$" then
+        if moduleName == "scalus.prelude" then
             throw new RuntimeException(
-              "ExternalVar: Varargs$package$.sir at " + anns.pos.show
+              s"ExternalVar: scalus.prelude, moduleName ${moduleName}, name=${name} at " + anns.pos.show
             )
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"

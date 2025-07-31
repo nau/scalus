@@ -16,7 +16,7 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = SortedMap.singleton(minterScriptHash, SortedMap.empty),
+          mint = Value.zero,
           redeemers = AssocMap.singleton(ScriptPurpose.Minting(minterScriptHash), Data.unit),
           id = random[TxId]
         )
@@ -38,7 +38,7 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = SortedMap.singleton(minterScriptHash, SortedMap.empty),
+          mint = Value.zero,
           redeemers = AssocMap.empty,
           id = random[TxId]
         )
@@ -62,7 +62,7 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = SortedMap.singleton(minterScriptHash, SortedMap.empty),
+          mint = Value.zero,
           redeemers = AssocMap.singleton(ScriptPurpose.Minting(minterScriptHash), Data.unit),
           id = random[TxId]
         )
@@ -88,7 +88,7 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = SortedMap.singleton(minterScriptHash, SortedMap.empty),
+          mint = Value.zero,
           redeemers = AssocMap.singleton(ScriptPurpose.Minting(minterScriptHash), Data.unit),
           id = random[TxId]
         )
@@ -110,7 +110,7 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = SortedMap.singleton(minterScriptHash, SortedMap.empty),
+          mint = Value(minterScriptHash, random[TokenName], BigInt(1)),
           redeemers = AssocMap.empty,
           id = random[TxId]
         )
@@ -128,7 +128,7 @@ class TransactionLevelMinterValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          mint = SortedMap.empty,
+          mint = Value.zero,
           redeemers = AssocMap.empty,
           id = random[TxId]
         )

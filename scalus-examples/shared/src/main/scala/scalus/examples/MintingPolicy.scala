@@ -87,7 +87,7 @@ object MintingPolicy {
     ) = (redeemer: Unit, ctxData: Data) => {
         deserializer(ctxData) match
             case MintingContext(txOutRefs, minted, ownSymbol) =>
-                val mintedTokens = minted.get(ownSymbol) match
+                val mintedTokens = minted.toSortedMap.get(ownSymbol) match
                     case Some(mintedTokens) => mintedTokens
                     case None =>
                         throw new Exception("T")

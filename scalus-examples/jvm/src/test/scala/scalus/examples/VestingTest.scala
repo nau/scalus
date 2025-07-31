@@ -140,7 +140,7 @@ class VestingTest extends AnyFunSuite, ScalusTest {
           )
         )
 
-        println(result)
+        // println(result)
         assert(result.isSuccess, "Script execution should succeed")
     }
 
@@ -165,7 +165,7 @@ class VestingTest extends AnyFunSuite, ScalusTest {
           )
         )
 
-        println(result)
+        // println(result)
         assert(result.isSuccess, "Script execution should succeed for partial withdrawal")
     }
 
@@ -357,7 +357,7 @@ class VestingTest extends AnyFunSuite, ScalusTest {
           )
         )
 
-        println(result)
+        // println(result)
         assert(result.isFailure, "Script execution should fail before the vesting period ends")
     }
 
@@ -411,7 +411,7 @@ class VestingTest extends AnyFunSuite, ScalusTest {
           )
         )
 
-        println(result)
+        // println(result)
         assert(result.isFailure, "Script execution should fail because of no signatures")
     }
 
@@ -436,7 +436,7 @@ class VestingTest extends AnyFunSuite, ScalusTest {
           )
         )
 
-        println(result)
+        // println(result)
         assert(result.isFailure, "Script execution should fail because no fee is paid")
     }
 
