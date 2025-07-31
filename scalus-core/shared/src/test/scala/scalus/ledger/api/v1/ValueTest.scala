@@ -200,8 +200,6 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 //    }
 
     test("Ord") {
-        import scalus.prelude.Ord.*
-        import Value.given
 //
 //        assertEval(Value.zero equiv Value.zero)
 //
