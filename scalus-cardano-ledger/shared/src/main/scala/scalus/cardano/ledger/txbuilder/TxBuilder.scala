@@ -59,11 +59,11 @@ case class TxBuilder(
                     val correctFee = MinTransactionFee(newTx, utxo, protocolParams).toTry.get
                     val newTxWithFee = modifyBody(newTx, _.copy(fee = correctFee))
                     val newProduced = TxBalance.produced(newTxWithFee)
-                    if consumed.coin < newProduced.coin then {
+                    if consumed.coin >= newProduced.coin then {
                         // fee is good
                         go(newTxWithFee)
                     } else {
-                        // fee is tpo high, `currentTx` is start-of-the-iteration tx, set the fee and run again
+                        // fee + change exceeds inputs, remove the change and rebalance again
                         val txWithoutChange =
                             modifyBody(currentTx, _.copy(fee = correctFee))
                         go(txWithoutChange)
