@@ -16,7 +16,7 @@ object TxBalance {
     ): Either[BadInputsUTxOException, Value] = boundary {
         val txBody = tx.body.value
         val mint = txBody.mint.getOrElse(MultiAsset.empty)
-        val inputs = txBody.inputs
+        val inputs = txBody.inputs.view
             .map { input =>
                 utxo.get(input) match {
                     case Some(output) => output.value
