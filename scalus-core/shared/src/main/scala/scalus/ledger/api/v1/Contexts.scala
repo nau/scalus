@@ -3,7 +3,7 @@ package scalus.ledger.api.v1
 import scalus.Compile
 import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
-import scalus.prelude.{===, Eq, List, Option, Ord, SortedMap, given}
+import scalus.prelude.{===, Eq, List, Option, Ord, given}
 import scalus.builtin.ByteString.*
 
 type Hash = ByteString

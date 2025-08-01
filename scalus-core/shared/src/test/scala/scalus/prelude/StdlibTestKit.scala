@@ -1,17 +1,25 @@
 package scalus.prelude
 
 import scalus.*
-import scalus.uplc.Term
+import scalus.uplc.{Constant, Term}
 import scalus.uplc.eval.{PlutusVM, Result}
 import scalus.uplc.test.ArbitraryInstances
+import scalus.builtin.Data
+import scalus.builtin.Data.{FromData, ToData}
+import scalus.sir.{AnnotationsDecl, SIR, SIRType}
+import scalus.sir.SirDSL.$
 
+import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+import org.scalacheck.Prop
+export org.scalacheck.{Arbitrary, Gen, Shrink}
+import org.scalacheck.util.Pretty
+import org.scalactic.{source, Prettifier}
+
 import scala.util.control.NonFatal
 import scala.reflect.ClassTag
-
-export org.scalacheck.{Arbitrary, Gen}
 
 class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     export org.scalatestplus.scalacheck.Checkers.*
@@ -89,6 +97,141 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
 
         val codeTerm = Compiler.compileInline(code).toUplc(true).evaluate
         assert(Term.alphaEq(codeTerm, trueTerm))
+    }
+
+    protected final inline def checkEvalFails[E <: Throwable: ClassTag](inline code: Any): Unit = {
+        var isExceptionThrown = false
+
+        val _ =
+            try code
+            catch
+                case NonFatal(exception) =>
+                    assert(
+                      ClassTag(exception.getClass) == summon[ClassTag[E]],
+                      s"Expected exception of type ${summon[ClassTag[E]]}, but got $exception"
+                    )
+
+                    val result = Compiler.compileInline(code).toUplc(true).evaluateDebug
+                    result match
+                        case failure: Result.Failure =>
+                            result.logs.lastOption match {
+                                case Some(message) =>
+                                    assert(message.contains(exception.getMessage))
+                                case None =>
+                                    // if the error occurred due to an erroneously called builtin, e.g. / by zero,
+                                    // there won't be a respective log, but the CEK exception message is going to include
+                                    // the root error.
+                                    assert(
+                                      failure.exception.getMessage.contains(
+                                        exception.getClass.getName
+                                      )
+                                    )
+                            }
+                        case _ =>
+                            fail(s"Expected failure, but got success: $result")
+
+                    isExceptionThrown = true
+
+        if !isExceptionThrown then
+            fail(s"Expected exception of type ${summon[ClassTag[E]]}, but got success: $code")
+    }
+
+    protected inline final def checkEval[A1: FromData: ToData](
+        inline f: A1 => Boolean,
+        configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
+    )(implicit
+        config: PropertyCheckConfiguration,
+        a1: Arbitrary[A1],
+        s1: Shrink[A1],
+        pp1: A1 => Pretty,
+        prettifier: Prettifier,
+        pos: source.Position
+    ): Assertion = {
+        val sir = Compiler.compileInline { (data: Data) => f(fromData[A1](data)) }
+
+        def handler(payload: A1): Boolean = {
+            val applied =
+                sir $ SIR.Const(Constant.Data(payload.toData), SIRType.Data, AnnotationsDecl.empty)
+            val resultTerm = applied.toUplc(true).evaluate
+            Term.alphaEq(resultTerm, trueTerm) && f(payload)
+        }
+
+        check(handler, configParams*)
+    }
+
+    protected inline final def checkEval[A1: FromData: ToData, A2: FromData: ToData](
+        inline f: (A1, A2) => Boolean,
+        configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
+    )(implicit
+        config: PropertyCheckConfiguration,
+        a1: Arbitrary[A1],
+        s1: Shrink[A1],
+        pp1: A1 => Pretty,
+        a2: Arbitrary[A2],
+        s2: Shrink[A2],
+        pp2: A2 => Pretty,
+        prettifier: Prettifier,
+        pos: source.Position
+    ): Assertion = {
+        val sir = Compiler.compileInline { (d1: Data, d2: Data) =>
+            f(fromData[A1](d1), fromData[A2](d2))
+        }
+
+        def handler(payload1: A1, payload2: A2): Boolean = {
+            val applied =
+                sir $ SIR.Const(
+                  Constant.Data(payload1.toData),
+                  SIRType.Data,
+                  AnnotationsDecl.empty
+                ) $ SIR.Const(Constant.Data(payload2.toData), SIRType.Data, AnnotationsDecl.empty)
+            val resultTerm = applied.toUplc(true).evaluate
+            Term.alphaEq(resultTerm, trueTerm) && f(payload1, payload2)
+        }
+
+        check(handler, configParams*)
+    }
+
+    protected inline final def checkEval[
+        A1: FromData: ToData,
+        A2: FromData: ToData,
+        A3: FromData: ToData
+    ](
+        inline f: (A1, A2, A3) => Boolean,
+        configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
+    )(implicit
+        config: PropertyCheckConfiguration,
+        a1: Arbitrary[A1],
+        s1: Shrink[A1],
+        pp1: A1 => Pretty,
+        a2: Arbitrary[A2],
+        s2: Shrink[A2],
+        pp2: A2 => Pretty,
+        a3: Arbitrary[A3],
+        s3: Shrink[A3],
+        pp3: A3 => Pretty,
+        prettifier: Prettifier,
+        pos: source.Position
+    ): Assertion = {
+        val sir = Compiler.compileInline { (d1: Data, d2: Data, d3: Data) =>
+            f(fromData[A1](d1), fromData[A2](d2), fromData[A3](d3))
+        }
+
+        def handler(payload1: A1, payload2: A2, payload3: A3): Boolean = {
+            val applied =
+                sir $ SIR.Const(
+                  Constant.Data(payload1.toData),
+                  SIRType.Data,
+                  AnnotationsDecl.empty
+                ) $ SIR.Const(
+                  Constant.Data(payload2.toData),
+                  SIRType.Data,
+                  AnnotationsDecl.empty
+                ) $ SIR.Const(Constant.Data(payload3.toData), SIRType.Data, AnnotationsDecl.empty)
+            val resultTerm = applied.toUplc(true).evaluate
+            Term.alphaEq(resultTerm, trueTerm) && f(payload1, payload2, payload3)
+        }
+
+        check(handler, configParams*)
     }
 
     private val trueTerm = Compiler.compileInline(true).toUplc(true).evaluate

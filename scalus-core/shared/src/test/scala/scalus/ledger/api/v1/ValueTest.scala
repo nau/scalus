@@ -7,6 +7,10 @@ import scalus.prelude.StdlibTestKit
 
 class ValueTest extends StdlibTestKit with ArbitraryInstances {
     test("zero") {
+        checkEval { (value1: Value, value2: Value, value3: Value) =>
+            (value1 === value1) && (value2 === value2) && (value3 === value3)
+        }
+
         assertEvalEq(
           Value.zero.toSortedMap,
           SortedMap.empty[CurrencySymbol, SortedMap[TokenName, BigInt]]
