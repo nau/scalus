@@ -302,13 +302,13 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                   ProductCaseClassRepresentation.ProdDataConstr,
                   pos
                 )
-                new TypeRepresentationProxyLoweredValue(
+                val retval = new TypeRepresentationProxyLoweredValue(
                   asDataConstr,
                   targetType,
                   SumCaseClassRepresentation.DataConstr,
                   pos
                 )
-
+                retval
         }
     }
 

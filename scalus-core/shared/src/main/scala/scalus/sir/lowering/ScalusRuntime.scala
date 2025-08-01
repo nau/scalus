@@ -65,7 +65,7 @@ object ScalusRuntime {
         val lambdaForPairs = SIRType.TypeLambda2(
           "A",
           "B",
-          (ta, tb) => SIRType.List(SIRType.Tuple2(ta, tb)) ->: SIRType.List(SIRType.Pair(ta, tb)),
+          (ta, tb) => SIRType.List(SIRType.Pair(ta, tb)) ->: SIRType.List(SIRType.Pair(ta, tb)),
           false
         )
         val proxy = TypeRepresentationProxyLoweredValue(
@@ -103,7 +103,7 @@ object ScalusRuntime {
           SIRType.TypeLambda2(
             "A",
             "B",
-            (ta, tb) => SIRType.List(SIRType.Tuple2(ta, tb)) ->: SIRType.List(SIRType.Pair(ta, tb)),
+            (ta, tb) => SIRType.List(SIRType.Pair(ta, tb)) ->: SIRType.List(SIRType.Pair(ta, tb)),
             false
           ),
           LambdaRepresentation(

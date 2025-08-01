@@ -9,18 +9,6 @@ case class Module(version: (Int, Int), defs: List[Binding])
 
 case class Binding(name: String, tp: SIRType, value: SIR) {
 
-    if name == "scalus.prelude.List$.foldLeft"
-    then {
-        tp match {
-            case SIRType.TypeLambda(tvars, _) =>
-            //
-            case _ =>
-                throw new RuntimeException(
-                  s"Binding: foldLeft must have type type-lambda, but got ${tp.show}"
-                )
-        }
-    }
-
     override def toString: String = s"Binding(\"$name\" [${tp.show}] : $value)"
 
 }

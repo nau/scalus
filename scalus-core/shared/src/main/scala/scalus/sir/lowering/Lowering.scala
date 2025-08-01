@@ -68,7 +68,7 @@ object Lowering {
                     )
                 val loweredScrutinee = lowerSIR(scrutinee)
                 val retval = lctx
-                    .typeGenerator(scrutinee.tp)
+                    .typeGenerator(loweredScrutinee.sirType)
                     .genMatch(sirMatch, loweredScrutinee, optTargetType)
                 if lctx.debug then
                     lctx.log(
@@ -462,6 +462,21 @@ object Lowering {
     }
 
     private def lowerToData(app: SIR.Apply)(using lctx: LoweringContext): LoweredValue = {
+        if SIRType.isPolyFunOrFun(app.arg.tp) then {
+            println(
+              s"Warning: lowering ToData for poly function ${app.arg.pretty.render(100)} at ${app.anns.pos.file}:${app.anns.pos.startLine + 1}"
+            )
+            println(
+              s" app= ${app.pretty.render(100)}"
+            )
+            println(
+              s"  app.arg.tp = ${app.arg.tp.show}, app.tp = ${app.tp.show}, app.f = ${app.f.pretty.render(100)}"
+            )
+            throw LoweringException(
+              s"Argument of toData should be a data type, but got ${app.arg.tp.show}",
+              app.anns.pos
+            )
+        }
         val value = lctx
             .lower(app.arg)
             .toRepresentation(

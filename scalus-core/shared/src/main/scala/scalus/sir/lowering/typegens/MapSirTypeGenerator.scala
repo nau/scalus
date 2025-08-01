@@ -80,29 +80,19 @@ object MapSirTypeGenerator extends SirTypeUplcGenerator {
     override def genConstr(constr: SIR.Constr)(using
         lctx: LoweringContext
     ): LoweredValue = {
-        if constr.name == "scalus.prelude.AssocMap" then
+        if constr.name == "scalus.prelude.AssocMap"
+            ||
+            constr.name == "scalus.prelude.SortedMap"
+        then
             // TODO: add 'target type' to lower
             val loweredArg = lctx.lower(constr.args.head)
-            val loweredArgR =
-                try
-                    loweredArg
-                        .toRepresentation(
-                          SumCaseClassRepresentation.SumDataPairList,
-                          constr.anns.pos
-                        )
-                catch
-                    case NonFatal(ex) =>
-                        import scalus.pretty
-                        println(
-                          s"MapSirTypeGenerator.genConstr: constr.args.head: ${constr.args.head.pretty.render(100)}"
-                        )
-                        println(
-                          s"MapSirTypeGenerator.genConstr: loweredArg.tp: ${loweredArg.sirType.show}"
-                        )
-                        throw ex
+            val loweredArgR = loweredArg.toRepresentation(
+              SumCaseClassRepresentation.SumDataPairList,
+              constr.anns.pos
+            )
             lvBuiltinApply(
               SIRBuiltins.mapData,
-              loweredArg,
+              loweredArgR,
               constr.tp,
               ProductCaseClassRepresentation.PackedDataMap,
               constr.anns.pos

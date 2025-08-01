@@ -1888,6 +1888,13 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         applyTpe: Type,
         applyTree: Apply
     ): AnnotatedSIR = {
+
+        def retrieveAnnsData(tpe: Type): Map[String, SIR] = {
+            if tpe.baseType(FromDataSymbol).exists then Map("fromData" -> SIR.Const.boolean(true))
+            else if tpe.baseType(ToDataSymbol).exists then Map("toData" -> SIR.Const.boolean(true))
+            else Map.empty[String, SIR]
+        }
+
         if env0.debug then
             println(
               s"compileApply: ${f.show}, targs: $targs, args: $args, applyTpe: $applyTpe, applyTree: $applyTree"
@@ -1895,18 +1902,12 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         val env = fillTypeParamInTypeApply(f.symbol, targs, env0)
         // val isNoSymApply = f match
         //    case Select(qual, nme.apply) if qual.symbol ==
-        val (fSir, annsData) = f match
+        val (fSir, annsData0) = f match
             case Select(qual, nme.apply) if isFunctionalInterface(qual.tpe) =>
-                val annsData =
-                    if qual.tpe.baseType(FromDataSymbol).exists then
-                        Map("fromData" -> SIR.Const.boolean(true))
-                    else if qual.tpe.baseType(ToDataSymbol).exists then
-                        Map("toData" -> SIR.Const.boolean(true))
-                    else Map.empty[String, SIR]
-
-                    // val isFunctionalInterface = qual.tpe.typeSymbol.hasAnnotation(
-                    //  Symbols.requiredClass("java.lang.FunctionalInterface")
-                    // )
+                val annsData = retrieveAnnsData(qual.tpe)
+                // val isFunctionalInterface = qual.tpe.typeSymbol.hasAnnotation(
+                //  Symbols.requiredClass("java.lang.FunctionalInterface")
+                // )
                 val nArgs = args.length
                 val functionN = defn.FunctionSymbol(nArgs)
                 val baseFunction = qual.tpe.baseType(functionN)
@@ -1949,9 +1950,20 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             case Select(qual, nme.apply) =>
                 (compileExpr(env, f), Map.empty[String, SIR])
             case _ =>
-                (compileExpr(env, f), Map.empty[String, SIR])
+                // check that this is method wich return From/To Data
+                val annsData = extractResultType(f.tpe.widen, false, false) match
+                    case Some(resultType) =>
+                        retrieveAnnsData(resultType)
+                    case None =>
+                        // mb this is an application of an appropriative object.
+                        retrieveAnnsData(f.tpe.widen)
+                (compileExpr(env, f), annsData)
         val applySirType = sirTypeInEnv(applyTpe, applyTree.srcPos, env)
         val argsSir = args.map(compileExpr(env, _))
+        // problem -- sometimes compiler create a proxy, where ToData/FromData is partially applied.
+        // we can check this, assuming that result type is not function which returns FromData/ToData
+        val mbPartiallyApplied = retrieveAnnsData(applyTpe.widen).nonEmpty
+        val annsData = if mbPartiallyApplied then Map.empty else annsData0
         val applyAnns = AnnotationsDecl.fromSrcPos(applyTree.srcPos) ++ annsData
         if argsSir.isEmpty then
             SIR.Apply(
@@ -2766,22 +2778,24 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 tupleDecl
     }
 
-    private def tryMethodResultType(dd: DefDef): Option[Type] = {
-        def extractResultType(tpe: Type, isResult: Boolean, required: Boolean): Option[Type] = {
-            tpe match {
-                case mt: MethodType =>
-                    // TODO: adopt to carrying case
-                    // extractResultType(mt.resType, true, true)
-                    Some(mt.resType)
-                case pt: PolyType =>
-                    extractResultType(pt.resType, isResult, required)
-                case rt: RefinedType =>
-                    extractResultType(rt.underlying, isResult, required)
-                case _ =>
-                    if isResult then Some(tpe) else None
+    @tailrec
+    private def extractResultType(tpe: Type, isResult: Boolean, required: Boolean): Option[Type] = {
+        tpe match {
+            case mt: MethodType =>
+                // TODO: adopt to carrying case
+                // extractResultType(mt.resType, true, true)
+                Some(mt.resType)
+            case pt: PolyType =>
+                extractResultType(pt.resType, isResult, required)
+            case rt: RefinedType =>
+                extractResultType(rt.underlying, isResult, required)
+            case _ =>
+                if isResult then Some(tpe) else None
 
-            }
         }
+    }
+
+    private def tryMethodResultType(dd: DefDef): Option[Type] = {
         if !dd.paramss.exists(_.exists {
                 case vd: ValDef => true
                 case _          => false

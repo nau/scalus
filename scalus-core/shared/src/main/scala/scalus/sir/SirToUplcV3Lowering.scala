@@ -22,12 +22,24 @@ class SirToUplcV3Lowering(
         val v0 = Lowering.lowerSIR(sir)
         val v1 =
             if upcastTo != SIRType.FreeUnificator then v0.upcastOne(upcastTo, v0.pos)
-            else v0
-        val targetRepresentation =
+            else {
+                // if prod have parent, upcast to parenttype.  Needed for comparing two cases of one sum class in tests
+                if SIRType.isProd(v0.sirType) then {
+                    SIRType.prodParent(v0.sirType) match
+                        case Some(parentType) =>
+                            val r = v0.upcastOne(parentType, v0.pos)
+                            r
+                        case None =>
+                            v0
+                } else v0
+            }
+        val targetRepresentation = {
             if representation == TypeVarRepresentation(true) then
                 lctx.typeGenerator(v1.sirType).defaultRepresentation(v1.sirType)
             else representation
+        }
         val retV = v1.toRepresentation(targetRepresentation, v1.pos)
+        // println(s"lowered  value: ${retV.pretty.render(100)}")
         retV
     }
 

@@ -1,9 +1,10 @@
 package scalus.prelude
 
-import scalus.prelude.List.{Cons, Nil}
+import scalus.prelude.List.{single, Cons, Nil}
 import scalus.prelude.Option.{None, Some}
 
 class ListTest extends StdlibTestKit {
+
     test("empty") {
         assertEvalEq(List.empty[BigInt], Nil)
 
@@ -419,6 +420,7 @@ class ListTest extends StdlibTestKit {
     }
 
     test("groupBy") {
+
         check { (list: List[BigInt]) =>
             val scalusResult = list.groupBy(_ % 2)
             val scalaResult = list.asScala.groupBy(_ % 2)
@@ -447,6 +449,7 @@ class ListTest extends StdlibTestKit {
             )
           )
         )
+
     }
 
     test("groupMap") {

@@ -3,6 +3,7 @@ package scalus.prelude
 import scalus.cardano.onchain.RequirementError
 
 class SortedMapTest extends StdlibTestKit {
+
     test("empty") {
         assertEvalEq(SortedMap.empty[BigInt, BigInt].toList, List.empty[(BigInt, BigInt)])
     }
@@ -395,6 +396,7 @@ class SortedMapTest extends StdlibTestKit {
     }
 
     test("ToData <-> FromData") {
+
         check { (map: SortedMap[BigInt, BigInt]) =>
             val data = map.toData
             val fromDataMap = fromData[SortedMap[BigInt, BigInt]](data)
@@ -436,6 +438,7 @@ class SortedMapTest extends StdlibTestKit {
                 )
               )
         )
+
     }
 
     test("isEmpty") {
@@ -1209,4 +1212,5 @@ class SortedMapTest extends StdlibTestKit {
               )
         )
     }
+
 }

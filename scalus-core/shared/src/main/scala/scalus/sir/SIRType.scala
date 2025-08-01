@@ -859,6 +859,17 @@ object SIRType {
         }
     }
 
+    def prodParent(tp: SIRType): Option[SIRType] = {
+        tp match {
+            case CaseClass(_, _, Some(parent)) => Some(parent)
+            case TypeProxy(ref) =>
+                if ref == null then None
+                else prodParent(ref)
+            case TypeLambda(_, body) => prodParent(body)
+            case _                   => None
+        }
+    }
+
     def checkAllProxiesFilled(tp: SIRType): Boolean = {
         checkAllProxiesFilledTraced(tp, new util.IdentityHashMap[SIRType, SIRType], Nil)
     }

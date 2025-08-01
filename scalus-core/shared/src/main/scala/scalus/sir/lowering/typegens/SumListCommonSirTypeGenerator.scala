@@ -60,9 +60,10 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                       )
                     )
                 val fun =
-                    if constrDecl.name == "scalus.builtin.Pair" then
+                    if constrDecl.name == "scalus.builtin.Pair" then {
+                        val retval = ScalusRuntime.dataListToPairsList
                         ScalusRuntime.dataListToPairsList
-                    else if constrDecl.name == "scala.Tuple2" then
+                    } else if constrDecl.name == "scala.Tuple2" then
                         ScalusRuntime.dataListToTuplesList
                     else
                         throw new LoweringException(
@@ -152,11 +153,11 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                       )
                     )
                 val fun =
-                    if constrDecl.name == "scalus.builtin.Pair" then
+                    if constrDecl.name == "scalus.builtin.Pair" then {
                         ScalusRuntime.pairsListToDataList
-                    else if constrDecl.name == "scala.Tuple2" then
+                    } else if constrDecl.name == "scala.Tuple2" then {
                         ScalusRuntime.tuplesListToDataList
-                    else
+                    } else
                         throw new LoweringException(
                           s"Element type of pair-list should be a pair or tuple, but we have ${elementType.show}",
                           pos

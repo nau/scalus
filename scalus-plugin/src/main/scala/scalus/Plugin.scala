@@ -87,7 +87,6 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         if tree.fun.symbol == compileSymbol || isCompileDebug then
             // report.echo(tree.showIndented(2))
             val options = retrieveCompilerOptions(tree, isCompileDebug)
-            if isCompileDebug || debugLevel > 0 then report.echo(s"compiler options: ${options}")
 
             val localDebugLevel =
                 if options.debugLevel == 0 && debugLevel == 0 && isCompileDebug then 10

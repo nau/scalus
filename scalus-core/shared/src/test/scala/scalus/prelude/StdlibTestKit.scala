@@ -19,6 +19,13 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
     export Eq.given
     export Ord.{<=>, Order}
 
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
+    )
+
     protected final inline def liftThrowableToOption[A](inline code: A): Option[A] = {
         try Option.Some(code)
         catch case NonFatal(_) => Option.None
@@ -83,5 +90,5 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
     }
 
     private val trueTerm = Compiler.compileInline(true).toUplc(true).evaluate
-    private given PlutusVM = PlutusVM.makePlutusV3VM()
+    protected given PlutusVM = PlutusVM.makePlutusV3VM()
 }
