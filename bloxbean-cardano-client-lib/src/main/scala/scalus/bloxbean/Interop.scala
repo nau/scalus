@@ -373,15 +373,7 @@ object Interop {
         val ma = getValue(value.getMultiAssets)
         if value.getCoin != null then
             val lovelace = v1.Value.lovelace(value.getCoin)
-            prelude.SortedMap.fromList(
-              prelude.List.Cons(
-                (
-                  ByteString.empty,
-                  prelude.SortedMap.singleton(ByteString.empty, BigInt(value.getCoin))
-                ),
-                ma.toList
-              )
-            )
+            lovelace + ma
         else ma
     }
 
@@ -393,12 +385,13 @@ object Interop {
             for asset <- m.getAssets.asScala do
                 assets.put(ByteString.fromArray(asset.getNameAsBytes), asset.getValue)
             multi.put(ByteString.fromHex(m.getPolicyId), assets)
-        // convert to prelude.SortedMap
-        val am =
-            for (policyId, assets) <- multi.iterator
-            yield policyId -> prelude.SortedMap.fromList(prelude.List.from(assets))
 
-        prelude.SortedMap.fromList(prelude.List.from(am))
+        v1.Value.fromList(
+          prelude.List.from(
+            for (policyId, assets) <- multi.iterator
+            yield policyId -> prelude.List.from(assets)
+          )
+        )
     }
 
     def getMintValue(value: util.List[MultiAsset]): v1.Value = {

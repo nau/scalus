@@ -15,7 +15,7 @@ Scalus can inline constants in your scripts, which is a powerful optimization te
 For example, when you inline a ByteString constant like a public key hash, it appears directly in the compiled SIR as a literal value (`#deadbeef`) rather than being computed or passed as a parameter.
 
 ```scala mdoc:compile-only copy showLineNumbers
-import scalus.*, Compiler.*, builtin.{Data, Builtins, ByteString, given}, Builtins.*, ByteString.given
+import scalus.*, Compiler.*, builtin.{Data, Builtins, ByteString}, Builtins.*, ByteString.*
 
 inline def validator(inline pubKeyHash: ByteString)(datum: Data, redeemer: Data, ctxData: Data) =
     verifyEd25519Signature(pubKeyHash, datum.toByteString, redeemer.toByteString)

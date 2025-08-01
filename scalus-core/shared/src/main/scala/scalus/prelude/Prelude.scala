@@ -148,6 +148,8 @@ object Ord:
         else if equalsByteString(x, y) then Equal
         else Greater
 
+    // TODO it's not truly overriding and doesn't work in generic function,
+    //  see extension methods <, <=, >, >=, equiv, nonEquiv for [A: Ord]
     extension (self: ByteString)
         inline def <(other: ByteString): Boolean = lessThanByteString(self, other)
         inline def <=(other: ByteString): Boolean = lessThanEqualsByteString(self, other)
@@ -161,6 +163,8 @@ object Ord:
     given Ord[BigInt] = (x: BigInt, y: BigInt) =>
         if lessThanInteger(x, y) then Less else if lessThanInteger(y, x) then Greater else Equal
 
+    // TODO it's not truly overriding and doesn't work in generic function,
+    //  see extension methods <, <=, >, >=, equiv, nonEquiv for [A: Ord]
     extension (self: BigInt)
         inline def <(other: BigInt): Boolean = lessThanInteger(self, other)
         inline def <=(other: BigInt): Boolean = lessThanEqualsInteger(self, other)

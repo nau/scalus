@@ -18,9 +18,9 @@ class OptionTest extends StdlibTestKit {
         assertEval(Option.Some(true) !== Option.Some(false))
 
         assert(scala.None.asScalus == Option.empty[String])
-        assert(Option.empty[String].asScala == scala.None)
+        assert(Option.empty[String].asScala.isEmpty)
         assert(scala.Some(BigInt(1)).asScalus == Option.Some(BigInt(1)))
-        assert(Option.Some(BigInt(1)).asScala == scala.Some(BigInt(1)))
+        assert(Option.Some(BigInt(1)).asScala.contains(BigInt(1)))
     }
 
     test("ord") {
@@ -30,12 +30,13 @@ class OptionTest extends StdlibTestKit {
             val (left, right) = pair
             val leftOpt = prelude.Option(BigInt(left))
             val rightOpt = prelude.Option(BigInt(right))
-            leftOpt > Option.empty && rightOpt > Option.empty
-            && (if left > right then {
-                    leftOpt > rightOpt
-                } else if left < right then {
-                    leftOpt < rightOpt
-                } else leftOpt equiv rightOpt)
+            leftOpt > Option.empty &&
+            rightOpt > Option.empty &&
+            (if left > right then {
+                 leftOpt > rightOpt
+             } else if left < right then {
+                 leftOpt < rightOpt
+             } else leftOpt equiv rightOpt)
         }
 
 //        assertEval(
@@ -89,12 +90,12 @@ class OptionTest extends StdlibTestKit {
 
     test("throwing accessors") {
         assertEvalFails[NoSuchElementException](None.get)
-        assertEvalFails[NoSuchElementException](None.getOrFail())
-        assertEvalFails[NoSuchElementException](None.orFail())
+        assertEvalFails[NoSuchElementException](None.getOrFail(""))
+        assertEvalFails[NoSuchElementException](None.orFail(""))
 
         assertEvalEq(Some("").get, "")
-        assertEvalEq(Some(BigInt(5)).getOrFail(), BigInt(5))
-        assertEvalEq(Some(hex"deadbeef").orFail(), ())
+        assertEvalEq(Some(BigInt(5)).getOrFail(""), BigInt(5))
+        assertEvalEq(Some(hex"deadbeef").orFail(""), ())
     }
 
     test("getOrElse") {

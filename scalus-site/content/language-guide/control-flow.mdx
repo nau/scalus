@@ -1,10 +1,19 @@
 ---
 title: Control flow
 sidebarTitle: Control flow
-display: hidden
+#display: hidden
 ---
 
 # Control flow
+
+Control flow is the same as in Scala 3.
+
+The `if-then-else` construct is used to control the flow of the script.
+
+The `throw` statement is used to throw an exception. 
+Throwing an exception compiles to Plutus ERROR, which aborts the evaluation of the script.
+The exception message can be translated to a trace message using `sir.toUplc(generateErrorTraces = true)`.
+
 
 ```scala mdoc:compile-only copy showLineNumbers
 import scalus.prelude.{*, given}

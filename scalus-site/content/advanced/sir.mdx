@@ -31,7 +31,7 @@ the only optimization is the `RemoveRecursivity` optimization that inlines `let`
 ```scala mdoc:compile-only copy showLineNumbers {3,5}
 import scalus.*, scalus.sir.*
 val sir: SIR = ??? // from the previous example
-val optimized = RemoveRecursivity(sir)
+val optimized = BooleanOptimizer.optimize(sir)
 // or using the `|>` operator
-val optimized2 = sir |> RemoveRecursivity.apply
+val optimized2 = sir |> BooleanOptimizer.optimize
 ```

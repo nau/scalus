@@ -13,7 +13,7 @@ When working with Cardano validators, you often need to access specific fields f
 Instead of converting the full `ScriptContext` to Scott-encoded lambdas (which can be verbose and inefficient), you can use the `fieldAsData` macro or the `.field` extension method to directly access specific fields from a `Data` object representing a complex structure like `ScriptContext`.
 
 ```scala mdoc:compile-only copy showLineNumbers {8, 10, 13}
-import scalus.*, Compiler.*, builtin.{Data, Builtins, ByteString}, Builtins.*, ByteString.given
+import scalus.*, Compiler.*, builtin.{Data, Builtins, ByteString}, Builtins.*, ByteString.*
 import scalus.ledger.api.v3.*
 
 val sir = compile:
