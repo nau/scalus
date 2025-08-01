@@ -12,9 +12,7 @@ The `EtaReduce` optimization identifies and eliminates unnecessary lambda abstra
 {/*Other available UPLC optimizations include constant folding, dead code elimination, and various term simplifications that can further improve script performance on the Cardano blockchain.*/}
 
 ```scala mdoc:compile-only copy showLineNumbers {3-6}
-import scalus.*, scalus.sir.*
-val sir: SIR = ??? // from the previous example
-val optimized = RemoveRecursivity(sir)
-val uplc = optimized.toUplc()
-val opt = uplc |> EtaReduce.apply
+import scalus.uplc.Term, scalus.uplc.transform.*
+val uplc: Term = ???
+val opt = EtaReduce(uplc)
 ```

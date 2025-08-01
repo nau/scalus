@@ -1,8 +1,29 @@
 ---
-asIndexPage: true
+#asIndexPage: true
 display: hidden
 ---
 import { Steps, Tabs } from 'nextra/components'
+
+
+# Writing a validator
+
+Here is a simple example of a Plutus V3 validator written in Scalus.
+
+```scala mdoc:compile-only
+import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v3.*
+import scalus.builtin.ByteString.*
+import scalus.prelude.List
+
+// Use Scala 3 indentation syntax. Look ma, no braces! Like Python!
+val pubKeyValidator = compile:
+    def validator(ctxData: Data) = {
+        val ctx = ctxData.to[ScriptContext]
+        ctx.txInfo.signatories.find {_.hash == hex"deadbeef"}.getOrFail("not signed")
+    }
+    validator
+```
+
 
 # First Smart Contract
 

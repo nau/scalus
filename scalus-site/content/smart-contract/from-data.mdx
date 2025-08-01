@@ -1,16 +1,14 @@
 ---
 title: Extracting from Data
 sidebarTitle: Extracting from Data
-display: hidden
+#display: hidden
 ---
 
-# FromData
-
+# Extracting from Data
 FromData type class is used to convert a Data value to a Scalus value.
 
 ```scala mdoc:compile-only
 import scalus.builtin.*, Builtins.*, Data.*
-import scalus.builtin.FromDataInstances.given
 
 case class Account(hash: ByteString, balance: BigInt)
 
@@ -39,11 +37,29 @@ val fromDataExample = compile {
 
     // or your can you a macro to derive the FromData instance
     {
-        given FromData[Account] = FromData.deriveCaseClass
-        given FromData[State] = FromData.deriveEnum[State] {
-            case 0 => d => State.Empty
-            case 1 => FromData.deriveConstructor[State.Active]
-        }
+        given FromData[Account] = FromData.derived
+        given FromData[State] = FromData.derived
     }
 }
+```
+
+ou can derive `FromData` instances for your case classes and enums via standard Scala 3 `derives` syntax.
+One caveat - you must always supply companion object with @Compile annotation on it even if it is empty.
+This is because Scalus needs to compile the companion object to include the `FromData` instance in the UPLC script.
+
+```scala mdoc:compile-only
+import scalus.builtin.*, Builtins.*, Data.*
+
+case class Account(hash: ByteString, balance: BigInt) derives FromData, ToData
+
+@Compile
+object Account
+
+enum State derives FromData, ToData:
+    case Empty
+    case Active(account: Account2)
+
+@Compile
+object State
+
 ```

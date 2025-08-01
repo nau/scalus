@@ -4,8 +4,8 @@ export default {
   'constants-primitives': '',
   'builtin-functions': '',
   'data-types': '',
-  // 'control-flow': '',
-  // functions: '',
-  modules: '',
+  'control-flow': '',
+  'functions': '',
+  'modules': '',
   
 }

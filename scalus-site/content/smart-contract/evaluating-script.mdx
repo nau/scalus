@@ -14,18 +14,16 @@ compile(BigInt(2) + 2).toUplc().evaluateDebug.toString
 
 You get a `Result` object that contains the result of the evaluation, the execution budget, the execution costs, and the logs.
 
-{ /* 
+
 
 You can also use the low-level API to evaluate scripts.
 
 ```scala mdoc:compile-only
-import scalus.builtin.{*, given}
 import scalus.ledger.api.*
 import scalus.uplc.*, eval.*
 
 def evaluation() = {
     import scalus.*
-    import scalus.builtin.given // for PlatformSpecific implementation
     import scalus.uplc.eval.PlutusVM
     val sir = compile {
         def usefulFunction(a: BigInt): BigInt = a + 1
@@ -85,5 +83,3 @@ def evaluation() = {
     )
 }
 ```
-
-*/}

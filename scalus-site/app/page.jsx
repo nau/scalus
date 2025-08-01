@@ -15,7 +15,7 @@ export default function IndexPage() {
       {/* Left: Text */}
       <div className="lg:w-2/3 text-center lg:text-left lg:pr-16 mt-12 lg:mt-0">
         <h1 className="text-5xl font-semibold tracking-tight text-balance text-gray-900 sm:text-6xl">Accelerate innovation on Cardano with Scalus</h1>
-        <p className="mt-8 text-lg font-medium text-pretty text-gray-500 sm:text-xl/8">With Scalus DApps development platofrm you can: Write smart contracts, build transactions and application business logic — all in Scala 3, backed by industry-grade tools and great development experience.</p>
+        <p className="mt-8 text-lg font-medium text-pretty text-gray-500 sm:text-xl/8">With Scalus DApps development platform you can: Write smart contracts, build transactions and application business logic — all in Scala 3, backed by industry-grade tools and great development experience.</p>
         <div className="mt-10 flex items-center justify-center lg:justify-start gap-x-6">
           <Link href="/docs/get-started" className="rounded-md bg-black px-3.5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">Get started</Link>
           <Link href="/docs" className="text-sm/6 font-semibold text-gray-900">Learn more <span aria-hidden="true">→</span></Link>
