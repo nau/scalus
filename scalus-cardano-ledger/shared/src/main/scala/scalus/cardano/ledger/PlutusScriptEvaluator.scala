@@ -13,7 +13,7 @@ import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
-import scribe.{Level, Logger}
+import scribe.Logger
 
 import java.nio.file.{Files, Paths}
 import scala.collection.immutable
