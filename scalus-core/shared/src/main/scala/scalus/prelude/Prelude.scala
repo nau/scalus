@@ -1,7 +1,6 @@
 package scalus.prelude
 
-import scalus.Compile
-import scalus.Ignore
+import scalus.{Compile, CompileDerivations, Ignore}
 import scalus.builtin.Builtins.*
 import scalus.builtin.{ByteString, Data, FromData, ToData}
 import scalus.macros.Macros
@@ -34,6 +33,30 @@ extension (x: Boolean)
 extension (self: BigInt)
     def to(other: BigInt): List[BigInt] = List.range(self, other)
     def until(other: BigInt): List[BigInt] = List.rangeUntil(self, other)
+
+@FunctionalInterface
+trait Show[A] extends Function1[A, String] with CompileDerivations {
+    override def apply(v: A): String
+}
+
+/** FromData[A] derivation
+  */
+@Compile
+object Show {
+    extension [A: Show](self: A) inline def show: String = summon[Show[A]].apply(self)
+
+    given Show[Unit] = (x: Unit) => "()"
+    given Show[ByteString] = (x: ByteString) => Prelude.encodeHex(x)
+    given Show[BigInt] = (x: BigInt) => Prelude.showBigInt(x)
+    given Show[String] = (x: String) => appendString(appendString("\"", x), "\"")
+    given Show[Boolean] = (x: Boolean) => if x then "True" else "False"
+    given Show[Data] = (x: Data) => {
+        val c = () => ""
+        val showI = () => appendString("I(", appendString(unIData(x).show, ")"))
+        val f = chooseData(x, c, c, c, showI, c)
+        f()
+    }
+}
 
 type Eq[-A] = (A, A) => Boolean
 
@@ -219,15 +242,43 @@ object Prelude {
             (byte: BigInt) => if byte < 10 then byte + 48 else byte + 87
 
         def go(i: BigInt): ByteString = {
-            if i == len then ByteString.fromHex("")
-            else {
+            if i == len then hex""
+            else
                 val byte = indexByteString(input, i)
                 val char1 = byteToChar(byte / 16)
                 val char2 = byteToChar(byte % 16)
                 char1 +: char2 +: go(i + 1)
-            }
         }
         decodeUtf8(go(0))
+    }
+
+    def showBigInt(input: BigInt): String = {
+        // Convert BigInt to String representation using only built-in methods and prelude types
+        val isNegative = input < 0
+        val absValue = if isNegative then -input else input
+
+        def digitToString(digit: BigInt): String = {
+            if digit == BigInt(0) then "0"
+            else if digit == BigInt(1) then "1"
+            else if digit == BigInt(2) then "2"
+            else if digit == BigInt(3) then "3"
+            else if digit == BigInt(4) then "4"
+            else if digit == BigInt(5) then "5"
+            else if digit == BigInt(6) then "6"
+            else if digit == BigInt(7) then "7"
+            else if digit == BigInt(8) then "8"
+            else if digit == BigInt(9) then "9"
+            else fail("Not a valid digit")
+        }
+
+        def go(value: BigInt): String = {
+            val nextValue = value / 10
+            val digit = digitToString(value % 10)
+            if nextValue == BigInt(0) then digit
+            else appendString(go(nextValue), digit)
+        }
+        val result = go(absValue)
+        if isNegative then appendString("-", result) else result
     }
 
     @deprecated("Use `scalus.prelude.log` instead")
