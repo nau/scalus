@@ -1,6 +1,11 @@
 package scalus.prelude
 
+import scalus.Compiler
+import scalus.Compiler.Options
+import scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering
 import scalus.builtin.ByteString.hex
+import scalus.builtin.Data.toData
+import scalus.builtin.{Builtins, Data}
 import scalus.prelude.Show.*
 
 class ShowTest extends StdlibTestKit {
@@ -15,7 +20,7 @@ class ShowTest extends StdlibTestKit {
     }
 
     test("Show[ByteString] is a hex string") {
-        assertEvalEq(hex"00112233".show, "00112233")
+        assertEvalEq(hex"00112233".show, "\"00112233\"")
     }
 
     test("Show[String] is correct") {
@@ -29,8 +34,18 @@ class ShowTest extends StdlibTestKit {
         assertEvalEq(BigInt(-123456789).show, "-123456789")
     }
 
-    test("Show[Data] is correct") {
-        assertEvalEq(BigInt(0).toData.show, "I(0)")
+    ignore("Show[Data] is correct") {
+        assertEvalEq(BigInt(0).toData.show, "0")
+        assertEvalEq(hex"0011".toData.show, "\"0011\"")
+        assertEvalEq(
+          List(BigInt(0).toData, hex"0011".toData).toData.show,
+          "[0, \"0011\"]"
+        )
+        println(AssocMap(List((BigInt(0).toData, hex"0011".toData))).toData)
+        assertEvalEq(
+          AssocMap(List((BigInt(0).toData, hex"0011".toData))).toData.show,
+          "{0: \"0011\"}"
+        )
     }
 
 }

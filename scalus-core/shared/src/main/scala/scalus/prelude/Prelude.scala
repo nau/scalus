@@ -2,11 +2,11 @@ package scalus.prelude
 
 import scalus.{Compile, CompileDerivations, Ignore}
 import scalus.builtin.Builtins.*
-import scalus.builtin.{ByteString, Data, FromData, ToData}
+import scalus.builtin.{ByteString, Data, FromData, Pair, ToData}
 import scalus.macros.Macros
 import Ord.{<=>, by, Order}
 
-import scala.annotation.nowarn
+import scala.annotation.{nowarn, tailrec}
 import scalus.cardano.onchain.{ImpossibleLedgerStateError, OnchainError, RequirementError}
 
 extension [A](self: A)
@@ -46,13 +46,14 @@ object Show {
     extension [A: Show](self: A) inline def show: String = summon[Show[A]].apply(self)
 
     given Show[Unit] = (x: Unit) => "()"
-    given Show[ByteString] = (x: ByteString) => Prelude.encodeHex(x)
+    given Show[ByteString] = (x: ByteString) =>
+        appendString(appendString("\"", Prelude.encodeHex(x)), "\"")
     given Show[BigInt] = (x: BigInt) => Prelude.showBigInt(x)
     given Show[String] = (x: String) => appendString(appendString("\"", x), "\"")
     given Show[Boolean] = (x: Boolean) => if x then "True" else "False"
 
     given showList[T: Show]: Show[List[T]] = (xs: List[T]) => {
-        @scala.annotation.tailrec
+        @tailrec
         def go(start: String, rest: List[T]): String = rest match {
             case List.Nil => start
             case List.Cons(head, tail) =>
@@ -63,10 +64,38 @@ object Show {
 
     given Show[Data] = (x: Data) => {
         val c = () => ""
-        val showI = () => appendString("I(", appendString(unIData(x).show, ")"))
-        val showB = () => appendString("B(", appendString(unBData(x).show, ")"))
-        // val showS = () => appendString("S(", appendString(un x, ")"))
-        val f: (() => String) = chooseData(x, c, c, c, showI, c)
+        val showMap = () => {
+            import scalus.builtin
+            val lst = unMapData(x)
+            def showDataPair(x: Pair[Data, Data]): String = {
+                val fstShow = x.fst.show
+                val sndShow = x.snd.show
+                appendString(appendString(fstShow, ": "), sndShow)
+            }
+            def go(xs: builtin.List[Pair[Data, Data]]): String = {
+                if xs.isEmpty then ""
+                else
+                    val head = showDataPair(xs.head)
+                    if xs.tail.isEmpty then head
+                    else appendString(head, appendString(", ", go(xs.tail)))
+            }
+            appendString("{", appendString(go(lst), "}"))
+        }
+        val showList = () => {
+            import scalus.builtin
+            val lst = unListData(x)
+            def go(xs: builtin.List[Data]): String = {
+                if xs.isEmpty then ""
+                else
+                    val head = xs.head.show
+                    if xs.tail.isEmpty then head
+                    else appendString(head, appendString(", ", go(xs.tail)))
+            }
+            appendString("[", appendString(go(lst), "]"))
+        }
+        val showI = () => unIData(x).show
+        val showB = () => unBData(x).show
+        val f: () => String = chooseData(x, c, showMap, showList, showI, showB)
         f()
     }
 }
