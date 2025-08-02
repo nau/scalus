@@ -34,13 +34,19 @@ extension (self: BigInt)
     def to(other: BigInt): List[BigInt] = List.range(self, other)
     def until(other: BigInt): List[BigInt] = List.rangeUntil(self, other)
 
+/** * A typeclass for converting values of type `A` to a `String`.
+  *
+  * This is used to provide a string representation of values, which can be useful for debugging,
+  * logging, or displaying information about the value.
+  *
+  * @tparam A
+  *   the type of the value to be shown
+  */
 @FunctionalInterface
-trait Show[A] extends Function1[A, String] with CompileDerivations {
+trait Show[A] extends (A => String) with CompileDerivations {
     override def apply(v: A): String
 }
 
-/** FromData[A] derivation
-  */
 @Compile
 object Show {
     extension [A: Show](self: A) inline def show: String = summon[Show[A]].apply(self)
@@ -63,7 +69,21 @@ object Show {
     }
 
     given Show[Data] = (x: Data) => {
-        val c = () => ""
+        import scalus.builtin
+        def showBuiltinList(xs: builtin.List[Data]): String = {
+            if xs.isEmpty then ""
+            else
+                val head = xs.head.show
+                if xs.tail.isEmpty then head
+                else appendString(head, appendString(", ", showBuiltinList(xs.tail)))
+        }
+        val showConstr = () => {
+            import scalus.builtin
+            val p = unConstrData(x)
+            val lst = appendString("[", appendString(showBuiltinList(p.snd), "]"))
+            appendString("<", appendString(p.fst.show, appendString(", ", appendString(lst, ">"))))
+        }
+
         val showMap = () => {
             import scalus.builtin
             val lst = unMapData(x)
@@ -82,20 +102,12 @@ object Show {
             appendString("{", appendString(go(lst), "}"))
         }
         val showList = () => {
-            import scalus.builtin
             val lst = unListData(x)
-            def go(xs: builtin.List[Data]): String = {
-                if xs.isEmpty then ""
-                else
-                    val head = xs.head.show
-                    if xs.tail.isEmpty then head
-                    else appendString(head, appendString(", ", go(xs.tail)))
-            }
-            appendString("[", appendString(go(lst), "]"))
+            appendString("[", appendString(showBuiltinList(lst), "]"))
         }
         val showI = () => unIData(x).show
         val showB = () => unBData(x).show
-        val f: () => String = chooseData(x, c, showMap, showList, showI, showB)
+        val f: () => String = chooseData(x, showConstr, showMap, showList, showI, showB)
         f()
     }
 }

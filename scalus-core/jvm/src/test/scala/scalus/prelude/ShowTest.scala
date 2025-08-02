@@ -34,17 +34,21 @@ class ShowTest extends StdlibTestKit {
         assertEvalEq(BigInt(-123456789).show, "-123456789")
     }
 
-    ignore("Show[Data] is correct") {
+    test("Show[Data] is correct") {
         assertEvalEq(BigInt(0).toData.show, "0")
         assertEvalEq(hex"0011".toData.show, "\"0011\"")
         assertEvalEq(
           List(BigInt(0).toData, hex"0011".toData).toData.show,
           "[0, \"0011\"]"
         )
-        println(AssocMap(List((BigInt(0).toData, hex"0011".toData))).toData)
+        // FIXME: enable this test when AssocMap is fixed
+//        assertEvalEq(
+//          AssocMap(List((BigInt(0).toData, hex"0011".toData))).toData.show,
+//          "{0: \"0011\"}"
+//        )
         assertEvalEq(
-          AssocMap(List((BigInt(0).toData, hex"0011".toData))).toData.show,
-          "{0: \"0011\"}"
+          Rational(1, 2).toData.show,
+          "<0, [1, 2]>" // Rational is represented as a pair of BigInts
         )
     }
 
