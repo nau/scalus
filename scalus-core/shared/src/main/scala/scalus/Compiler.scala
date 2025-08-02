@@ -36,19 +36,45 @@ object Compiler:
         Macros.fieldAsDataMacro('expr)
     }
 
-    /* This method call is handled by the compiler plugin.
-     Leave it as it is.
-     */
+    /** Compiles the given expression to a [[SIR]] at compile time using the Scalus compiler plugin.
+      *
+      * @param e
+      *   The expression to compile.
+      * @return
+      *   The compiled [[SIR]].
+      *
+      * @example
+      *   {{{
+      *   val sir = Compiler.compile(true) // Compiles the expression `true` to a SIR
+      *   val uplc = sir.toUplc() // Converts the SIR to UPLC
+      *   }}}
+      */
     def compile(e: Any): SIR = throwCompilerPluginMissingException()
 
-    /* This method call is handled by the compiler plugin.
-         Leave it as it is.
-     */
+    /** Compiles the given expression to a [[SIR]] at compile time using the Scalus compiler plugin,
+      * producing debug output during the compilation.
+      *
+      * @param e
+      *   The expression to compile.
+      * @return
+      *   The compiled [[SIR]].
+      */
     def compileDebug(e: Any): SIR = throwCompilerPluginMissingException()
 
-    /* This method call is handled by the compiler plugin.
-         Leave it as it is.
-     */
+    /** Compiles the given expression to a [[SIRType]] at compile time using the Scalus compiler
+      * plugin.
+      *
+      * @tparam T
+      *   The type to compile.
+      * @return
+      *   The compiled [[SIRType]].
+      *
+      * @example
+      *   {{{
+      *   // Compiles the type `BigInt` to a SIRType.Integer
+      *   val sirType = Compiler.compileType[BigInt]
+      *   }}}
+      */
     def compileType[T]: SIRType = throwCompilerPluginMissingException()
 
     /** Generates a `Compiler.compile(code)` call at compile time.
