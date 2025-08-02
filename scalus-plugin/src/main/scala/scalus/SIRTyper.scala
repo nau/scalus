@@ -248,6 +248,7 @@ class SIRTyper(using Context) {
     }
 
     private def makeSIRFunType(tp: Type, env: SIRTypeEnv): SIRType = {
+        if env.trace then println(s"makeSIRFunType ${tp.show}, env=${env}")
         tp match
             case mt: MethodType =>
                 makeSIRMethodType(mt, env)
@@ -317,9 +318,20 @@ class SIRTyper(using Context) {
     }
 
     private def makeFunctionClassType(list: List[SIRType], env: SIRTypeEnv) = {
-        val args = list.init
-        val res = list.last
-        makeUnaryFun(args, res, env)
+        list match
+            case Nil =>
+                throw TypingException(
+                  Types.NoType,
+                  env.pos,
+                  "Function type should have at least one argument"
+                )
+            case head :: Nil =>
+                // Function0
+                SIRType.Fun(SIRType.Unit, head)
+            case _ =>
+                val args = list.init
+                val res = list.last
+                makeUnaryFun(args, res, env)
     }
 
     private def tryMakeCaseClassOrCaseParent(

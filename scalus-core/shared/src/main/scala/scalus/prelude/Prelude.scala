@@ -53,7 +53,7 @@ object Show {
     given Show[Data] = (x: Data) => {
         val c = () => ""
         val showI = () => appendString("I(", appendString(unIData(x).show, ")"))
-        val f = chooseData(x, c, c, c, showI, c)
+        val f: (() => String) = chooseData(x, c, c, c, showI, c)
         f()
     }
 }

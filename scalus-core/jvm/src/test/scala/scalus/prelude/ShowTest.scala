@@ -29,7 +29,7 @@ class ShowTest extends StdlibTestKit {
         assertEvalEq(BigInt(-123456789).show, "-123456789")
     }
 
-    ignore("Show[Data] is correct") {
+    test("Show[Data] is correct") {
         assertEvalEq(BigInt(0).toData.show, "I(0)")
     }
 

@@ -889,6 +889,7 @@ object LoweredValue {
                 case SIRType.FreeUnificator =>
                     SIRType.FreeUnificator
                 case _ =>
+                    println(s"f=${f.pretty.render(100)}")
                     throw LoweringException(
                       s"Exprected function type, but have: ${tp.show}",
                       inPos
@@ -919,6 +920,8 @@ object LoweredValue {
                     f.representation match {
                         case LambdaRepresentation(inRepr, outRepr) =>
                             (other, inRepr)
+                        case TypeVarRepresentation(isBuiltin) =>
+                            (SIRType.FreeUnificator, TypeVarRepresentation(isBuiltin))
                         case _ =>
                             lctx.warn(
                               s"Warning: function application with non-lambda representation",
@@ -1101,6 +1104,8 @@ object LoweredValue {
             val calculatedResRepr = f.representation match
                 case LambdaRepresentation(inRepr, outRepr) =>
                     outRepr
+                case TypeVarRepresentation(isBuiltin) =>
+                    TypeVarRepresentation(isBuiltin)
                 case _ =>
                     throw LoweringException("Expected that f have function representation", inPos)
 
@@ -1523,6 +1528,11 @@ object LoweredValue {
                         case Some((targetParams, targetIn, targetOut)) =>
                             val (targetInRepr, targetOutRepr) = targetRepresentation match {
                                 case LambdaRepresentation(inRepr, outRepr) => (inRepr, outRepr)
+                                case TypeVarRepresentation(isBuiltin) =>
+                                    (
+                                      TypeVarRepresentation(isBuiltin),
+                                      TypeVarRepresentation(isBuiltin)
+                                    )
                                 case _ =>
                                     throw LoweringException(
                                       s"Expected lambda representation, but got $targetRepresentation",
@@ -1531,6 +1541,11 @@ object LoweredValue {
                             }
                             val (argInRepr, argOutRepr) = arg.representation match {
                                 case LambdaRepresentation(inRepr, outRepr) => (inRepr, outRepr)
+                                case TypeVarRepresentation(isBuiltin) =>
+                                    (
+                                      TypeVarRepresentation(isBuiltin),
+                                      TypeVarRepresentation(isBuiltin)
+                                    )
                                 case _ =>
                                     throw LoweringException(
                                       s"Expected lambda representation, but got ${arg.representation} for arg\n${arg.show}",

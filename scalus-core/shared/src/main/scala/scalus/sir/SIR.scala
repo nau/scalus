@@ -235,18 +235,10 @@ object SIR:
 
     case class Var(name: String, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR {
 
-        if name == "scalus.prelude.List$.foldLeft"
-        then {
-            tp match {
-                case SIRType.TypeLambda(tvars, _) =>
-                //
-                case _ =>
-                    throw new RuntimeException(
-                      s"ExternalVar: foldLeft must have type type-lambda, but got ${tp.show} at ${anns.pos.show}"
-                    )
-            }
-
-        }
+        if name == "f" && tp == SIRType.String then
+            throw new RuntimeException(
+              s"Var: name is 'f' and tp is String at ${anns.pos.show}."
+            )
 
         override def toString: String = s"Var($name, ${tp.show})"
     }
