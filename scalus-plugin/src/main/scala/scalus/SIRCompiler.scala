@@ -162,11 +162,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         flags: LocalBingingFlags
     ) extends LocalBindingOrSubmodule:
 
-        if name == "f" && tp == SIRType.String then
-            throw new RuntimeException(
-              s"Local binding with name $name and type $tp"
-            )
-
         def fullName(using Context): FullName = FullName(symbol)
 
     end LocalBinding
@@ -880,23 +875,6 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                         .isInstanceOf[SIRType.SumCaseClass]
                 then bodyExpr1.tp
                 else valSirType
-
-            if name.show == "f" && bindingSirType == SIRType.String then {
-                println(
-                  s"LocalBingind: name = f, bodyExpr.tp=${bodyExpr1.tp.show}, valSirType=${valSirType.show}"
-                )
-                println(
-                  s"LocalBingind: bodyExpr1=${bodyExpr1}"
-                )
-                println(
-                  s"vd.rhs.tpe.widen=${vd.rhs.tpe.widen.show}, vd.tpe.widen=${vd.tpe.widen.show}"
-                )
-                val sirTypeWiden = sirTypeInEnv(vd.tpe.widen, vd.srcPos, env.copy(debug = true))
-                val sirTypeNw = sirTypeInEnv(vd.tpe, vd.srcPos, env.copy(debug = true))
-                println(
-                  s"sirTypeWiden=${sirTypeWiden.show}, sirTypeNw=${sirTypeNw.show}"
-                )
-            }
 
             CompileMemberDefResult.Compiled(
               LocalBinding(
@@ -3024,14 +3002,6 @@ object SIRCompiler {
         thisTypeSymbol: Symbol = Symbols.NoSymbol,
         mode: ScalusCompilationMode = ScalusCompilationMode.AllDefs
     ) {
-
-        vars.get("f") match {
-            case Some(ftp) if ftp == SIRType.String =>
-                throw new IllegalStateException(
-                  "Variable 'f' with SIRType.String"
-                )
-            case _ => // ok
-        }
 
         def ++(bindings: Iterable[(String, SIRType)]): Env =
             copy(vars = vars ++ bindings)

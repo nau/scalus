@@ -235,11 +235,6 @@ object SIR:
 
     case class Var(name: String, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR {
 
-        if name == "f" && tp == SIRType.String then
-            throw new RuntimeException(
-              s"Var: name is 'f' and tp is String at ${anns.pos.show}."
-            )
-
         override def toString: String = s"Var($name, ${tp.show})"
     }
 

@@ -889,7 +889,6 @@ object LoweredValue {
                 case SIRType.FreeUnificator =>
                     SIRType.FreeUnificator
                 case _ =>
-                    println(s"f=${f.pretty.render(100)}")
                     throw LoweringException(
                       s"Exprected function type, but have: ${tp.show}",
                       inPos

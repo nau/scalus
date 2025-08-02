@@ -4,7 +4,7 @@ import scalus.{Compile, CompileDerivations, Ignore}
 import scalus.builtin.Builtins.*
 import scalus.builtin.{ByteString, Data, FromData, ToData}
 import scalus.macros.Macros
-import Ord.{<=>, Order}
+import Ord.{<=>, by, Order}
 
 import scala.annotation.nowarn
 import scalus.cardano.onchain.{ImpossibleLedgerStateError, OnchainError, RequirementError}
@@ -50,9 +50,22 @@ object Show {
     given Show[BigInt] = (x: BigInt) => Prelude.showBigInt(x)
     given Show[String] = (x: String) => appendString(appendString("\"", x), "\"")
     given Show[Boolean] = (x: Boolean) => if x then "True" else "False"
+
+    given showList[T: Show]: Show[List[T]] = (xs: List[T]) => {
+        @scala.annotation.tailrec
+        def go(start: String, rest: List[T]): String = rest match {
+            case List.Nil => start
+            case List.Cons(head, tail) =>
+                go(appendString(appendString(start, head.show), ", "), tail)
+        }
+        appendString("[", appendString(go("", xs), "]"))
+    }
+
     given Show[Data] = (x: Data) => {
         val c = () => ""
         val showI = () => appendString("I(", appendString(unIData(x).show, ")"))
+        val showB = () => appendString("B(", appendString(unBData(x).show, ")"))
+        // val showS = () => appendString("S(", appendString(un x, ")"))
         val f: (() => String) = chooseData(x, c, c, c, showI, c)
         f()
     }
