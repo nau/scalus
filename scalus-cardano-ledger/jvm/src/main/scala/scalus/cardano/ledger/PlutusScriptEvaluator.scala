@@ -1,6 +1,5 @@
 package scalus.cardano.ledger
 
-import org.slf4j.LoggerFactory
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*
@@ -14,6 +13,7 @@ import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
+import scribe.{Level, Logger}
 
 import java.nio.file.{Files, Paths}
 import scala.collection.immutable
@@ -62,7 +62,8 @@ class PlutusScriptEvaluator(
     val debugDumpFilesForTesting: Boolean = false
 ) {
 
-    private val log = LoggerFactory.getLogger(getClass.getName)
+    private val log = Logger()
+//        .withHandler(minimumLevel = Some(Level.Debug))
 
     // Lazy-initialized Plutus VMs for different versions
     // Each VM is configured with version-specific cost models and protocol parameters
@@ -397,11 +398,10 @@ class PlutusScriptEvaluator(
         val ctxData = scriptContext.toData
         val txhash = tx.id.toHex
 
-        if log.isDebugEnabled() then
-            log.debug(s"Evaluating PlutusV1 script, purpose: $purpose")
-            log.debug(s"Datum: ${datum.map(_.toJson)}")
-            log.debug(s"Redeemer: ${redeemer.data.toJson}")
-            log.debug(s"Script context: ${ctxData.toJson}")
+        log.debug(s"Evaluating PlutusV1 script, purpose: $purpose")
+        log.debug(s"Datum: ${datum.map(_.toJson)}")
+        log.debug(s"Redeemer: ${redeemer.data.toJson}")
+        log.debug(s"Script context: ${ctxData.toJson}")
 
         // Apply script arguments based on whether datum is present
         evalScript(redeemer, txhash, plutusV1VM, script, datum.toSeq :+ redeemer.data :+ ctxData*)
@@ -424,11 +424,10 @@ class PlutusScriptEvaluator(
         val ctxData = scriptContext.toData
         val txhash = tx.id.toHex
 
-        if log.isDebugEnabled() then
-            log.debug(s"Evaluating PlutusV2 script, purpose: $purpose")
-            log.debug(s"Datum: ${datum.map(_.toJson)}")
-            log.debug(s"Redeemer: ${redeemer.data.toJson}")
-            log.debug(s"Script context: ${ctxData.toJson}")
+        log.debug(s"Evaluating PlutusV2 script, purpose: $purpose")
+        log.debug(s"Datum: ${datum.map(_.toJson)}")
+        log.debug(s"Redeemer: ${redeemer.data.toJson}")
+        log.debug(s"Script context: ${ctxData.toJson}")
 
         // Apply script arguments
         evalScript(redeemer, txhash, plutusV2VM, script, datum.toSeq :+ redeemer.data :+ ctxData*)
@@ -451,11 +450,10 @@ class PlutusScriptEvaluator(
         val ctxData = scriptContext.toData
         val txhash = tx.id.toHex
 
-        if log.isDebugEnabled() then
-            log.debug(s"Evaluating PlutusV3 script, scriptInfo: $scriptInfo")
-            log.debug(s"Datum: ${datum.map(_.toJson)}")
-            log.debug(s"Redeemer: ${redeemer.data.toJson}")
-            log.debug(s"Script context: ${ctxData.toJson}")
+        log.debug(s"Evaluating PlutusV3 script, scriptInfo: $scriptInfo")
+        log.debug(s"Datum: ${datum.map(_.toJson)}")
+        log.debug(s"Redeemer: ${redeemer.data.toJson}")
+        log.debug(s"Script context: ${ctxData.toJson}")
 
         // V3 scripts only take the script context as argument
         evalScript(redeemer, txhash, plutusV3VM, script, ctxData)

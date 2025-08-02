@@ -456,6 +456,7 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
         "io.bullet" %%% "borer-core" % "1.16.1",
         "io.bullet" %%% "borer-derivation" % "1.16.1"
       ),
+      libraryDependencies += "com.outr" %%% "scribe" % "3.17.0",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6" % "test",
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
