@@ -237,6 +237,15 @@ class SortedMapTest extends StdlibTestKit {
     }
 
     test("Eq") {
+        check { (map: SortedMap[BigInt, BigInt]) => map === map }
+
+        check { (map1: SortedMap[BigInt, BigInt], map2: SortedMap[BigInt, BigInt]) =>
+            val result = map1 === map2
+            val expected = map1.toList === map2.toList
+
+            result === expected
+        }
+
         assertEvalEq(
           SortedMap.empty[BigInt, BigInt],
           SortedMap.empty[BigInt, BigInt]
@@ -300,6 +309,8 @@ class SortedMapTest extends StdlibTestKit {
     }
 
     test("Ord") {
+        check { (map: SortedMap[BigInt, BigInt]) => (map <=> map).isEqual }
+
         assertEval((SortedMap.empty[BigInt, BigInt] <=> SortedMap.empty[BigInt, BigInt]).isEqual)
 
         assertEval(
@@ -396,7 +407,6 @@ class SortedMapTest extends StdlibTestKit {
     }
 
     test("ToData <-> FromData") {
-
         check { (map: SortedMap[BigInt, BigInt]) =>
             val data = map.toData
             val fromDataMap = fromData[SortedMap[BigInt, BigInt]](data)
@@ -439,6 +449,30 @@ class SortedMapTest extends StdlibTestKit {
               )
         )
 
+    }
+
+    test("sortedMapFromDataWithValidation") {
+        check { (map: SortedMap[BigInt, BigInt]) =>
+            given [A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
+                SortedMap.sortedMapFromDataWithValidation
+
+            val data = map.toData
+            val fromDataMap = fromData[SortedMap[BigInt, BigInt]](data)
+            map === fromDataMap
+        }
+
+//        assertEvalFails[RequirementError] {
+//            given [A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
+//                SortedMap.sortedMapFromDataWithValidation
+//
+//            val invalidMap = SortedMap
+//                .unsafeFromList(
+//                  List((BigInt(2), BigInt(2)), (BigInt(1), BigInt(1)))
+//                )
+//
+//            val data = invalidMap.toData
+//            fromData[SortedMap[BigInt, BigInt]](data)
+//        }
     }
 
     test("isEmpty") {

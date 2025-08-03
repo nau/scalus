@@ -144,9 +144,7 @@ object Value {
     ): Value = Value(
       SortedMap.fromList(
         list.filterMap { pair =>
-            val tokens = pair._2.filterMap { case (tn, v) =>
-                if v !== BigInt(0) then Option.Some((tn, v)) else Option.None
-            }
+            val tokens = pair._2.filter { _._2 !== BigInt(0) }
 
             if tokens.nonEmpty then Option.Some((pair._1, SortedMap.fromList(tokens)))
             else Option.None

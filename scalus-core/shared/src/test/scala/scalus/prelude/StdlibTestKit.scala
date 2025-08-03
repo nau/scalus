@@ -13,8 +13,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import org.scalacheck.Prop
-export org.scalacheck.{Arbitrary, Gen, Shrink}
+import org.scalacheck.{Arbitrary, Prop}
 import org.scalacheck.util.Pretty
 import org.scalactic.{source, Prettifier}
 
@@ -23,7 +22,8 @@ import scala.reflect.ClassTag
 
 class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     export org.scalatestplus.scalacheck.Checkers.*
-    export scalus.builtin.Data.{fromData, toData}
+    export org.scalacheck.{Arbitrary, Gen, Shrink}
+    export scalus.builtin.Data.{fromData, toData, FromData, ToData}
     export scalus.prelude.{Eq, Ord}
     export Eq.given
     export scalus.prelude.{!==, ===}
@@ -236,6 +236,199 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
                 ) $ SIR.Const(Constant.Data(payload3.toData), SIRType.Data, AnnotationsDecl.empty)
             val resultTerm = applied.toUplc(true).evaluate
             Term.alphaEq(resultTerm, trueTerm) && f(payload1, payload2, payload3)
+        }
+
+        check(handler, configParams*)
+    }
+
+    protected inline final def checkEval[
+        A1: FromData: ToData,
+        A2: FromData: ToData,
+        A3: FromData: ToData,
+        A4: FromData: ToData
+    ](
+        inline f: (A1, A2, A3, A4) => Boolean,
+        configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
+    )(implicit
+        config: PropertyCheckConfiguration,
+        a1: Arbitrary[A1],
+        s1: Shrink[A1],
+        pp1: A1 => Pretty,
+        a2: Arbitrary[A2],
+        s2: Shrink[A2],
+        pp2: A2 => Pretty,
+        a3: Arbitrary[A3],
+        s3: Shrink[A3],
+        pp3: A3 => Pretty,
+        a4: Arbitrary[A4],
+        s4: Shrink[A4],
+        pp4: A4 => Pretty,
+        prettifier: Prettifier,
+        pos: source.Position
+    ): Assertion = {
+        val sir = Compiler.compileInline { (d1: Data, d2: Data, d3: Data, d4: Data) =>
+            f(fromData[A1](d1), fromData[A2](d2), fromData[A3](d3), fromData[A4](d4))
+        }
+
+        def handler(payload1: A1, payload2: A2, payload3: A3, payload4: A4): Boolean = {
+            val applied =
+                sir $ SIR.Const(
+                  Constant.Data(payload1.toData),
+                  SIRType.Data,
+                  AnnotationsDecl.empty
+                ) $
+                    SIR.Const(Constant.Data(payload2.toData), SIRType.Data, AnnotationsDecl.empty) $
+                    SIR.Const(Constant.Data(payload3.toData), SIRType.Data, AnnotationsDecl.empty) $
+                    SIR.Const(Constant.Data(payload4.toData), SIRType.Data, AnnotationsDecl.empty)
+            val resultTerm = applied.toUplc(true).evaluate
+            Term.alphaEq(resultTerm, trueTerm) && f(payload1, payload2, payload3, payload4)
+        }
+
+        check(handler, configParams*)
+    }
+
+    protected inline final def checkEval[
+        A1: FromData: ToData,
+        A2: FromData: ToData,
+        A3: FromData: ToData,
+        A4: FromData: ToData,
+        A5: FromData: ToData
+    ](
+        inline f: (A1, A2, A3, A4, A5) => Boolean,
+        configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
+    )(implicit
+        config: PropertyCheckConfiguration,
+        a1: Arbitrary[A1],
+        s1: Shrink[A1],
+        pp1: A1 => Pretty,
+        a2: Arbitrary[A2],
+        s2: Shrink[A2],
+        pp2: A2 => Pretty,
+        a3: Arbitrary[A3],
+        s3: Shrink[A3],
+        pp3: A3 => Pretty,
+        a4: Arbitrary[A4],
+        s4: Shrink[A4],
+        pp4: A4 => Pretty,
+        a5: Arbitrary[A5],
+        s5: Shrink[A5],
+        pp5: A5 => Pretty,
+        prettifier: Prettifier,
+        pos: source.Position
+    ): Assertion = {
+        val sir = Compiler.compileInline { (d1: Data, d2: Data, d3: Data, d4: Data, d5: Data) =>
+            f(
+              fromData[A1](d1),
+              fromData[A2](d2),
+              fromData[A3](d3),
+              fromData[A4](d4),
+              fromData[A5](d5)
+            )
+        }
+
+        def handler(
+            payload1: A1,
+            payload2: A2,
+            payload3: A3,
+            payload4: A4,
+            payload5: A5
+        ): Boolean = {
+            val applied =
+                sir $ SIR.Const(
+                  Constant.Data(payload1.toData),
+                  SIRType.Data,
+                  AnnotationsDecl.empty
+                ) $
+                    SIR.Const(Constant.Data(payload2.toData), SIRType.Data, AnnotationsDecl.empty) $
+                    SIR.Const(Constant.Data(payload3.toData), SIRType.Data, AnnotationsDecl.empty) $
+                    SIR.Const(Constant.Data(payload4.toData), SIRType.Data, AnnotationsDecl.empty) $
+                    SIR.Const(Constant.Data(payload5.toData), SIRType.Data, AnnotationsDecl.empty)
+            val resultTerm = applied.toUplc(true).evaluate
+            Term.alphaEq(resultTerm, trueTerm) && f(
+              payload1,
+              payload2,
+              payload3,
+              payload4,
+              payload5
+            )
+        }
+
+        check(handler, configParams*)
+    }
+
+    protected inline final def checkEval[
+        A1: FromData: ToData,
+        A2: FromData: ToData,
+        A3: FromData: ToData,
+        A4: FromData: ToData,
+        A5: FromData: ToData,
+        A6: FromData: ToData
+    ](
+        inline f: (A1, A2, A3, A4, A5, A6) => Boolean,
+        configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
+    )(implicit
+        config: PropertyCheckConfiguration,
+        a1: Arbitrary[A1],
+        s1: Shrink[A1],
+        pp1: A1 => Pretty,
+        a2: Arbitrary[A2],
+        s2: Shrink[A2],
+        pp2: A2 => Pretty,
+        a3: Arbitrary[A3],
+        s3: Shrink[A3],
+        pp3: A3 => Pretty,
+        a4: Arbitrary[A4],
+        s4: Shrink[A4],
+        pp4: A4 => Pretty,
+        a5: Arbitrary[A5],
+        s5: Shrink[A5],
+        pp5: A5 => Pretty,
+        a6: Arbitrary[A6],
+        s6: Shrink[A6],
+        pp6: A6 => Pretty,
+        prettifier: Prettifier,
+        pos: source.Position
+    ): Assertion = {
+        val sir = Compiler.compileInline {
+            (d1: Data, d2: Data, d3: Data, d4: Data, d5: Data, d6: Data) =>
+                f(
+                  fromData[A1](d1),
+                  fromData[A2](d2),
+                  fromData[A3](d3),
+                  fromData[A4](d4),
+                  fromData[A5](d5),
+                  fromData[A6](d6)
+                )
+        }
+
+        def handler(
+            payload1: A1,
+            payload2: A2,
+            payload3: A3,
+            payload4: A4,
+            payload5: A5,
+            payload6: A6
+        ): Boolean = {
+            val applied =
+                sir $ SIR.Const(
+                  Constant.Data(payload1.toData),
+                  SIRType.Data,
+                  AnnotationsDecl.empty
+                ) $
+                    SIR.Const(Constant.Data(payload2.toData), SIRType.Data, AnnotationsDecl.empty) $
+                    SIR.Const(Constant.Data(payload3.toData), SIRType.Data, AnnotationsDecl.empty) $
+                    SIR.Const(Constant.Data(payload4.toData), SIRType.Data, AnnotationsDecl.empty) $
+                    SIR.Const(Constant.Data(payload5.toData), SIRType.Data, AnnotationsDecl.empty) $
+                    SIR.Const(Constant.Data(payload6.toData), SIRType.Data, AnnotationsDecl.empty)
+            val resultTerm = applied.toUplc(true).evaluate
+            Term.alphaEq(resultTerm, trueTerm) && f(
+              payload1,
+              payload2,
+              payload3,
+              payload4,
+              payload5,
+              payload6
+            )
         }
 
         check(handler, configParams*)

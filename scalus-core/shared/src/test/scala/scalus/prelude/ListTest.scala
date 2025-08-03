@@ -179,6 +179,8 @@ class ListTest extends StdlibTestKit {
     }
 
     test("Eq") {
+        check { (list: List[BigInt]) => list === list }
+
         check { (list1: List[BigInt], list2: List[BigInt]) =>
             val scalusResult = list1 === list2
             val scalaResult = list1.asScala == list2.asScala
@@ -207,6 +209,8 @@ class ListTest extends StdlibTestKit {
     }
 
     test("Ord") {
+        check { (list: List[BigInt]) => (list <=> list).isEqual }
+
         check { (list1: List[BigInt], list2: List[BigInt]) =>
             import scala.Ordering.Implicits.given
 
