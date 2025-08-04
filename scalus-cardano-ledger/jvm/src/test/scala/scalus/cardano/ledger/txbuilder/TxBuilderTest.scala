@@ -31,7 +31,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val tx = TxBuilder
             .initialize(utxo, params, Network.Testnet)
             .payToAddress(faucet, paymentAmount)
-            .balanceAndCalculateFees
+            .doFinalize
         assert(tx.body.value.outputs.size == 2)
         assert(tx.body.value.outputs.exists(_.value.address == myAddress))
         assert(tx.body.value.outputs.exists(_.value.address == faucet))
@@ -62,7 +62,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
             TxBuilder
                 .initialize(utxo, params, Network.Testnet)
                 .payToAddress(faucet, Value.lovelace(paymentAmount))
-                .balanceAndCalculateFees
+                .doFinalize
         }
     }
     test(
@@ -87,7 +87,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
             val tx = TxBuilder
                 .initialize(utxo, params, Network.Testnet)
                 .payToAddress(faucet, paymentAmount)
-                .balanceAndCalculateFees
+                .doFinalize
         }
 
     }

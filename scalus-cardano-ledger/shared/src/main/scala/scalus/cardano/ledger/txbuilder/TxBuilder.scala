@@ -1,8 +1,8 @@
 package scalus.cardano.ledger.txbuilder
 import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.txbuilder.TxBuilder.modifyBody
-import scalus.cardano.ledger.utils.{MinTransactionFee, TxBalance}
+import scalus.cardano.ledger.utils.TxBalance.modifyBody
+import scalus.cardano.ledger.utils.{MinTransactionFee, OnSurplus, TxBalance}
 import scalus.ledger.babbage.ProtocolParams
 
 import scala.annotation.tailrec
@@ -16,20 +16,11 @@ case class TxBuilder(
 ) {
 
     def payToAddress(address: Address, value: Value): TxBuilder = {
-        val body = tx.body.value
-        val newBody = body.copy(outputs = body.outputs :+ Sized(TransactionOutput(address, value)))
-        copy(tx = tx.copy(body = KeepRaw(newBody)))
+        val out = Sized(TransactionOutput(address, value))
+        copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
     }
 
     def onSurplus(onSurplus: OnSurplus): TxBuilder = copy(onSurplus = onSurplus)
-
-    def payToAddress(
-        address: Address,
-        value: Value,
-        utxo: (TransactionInput, TransactionOutput)
-    ): TxBuilder = {
-        copy(utxo = this.utxo + utxo).payToAddress(address, value)
-    }
 
     def map(f: Transaction => Transaction): TxBuilder = copy(tx = f(tx))
 
@@ -38,52 +29,11 @@ case class TxBuilder(
         copy(tx = tx.copy(witnessSet = wSet))
     }
 
-    /** @throws TransactionException
-      *   if the transaction could not be balanced
-      */
-    def balanceAndCalculateFees: Transaction = {
-        val consumed = TxBalance.consumed(tx, CertState.empty, utxo, protocolParams).toTry.get
-        val produced = TxBalance.produced(tx)
-        if consumed.coin < produced.coin then {
-            throw new TransactionException.ValueNotConservedUTxOException(tx.id, consumed, produced)
-        }
-
-        @tailrec
-        def go(currentTx: Transaction): Transaction = {
-            val currentProduced = TxBalance.produced(currentTx)
-            val diffLong = consumed.coin.value - currentProduced.coin.value
-            diffLong match {
-                case d if d > 0L =>
-                    val diff = Coin(d)
-                    val newTx = onSurplus(utxo, diff)(currentTx)
-                    val correctFee = MinTransactionFee(newTx, utxo, protocolParams).toTry.get
-                    val newTxWithFee = modifyBody(newTx, _.copy(fee = correctFee))
-                    val newProduced = TxBalance.produced(newTxWithFee)
-                    if consumed.coin >= newProduced.coin then {
-                        // fee is good
-                        go(newTxWithFee)
-                    } else {
-                        // fee + change exceeds inputs, remove the change and rebalance again
-                        val txWithoutChange =
-                            modifyBody(currentTx, _.copy(fee = correctFee))
-                        go(txWithoutChange)
-                    }
-                case 0L => currentTx
-                case _ => // diff < 0, we cannot cover the tx
-                    throw new TransactionException.IllegalArgumentException(
-                      "Insufficient funds to cover transaction"
-                    )
-            }
-        }
-        val estimatedFee = MinTransactionFee(tx, utxo, protocolParams).toTry.get
-        val initialTx = modifyBody(tx, _.copy(fee = estimatedFee))
-        go(initialTx)
-    }
-
+    def doFinalize = TxBalance.doBalance(tx)(utxo, protocolParams, onSurplus)
 }
 
 object TxBuilder {
-    private val emptyTx: Transaction = Transaction(
+    val emptyTx: Transaction = Transaction(
       TransactionBody(Set.empty, IndexedSeq.empty, Coin.zero),
       TransactionWitnessSet.empty
     )
@@ -102,35 +52,13 @@ object TxBuilder {
           withInputsFromUtxos(utxo)
         )
 
-    // need to refactor later, too many KeepRaw.apply calls
-    def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody): Transaction = {
-        val newBody = f(tx.body.value)
-        tx.copy(body = KeepRaw(newBody))
+    def modifyWs(
+        tx: Transaction,
+        f: TransactionWitnessSet => TransactionWitnessSet
+    ): Transaction = {
+        val newWs = f(tx.witnessSet)
+        tx.copy(witnessSet = newWs)
     }
-}
-
-trait OnSurplus {
-    def apply(utxo: UTxO, surplus: Coin): Transaction => Transaction
-}
-object OnSurplus {
-    import TxBuilder.modifyBody
-    def toFee: OnSurplus = (_, surplus: Coin) =>
-        tx => {
-            val fee = tx.body.value.fee + surplus
-            modifyBody(tx, _.copy(fee = fee))
-        }
-
-    def toAddress(address: Address): OnSurplus = (_, surplus: Coin) =>
-        tx => {
-            val changeOutput = TransactionOutput(address, Value(surplus))
-            modifyBody(tx, b => b.copy(outputs = b.outputs :+ Sized(changeOutput)))
-        }
-
-    def toFirstPayer: OnSurplus = (utxo: UTxO, surplus: Coin) =>
-        tx => {
-            val firstPayer = utxo.head
-            toAddress(firstPayer._2.address)(utxo, surplus)(tx)
-        }
 }
 
 trait UtxoProvider {
