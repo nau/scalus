@@ -55,7 +55,6 @@ class VarargsTest extends AnyFunSuite {
 
     }
 
-    /*
     test("use varasg in apply") {
 
         val sir = Compiler.compile {
@@ -72,7 +71,7 @@ class VarargsTest extends AnyFunSuite {
 
     }
 
-    test("use varargs in apply withouut type parameters") {
+    test("use varargs in apply without type parameters") {
         val sir = Compiler.compile {
             VarargsTestObj2(BigInt(1), BigInt(2), BigInt(3), BigInt(4))
         }
@@ -84,7 +83,5 @@ class VarargsTest extends AnyFunSuite {
             case _ =>
                 fail(s"Expected success, but got: $result")
     }
-    
-     */
 
 }

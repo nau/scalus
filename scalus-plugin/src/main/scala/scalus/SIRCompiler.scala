@@ -2375,13 +2375,24 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
                 compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, args, tree)
             // f.apply[A, B](arg) => Apply(f, arg)
-            /* When we have something like this:
-             * (f: [A] => List[A] => A, a: A) => f[Data](a)
-             * f.tpe will be a MethodType
-             */
-            case a @ Apply(applied @ TypeApply(fun @ Select(f, nme.apply), targs), args)
-                if defn.isFunctionType(fun.tpe.widen) || applied.tpe.isMethodType =>
-                compileApply(env, f, targs, args, tree.tpe, a)
+            case a @ Apply(applied @ TypeApply(fun @ Select(f, nme.apply), targs), args) =>
+                if f.symbol.is(Flags.Module) then
+                    // apply method in a companion object
+                    compileApply(env, fun, targs, args, tree.tpe, a)
+                else if defn.isFunctionType(fun.tpe.widen) || applied.tpe.isMethodType then
+                    /* When we have something like this:
+                     * (f: [A] => List[A] => A, a: A) => f[Data](a)
+                     * f.tpe will be a MethodType
+                     */
+                    compileApply(env, f, targs, args, tree.tpe, a)
+                else
+                    error(
+                      ExpressionNotSupported(a.show, tree.srcPos),
+                      SIR.Error(
+                        "Unsupported apply expression",
+                        AnnotationsDecl.fromSrcPos(tree.srcPos)
+                      )
+                    )
             // case a @ Apply(applied @ TypeApply(fun @ Select(f, nme.apply), targs), args) =>
             //    ???
             // f.apply(arg) => Apply(f, arg)
