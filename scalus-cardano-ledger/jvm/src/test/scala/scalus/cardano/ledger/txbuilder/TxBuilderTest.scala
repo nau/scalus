@@ -1,17 +1,21 @@
 package scalus.cardano.ledger.txbuilder
-import org.scalacheck.Arbitrary
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network}
+import scalus.builtin.{ByteString, Data}
+import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 import scalus.cardano.ledger.TransactionException.ValueNotConservedUTxOException
-import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, Coin, TransactionException, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
+import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, Coin, CostModels, TransactionException, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value, *}
+import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
+import scalus.uplc.eval.ExBudget
 import upickle.default.read
 
 class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
     val params: ProtocolParams = read[ProtocolParams](
       this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
     )(using ProtocolParams.blockfrostParamsRW)
+    private val costModels = CostModels.fromProtocolParams(params)
 
     test("should balance the transaction when the inputs exceed the outputs") {
         val myAddress = arbitrary[Address].sample.get
@@ -89,6 +93,59 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
                 .payToAddress(faucet, paymentAmount)
                 .doFinalize
         }
+
+    }
+
+    test("should balance script transaction with proper fees") {
+        val emptyScriptBytes = Array(69, 1, 1, 0, 36, -103).map(_.toByte)
+        val scriptBytes = ByteString.unsafeFromArray(emptyScriptBytes)
+        val script = Script.PlutusV3(scriptBytes)
+
+        val myAddress = ShelleyAddress(
+          Network.Testnet,
+          ShelleyPaymentPart.Key(arbitrary[AddrKeyHash].sample.get),
+          ShelleyDelegationPart.Null
+        )
+
+        val hash = arbitrary[TransactionHash].sample.get
+
+        val hugeCollateral = Map(
+          TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
+            myAddress,
+            Value.lovelace(100_000_000L)
+          )
+        )
+        val utxo: UTxO =
+            val scriptAddress = ShelleyAddress(
+              Network.Testnet,
+              ShelleyPaymentPart.Script(script.scriptHash),
+              ShelleyDelegationPart.Null
+            )
+            val availableLovelace = Value.lovelace(10_000_000L)
+            Map(
+              TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
+            ) ++ hugeCollateral
+
+        val evaluator = PlutusScriptEvaluator(
+          SlotConfig.Mainnet,
+          initialBudget = ExBudget.enormous,
+          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          costModels = costModels
+        )
+
+        val datum = Data.unit
+        val redeemer = Data.unit
+
+        val tx = ScriptTxBuilder
+            .initialize(utxo, params, Network.Testnet)
+            .payToAddress(myAddress, Value.lovelace(1_000_000L))
+            .withScript(script, datum, redeemer, 0)
+            .withCollateral(hugeCollateral)
+            .doFinalizeScript(evaluator)
+
+        assert(tx.body.value.outputs.nonEmpty)
+        assert(tx.witnessSet.redeemers.isDefined)
+        assert(tx.witnessSet.redeemers.get.value.toSeq.size == 1)
 
     }
 }
