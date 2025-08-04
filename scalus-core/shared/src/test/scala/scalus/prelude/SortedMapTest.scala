@@ -236,6 +236,134 @@ class SortedMapTest extends StdlibTestKit {
         )
     }
 
+    test("unionMap") {
+        check { (map: SortedMap[BigInt, BigInt]) =>
+            val result = SortedMap.unionMap(map, SortedMap.empty[BigInt, BigInt], identity)
+            val expected = map.mapValues[These[BigInt, BigInt]](These.This(_))
+
+            result === expected
+        }
+
+        check { (map: SortedMap[BigInt, BigInt]) =>
+            val result = SortedMap.unionMap(SortedMap.empty[BigInt, BigInt], map, identity)
+            val expected = map.mapValues[These[BigInt, BigInt]](These.That(_))
+
+            result === expected
+        }
+
+        check { (lhs: SortedMap[BigInt, BigInt], rhs: SortedMap[BigInt, BigInt]) =>
+            val result = SortedMap.unionMap(lhs, rhs, identity)
+            val keys = (lhs.keys ++ rhs.keys).distinct
+            val expected = keys.foldLeft(SortedMap.empty[BigInt, These[BigInt, BigInt]]) {
+                (acc, key) =>
+                    acc.insert(
+                      key,
+                      (lhs.get(key), rhs.get(key)) match
+                          case (Option.Some(lv), Option.Some(rv)) => These.These(lv, rv)
+                          case (Option.Some(lv), Option.None)     => These.This(lv)
+                          case (Option.None, Option.Some(rv))     => These.That(rv)
+                          case (Option.None, Option.None) =>
+                              fail("unreachable: Both values are None")
+                    )
+            }
+
+            result === expected
+        }
+
+        assertEvalEq(
+          SortedMap
+              .unionMap(
+                SortedMap
+                    .fromStrictlyAscendingList(
+                      List.Cons(
+                        (BigInt(1), BigInt(1)),
+                        List.Cons(
+                          (BigInt(2), BigInt(2)),
+                          List.Cons((BigInt(3), BigInt(3)), List.Nil)
+                        )
+                      )
+                    ),
+                SortedMap.empty[BigInt, BigInt],
+                identity
+              ),
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), These.This(BigInt(1))),
+                  List.Cons(
+                    (BigInt(2), These.This(BigInt(2))),
+                    List.Cons((BigInt(3), These.This(BigInt(3))), List.Nil)
+                  )
+                )
+              )
+        )
+
+        assertEvalEq(
+          SortedMap
+              .unionMap(
+                SortedMap.empty[BigInt, BigInt],
+                SortedMap
+                    .fromStrictlyAscendingList(
+                      List.Cons(
+                        (BigInt(1), BigInt(1)),
+                        List.Cons(
+                          (BigInt(2), BigInt(2)),
+                          List.Cons((BigInt(3), BigInt(3)), List.Nil)
+                        )
+                      )
+                    ),
+                identity
+              ),
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), These.That(BigInt(1))),
+                  List.Cons(
+                    (BigInt(2), These.That(BigInt(2))),
+                    List.Cons((BigInt(3), These.That(BigInt(3))), List.Nil)
+                  )
+                )
+              )
+        )
+
+        assertEvalEq(
+          SortedMap
+              .unionMap(
+                SortedMap
+                    .fromStrictlyAscendingList(
+                      List.Cons(
+                        (BigInt(1), BigInt(1)),
+                        List.Cons(
+                          (BigInt(2), BigInt(2)),
+                          List.Nil
+                        )
+                      )
+                    ),
+                SortedMap
+                    .fromStrictlyAscendingList(
+                      List.Cons(
+                        (BigInt(1), BigInt(1)),
+                        List.Cons(
+                          (BigInt(3), BigInt(3)),
+                          List.Nil
+                        )
+                      )
+                    ),
+                identity
+              ),
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), These.These(BigInt(1), BigInt(1))),
+                  List.Cons(
+                    (BigInt(2), These.This(BigInt(2))),
+                    List.Cons((BigInt(3), These.That(BigInt(3))), List.Nil)
+                  )
+                )
+              )
+        )
+    }
+
     test("Eq") {
         check { (map: SortedMap[BigInt, BigInt]) => map === map }
 
@@ -461,6 +589,7 @@ class SortedMapTest extends StdlibTestKit {
             map === fromDataMap
         }
 
+        // TODO: UPLC error
 //        assertEvalFails[RequirementError] {
 //            given [A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
 //                SortedMap.sortedMapFromDataWithValidation

@@ -164,7 +164,7 @@ object Ord:
     inline def apply[A: Ord]: Ord[A] = summon[Ord[A]]
 
     enum Order:
-        case Less, Greater, Equal
+        case Less, Equal, Greater
 
     import Order.*
 
