@@ -32,16 +32,23 @@ class HelloCardanoTest extends AnyFunSuite with ScalusTest {
           signatories = List(ownerPubKey)
         )
 
-        //  Simple backend
-        // val scalusBudget = ExBudget(ExCPU(61_329752L), ExMemory(233876L))
-
-        // S3 lowering backend
-        //  with traces
-        val scalusBudget = ExBudget(ExCPU(11798210L), ExMemory(38250))
-        //  without traces
-        // val scalusBudget = ExBudget(ExCPU(11686210L), ExMemory(37550L))
+        val compilerOptions = summon[Compiler.Options]
+        val scalusBudget =
+            if compilerOptions.targetLoweringBackend == Compiler.TargetLoweringBackend.SirToUplcV3Lowering
+            then {
+                // S3 lowering backend
+                if compilerOptions.generateErrorTraces then
+                    ExBudget(ExCPU(11894210L), ExMemory(38850L))
+                else ExBudget(ExCPU(11686210L), ExMemory(37550L))
+            } else
+                //  Simple backend.  TODO: test for all backends
+                ExBudget(ExCPU(61_329752L), ExMemory(233876L))
 
         val sir = compile(HelloCardano.validate)
+
+        // val lw = sir.toLoweredValue()
+        // println("lw: " + lw.show)
+
         val result = sir.runScript(context)
         assert(result.isSuccess)
         assert(result.budget == scalusBudget)

@@ -11,9 +11,22 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
     )(using lctx: LoweringContext): LoweredValueRepresentation =
         collect(tp) match {
             case Some((typeVars, input, output)) =>
+                val typeVarsList = typeVars.toList
+                val (inputTypeVars, _) = SIRType.partitionGround(typeVarsList, input)
+                val nInput =
+                    if inputTypeVars.isEmpty then input
+                    else SIRType.TypeLambda(inputTypeVars, input)
+                val (outputTypeVars, _) = SIRType.partitionGround(typeVarsList, output)
+                // TODO: hanlde case when output is type-lambda
+                val nOutput =
+                    if outputTypeVars.isEmpty then output
+                    else SIRType.TypeLambda(outputTypeVars, output)
                 LambdaRepresentation(
-                  lctx.typeGenerator(input).defaultRepresentation(input),
-                  lctx.typeGenerator(output).defaultRepresentation(output)
+                  tp,
+                  InOutRepresentationPair(
+                    lctx.typeGenerator(input).defaultRepresentation(nInput),
+                    lctx.typeGenerator(output).defaultRepresentation(nOutput)
+                  )
                 )
 
             case None =>
@@ -56,25 +69,34 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
                 )
             (input.representation, outputRepresentation) match
                 case (
-                      LambdaRepresentation(inRepr1, outRepr1),
-                      LambdaRepresentation(inRepr2, outRepr2)
+                      LambdaRepresentation(inFunTp, inCanonicalPair),
+                      LambdaRepresentation(outFunTp, outCanonicalPair)
                     ) =>
-                    if inRepr1.isCompatible(inRepr2) && outRepr1.isCompatible(outRepr2) then
-                        new RepresentationProxyLoweredValue(input, outputRepresentation, pos)
+                    if inCanonicalPair.inRepr.isCompatibleOn(
+                          SIRType.FreeUnificator,
+                          outCanonicalPair.inRepr,
+                          pos
+                        ) &&
+                        inCanonicalPair.outRepr.isCompatibleOn(
+                          SIRType.FreeUnificator,
+                          outCanonicalPair.outRepr,
+                          pos
+                        )
+                    then new RepresentationProxyLoweredValue(input, outputRepresentation, pos)
                     else
                         val newInName = lctx.uniqueVarName("x")
                         lvLamAbs(
                           newInName,
                           tpIn,
-                          inRepr2,
+                          outCanonicalPair.inRepr,
                           x =>
                               lvApply(
                                 input,
-                                x.toRepresentation(inRepr1, pos),
+                                x.toRepresentation(inCanonicalPair.inRepr, pos),
                                 pos,
                                 Some(tpOut),
-                                Some(outRepr1)
-                              ).toRepresentation(outRepr2, pos),
+                                Some(inCanonicalPair.outRepr)
+                              ).toRepresentation(outCanonicalPair.outRepr, pos),
                           pos
                         )
                 case (

@@ -292,7 +292,7 @@ class SIRTyper(using Context) {
         if symbol == Symbols.requiredClass("scalus.builtin.Data") then Some(SIRType.Data)
         else if symbol == Symbols.requiredClass("scalus.builtin.List") then
             tpArgs match
-                case List(elemType) => Some(SIRType.List(elemType))
+                case List(elemType) => Some(SIRType.BuiltinList(elemType))
                 case _ =>
                     throw TypingException(
                       symbol.info,

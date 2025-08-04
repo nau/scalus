@@ -4,10 +4,12 @@ import scalus.sir.*
 import scalus.sir.lowering.Lowering.tpf
 import scalus.uplc.*
 import org.typelevel.paiges.Doc
+import scalus.sir.SIRType.isSum
 import scalus.sir.lowering.SumCaseClassRepresentation.SumDataList
 
 import scala.collection.mutable.Set as MutableSet
 import scala.collection.mutable.Map as MutableMap
+import scala.util.control.NonFatal
 
 /** SEA of nodes - like representation. E.e. each value is node, which manage dependencies.
   * LoweredValue:
@@ -204,6 +206,7 @@ case class StaticLoweredValue(
   * Identificatin is id.
   */
 sealed trait IdentifiableLoweredValue extends LoweredValue {
+
     def id: String
     def name: String
 
@@ -515,7 +518,10 @@ case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, 
     override def sirType: SIRType = SIRType.Fun(newVar.sirType, body.sirType)
 
     override def representation: LoweredValueRepresentation = {
-        LambdaRepresentation(newVar.representation, body.representation)
+        LambdaRepresentation(
+          sirType,
+          InOutRepresentationPair(newVar.representation, body.representation)
+        )
     }
 
     override def pos: SIRPosition = inPos
@@ -895,7 +901,17 @@ object LoweredValue {
                     )
             }
 
-            val (targetArgType, targetArgRepresentation) = argType(f.sirType) match {
+            val targetArgType = argType(f.sirType) match {
+                case tv @ SIRType.TypeVar(name, optId, isBuiltin) =>
+                    val resolvedFArgType = lctx.resolveTypeVarIfNeeded(tv)
+                    resolvedFArgType
+                case SIRType.FreeUnificator =>
+                    arg.sirType
+                case fArgTp => fArgTp
+            }
+
+            /*
+            val (targetArgType1, targetArgRepresentation1) = argType(f.sirType) match {
                 case tv @ SIRType.TypeVar(name, optId, isBuiltin) =>
                     val resolvedFArgType = lctx.resolveTypeVarIfNeeded(tv)
                     if isBuiltin then
@@ -915,10 +931,16 @@ object LoweredValue {
                       arg.sirType,
                       lctx.typeGenerator(arg.sirType).defaultTypeVarReperesentation(arg.sirType)
                     )
-                case other =>
+                case fArgTp =>
                     f.representation match {
-                        case LambdaRepresentation(inRepr, outRepr) =>
-                            (other, inRepr)
+                        case LambdaRepresentation(reprFun) =>
+                            reprFun(arg.sirType)
+                            val inRepr = LoweredValueRepresentation.findClosest(
+                              fArgTp,
+                              arg.representation,
+                              pairs.map(_.inRepr)
+                            )
+                            (fArgTp, inRepr)
                         case TypeVarRepresentation(isBuiltin) =>
                             (SIRType.FreeUnificator, TypeVarRepresentation(isBuiltin))
                         case _ =>
@@ -926,10 +948,11 @@ object LoweredValue {
                               s"Warning: function application with non-lambda representation",
                               f.pos
                             )
-                            (other, lctx.typeGenerator(other).defaultRepresentation(other))
+                            (fArgTp, lctx.typeGenerator(fArgTp).defaultRepresentation(fArgTp))
                     }
-
             }
+            
+             */
             if lctx.debug then {
                 lctx.log(
                   s"lvApply: argType(f.sirType) = ${argType(f.sirType).show}, f.sirType = ${f.sirType.show}, arg.sirType = ${arg.sirType.show}"
@@ -937,12 +960,8 @@ object LoweredValue {
                 lctx.log(
                   s"lvApply: f = ${f.pretty.render(100)}"
                 )
-                // lctx.log(
-                //  s"lvApply: f.representation = ${f.representation.doc.render(100)}, arg.representation = ${arg.representation.doc.render(100)}"
-                // )
-                // f.createdEx.printStackTrace()
                 lctx.log(
-                  s"lvApply: targetArgType = ${targetArgType.show}, targetArgRepresentation = $targetArgRepresentation"
+                  s"lvApply: f.representation = ${f.representation.doc.render(100)}, arg.representation = ${arg.representation.doc.render(100)}"
                 )
                 lctx.log(
                   s"lvApply: arg.sirType = ${arg.sirType.show}, arg.representation = ${arg.representation.doc.render(100)}"
@@ -986,27 +1005,44 @@ object LoweredValue {
                 case _ => (arg, false)
             }
 
+            val argUpcasted = if !typeAligned && SIRType.isSum(targetArgType) then {
+                if lctx.debug then lctx.log("targetArgType is sum, trying to upcast arg")
+                argTypevarResolved
+                    .maybeUpcast(targetArgType, inPos)
+            } else {
+                argTypevarResolved
+            }
+
+            val fRepresentationPair = f.representation match {
+                case lr: LambdaRepresentation =>
+                    lr.reprFun(argUpcasted.sirType, inPos)
+                case TypeVarRepresentation(isBuiltin) =>
+                    InOutRepresentationPair(
+                      TypeVarRepresentation(isBuiltin),
+                      TypeVarRepresentation(isBuiltin)
+                    )
+                case _ =>
+                    throw LoweringException(
+                      s"Function representation is not a lambda: ${f.representation.doc.render(100)}",
+                      inPos
+                    )
+            }
+
+            val targetArgRepresentation = fRepresentationPair.inRepr
+
             val argInTargetRepresentation =
-                if !typeAligned && SIRType.isSum(targetArgType) then {
-                    if lctx.debug then lctx.log("targetArgType is sum, trying to upcast arg")
-                    arg
-                        .maybeUpcast(targetArgType, inPos)
-                        .toRepresentation(
-                          targetArgRepresentation,
-                          inPos
-                        )
-                } else if SIRType.isPolyFunOrFun(arg.sirType) then {
+                if SIRType.isPolyFunOrFun(argUpcasted.sirType) then {
                     // if we have a function, we need check, are we need to upcast their arguments
                     //  because it can be a polymorphic function with covariant argumets.
                     //  like Eq[Credential],
                     alignTypeArgumentsAndRepresentations(
-                      arg,
+                      argUpcasted,
                       targetArgType,
                       targetArgRepresentation,
                       inPos
                     )
                 } else {
-                    argTypevarResolved.toRepresentation(targetArgRepresentation, inPos)
+                    argUpcasted.toRepresentation(targetArgRepresentation, inPos)
                 }
 
             val calculatedResType = SIRType.calculateApplyType(
@@ -1039,9 +1075,11 @@ object LoweredValue {
                     }
                     if lctx.debug then {
                         lctx.log(s"lvApply: calulatedResType = ${calculatedResType.show}")
-                        lctx.log(
-                          s"lvApply: resType = ${resTps.map(_.show).mkString(", ")} =>> ${resBody.show}))"
-                        )
+                        if resTp.nonEmpty then
+                            lctx.log(
+                              s"lvApply: resType = ${resTps.map(_.show).mkString(", ")} =>> ${resBody.show}))"
+                            )
+                        else lctx.log(s"lvApply: resType =${resBody.show}")
                     }
                     SIRUnify.topLevelUnifyType(
                       ctBody,
@@ -1100,13 +1138,7 @@ object LoweredValue {
                     calculatedResType
             }
 
-            val calculatedResRepr = f.representation match
-                case LambdaRepresentation(inRepr, outRepr) =>
-                    outRepr
-                case TypeVarRepresentation(isBuiltin) =>
-                    TypeVarRepresentation(isBuiltin)
-                case _ =>
-                    throw LoweringException("Expected that f have function representation", inPos)
+            val calculatedResRepr = fRepresentationPair.outRepr
 
             if lctx.debug then {
                 lctx.log(
@@ -1525,8 +1557,15 @@ object LoweredValue {
                 case Some((argParams, argIn, argOut)) =>
                     SIRType.collectPolyOrFun(targetType) match {
                         case Some((targetParams, targetIn, targetOut)) =>
+                            val resolvedTargetIn = resolvedInAlign(targetIn)
+                            val resolvedArgIn = resolvedInAlign(argIn)
                             val (targetInRepr, targetOutRepr) = targetRepresentation match {
-                                case LambdaRepresentation(inRepr, outRepr) => (inRepr, outRepr)
+                                case targetLambdaRepr: LambdaRepresentation =>
+                                    val pair = targetLambdaRepr.reprFun(resolvedTargetIn, inPos)
+                                    (
+                                      pair.inRepr,
+                                      pair.outRepr
+                                    )
                                 case TypeVarRepresentation(isBuiltin) =>
                                     (
                                       TypeVarRepresentation(isBuiltin),
@@ -1538,22 +1577,25 @@ object LoweredValue {
                                       inPos
                                     )
                             }
-                            val (argInRepr, argOutRepr) = arg.representation match {
-                                case LambdaRepresentation(inRepr, outRepr) => (inRepr, outRepr)
-                                case TypeVarRepresentation(isBuiltin) =>
-                                    (
-                                      TypeVarRepresentation(isBuiltin),
-                                      TypeVarRepresentation(isBuiltin)
-                                    )
-                                case _ =>
-                                    throw LoweringException(
-                                      s"Expected lambda representation, but got ${arg.representation} for arg\n${arg.show}",
-                                      inPos
-                                    )
-                            }
-
-                            val resolvedTargetIn = resolvedInAlign(targetIn)
-                            val resolvedArgIn = resolvedInAlign(argIn)
+                            val (argInRepr, argOutRepr) =
+                                arg.representation match {
+                                    case argLambdaRepr: LambdaRepresentation =>
+                                        val pair = argLambdaRepr.reprFun(resolvedArgIn, inPos)
+                                        (
+                                          pair.inRepr,
+                                          pair.outRepr
+                                        )
+                                    case TypeVarRepresentation(isBuiltin) =>
+                                        (
+                                          TypeVarRepresentation(isBuiltin),
+                                          TypeVarRepresentation(isBuiltin)
+                                        )
+                                    case _ =>
+                                        throw LoweringException(
+                                          s"Expected lambda representation, but got ${arg.representation} for arg\n${arg.show}",
+                                          inPos
+                                        )
+                                }
 
                             // if both are functions, we need to align their type arguments
                             val runUpcast = SIRType.isSum(argIn) && SIRUnify
@@ -1563,7 +1605,8 @@ object LoweredValue {
                                   lctx.typeUnifyEnv.withoutUpcasting
                                 )
                                 .isFailure
-                            val changeRepresentation = !argInRepr.isCompatible(targetInRepr)
+                            val changeRepresentation =
+                                !argInRepr.isCompatibleOn(argIn, targetInRepr, inPos)
                             val xId = lctx.uniqueVarName("xIn")
                             val xIn = VariableLoweredValue(
                               xId,

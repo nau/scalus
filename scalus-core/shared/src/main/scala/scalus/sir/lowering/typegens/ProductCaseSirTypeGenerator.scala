@@ -16,8 +16,24 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
     override def defaultRepresentation(tp: SIRType)(using
         loweringContext: LoweringContext
-    ): LoweredValueRepresentation =
-        ProductCaseClassRepresentation.ProdDataList
+    ): LoweredValueRepresentation = {
+        SIRType.collectProd(tp) match {
+            case Some(_, constrDecl, _) =>
+                if constrDecl.name == SIRType.Pair.name
+                then {
+                    // don't change: builtin functions rely on this
+                    ProductCaseClassRepresentation.PairData
+                } else if constrDecl.name == SIRType.Tuple2.name
+                then { // here we can change and see tests.
+                    // ProductCaseClassRepresentation.PairData
+                    // better for benchmarks for both mem and cpu
+                    ProductCaseClassRepresentation.ProdDataList
+                } else ProductCaseClassRepresentation.ProdDataList
+            case _ =>
+                // impossinle
+                ProductCaseClassRepresentation.ProdDataList
+        }
+    }
 
     override def defaultDataRepresentation(tp: SIRType)(using
         loweringContext: LoweringContext
@@ -68,8 +84,9 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 val inputIdv = input match
                     case idv: IdentifiableLoweredValue => idv
                     case other =>
+                        val id = lctx.uniqueVarName("dl_to_pair_input")
                         lvNewLazyIdVar(
-                          lctx.uniqueVarName("dl_to_pair_input"),
+                          id,
                           input.sirType,
                           input.representation,
                           other,
@@ -199,6 +216,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                       s"Can't use one-element=generator for type ${input.sirType.show}",
                       pos
                     )
+            case (PairData, PairData) => input
             case (PairData, ProdDataList) =>
                 val inputIdv = input match
                     case idv: IdentifiableLoweredValue => idv
@@ -242,6 +260,12 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                   pos
                 )
                 retval
+            case (PairData, TypeVarRepresentation(isBuiltin)) =>
+                if isBuiltin then RepresentationProxyLoweredValue(input, representation, pos)
+                else
+                    input
+                        .toRepresentation(ProductCaseClassRepresentation.ProdDataConstr, pos)
+                        .toRepresentation(representation, pos)
             case (PairData, _) =>
                 input
                     .toRepresentation(ProdDataList, pos)

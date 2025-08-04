@@ -1,7 +1,7 @@
 package scalus.sir
 
-import scalus.uplc.Constant
-import scalus.uplc.DefaultFun
+import scalus.uplc.Constant.Integer
+import scalus.uplc.{Constant, DefaultFun, DefaultUni}
 
 val SIRVersion: (Int, Int) = (2, 0)
 
@@ -256,6 +256,7 @@ object SIR:
         body: SIR,
         anns: AnnotationsDecl
     ) extends AnnotatedSIR {
+
         override def tp: SIRType = body.tp
     }
 

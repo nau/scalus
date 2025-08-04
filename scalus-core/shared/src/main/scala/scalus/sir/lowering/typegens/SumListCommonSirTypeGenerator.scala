@@ -8,6 +8,8 @@ import scalus.sir.lowering.*
 import scalus.sir.lowering.Lowering.tpf
 import scalus.uplc.{DefaultFun, Term}
 
+/** handle next cases: scalus.prelude.List[A] scalus.builtin.List[A]
+  */
 trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
 
     def defaultListRepresentation(using LoweringContext): LoweredValueRepresentation
@@ -47,11 +49,16 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                   SumCaseClassRepresentation.SumDataList,
                   SumCaseClassRepresentation.SumDataPairList
                 ) =>
+                if isBuiltinList(input.sirType) then
+                    throw LoweringException(
+                      "Convering representation of builtin List (SumDataList => SumDataPairList) is not  allowed",
+                      pos
+                    )
                 val elementType = retrieveElementType(
                   input.sirType,
                   pos
                 )
-                val (typeParams, constrDecl, typeArgs) = SIRType
+                val (elemTypeParams, elemConstrDecl, elemTypeArgs) = SIRType
                     .collectProd(elementType)
                     .getOrElse(
                       throw new LoweringException(
@@ -60,10 +67,10 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                       )
                     )
                 val fun =
-                    if constrDecl.name == "scalus.builtin.Pair" then {
+                    if elemConstrDecl.name == "scalus.builtin.Pair" then {
                         val retval = ScalusRuntime.dataListToPairsList
                         ScalusRuntime.dataListToPairsList
-                    } else if constrDecl.name == "scala.Tuple2" then
+                    } else if elemConstrDecl.name == "scala.Tuple2" then
                         ScalusRuntime.dataListToTuplesList
                     else
                         throw new LoweringException(
@@ -136,6 +143,11 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                   SumCaseClassRepresentation.SumDataPairList,
                   SumCaseClassRepresentation.SumDataList
                 ) =>
+                if isBuiltinList(input.sirType) then
+                    throw LoweringException(
+                      "Convering representation of builtin List (SumDataPairList => SumDataList) is not  allowed",
+                      pos
+                    )
                 //   when it potenitallu can be used -- when one part of the program know, that element
                 //     is a list of pairs, but another part - does not know.
                 //     (pass to foldLeft, foldLeft expect List as dat)
@@ -270,7 +282,7 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
 
     override def genConstr(constr: SIR.Constr)(using lctx: LoweringContext): LoweredValue = {
         constr.name match
-            case "scalus.prelude.List$.Nil" =>
+            case "scalus.prelude.List$.Nil" | "scalus.builtin.List$.Nil" =>
                 genNil(constr.tp, constr.anns.pos)
                 // lvBuiltinApply0(
                 //  SIRBuiltins.mkNilData,
@@ -287,12 +299,24 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                 val head = lctx.lower(constr.args.head)
                 val tail = lctx.lower(constr.args.tail.head)
                 val elementType = retrieveElementType(constr.tp, constr.anns.pos)
-                val headElementRepr = head
+                val headElementUpcasted = head
                     .maybeUpcast(elementType, constr.anns.pos)
-                    .toRepresentation(
-                      defaultElementRepresentation(elementType, constr.anns.pos),
-                      constr.anns.pos
-                    )
+                val headElementRepr =
+                    try
+                        headElementUpcasted.toRepresentation(
+                          defaultElementRepresentation(elementType, constr.anns.pos),
+                          constr.anns.pos
+                        )
+                    catch
+                        case NonFatal(ex) =>
+                            println(
+                              s"error in genConstr for List, head.sirType: ${head.sirType.show}, tail.sirType: ${tail.sirType.show}, constr.tp=${constr.tp.show}"
+                            )
+                            println(s"elementType: ${elementType.show}")
+                            println(
+                              s"defaultElementRepresentation: ${defaultElementRepresentation(elementType, constr.anns.pos).show}"
+                            )
+                            throw ex
                 // special case when tail is Nil, than have tyoe List[Nothing]
                 val fixedTail =
                     if isNilType(tail.sirType) then
@@ -414,6 +438,18 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                   s"Cannot retrieve element type from ${tp.show}, expected List type",
                   pos
                 )
+        }
+    }
+
+    def isBuiltinList(tp: SIRType): Boolean = {
+        SIRType.retrieveDataDecl(tp) match {
+            case Right(dataDecl) => dataDecl.name == SIRType.BuiltinList.name
+            case Left(_) =>
+                SIRType.retrieveConstrDecl(tp) match
+                    case Right(constrDecl) =>
+                        constrDecl.name == SIRType.BuiltinList.Cons.name ||
+                        constrDecl.name == SIRType.BuiltinList.Nil.name
+                    case Left(_) => false
         }
     }
 

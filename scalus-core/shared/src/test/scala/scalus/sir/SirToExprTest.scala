@@ -38,17 +38,6 @@ class SirToExprTest extends AnyFunSuite {
         assert(tp ~=~ decoded)
     }
 
-    /*
-    test("list type fron macro is serialized without unfilled proxies") {
-        val tp = SIRTypeMacros.liftM[scalus.builtin.List[Int]]
-        val bitSize = ToExprHSSIRTypeFlat.bitSize(tp)
-        val encoded = EncoderState(bitSize / 8 + 1)
-        ToExprHSSIRTypeFlat.encode(tp, encoded)
-        val decoded = ToExprHSSIRTypeFlat.decode(DecoderState(encoded.buffer)).asInstanceOf[SIRType]
-        assert(SIRType.checkAllProxiesFilled(decoded))
-        assert(tp ~=~ decoded)
-    }
-
     test("list type of buildin fun is serialized without unfilled proxies") {
         val fun = SIRBuiltins.tailList
         val tp = fun.tp
@@ -59,14 +48,13 @@ class SirToExprTest extends AnyFunSuite {
         assert(SIRType.checkAllProxiesFilled(decoded))
         assert(tp ~=~ decoded)
     }
-     */
 
     test("type of buildin fun application is serialized without unfilled proxies") {
         val fun = SIRBuiltins.tailList
         val arg: AnnotatedSIR = SIR.Const(
           scalus.uplc.Constant
               .List(scalus.uplc.DefaultUni.Integer, List(scalus.uplc.Constant.Integer(1))),
-          SIRType.List(SIRType.Integer),
+          SIRType.BuiltinList(SIRType.Integer),
           ae
         )
         val fun1 = SIR.Apply(
@@ -89,7 +77,7 @@ class SirToExprTest extends AnyFunSuite {
         val arg: AnnotatedSIR = SIR.Const(
           scalus.uplc.Constant
               .List(scalus.uplc.DefaultUni.Integer, List(scalus.uplc.Constant.Integer(1))),
-          SIRType.List(SIRType.Integer),
+          SIRType.BuiltinList(SIRType.Integer),
           ae
         )
         val fun1 = SIR.Apply(
