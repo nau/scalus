@@ -1,9 +1,8 @@
 package scalus.cardano.ledger.utils
 import scalus.cardano.address.Address
-import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
 import scalus.cardano.ledger.rules.{Context, FeesOkValidator, State, UtxoEnv}
-import scalus.cardano.ledger.txbuilder.TxBuilder
 import scalus.ledger.babbage.ProtocolParams
 
 import scala.annotation.tailrec

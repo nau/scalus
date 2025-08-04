@@ -1,5 +1,5 @@
 package scalus.cardano.ledger.txbuilder
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, Data}
@@ -147,5 +147,55 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         assert(tx.witnessSet.redeemers.isDefined)
         assert(tx.witnessSet.redeemers.get.value.toSeq.size == 1)
 
+    }
+
+    test("should throw when a tx contains insufficient collateral") {
+        val emptyScriptBytes = Array(69, 1, 1, 0, 36, -103).map(_.toByte)
+        val scriptBytes = ByteString.unsafeFromArray(emptyScriptBytes)
+        val script = Script.PlutusV3(scriptBytes)
+
+        val myAddress = ShelleyAddress(
+          Network.Testnet,
+          ShelleyPaymentPart.Key(arbitrary[AddrKeyHash].sample.get),
+          ShelleyDelegationPart.Null
+        )
+
+        val hash = arbitrary[TransactionHash].sample.get
+
+        val insufficientCollateral = Map(
+          TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
+            myAddress,
+            Value.lovelace(1L)
+          )
+        )
+        val utxo: UTxO =
+            val scriptAddress = ShelleyAddress(
+              Network.Testnet,
+              ShelleyPaymentPart.Script(script.scriptHash),
+              ShelleyDelegationPart.Null
+            )
+            val availableLovelace = Value.lovelace(10_000_000L)
+            Map(
+              TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
+            ) ++ insufficientCollateral
+
+        val evaluator = PlutusScriptEvaluator(
+          SlotConfig.Mainnet,
+          initialBudget = ExBudget.enormous,
+          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          costModels = costModels
+        )
+
+        val datum = Data.unit
+        val redeemer = Data.unit
+
+        assertThrows[TransactionException.InsufficientTotalSumOfCollateralCoinsException] {
+            ScriptTxBuilder
+                .initialize(utxo, params, Network.Testnet)
+                .payToAddress(myAddress, Value.lovelace(1_000_000L))
+                .withScript(script, datum, redeemer, 0)
+                .withCollateral(insufficientCollateral)
+                .doFinalizeScript(evaluator)
+        }
     }
 }
