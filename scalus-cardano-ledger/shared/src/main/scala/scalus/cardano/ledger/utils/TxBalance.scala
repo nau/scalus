@@ -100,7 +100,7 @@ object TxBalance {
         val consumed = TxBalance.consumed(tx, CertState.empty, utxo, protocolParams).toTry.get
         val produced = TxBalance.produced(tx)
         if consumed.coin < produced.coin then {
-            throw new TransactionException.ValueNotConservedUTxOException(tx.id, consumed, produced)
+            throw TransactionException.ValueNotConservedUTxOException(tx.id, consumed, produced)
         }
 
         @tailrec
@@ -125,7 +125,7 @@ object TxBalance {
                     }
                 case 0L => currentTx
                 case _ => // diff < 0, we cannot cover the tx
-                    throw new TransactionException.IllegalArgumentException(
+                    throw TransactionException.IllegalArgumentException(
                       "Insufficient funds to cover transaction"
                     )
             }
@@ -139,6 +139,69 @@ object TxBalance {
     def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody): Transaction = {
         val newBody = f(tx.body.value)
         tx.copy(body = KeepRaw(newBody))
+    }
+
+    def doBalanceScript(
+        tx: Transaction,
+        scriptEvaluator: PlutusScriptEvaluator,
+        collateralInputs: Map[TransactionInput, TransactionOutput]
+    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: OnSurplus): Transaction = {
+        val redeemers = scriptEvaluator.evalPlutusScripts(tx, utxo)
+        val updatedWitnessSet = if redeemers.nonEmpty then {
+            tx.witnessSet.copy(redeemers = Some(Redeemers.from(redeemers)))
+        } else {
+            tx.witnessSet
+        }
+        val txWithEvaluatedScript = tx.copy(witnessSet = updatedWitnessSet)
+        val baseFee = MinTransactionFee(txWithEvaluatedScript, utxo, protocolParams).toTry.get
+        val scriptExecPrice = redeemers
+            .map(r => scriptExecutionPrice(r.exUnits, protocolParams))
+            .foldLeft(Coin.zero)(_ + _)
+        val totalFee = Coin(baseFee.value + scriptFee.value)
+
+        /*
+         * According to cip-40, we are required to return the excess collateral.
+         * for now, todo,
+         * and expect the caller to pass the collateral correctly
+         *
+         * val collateralPercent = protocolParams.collateralPercentage.getOrElse(150L)
+         * val requiredCollateral = Coin((totalFee.value * collateralPercent) / 100)
+         * 
+         * val totalCollateralValue = collateralInputs.values
+         *     .map(_.value.coin)
+         *     .foldLeft(Coin.zero)(_ + _)
+         * val returnCollatAdress = ???
+         * val collateralReturn = if (totalCollateralValue > requiredCollateral) {
+         *     val returnAmount = Coin(totalCollateralValue.value - requiredCollateral.value)
+         *     Some(Sized(TransactionOutput(
+         *         returnCollatAdress,
+         *         Value(returnAmount)
+         *     )))
+         * } else None
+         */
+        val updatedTx = modifyBody(
+          txWithEvaluatedScript,
+          body =>
+              body.copy(
+                fee = totalFee,
+                collateralInputs = collateralInputs.keySet,
+                collateralReturnOutput = collateralReturn,
+                totalCollateral =
+                    Some(collateralInputs.values.map(_.value.coin).foldLeft(Coin.zero)(_ + _))
+              )
+        )
+        
+        doBalance(updatedTx)(utxo, protocolParams, onSurplus)
+    }
+
+    private def scriptExecutionPrice(
+        executionUnits: ExUnits,
+        protocolParams: ProtocolParams
+    ): Coin = {
+        val memoryPrice = protocolParams.executionUnitPrices.priceMemory
+        val stepsPrice = protocolParams.executionUnitPrices.priceSteps
+        val scriptCost = memoryPrice * executionUnits.memory + stepsPrice * executionUnits.steps
+        Coin(scriptCost.toDouble.toLong)
     }
 }
 
