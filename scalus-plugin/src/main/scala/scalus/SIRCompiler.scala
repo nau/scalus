@@ -68,18 +68,7 @@ object AdtConstructorCallInfo {
         )
 }
 
-case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR) {
-
-    if fullName.name == "scalus.prelude.List$.foldLeft" then {
-        body.tp match
-            case SIRType.TypeLambda(_, _) =>
-            case _ =>
-                throw new RuntimeException(
-                  s"TopLevelBinding for ${fullName.name} should be a type lambda, but got ${body.tp}"
-                )
-    }
-
-}
+case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR)
 
 enum ScalusCompilationMode:
     case AllDefs
@@ -767,11 +756,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     if isNoArgsMethod(e.symbol) then SIRType.Fun(SIRType.Unit, origType)
                     else origType
                 val (moduleName, valName) =
-                    if e.symbol.owner.fullName.toString == "scalus.prelude" then
-                        if e.symbol.fullName.toString == "scalus.prelude.List" then
-                            ("scalus.prelude.List$", "scalus.prelude.List$.apply")
-                        else (e.symbol.owner.fullName.toString, e.symbol.name.show)
-                    else (e.symbol.owner.fullName.toString, e.symbol.fullName.toString)
+                    (e.symbol.owner.fullName.toString, e.symbol.fullName.toString)
                 (
                   SIR.ExternalVar(
                     moduleName,
