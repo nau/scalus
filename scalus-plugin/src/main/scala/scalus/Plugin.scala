@@ -245,7 +245,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                     parsed = false
                     report.warning(
                       s"ScalusPhase: Expected an identifier or select expression for targetLoweringBackend, but found: ${value.show}",
-                      posTree.srcPos
+                      value.srcPos
                     )
             }
             if backend.equals("SirToUplcV3Lowering") then useUniversalDataConversion = true
@@ -257,7 +257,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             else {
                 report.warning(
                   s"ScalusPhase: Failed to parse targetLoweringBackend, using default: ${backend}",
-                  posTree.srcPos
+                  value.srcPos
                 )
             }
         }
@@ -268,7 +268,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 case _ =>
                     report.warning(
                       s"ScalusPhase: Expected a boolean literal, but found: ${value.show}\ntree:${value}",
-                      posTree.srcPos
+                      value.srcPos
                     )
                     false
             }
@@ -280,7 +280,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 case _ =>
                     report.warning(
                       s"ScalusPhase: Expected an integer literal, but found: ${value.show}",
-                      posTree.srcPos
+                      posTree.srcPos.startPos
                     )
                     0 // default value if parsing fails
             }
@@ -302,7 +302,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                     else {
                         report.warning(
                           s"ScalusPhase: Unknown compiler option: $name",
-                          posTree.srcPos
+                          posTree.srcPos.startPos
                         )
                     }
                 case value =>
@@ -319,7 +319,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                         case _ =>
                             report.warning(
                               s"ScalusPhase: too many position argiments for scalus.compiler.Options, expected max 4, but found ${idx + 1}",
-                              posTree.srcPos
+                              posTree.srcPos.startPos
                             )
         }
 
@@ -372,7 +372,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 if isCompilerDebug || debugLevel > 0 then {
                     report.warning(
                       s"ScalusPhase: No compiler options found, using default options",
-                      posTree.srcPos
+                      posTree.srcPos.startPos
                     )
                     report.warning(s"search result: ${failure.show}")
                 } else {
