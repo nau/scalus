@@ -164,21 +164,10 @@ object SortedMap {
             lhs: List[(A, B)],
             rhs: List[(A, C)]
         ): List[(A, These[B, C])] = lhs match
-            case Nil =>
-                rhs match
-                    case Nil => Nil
-                    case Cons(rhsPair, rhsTail) =>
-                        Cons(
-                          (rhsPair._1, These.That(rhsPair._2)),
-                          rhsTail.map { pair => (pair._1, These.That(pair._2)) }
-                        )
+            case Nil => rhs.map { pair => (pair._1, These.That(pair._2)) }
             case Cons(lhsPair, lhsTail) =>
                 rhs match
-                    case Nil =>
-                        Cons(
-                          (lhsPair._1, These.This(lhsPair._2)),
-                          lhsTail.map { pair => (pair._1, These.This(pair._2)) }
-                        )
+                    case Nil => lhs.map { pair => (pair._1, These.This(pair._2)) }
                     case Cons(rhsPair, rhsTail) =>
                         lhsPair match
                             case (lhsKey, lhsValue) =>
@@ -241,21 +230,10 @@ object SortedMap {
             lhs: List[(A, B)],
             rhs: List[(A, C)]
         ): List[(A, D)] = lhs match
-            case Nil =>
-                rhs match
-                    case Nil => Nil
-                    case Cons(rhsPair, rhsTail) =>
-                        Cons(
-                          (rhsPair._1, f(These.That(rhsPair._2))),
-                          rhsTail.map { pair => (pair._1, f(These.That(pair._2))) }
-                        )
+            case Nil => rhs.map { pair => (pair._1, f(These.That(pair._2))) }
             case Cons(lhsPair, lhsTail) =>
                 rhs match
-                    case Nil =>
-                        Cons(
-                          (lhsPair._1, f(These.This(lhsPair._2))),
-                          lhsTail.map { pair => (pair._1, f(These.This(pair._2))) }
-                        )
+                    case Nil => lhs.map { pair => (pair._1, f(These.This(pair._2))) }
                     case Cons(rhsPair, rhsTail) =>
                         lhsPair match
                             case (lhsKey, lhsValue) =>

@@ -145,6 +145,8 @@ object EqCompanion:
     end extension
 
     given [A: Eq, B: Eq]: Eq[(A, B)] = Eq.by[(A, B), A](_._1).orElseBy(_._2)
+    given [A: Eq, B: Eq, C: Eq]: Eq[(A, B, C)] =
+        Eq.by[(A, B, C), A](_._1).orElseBy(_._2).orElseBy(_._3)
 
     def keyPairEq[A: Eq, B]: Eq[(A, B)] = Eq.by[(A, B), A](_._1)
 

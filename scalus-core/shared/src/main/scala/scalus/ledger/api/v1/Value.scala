@@ -11,7 +11,9 @@ import scalus.prelude.These
 import scalus.prelude.These.*
 import scalus.prelude.{Eq, Ord}
 import scalus.prelude.Ord.{<=>, Order}
-import scalus.prelude.{!==, given}
+import scalus.prelude.Eq.given
+import scalus.prelude.{!==, ===, given}
+
 import scala.annotation.tailrec
 
 case class Value private (toSortedMap: SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]])
@@ -263,7 +265,23 @@ object Value {
     def equalsAssets(
         a: SortedMap[TokenName, BigInt],
         b: SortedMap[TokenName, BigInt]
-    ): Boolean = checkBinRelTokens(equalsInteger)(a, b)
+    ): Boolean = {
+        @tailrec
+        def go(
+            lhs: List[(TokenName, BigInt)],
+            rhs: List[(TokenName, BigInt)]
+        ): Boolean = {
+            lhs match
+                case List.Nil => rhs.forall(_._2 === BigInt(0))
+                case List.Cons(lhsHead, lhsTail) =>
+                    rhs match
+                        case List.Nil => lhs.forall(_._2 === BigInt(0))
+                        case List.Cons(rhsHead, rhsTail) =>
+                            (lhsHead === rhsHead) && go(lhsTail, rhsTail)
+        }
+
+        go(a.toList, b.toList)
+    }
 
     /** Tests if two `Value` instances are equal.
       *
@@ -286,7 +304,7 @@ object Value {
       *   Value.eq(value1, value3) === false
       *   }}}
       */
-    def eq(a: Value, b: Value): Boolean = checkBinRel(equalsInteger)(a, b)
+    def eq(a: Value, b: Value): Boolean = a.toSortedMap === b.toSortedMap
 
     /** Tests if two `Value` instances are not equal.
       *
@@ -309,7 +327,7 @@ object Value {
       *   Value.nonEq(value1, value3) === true
       *   }}}
       */
-    def nonEq(a: Value, b: Value): Boolean = !checkBinRel(equalsInteger)(a, b)
+    def nonEq(a: Value, b: Value): Boolean = !eq(a, b)
 
     /** Negates all token amounts in a `Value`, effectively creating the additive inverse.
       *
@@ -366,7 +384,7 @@ object Value {
       *   Value.plus(value1, value2) === Value.lovelace(BigInt(1500000))
       *   }}}
       */
-    val plus: (a: Value, b: Value) => Value = unionWith(addInteger)
+    def plus(a: Value, b: Value): Value = binaryOpValues(a, b, addInteger)
 
     /** Subtracts the second `Value` from the first, effectively performing element-wise subtraction
       * of token amounts.
@@ -387,7 +405,7 @@ object Value {
       *   Value.minus(value1, value2) === Value.lovelace(BigInt(500000))
       *   }}}
       */
-    val minus: (a: Value, b: Value) => Value = unionWith(subtractInteger)
+    def minus(a: Value, b: Value): Value = binaryOpValues(a, b, subtractInteger)
 
     /** Multiplies two `Value` instances together, combining their token amounts.
       *
@@ -407,34 +425,12 @@ object Value {
       *   Value.multiply(value1, value2) === Value.lovelace(BigInt(500000000000))
       *   }}}
       */
-    val multiply: (a: Value, b: Value) => Value = unionWith(multiplyInteger)
-
-    /** Divides the first `Value` by the second, effectively performing element-wise division of
-      * token amounts.
-      *
-      * This method divides the token amounts in the first `Value` by those in the second, treating
-      * absent tokens as having zero amount. If a token amount in the second `Value` is zero, it
-      * will result in an error.
-      *
-      * @param a
-      *   The `Value` to divide
-      * @param b
-      *   The `Value` to divide by
-      * @return
-      *   A new `Value` containing the result of the division
-      * @throws ArithmeticException:
-      *   / by zero If any token amount in the second `Value` is zero, as division by zero is not
-      *   allowed
-      * @example
-      *   {{{
-      *   val value1 = Value.lovelace(BigInt(1000000))
-      *   val value2 = Value.lovelace(BigInt(500000))
-      *   Value.divide(value1, value2) === Value.lovelace(BigInt(2))
-      *
-      *   Value.divide(value1, Value.zero) // Throws ArithmeticException: / by zero
-      *   }}}
-      */
-    val divide: (a: Value, b: Value) => Value = unionWith(divideInteger)
+    def multiply(v: Value, factor: BigInt): Value =
+        if factor !== BigInt(0) then
+            Value(
+              v.toSortedMap.mapValues { _.mapValues { _ * factor } }
+            )
+        else zero
 
     /** Converts a `Value` to a debug string representation.
       *
@@ -458,7 +454,7 @@ object Value {
       *     )
       *   )
       *
-      *   // Prints: { policy# -> { #: 1000000 }, policy#ff -> { #544f4b454e: 100 } }
+      *   // Prints: { policy# -> { #: 1000000 }, policy#6666 -> { #544f4b454e: 100 } }
       *   println(Value.debugToString(value))
       *   }}}
       */
@@ -500,60 +496,6 @@ object Value {
       */
     given valueEq: Eq[Value] = (a, b) => eq(a, b)
 
-    /** Implementation of the [[prelude.Ord]] type class for `Value`.
-      *
-      * Compares two `Value` instances by lexicographically comparing their token amounts. Each
-      * token amount is compared as follows:
-      *   - For tokens present in both values, compares their amounts directly
-      *   - For tokens present in only one value, compares that amount against zero
-      *
-      * @example
-      *   {{{
-      *   val value1 = Value.fromList(
-      *     List.Cons(
-      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
-      *       List.Nil
-      *     )
-      *   )
-      *
-      *   val value2 = Value.fromList(
-      *     List.Cons(
-      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(2000000)), List.Nil)),
-      *       List.Nil
-      *     )
-      *   )
-      *
-      *   value1 <=> value2 // returns Order.Less
-      *   }}}
-      */
-    given valueOrd: Ord[Value] = (a, b) => {
-        val values =
-            SortedMap.union(a.toSortedMap, b.toSortedMap).toList.flatMap { case (cs, tokens) =>
-                tokens match
-                    case These.These(v1, v2) =>
-                        SortedMap.union(v1, v2).toList.map { case (_, v) => v }
-                    case This(v1) => v1.toList.map { case (_, v) => These.This(v) }
-                    case That(v2) => v2.toList.map { case (_, v) => These.That(v) }
-            }
-
-        @tailrec
-        def go(lst: List[These[BigInt, BigInt]]): Ord.Order = lst match
-            case List.Nil => Order.Equal
-            case List.Cons(h, t) =>
-                h match
-                    case These.These(v1, v2) =>
-                        val cmp = v1 <=> v2
-                        if cmp !== Order.Equal then cmp else go(t)
-                    case This(v1) =>
-                        val cmp = v1 <=> BigInt(0)
-                        if cmp !== Order.Equal then cmp else go(t)
-                    case That(v2) =>
-                        val cmp = BigInt(0) <=> v2
-                        if cmp !== Order.Equal then cmp else go(t)
-
-        go(values)
-    }
-
     given valueToData: ToData[Value] = _.toSortedMap.toData
 
     given valueFromData: FromData[Value] =
@@ -582,19 +524,16 @@ object Value {
 
     extension (v: Value)
         /** Extension alias for [[Value.negate]]. */
-        inline def unary_- : Value = Value.negate(v)
+        inline def unary_- : Value = negate(v)
 
         /** Extension alias for [[Value.plus]]. */
-        inline def +(other: Value): Value = Value.plus(v, other)
+        inline def +(other: Value): Value = plus(v, other)
 
         /** Extension alias for [[Value.minus]]. */
-        inline def -(other: Value): Value = Value.minus(v, other)
+        inline def -(other: Value): Value = minus(v, other)
 
         /** Extension alias for [[Value.multiply]]. */
-        inline def *(other: Value): Value = Value.multiply(v, other)
-
-        /** Extension alias for [[Value.divide]]. */
-        inline def /(other: Value): Value = Value.divide(v, other)
+        inline def *(factor: BigInt): Value = multiply(v, factor)
 
         /** Extension alias for [[Value.debugToString]]. */
         @Ignore
@@ -631,6 +570,22 @@ object Value {
           *   }}}
           */
         inline def isZero: Boolean = v.toSortedMap.isEmpty
+
+        /** Checks if this `Value` is non-zero, meaning it contains at least one token or currency
+          * symbol with a non-zero amount.
+          *
+          * @return
+          *   `true` if the `Value` is non-empty, `false` otherwise
+          * @example
+          *   {{{
+          *   val value = Value.zero
+          *   value.nonZero === false
+          *
+          *   val nonZeroValue = Value.lovelace(BigInt(1000000))
+          *   nonZeroValue.nonZero === true
+          *   }}}
+          */
+        inline def nonZero: Boolean = !v.isZero
 
         /** Gets the amount of a specific token in a currency symbol from a `Value`.
           *
@@ -734,74 +689,112 @@ object Value {
                 }
             }
 
-    private def checkPred(l: Value, r: Value)(f: These[BigInt, BigInt] => Boolean): Boolean = {
-        def inner(m: SortedMap[TokenName, These[BigInt, BigInt]]): Boolean =
-            m.forall((_, v) => f(v))
-        unionVal(l, r).forall((_, v) => inner(v))
-    }
-
-    private def checkBinRel(op: (BigInt, BigInt) => Boolean)(
-        a: Value,
-        b: Value
-    ): Boolean = {
-        // all values are equal, absent values are 0
-        checkPred(a, b) {
-            case These.These(v1, v2) => op(v1, v2)
-            case This(v1)            => op(v1, 0)
-            case That(v2)            => op(0, v2)
-        }
-    }
-
-    private def checkBinRelTokens(op: (BigInt, BigInt) => Boolean)(
+    private def binaryOpTokens(
         a: SortedMap[TokenName, BigInt],
-        b: SortedMap[TokenName, BigInt]
-    ): Boolean = {
-        val combined = SortedMap.union(a, b).toList
-        // all values are equal, absent values are 0
-        combined.forall { case (k, v) =>
-            v match
-                case These.These(v1, v2) => op(v1, v2)
-                case This(v1)            => op(v1, 0)
-                case That(v2)            => op(0, v2)
+        b: SortedMap[TokenName, BigInt],
+        op: (BigInt, BigInt) => BigInt
+    ): List[(TokenName, BigInt)] = {
+        def go(
+            lhs: List[(TokenName, BigInt)],
+            rhs: List[(TokenName, BigInt)]
+        ): List[(TokenName, BigInt)] = {
+            lhs match
+                case List.Nil => rhs.map { case (tn, v) => (tn, op(0, v)) }
+                case List.Cons(lhsPair, lhsTail) =>
+                    rhs match
+                        case List.Nil => lhs.map { case (tn, v) => (tn, op(v, 0)) }
+                        case List.Cons(rhsPair, rhsTail) =>
+                            lhsPair match
+                                case (lhsToken, lhsValue) =>
+                                    rhsPair match
+                                        case (rhsToken, rhsValue) =>
+                                            lhsToken <=> rhsToken match
+                                                case Order.Less =>
+                                                    List.Cons(
+                                                      (lhsToken, op(lhsValue, 0)),
+                                                      go(lhsTail, rhs)
+                                                    )
+                                                case Order.Greater =>
+                                                    List.Cons(
+                                                      (rhsToken, op(0, rhsValue)),
+                                                      go(lhs, rhsTail)
+                                                    )
+                                                case Order.Equal =>
+                                                    val result = op(lhsValue, rhsValue)
+
+                                                    if result !== BigInt(0) then
+                                                        List.Cons(
+                                                          (lhsToken, result),
+                                                          go(lhsTail, rhsTail)
+                                                        )
+                                                    else go(lhsTail, rhsTail) // Skip zero result
         }
+
+        go(a.toList, b.toList)
     }
 
-    private def unionVal(
-        l: Value,
-        r: Value
-    ): SortedMap[CurrencySymbol, SortedMap[TokenName, These[BigInt, BigInt]]] = {
-        val combined: SortedMap[
-          CurrencySymbol,
-          prelude.These[SortedMap[TokenName, BigInt], SortedMap[TokenName, BigInt]]
-        ] = SortedMap.union(l.toSortedMap, r.toSortedMap)
-        combined.mapValues {
-            case These.These(v1, v2) => SortedMap.union(v1, v2)
-            case This(v1)            => v1.mapValues { These.This(_) }
-            case That(v2)            => v2.mapValues { These.That(_) }
+    private def binaryOpValues(
+        a: Value,
+        b: Value,
+        op: (BigInt, BigInt) => BigInt
+    ): Value = {
+        def go(
+            lhs: List[(CurrencySymbol, SortedMap[TokenName, BigInt])],
+            rhs: List[(CurrencySymbol, SortedMap[TokenName, BigInt])]
+        ): List[(CurrencySymbol, List[(TokenName, BigInt)])] = {
+            lhs match
+                case List.Nil =>
+                    rhs.map { case (cs, tokens) =>
+                        (cs, binaryOpTokens(SortedMap.empty, tokens, op))
+                    }
+                case List.Cons(lhsPair, lhsTail) =>
+                    rhs match
+                        case List.Nil =>
+                            lhs.map { case (cs, tokens) =>
+                                (cs, binaryOpTokens(tokens, SortedMap.empty, op))
+                            }
+                        case List.Cons(rhsPair, rhsTail) =>
+                            lhsPair match
+                                case (lhsCs, lhsTokens) =>
+                                    rhsPair match
+                                        case (rhsCs, rhsTokens) =>
+                                            lhsCs <=> rhsCs match
+                                                case Order.Less =>
+                                                    List.Cons(
+                                                      (
+                                                        lhsCs,
+                                                        binaryOpTokens(
+                                                          lhsTokens,
+                                                          SortedMap.empty,
+                                                          op
+                                                        )
+                                                      ),
+                                                      go(lhsTail, rhs)
+                                                    )
+                                                case Order.Greater =>
+                                                    List.Cons(
+                                                      (
+                                                        rhsCs,
+                                                        binaryOpTokens(
+                                                          SortedMap.empty,
+                                                          rhsTokens,
+                                                          op
+                                                        )
+                                                      ),
+                                                      go(lhs, rhsTail)
+                                                    )
+                                                case Order.Equal =>
+                                                    val result =
+                                                        binaryOpTokens(lhsTokens, rhsTokens, op)
+
+                                                    if result.nonEmpty then
+                                                        List.Cons(
+                                                          (lhsCs, result),
+                                                          go(lhsTail, rhsTail)
+                                                        )
+                                                    else go(lhsTail, rhsTail) // Skip empty result
         }
-    }
 
-    private def unionWith(op: (BigInt, BigInt) => BigInt)(a: Value, b: Value): Value = {
-        val combined = unionVal(a, b)
-        val unThese: These[BigInt, BigInt] => BigInt = {
-            case These.These(v1, v2) => op(v1, v2)
-            case This(v1)            => op(v1, 0)
-            case That(v2)            => op(0, v2)
-        }
-
-        Value(
-          SortedMap.unsafeFromList(
-            combined.toList.filterMap { pair =>
-                val tokens = pair._2.toList.filterMap { case (tn, v) =>
-                    val value = unThese(v)
-                    if value !== BigInt(0) then Option.Some((tn, value))
-                    else Option.None
-                }
-
-                if tokens.nonEmpty then Option.Some((pair._1, SortedMap.unsafeFromList(tokens)))
-                else Option.None
-            }
-          )
-        )
+        Value.unsafeFromList(go(a.toSortedMap.toList, b.toSortedMap.toList))
     }
 }

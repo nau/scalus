@@ -5,7 +5,6 @@ import scalus.prelude.{List, Option, SortedMap}
 import scalus.builtin.ByteString
 import scalus.prelude.given
 import scalus.prelude.StdlibTestKit
-import scalus.prelude.Ord.*
 
 class ValueTest extends StdlibTestKit with ArbitraryInstances {
     test("zero") {
@@ -314,150 +313,6 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
         )
     }
 
-    test("Ord") {
-        checkEval { (value: Value) => value equiv value }
-
-        assertEval(Value.zero equiv Value.zero)
-
-        assertEval(
-          Value(
-            ByteString.fromString("CurrencySymbol"),
-            ByteString.fromString("TokenName"),
-            BigInt(0)
-          ) equiv Value.zero
-        )
-
-        assertEval(Value.lovelace(BigInt(0)) equiv Value.zero)
-
-        assertEval(
-          Value(
-            ByteString.fromString("CurrencySymbol"),
-            ByteString.fromString("TokenName"),
-            BigInt(1)
-          ) equiv
-              Value(
-                ByteString.fromString("CurrencySymbol"),
-                ByteString.fromString("TokenName"),
-                BigInt(1)
-              )
-        )
-
-        assertEval(Value.lovelace(BigInt(1)) equiv Value.lovelace(BigInt(1)))
-
-        assertEval(
-          Value.zero nonEquiv Value(
-            ByteString.fromString("CurrencySymbol"),
-            ByteString.fromString("TokenName"),
-            BigInt(1)
-          )
-        )
-
-        assertEval(
-          Value.zero nonEquiv Value.lovelace(BigInt(1))
-        )
-
-        assertEval(
-          Value(
-            ByteString.fromString("CurrencySymbol"),
-            ByteString.fromString("TokenName"),
-            BigInt(0)
-          ) nonEquiv Value(
-            ByteString.fromString("CurrencySymbol"),
-            ByteString.fromString("TokenName"),
-            BigInt(1)
-          )
-        )
-
-        assertEval(
-          Value(
-            ByteString.fromString("CurrencySymbol"),
-            ByteString.fromString("TokenName"),
-            BigInt(0)
-          ) nonEquiv Value.lovelace(BigInt(1))
-        )
-
-//        assertEval(
-//          Value(
-//            ByteString.fromString("A"),
-//            ByteString.fromString("Token"),
-//            BigInt(1)
-//          ) <
-//              Value(
-//                ByteString.fromString("A"),
-//                ByteString.fromString("Token"),
-//                BigInt(2)
-//              )
-//        )
-//
-//        assertEval(
-//          Value.lovelace(BigInt(1)) < Value.lovelace(BigInt(2))
-//        )
-//
-//        assertEval(
-//          Value(
-//            ByteString.fromString("B"),
-//            ByteString.fromString("Token"),
-//            BigInt(1)
-//          ) <
-//              Value(
-//                ByteString.fromString("A"),
-//                ByteString.fromString("Token"),
-//                BigInt(1)
-//              )
-//        )
-//
-//        assertEval(
-//          Value.lovelace(BigInt(1)) <= Value.lovelace(BigInt(1))
-//        )
-//
-//        assertEval(
-//          Value(
-//            ByteString.fromString("A"),
-//            ByteString.fromString("Token"),
-//            BigInt(1)
-//          ) <=
-//              Value(
-//                ByteString.fromString("A"),
-//                ByteString.fromString("Token"),
-//                BigInt(2)
-//              )
-//        )
-//
-//        assertEval(
-//          Value.lovelace(BigInt(2)) > Value.lovelace(BigInt(1))
-//        )
-//
-//        assertEval(
-//          Value(
-//            ByteString.fromString("B"),
-//            ByteString.fromString("Token"),
-//            BigInt(1)
-//          ) >
-//              Value(
-//                ByteString.fromString("A"),
-//                ByteString.fromString("Token"),
-//                BigInt(1)
-//              )
-//        )
-//
-//        assertEval(
-//          Value.lovelace(BigInt(1)) >= Value.lovelace(BigInt(1))
-//        )
-//
-//        assertEval(
-//          Value(
-//            ByteString.fromString("B"),
-//            ByteString.fromString("Token"),
-//            BigInt(2)
-//          ) >=
-//              Value(
-//                ByteString.fromString("B"),
-//                ByteString.fromString("Token"),
-//                BigInt(1)
-//              )
-//        )
-    }
-
     test("toData <-> FromData") {
         checkEval { (value: Value) =>
             val data = value.toData
@@ -623,6 +478,87 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
             )
           )
         )
+
+        assertEvalEq(
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          ) +
+              Value(
+                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("TokenName"),
+                BigInt(-1000)
+              ),
+          Value.zero
+        )
+
+        assertEvalEq(Value.lovelace(BigInt(1000)) + Value.lovelace(BigInt(-1000)), Value.zero)
+
+        assertEvalEq(
+          Value.fromList(
+            List(
+              (
+                ByteString.fromString("CurrencySymbol"),
+                List((ByteString.fromString("TokenName"), BigInt(1000)))
+              ),
+              (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
+            )
+          ) +
+              Value.fromList(
+                List(
+                  (
+                    ByteString.fromString("CurrencySymbol"),
+                    List((ByteString.fromString("TokenName"), BigInt(-1000)))
+                  ),
+                  (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(-1000))))
+                )
+              ),
+          Value.zero
+        )
+
+        assertEvalEq(
+          Value.fromList(
+            List(
+              (
+                ByteString.fromString("CurrencySymbol"),
+                List((ByteString.fromString("TokenName"), BigInt(1000)))
+              ),
+              (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
+            )
+          ) +
+              Value.fromList(
+                List(
+                  (
+                    ByteString.fromString("CurrencySymbol"),
+                    List((ByteString.fromString("TokenName"), BigInt(-1000)))
+                  )
+                )
+              ),
+          Value.lovelace(BigInt(1000))
+        )
+
+        assertEvalEq(
+          Value.fromList(
+            List(
+              (
+                ByteString.fromString("CurrencySymbol"),
+                List((ByteString.fromString("TokenName"), BigInt(1000)))
+              ),
+              (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
+            )
+          ) +
+              Value.fromList(
+                List(
+                  (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(-1000))))
+                )
+              ),
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          )
+        )
     }
 
     test("-") {
@@ -730,46 +666,110 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
             )
           )
         )
-    }
-
-    test("*") {
-        checkEval { (value: Value) =>
-            (value * Value.zero) === Value.zero &&
-            (Value.zero * value) === Value.zero
-        }
-
-//        checkEval { (value1: Value, value2: Value) =>
-//            val multiplyValue = value1 * value2
-//            multiplyValue.flatten.forall { case (cs, token, value) =>
-//                val v1 = value1.toSortedMap.get(cs).flatMap { _.get(token) }
-//                val v2 = value2.toSortedMap.get(cs).flatMap { _.get(token) }
-//
-//                v1 match
-//                    case Option.Some(v1Value) =>
-//                        v2 match
-//                            case Option.Some(v2Value) => (v1Value * v2Value) === value
-//                            case Option.None          => false
-//                    case Option.None =>
-//                        v2 match
-//                            case Option.Some(v2Value) => false
-//                            case Option.None          => false
-//
-//            }
-//        }
-
-        assertEvalEq(Value.zero * Value.zero, Value.zero)
 
         assertEvalEq(
           Value(
             ByteString.fromString("CurrencySymbol"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
-          ) *
+          ) -
               Value(
                 ByteString.fromString("CurrencySymbol"),
                 ByteString.fromString("TokenName"),
-                BigInt(2)
+                BigInt(1000)
               ),
+          Value.zero
+        )
+
+        assertEvalEq(Value.lovelace(BigInt(1000)) - Value.lovelace(BigInt(1000)), Value.zero)
+
+        assertEvalEq(
+          Value.fromList(
+            List(
+              (
+                ByteString.fromString("CurrencySymbol"),
+                List((ByteString.fromString("TokenName"), BigInt(1000)))
+              ),
+              (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
+            )
+          ) -
+              Value.fromList(
+                List(
+                  (
+                    ByteString.fromString("CurrencySymbol"),
+                    List((ByteString.fromString("TokenName"), BigInt(1000)))
+                  ),
+                  (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
+                )
+              ),
+          Value.zero
+        )
+
+        assertEvalEq(
+          Value.fromList(
+            List(
+              (
+                ByteString.fromString("CurrencySymbol"),
+                List((ByteString.fromString("TokenName"), BigInt(1000)))
+              ),
+              (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
+            )
+          ) -
+              Value.fromList(
+                List(
+                  (
+                    ByteString.fromString("CurrencySymbol"),
+                    List((ByteString.fromString("TokenName"), BigInt(1000)))
+                  )
+                )
+              ),
+          Value.lovelace(BigInt(1000))
+        )
+
+        assertEvalEq(
+          Value.fromList(
+            List(
+              (
+                ByteString.fromString("CurrencySymbol"),
+                List((ByteString.fromString("TokenName"), BigInt(1000)))
+              ),
+              (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
+            )
+          ) -
+              Value.fromList(
+                List(
+                  (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
+                )
+              ),
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          )
+        )
+    }
+
+    test("*") {
+        checkEval { (value: Value) => (value * BigInt(0)) === Value.zero }
+
+        checkEval { (value: Value, factor: BigInt) =>
+            (value * factor).toSortedMap === (
+              if factor !== BigInt(0) then
+                  value.toSortedMap.mapValues { _.mapValues { _ * factor } }
+              else SortedMap.empty
+            )
+        }
+
+        assertEvalEq(Value.zero * BigInt(0), Value.zero)
+
+        assertEvalEq(Value.zero * BigInt(1), Value.zero)
+
+        assertEvalEq(
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          ) * BigInt(2),
           Value(
             ByteString.fromString("CurrencySymbol"),
             ByteString.fromString("TokenName"),
@@ -782,33 +782,196 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
             ByteString.fromString("CurrencySymbol"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
-          ) *
-              Value.zero,
+          ) * BigInt(0),
           Value.zero
         )
 
         assertEvalEq(
-          Value.zero *
-              Value(
-                ByteString.fromString("CurrencySymbol"),
-                ByteString.fromString("TokenName"),
-                BigInt(1000)
-              ),
-          Value.zero
-        )
-
-        assertEvalEq(
-          Value.lovelace(BigInt(1000)) * Value.lovelace(BigInt(2)),
+          Value.lovelace(BigInt(1000)) * BigInt(2),
           Value.lovelace(BigInt(2000))
         )
 
         assertEvalEq(
-          Value.lovelace(BigInt(1000)) * Value.zero,
+          Value.lovelace(BigInt(1000)) * BigInt(0),
           Value.zero
+        )
+    }
+
+    test("showDebug") {
+        assert(Value.zero.showDebug === "{  }")
+
+        assert(
+          Value
+              .fromList(
+                List.Cons(
+                  (
+                    Value.adaCurrencySymbol,
+                    List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)
+                  ),
+                  List.Cons(
+                    (
+                      ByteString.fromString("ff"),
+                      List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)
+                    ),
+                    List.Nil
+                  )
+                )
+              )
+              .showDebug === "{ policy# -> { #: 1000000 }, policy#6666 -> { #544f4b454e: 100 } }"
+        )
+    }
+
+    test("getLovelace") {
+        checkEval { (value: Value) =>
+            value.getLovelace ===
+                value.toSortedMap
+                    .get(Value.adaCurrencySymbol)
+                    .flatMap(_.get(Value.adaTokenName))
+                    .getOrElse(BigInt(0))
+        }
+
+        assertEvalEq(Value.zero.getLovelace, BigInt(0))
+
+        assertEvalEq(
+          Value.lovelace(BigInt(1000)).getLovelace,
+          BigInt(1000)
         )
 
         assertEvalEq(
-          Value.zero * Value.lovelace(BigInt(1000)),
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          ).getLovelace,
+          BigInt(0)
+        )
+
+        assertEvalEq(
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(0)
+          ).getLovelace,
+          BigInt(0)
+        )
+    }
+
+    test("isZero") {
+        checkEval { (value: Value) =>
+            if value.isZero then value.toSortedMap.isEmpty else value.nonZero
+        }
+
+        assertEval(Value.zero.isZero)
+
+        assertEval(Value.lovelace(BigInt(0)).isZero)
+
+        assertEval(!Value.lovelace(BigInt(1000)).isZero)
+
+        assertEval(
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(0)
+          ).isZero
+        )
+
+        assertEval(
+          !Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          ).isZero
+        )
+    }
+
+    test("nonZero") {
+        checkEval { (value: Value) =>
+            if value.nonZero then
+                value.toSortedMap.nonEmpty && value.toSortedMap.forall { case (_, tokens) =>
+                    tokens.nonEmpty && tokens.forall { case (_, amount) => amount !== BigInt(0) }
+                }
+            else value.isZero
+        }
+
+        assertEval(!Value.zero.nonZero)
+
+        assertEval(!Value.lovelace(BigInt(0)).nonZero)
+
+        assertEval(Value.lovelace(BigInt(1000)).nonZero)
+
+        assertEval(
+          !Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(0)
+          ).nonZero
+        )
+
+        assertEval(
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          ).nonZero
+        )
+    }
+
+    test("quantityOf") {
+        checkEval { (value: Value, currencySymbol: CurrencySymbol, tokenName: TokenName) =>
+            value.quantityOf(currencySymbol, tokenName) ===
+                value.toSortedMap
+                    .get(currencySymbol)
+                    .flatMap(_.get(tokenName))
+                    .getOrElse(BigInt(0))
+        }
+
+        assertEvalEq(Value.zero.quantityOf(Value.adaCurrencySymbol, Value.adaTokenName), BigInt(0))
+
+        assertEvalEq(
+          Value.zero.quantityOf(ByteString.fromString("CS"), ByteString.fromString("TN")),
+          BigInt(0)
+        )
+
+        assertEvalEq(
+          Value.lovelace(BigInt(1000)).quantityOf(Value.adaCurrencySymbol, Value.adaTokenName),
+          BigInt(1000)
+        )
+
+        assertEvalEq(
+          Value
+              .lovelace(BigInt(1000))
+              .quantityOf(ByteString.fromString("CS"), ByteString.fromString("TN")),
+          BigInt(0)
+        )
+
+        assertEvalEq(
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          ).quantityOf(Value.adaCurrencySymbol, Value.adaTokenName),
+          BigInt(0)
+        )
+
+        assertEvalEq(
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          ).quantityOf(ByteString.fromString("CurrencySymbol"), ByteString.fromString("TokenName")),
+          BigInt(1000)
+        )
+    }
+
+    test("withoutLovelace") {
+        checkEval { (value: Value) =>
+            value.withoutLovelace.getLovelace === BigInt(0)
+        }
+
+        assertEvalEq(Value.zero.withoutLovelace, Value.zero)
+
+        assertEvalEq(
+          Value.lovelace(BigInt(1000)).withoutLovelace,
           Value.zero
         )
 
@@ -817,53 +980,88 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
             ByteString.fromString("CurrencySymbol"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
-          ) *
-              Value.lovelace(BigInt(2)),
-          Value.zero
+          ).withoutLovelace,
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          )
+        )
+
+        assertEvalEq(
+          Value
+              .fromList(
+                List(
+                  (
+                    ByteString.fromString("CurrencySymbol"),
+                    List((ByteString.fromString("TokenName"), BigInt(1000)))
+                  ),
+                  (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
+                )
+              )
+              .withoutLovelace,
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          )
         )
     }
 
-//    test("showDebug") {
-//        assert(Value.zero.showDebug === "{  }")
-//
-//        println(
+    test("flatten") {
+        // TODO: UPLC error
+//        checkEval { (value: Value) =>
+//            value.flatten ===
+//                value.toSortedMap.toList.flatMap { case (cs, tokens) =>
+//                    tokens.toList.map { case (tn, amount) => (cs, tn, amount) }
+//                }
+//        }
+
+        assertEvalEq(Value.zero.flatten, List.empty)
+
+        // TODO: UPLC error
+//        assertEvalEq(
+//          Value.lovelace(BigInt(1000)).flatten,
+//          List((Value.adaCurrencySymbol, Value.adaTokenName, BigInt(1000)))
+//        )
+
+        // TODO: UPLC error
+//        assertEvalEq(
+//          Value(
+//            ByteString.fromString("CurrencySymbol"),
+//            ByteString.fromString("TokenName"),
+//            BigInt(1000)
+//          ).flatten,
+//          List(
+//            (
+//              ByteString.fromString("CurrencySymbol"),
+//              ByteString.fromString("TokenName"),
+//              BigInt(1000)
+//            )
+//          )
+//        )
+
+        // TODO: UPLC error
+//        assertEvalEq(
 //          Value
 //              .fromList(
-//                List.Cons(
+//                List(
 //                  (
-//                    Value.adaCurrencySymbol,
-//                    List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)
+//                    ByteString.fromString("CurrencySymbol"),
+//                    List((ByteString.fromString("TokenName"), BigInt(1000)))
 //                  ),
-//                  List.Cons(
-//                    (
-//                      ByteString.fromString("ff"),
-//                      List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)
-//                    ),
-//                    List.Nil
-//                  )
+//                  (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
 //                )
 //              )
-//              .showDebug
+//              .flatten,
+//          List(
+//            (Value.adaCurrencySymbol, Value.adaTokenName, BigInt(1000)),
+//            (
+//              ByteString.fromString("CurrencySymbol"),
+//              ByteString.fromString("TokenName"),
+//              BigInt(1000)
+//            )
+//          )
 //        )
-//
-//        assert(
-//          Value
-//              .fromList(
-//                List.Cons(
-//                  (
-//                    Value.adaCurrencySymbol,
-//                    List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)
-//                  ),
-//                  List.Cons(
-//                    (
-//                      ByteString.fromString("ff"),
-//                      List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)
-//                    ),
-//                    List.Nil
-//                  )
-//                )
-//              )
-//              .showDebug === "{ policy# -> { #: 1000000 }, policy#ff -> { #544f4b454e: 100 } }"
-//        )
-//    }
+    }
 }
