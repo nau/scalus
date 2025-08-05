@@ -1,12 +1,13 @@
 package scalus.cardano.ledger.rules
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.Data
+import scalus.cardano.ledger.{ExUnits, KeepRaw, Redeemer, Redeemers, TransactionWitnessSet}
 import scalus.cardano.ledger.RedeemerTag.Spend
-import scalus.cardano.ledger.{ExUnits, Redeemer, Redeemers, TransactionWitnessSet}
 
 class ExUnitsTooBigValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
     test("ExUnitsTooBigValidator success") {
         val context = Context()
+        val state = State()
         val exUnits = ExUnits(1, 1)
         val tx =
             randomValidTransaction
@@ -21,11 +22,12 @@ class ExUnitsTooBigValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                     )
                   )
                 )
-        val result = ExUnitsTooBigValidator.validate(tx)
+        val result = ExUnitsTooBigValidator.validate(context, state, tx)
         assert(result.isRight)
     }
     test("ExUnitsTooBigValidator failure") {
         val context = Context()
+        val state = State()
         val exUnits = ExUnits(Long.MaxValue, Long.MaxValue)
         val tx =
             randomValidTransaction
@@ -40,7 +42,7 @@ class ExUnitsTooBigValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                     )
                   )
                 )
-        val result = ExUnitsTooBigValidator.validate(tx)
+        val result = ExUnitsTooBigValidator.validate(context, state, tx)
         assert(result.isLeft)
     }
 }
