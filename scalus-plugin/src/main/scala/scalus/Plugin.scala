@@ -110,7 +110,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                   s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms, options=${options}"
                 )
 
-            convertSIRToTree(result, tree, tree.span, isCompileDebug)
+            convertSIRToTree(result, code, tree.span, isCompileDebug)
         else tree
     end transformApply
 
