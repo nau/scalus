@@ -110,7 +110,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                   s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms, options=${options}"
                 )
 
-            convertSIRToTree(result, tree.span, isCompileDebug)
+            convertSIRToTree(result, tree, tree.span, isCompileDebug)
         else tree
     end transformApply
 
@@ -139,6 +139,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
       */
     private def convertSIRToTree(
         sir: SIR,
+        origin: Tree,
         span: Spans.Span,
         debug: Boolean
     )(using Context): Tree = {
@@ -187,9 +188,6 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         // Concatenate all the strings: "str1" + "str2" + ...
         val concatenatedStrings =
             strings.reduce((lhs, rhs) => lhs.select(nme.Plus).appliedTo(rhs).withSpan(span))
-        // Generate scalus.sir.ToExprHSSIRFlat.decodeStringLatin1(str1 + str2 + ...)
-        val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
-        val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
         if debug then {
             // save the SIR to a file for debugging purposes
             val groupedBytes = bytes.grouped(45000).toList
@@ -210,7 +208,17 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             report.echo(s"Scalus: saved SIR to ${path}")
             report.echo(s"Scalus: SIR size: ${codedStr.length} characters, ${bitSize} bits")
         }
-        ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
+        // // Generate scalus.sir.ToExprHSSIRFlat.decodeStringLatin1(str1 + str2 + ...)
+        // val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
+        // val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
+        // ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
+        // Generate scalus.sir.CompilerHelper.decodeSirStringWithOrigin(codedSir, origin)
+        val compilerHelper = requiredModule("scalus.sir.CompilerHelper")
+        val decodeSirStringWithOrigin = compilerHelper.requiredMethod("decodeSirStringWithOrigin")
+        ref(compilerHelper)
+            .select(decodeSirStringWithOrigin)
+            .appliedTo(concatenatedStrings, origin)
+            .withSpan(span)
     }
 
     private def retrieveCompilerOptions(
