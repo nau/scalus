@@ -20,7 +20,7 @@ object ExUnitsTooBigValidator extends STS.Validator {
             redeemer <- redeemers.value.toSeq
             exUnit = redeemer.exUnits
         } yield exUnit).reduce(_ + _)
-        if (totalExUnits > cap) {
+        if totalExUnits > cap then {
             failure(
               TransactionException.ExUnitsExceedMaxException(
                 tx.id,

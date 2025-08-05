@@ -4,7 +4,7 @@ import scalus.builtin.Data
 import scalus.cardano.ledger.RedeemerTag.Spend
 import scalus.cardano.ledger.{ExUnits, Redeemer, Redeemers, TransactionWitnessSet}
 
-class ExUnitsTooBigValidatorTest extends AnyFunSuite, ValidatorRulesTestKit{
+class ExUnitsTooBigValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
     test("ExUnitsTooBigValidator success") {
         val context = Context()
         val exUnits = ExUnits(1, 1)
@@ -12,9 +12,13 @@ class ExUnitsTooBigValidatorTest extends AnyFunSuite, ValidatorRulesTestKit{
             randomValidTransaction
                 .copy(
                   witnessSet = TransactionWitnessSet(
-                    redeemers = Some(KeepRaw(Redeemers.from(
-                      Seq(Redeemer(Spend, 0, Data.unit, exUnits))
-                    )))
+                    redeemers = Some(
+                      KeepRaw(
+                        Redeemers.from(
+                          Seq(Redeemer(Spend, 0, Data.unit, exUnits))
+                        )
+                      )
+                    )
                   )
                 )
         val result = ExUnitsTooBigValidator.validate(tx)
