@@ -382,9 +382,9 @@ object TreasuryValidator extends Validator:
 
     // Utility functions
     /*
-     * Multiply a list of n coefficients that belong to a binomial each to get a final polynomial of degree n+1
-     * Example: for (x+2)(x+3)(x+5)(x+7)(x+11)=x^5 + 28 x^4 + 288 x^3 + 1358 x^2 + 2927 x + 2310
-     * */
+ * Multiply a list of n coefficients that belong to a binomial each to get a final polynomial of degree n+1
+ * Example: for (x+2)(x+3)(x+5)(x+7)(x+11)=x^5 + 28 x^4 + 288 x^3 + 1358 x^2 + 2927 x + 2310
+ * */
     def getFinalPolyScalus(binomial_poly: List[ScalusScalar]): List[ScalusScalar] = {
         binomial_poly
             .foldLeft(List.single(ScalusScalar.one)): (acc, term) =>
@@ -406,17 +406,17 @@ object TreasuryValidator extends Validator:
     }
 
     /** Checks the membership `proof` for a `subset` of elements against the given accumulator
-      * `acc`.
-      *
+ * `acc`.
+ *
       * @param setup
-      *   The setup of the accumulator.
-      * @param acc
-      *   The accumulator to check.
-      * @param subset
-      *   The subset of the setup.
-      * @return
-      *   True if the accumulator is valid, false otherwise.
-      */
+ *   The setup of the accumulator.
+ * @param acc
+ *   The accumulator to check.
+ * @param subset
+ *   The subset of the setup.
+ * @return
+ *   True if the accumulator is valid, false otherwise.
+ */
     def checkMembership(
         setup: List[BLS12_381_G1_Element],
         acc: BLS12_381_G2_Element,
@@ -454,10 +454,8 @@ object TreasuryValidatorScript {
         address.getAddress |> AddressBech[L1].apply
     }
 
-     */
+ */
 }
 
 
  */
- 
-
