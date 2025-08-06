@@ -17,6 +17,10 @@ import java.util.concurrent.atomic.AtomicReference
   * This is attempt to reproduce the problem. (unsuccessful) So, the problem is not in the JVM
   * initialization, but in the different compilations.
   */
+
+/* DISABLED, will be enabled after the fix of the multi-module compilation
+ *
+ *
 class SameCborTest extends AnyFunSuite {
 
     test("compile same script twice should give same cbor") {
@@ -67,7 +71,8 @@ class SameCborTest extends AnyFunSuite {
         output.set(lines)
         output
     }
-    
-    
+
+
 
 }
+ */

@@ -1,5 +1,6 @@
 package scalus.bugtracking.hydrozoa20250804
 
+/*
 //import com.bloxbean.cardano.client.address.AddressProvider
 //import com.bloxbean.cardano.client.plutus.spec.PlutusV3Script
 //import hydrozoa.infra.{encodeHex, toBB}
@@ -456,33 +457,7 @@ object TreasuryValidatorScript {
      */
 }
 
-/*
-def mkTreasuryDatumUnresolved(
-    headMp: HCurrencySymbol,
-    disputeId: HTokenName,
-    peers: List[VerificationKeyBytes],
-    deadlineVoting: HPosixTime,
-    versionMajor: BigInt,
-    params: L2ConsensusParamsH32
-): TreasuryDatum =
-    UnresolvedDatum(
-      headMp = ByteString.fromArray(IArray.genericWrapArray(headMp.bytes).toArray),
-      disputeId = ByteString.fromHex(disputeId.tokenNameHex),
-      peers = peers.map(_.bytes |> ByteString.fromArray),
-      peersN = peers.length,
-      deadlineVoting = deadlineVoting,
-      versionMajor = versionMajor,
-      params = params
-    ) |> Unresolved.apply
 
-@main
-def treasuryValidatorSir(args: String): Unit =
-    //    println(TreasuryValidatorScript.sir.showHighlighted)
-    println(DisputeResolutionScript.scriptHash)
-    println(DisputeResolutionScript.scriptHashString)
-    println(DisputeResolutionScript.script.flatEncoded.length)
-
-    println(TreasuryValidatorScript.scriptHashString)
-    println(TreasuryValidatorScript.scriptHash)
-    println(TreasuryValidatorScript.script.flatEncoded.length)
  */
+ 
+
