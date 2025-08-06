@@ -209,16 +209,9 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             report.echo(s"Scalus: SIR size: ${codedStr.length} characters, ${bitSize} bits")
         }
         // // Generate scalus.sir.ToExprHSSIRFlat.decodeStringLatin1(str1 + str2 + ...)
-        // val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
-        // val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
-        // ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
-        // Generate scalus.sir.CompilerHelper.decodeSirStringWithOrigin(codedSir, origin)
-        val compilerHelper = requiredModule("scalus.sir.CompilerHelper")
-        val decodeSirStringWithOrigin = compilerHelper.requiredMethod("decodeSirStringWithOrigin")
-        ref(compilerHelper)
-            .select(decodeSirStringWithOrigin)
-            .appliedTo(concatenatedStrings, origin)
-            .withSpan(span)
+        val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
+        val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
+        ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
     }
 
     private def retrieveCompilerOptions(
@@ -369,7 +362,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                             )
                 else report.warning("defdef expected as compiler options", deftree.srcPos)
             case failure @ Implicits.SearchFailure(_) =>
-                if isCompilerDebug || debugLevel > 0 then {
+                if isCompilerDebug && debugLevel > 20 then {
                     report.warning(
                       s"ScalusPhase: No compiler options found, using default options",
                       posTree.srcPos.startPos
