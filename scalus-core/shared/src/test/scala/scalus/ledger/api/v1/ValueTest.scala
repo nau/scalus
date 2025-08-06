@@ -7,6 +7,38 @@ import scalus.prelude.given
 import scalus.prelude.StdlibTestKit
 
 class ValueTest extends StdlibTestKit with ArbitraryInstances {
+    test("toSortedMap") {
+        checkEval { (value: Value) =>
+            value.toSortedMap.forall { case (currencySymbol, tokens) =>
+                tokens.forall { case (tokenName, amount) =>
+                    amount === value.quantityOf(currencySymbol, tokenName)
+                }
+            }
+        }
+
+        assertEvalEq(Value.zero.toSortedMap, SortedMap.empty)
+
+        assertEvalEq(
+          Value.lovelace(BigInt(1000)).toSortedMap,
+          SortedMap.singleton(
+            Value.adaCurrencySymbol,
+            SortedMap.singleton(Value.adaTokenName, BigInt(1000))
+          )
+        )
+
+        assertEvalEq(
+          Value(
+            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          ).toSortedMap,
+          SortedMap.singleton(
+            ByteString.fromString("CurrencySymbol"),
+            SortedMap.singleton(ByteString.fromString("TokenName"), BigInt(1000))
+          )
+        )
+    }
+
     test("zero") {
         assertEvalEq(
           Value.zero.toSortedMap,
