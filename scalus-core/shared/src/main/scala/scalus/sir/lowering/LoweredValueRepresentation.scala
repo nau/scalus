@@ -2,7 +2,6 @@ package scalus.sir.lowering
 
 import scalus.sir.*
 import org.typelevel.paiges.Doc
-import scalus.sir.SIRType.FreeUnificator
 import scalus.sir.lowering.ProductCaseClassRepresentation.OneElementWrapper.retrieveArgType
 
 /** representation, depends on the type of the value.
