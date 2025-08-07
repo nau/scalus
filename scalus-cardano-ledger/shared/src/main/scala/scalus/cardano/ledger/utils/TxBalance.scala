@@ -144,8 +144,7 @@ object TxBalance {
 
     def doBalanceScript(
         tx: Transaction,
-        scriptEvaluator: PlutusScriptEvaluator,
-        collateralInputs: Map[TransactionInput, TransactionOutput]
+        scriptEvaluator: PlutusScriptEvaluator
     )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: OnSurplus): Transaction = {
         val redeemers = scriptEvaluator.evalPlutusScripts(tx, utxo)
         val updatedWitnessSet = if redeemers.nonEmpty then {
@@ -180,37 +179,19 @@ object TxBalance {
           body =>
               body.copy(
                 fee = totalFee,
-                collateralInputs = collateralInputs.keySet,
                 totalCollateral =
-                    if collateralInputs.nonEmpty then
-                        Some(collateralInputs.values.map(_.value.coin).foldLeft(Coin.zero)(_ + _))
+                    if body.collateralInputs.nonEmpty then
+                        Some(
+                          body.collateralInputs.toSeq
+                              .flatMap(utxo.get)
+                              .map(_.value.coin)
+                              .foldLeft(Coin.zero)(_ + _)
+                        )
                     else None
               )
         )
 
-        val balanced = doBalance(txWithFeeAndCollateral)(utxo, protocolParams, onSurplus)
-        throwUnlessFeesOk(utxo, protocolParams, baseFee, balanced)
-    }
-
-    private def throwUnlessFeesOk(
-        utxo: UTxO,
-        protocolParams: ProtocolParams,
-        baseFee: Coin,
-        tx: Transaction
-    ) = {
-        FeesOkValidator
-            .validate(
-              Context(
-                fee = baseFee,
-                env = UtxoEnv(0L, protocolParams, CertState.empty),
-                slotConfig = SlotConfig.Mainnet // todo should we pass it?
-              ),
-              State(utxo, CertState.empty),
-              tx
-            )
-            .toTry
-            .get
-        tx
+        doBalance(txWithFeeAndCollateral)(utxo, protocolParams, onSurplus)
     }
 
     private def scriptExecutionPrice(

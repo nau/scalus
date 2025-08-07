@@ -1,18 +1,13 @@
 package scalus.cardano.ledger.txbuilder
 import scalus.builtin.Data
-import scalus.cardano.address.{Address, Network}
+import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.TxBuilder.modifyBody
 import scalus.cardano.ledger.utils.TxBalance
-import scalus.ledger.babbage.ProtocolParams
 
 case class TxBuilder(
-    utxo: UTxO,
-    protocolParams: ProtocolParams,
-    network: Network,
-    tx: Transaction = TxBuilder.emptyTx,
-    onSurplus: OnSurplus = OnSurplus.toFirstPayer,
-    collateral: UTxO = Map.empty
+                        txContext: BuilderContext,
+                        tx: Transaction = TxBuilder.emptyTx,
 ) {
 
     def payToAddress(address: Address, value: Value): TxBuilder = {
@@ -81,21 +76,24 @@ case class TxBuilder(
         tx.copy(witnessSet = newWs)
     }
 
-    def withCollateral(collateralIn: UTxO): TxBuilder = copy(collateral = collateralIn)
+    def withCollateral(collateralIn: Set[TransactionInput]): TxBuilder =
+        copy(tx = modifyBody(tx, _.copy(collateralInputs = collateralIn)))
 
-    def onSurplus(onSurplus: OnSurplus): TxBuilder = copy(onSurplus = onSurplus)
-
-    def doFinalize(scriptEvaluator: PlutusScriptEvaluator): Transaction = {
+    def doFinalize(scriptEvaluator: PlutusScriptEvaluator): Transaction =
         if isScriptTx then {
-            TxBalance.doBalanceScript(tx, scriptEvaluator, collateral)(
-              utxo,
-              protocolParams,
-              onSurplus
+            TxBalance.doBalanceScript(tx, scriptEvaluator)(
+              txContext.utxoProvider.utxo,
+              txContext.protocolParams,
+              txContext.onSurplus
             )
-        } else TxBalance.doBalance(tx)(utxo, protocolParams, onSurplus)
-    }
+        } else
+            TxBalance.doBalance(tx)(
+              txContext.utxoProvider.utxo,
+              txContext.protocolParams,
+              txContext.onSurplus
+            )
 
-    def isScriptTx =
+    private def isScriptTx: Boolean =
         (tx.witnessSet.nativeScripts ++ tx.witnessSet.plutusV1Scripts ++ tx.witnessSet.plutusV2Scripts ++ tx.witnessSet.plutusV3Scripts).nonEmpty
 }
 
@@ -117,38 +115,4 @@ object TxBuilder {
       TransactionBody(utxo.keySet, IndexedSeq.empty, Coin.zero),
       TransactionWitnessSet.empty
     )
-
-    // Fetching these most likely involves effectful computations, `initialize` is an entry point to the pure API.
-    def initialize(utxo: UTxO, protocolParams: ProtocolParams, network: Network): TxBuilder =
-        TxBuilder(
-          utxo,
-          protocolParams,
-          network,
-          withInputsFromUtxos(utxo)
-        )
-}
-
-trait OnSurplus {
-    def apply(utxo: UTxO, surplus: Coin): Transaction => Transaction
-}
-object OnSurplus {
-    import TxBuilder.modifyBody
-    def toFee: OnSurplus = (_, surplus: Coin) =>
-        tx => {
-            val fee = tx.body.value.fee + surplus
-            modifyBody(tx, _.copy(fee = fee))
-        }
-
-    def toAddress(address: Address): OnSurplus = (_, surplus: Coin) =>
-        tx => {
-            val changeOutput = TransactionOutput(address, Value(surplus))
-            modifyBody(tx, b => b.copy(outputs = b.outputs :+ Sized(changeOutput)))
-
-        }
-
-    def toFirstPayer: OnSurplus = (utxo: UTxO, surplus: Coin) =>
-        tx => {
-            val firstPayer = utxo.head
-            toAddress(firstPayer._2.address)(utxo, surplus)(tx)
-        }
 }
