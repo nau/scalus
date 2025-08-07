@@ -24,13 +24,13 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
       costModels = costModels
     )
 
-    private def builderContext(utxo: UTxO) = BuilderContext(
+    private def builderContext(utxo: UTxO, selectInputs: SelectInputs) = BuilderContext(
       params,
       evaluator,
       Network.Mainnet,
       UtxoProvider.from(utxo),
       OnSurplus.toFirstPayer,
-      SelectInputs.all,
+      selectInputs,
       Seq(FeesOkValidator)
     )
 
@@ -49,7 +49,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         )
 
         val paymentAmount = Value.lovelace(500L)
-        val tx = builderContext(utxo).buildNewTx
+        val tx = builderContext(utxo, SelectInputs.all).buildNewTx
             .payToAddress(faucet, paymentAmount)
             .doFinalize
 
@@ -80,7 +80,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val paymentAmount = 10_000L
 
         assertThrows[ValueNotConservedUTxOException] {
-            builderContext(utxo).buildNewTx
+            builderContext(utxo, SelectInputs.all).buildNewTx
                 .payToAddress(faucet, Value.lovelace(paymentAmount))
                 .doFinalize
         }
@@ -104,7 +104,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         // Technically available, but not with a fee
         val paymentAmount = availableLovelace - Value.lovelace(1L)
         assertThrows[TransactionException.IllegalArgumentException] {
-            builderContext(utxo).buildNewTx
+            builderContext(utxo, SelectInputs.all).buildNewTx
                 .payToAddress(faucet, paymentAmount)
                 .doFinalize
         }
@@ -124,27 +124,27 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
 
         val hash = arbitrary[TransactionHash].sample.get
 
+        val scriptAddress = ShelleyAddress(
+          Network.Testnet,
+          ShelleyPaymentPart.Script(script.scriptHash),
+          ShelleyDelegationPart.Null
+        )
+        val availableLovelace = Value.lovelace(10_000_000L)
+        val txInputs = Map(
+          TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
+        )
         val hugeCollateral = Map(
           TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
             myAddress,
             Value.lovelace(100_000_000L)
           )
         )
-        val utxo: UTxO =
-            val scriptAddress = ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(script.scriptHash),
-              ShelleyDelegationPart.Null
-            )
-            val availableLovelace = Value.lovelace(10_000_000L)
-            Map(
-              TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
-            )
+        val utxo: UTxO = txInputs ++ hugeCollateral
 
         val datum = Data.unit
         val redeemer = Data.unit
 
-        val tx = builderContext(utxo).buildNewTx
+        val tx = builderContext(utxo, SelectInputs.particular(txInputs.keySet)).buildNewTx
             .payToAddress(myAddress, Value.lovelace(1_000_000L))
             .withScript(script, datum, redeemer, 0)
             .withCollateral(hugeCollateral.keySet)
@@ -169,22 +169,23 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
 
         val hash = arbitrary[TransactionHash].sample.get
 
+        val scriptAddress = ShelleyAddress(
+          Network.Testnet,
+          ShelleyPaymentPart.Script(script.scriptHash),
+          ShelleyDelegationPart.Null
+        )
+        val availableLovelace = Value.lovelace(10_000_000L)
+        val txInputs = Map(
+          TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
+        )
+
         val insufficientCollateral = Map(
           TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
             myAddress,
             Value.lovelace(1L)
           )
         )
-        val utxo: UTxO =
-            val scriptAddress = ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(script.scriptHash),
-              ShelleyDelegationPart.Null
-            )
-            val availableLovelace = Value.lovelace(10_000_000L)
-            Map(
-              TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
-            ) ++ insufficientCollateral
+        val utxo: UTxO = txInputs ++ insufficientCollateral
 
         val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
@@ -197,7 +198,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val redeemer = Data.unit
 
         assertThrows[TransactionException.InsufficientTotalSumOfCollateralCoinsException] {
-            builderContext(utxo).buildNewTx
+            builderContext(utxo, SelectInputs.particular(txInputs.keySet)).buildNewTx
                 .payToAddress(myAddress, Value.lovelace(1_000_000L))
                 .withScript(script, datum, redeemer, 0)
                 .withCollateral(insufficientCollateral.keySet)

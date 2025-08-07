@@ -23,7 +23,8 @@ case class BuilderContext(
         val state = State(utxoProvider.utxo, certState)
         validators
             .map(_.validate(context, state, tx))
-            .collectFirst { case l: Left[_, _] => l.value }.toLeft(tx)
+            .collectFirst { case l: Left[?, ?] => l.value }
+            .toLeft(tx)
 
     }
 }
@@ -70,4 +71,5 @@ trait SelectInputs {
 
 object SelectInputs {
     def all: SelectInputs = (utxo: UTxO) => utxo.keySet
+    def particular(inputs: Set[TransactionInput]): SelectInputs = _ => inputs
 }
