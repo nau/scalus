@@ -7,8 +7,6 @@ import scalus.builtin.Data.{fromData, toData}
 import scalus.builtin.{Data, FromData, ToData}
 import scalus.prelude
 import scalus.prelude.{List, Option, SortedMap}
-import scalus.prelude.These
-import scalus.prelude.These.*
 import scalus.prelude.{Eq, Ord}
 import scalus.prelude.Ord.{<=>, Order}
 import scalus.prelude.Eq.given
@@ -407,22 +405,41 @@ object Value {
       */
     def minus(a: Value, b: Value): Value = binaryOpValues(a, b, subtractInteger)
 
-    /** Multiplies two `Value` instances together, combining their token amounts.
+    /** Multiplies all token amounts in a `Value` by a specified factor.
       *
-      * This method performs an element-wise multiplication of the token amounts in both `Value`
-      * instances, treating absent tokens as having zero amount.
+      * This method scales each token amount in the `Value` by the given factor, effectively
+      * multiplying all amounts by the same integer.
       *
-      * @param a
-      *   First `Value` instance
-      * @param b
-      *   Second `Value` instance
+      * @param v
+      *   The `Value` to multiply
+      * @param factor
+      *   The factor to multiply each token amount by
       * @return
-      *   A new `Value` containing the combined token amounts after multiplication
+      *   A new `Value` with all token amounts multiplied by the factor, or `Value.zero` if the
+      *   factor is zero
       * @example
       *   {{{
-      *   val value1 = Value.lovelace(BigInt(1000000))
-      *   val value2 = Value.lovelace(BigInt(500000))
-      *   Value.multiply(value1, value2) === Value.lovelace(BigInt(500000000000))
+      *   val value = Value.fromList(
+      *     List.Cons(
+      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *       List.Cons(
+      *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
+      *         List.Nil
+      *       )
+      *     )
+      *   )
+      *
+      *   Value.multiply(value, BigInt(2)) === Value.fromList(
+      *     List.Cons(
+      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(2000000)), List.Nil)),
+      *       List.Cons(
+      *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(200)), List.Nil)),
+      *         List.Nil
+      *       )
+      *     )
+      *   )
+      *
+      *   Value.multiply(value, BigInt(0)) === Value.zero
       *   }}}
       */
     def multiply(v: Value, factor: BigInt): Value =
@@ -496,8 +513,35 @@ object Value {
       */
     given valueEq: Eq[Value] = (a, b) => eq(a, b)
 
+    /** Implementation of the [[prelude.ToData]] type class for `Value`.
+      *
+      * Converts a `Value` to a `Data` representation by converting its sorted map structure.
+      *
+      * @example
+      *   {{{
+      *   val value = Value.fromList(
+      *     List.Cons(
+      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *       List.Nil
+      *     )
+      *   )
+      *
+      *   val data = value.toData // Converts to Data representation
+      *   }}}
+      */
     given valueToData: ToData[Value] = _.toSortedMap.toData
 
+    /** Implementation of the [[prelude.FromData]] type class for `Value`.
+      *
+      * Converts a `Data` representation back into a `Value`. This method assumes that the input
+      * data is well-formed and does not perform any validation on the token amounts or structure.
+      *
+      * @example
+      *   {{{
+      *   val data: Data = ... // Some Data representation of a Value
+      *   val value = Value.fromData(data) // Converts from Data to Value
+      *   }}}
+      */
     given valueFromData: FromData[Value] =
         (data: Data) => {
             Value(
@@ -505,6 +549,19 @@ object Value {
             )
         }
 
+    /** Implementation of the [[prelude.FromData]] type class for `Value` with validation. Validates
+      * that:
+      *   - All token amounts are non-zero
+      *   - No currency symbol has an empty token list
+      *
+      * This method ensures that the `Value` is well-formed and meets the expected structure.
+      *
+      * @example
+      *   {{{
+      *   val data: Data = ... // Some Data representation of a Value
+      *   val value = Value.valueFromDataWithValidation(data) // Converts from Data to Value with validation
+      *   }}}
+      */
     def valueFromDataWithValidation: FromData[Value] =
         (data: Data) => {
             given [A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
