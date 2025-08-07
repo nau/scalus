@@ -16,6 +16,12 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
       this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
     )(using ProtocolParams.blockfrostParamsRW)
     private val costModels = CostModels.fromProtocolParams(params)
+    private val evaluator = PlutusScriptEvaluator(
+      SlotConfig.Mainnet,
+      initialBudget = ExBudget.enormous,
+      protocolMajorVersion = MajorProtocolVersion.plominPV,
+      costModels = costModels
+    )
 
     test("should balance the transaction when the inputs exceed the outputs") {
         val myAddress = arbitrary[Address].sample.get
@@ -35,7 +41,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val tx = TxBuilder
             .initialize(utxo, params, Network.Testnet)
             .payToAddress(faucet, paymentAmount)
-            .doFinalize
+            .doFinalize(evaluator)
         assert(tx.body.value.outputs.size == 2)
         assert(tx.body.value.outputs.exists(_.value.address == myAddress))
         assert(tx.body.value.outputs.exists(_.value.address == faucet))
@@ -66,7 +72,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
             TxBuilder
                 .initialize(utxo, params, Network.Testnet)
                 .payToAddress(faucet, Value.lovelace(paymentAmount))
-                .doFinalize
+                .doFinalize(evaluator)
         }
     }
     test(
@@ -91,7 +97,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
             val tx = TxBuilder
                 .initialize(utxo, params, Network.Testnet)
                 .payToAddress(faucet, paymentAmount)
-                .doFinalize
+                .doFinalize(evaluator)
         }
 
     }
@@ -126,22 +132,15 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
               TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
             ) ++ hugeCollateral
 
-        val evaluator = PlutusScriptEvaluator(
-          SlotConfig.Mainnet,
-          initialBudget = ExBudget.enormous,
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
-          costModels = costModels
-        )
-
         val datum = Data.unit
         val redeemer = Data.unit
 
-        val tx = ScriptTxBuilder
+        val tx = TxBuilder
             .initialize(utxo, params, Network.Testnet)
             .payToAddress(myAddress, Value.lovelace(1_000_000L))
             .withScript(script, datum, redeemer, 0)
             .withCollateral(hugeCollateral)
-            .doFinalizeScript(evaluator)
+            .doFinalize(evaluator)
 
         assert(tx.body.value.outputs.nonEmpty)
         assert(tx.witnessSet.redeemers.isDefined)
@@ -190,12 +189,12 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val redeemer = Data.unit
 
         assertThrows[TransactionException.InsufficientTotalSumOfCollateralCoinsException] {
-            ScriptTxBuilder
+            TxBuilder
                 .initialize(utxo, params, Network.Testnet)
                 .payToAddress(myAddress, Value.lovelace(1_000_000L))
                 .withScript(script, datum, redeemer, 0)
                 .withCollateral(insufficientCollateral)
-                .doFinalizeScript(evaluator)
+                .doFinalize(evaluator)
         }
     }
 }

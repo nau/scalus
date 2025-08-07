@@ -3,6 +3,7 @@ import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
 import scalus.cardano.ledger.rules.{Context, FeesOkValidator, State, UtxoEnv}
+import scalus.cardano.ledger.txbuilder.OnSurplus
 import scalus.ledger.babbage.ProtocolParams
 
 import scala.annotation.tailrec
@@ -205,7 +206,7 @@ object TxBalance {
                 slotConfig = SlotConfig.Mainnet // todo should we pass it?
               ),
               State(utxo, CertState.empty),
-                tx
+              tx
             )
             .toTry
             .get
@@ -221,29 +222,4 @@ object TxBalance {
         val scriptCost = memoryPrice * executionUnits.memory + stepsPrice * executionUnits.steps
         Coin(scriptCost.toDouble.toLong)
     }
-}
-
-trait OnSurplus {
-    def apply(utxo: UTxO, surplus: Coin): Transaction => Transaction
-}
-object OnSurplus {
-    import TxBalance.modifyBody
-    def toFee: OnSurplus = (_, surplus: Coin) =>
-        tx => {
-            val fee = tx.body.value.fee + surplus
-            modifyBody(tx, _.copy(fee = fee))
-        }
-
-    def toAddress(address: Address): OnSurplus = (_, surplus: Coin) =>
-        tx => {
-            val changeOutput = TransactionOutput(address, Value(surplus))
-            modifyBody(tx, b => b.copy(outputs = b.outputs :+ Sized(changeOutput)))
-
-        }
-
-    def toFirstPayer: OnSurplus = (utxo: UTxO, surplus: Coin) =>
-        tx => {
-            val firstPayer = utxo.head
-            toAddress(firstPayer._2.address)(utxo, surplus)(tx)
-        }
 }
