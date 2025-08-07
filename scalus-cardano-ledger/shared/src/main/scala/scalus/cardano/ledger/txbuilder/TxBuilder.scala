@@ -90,7 +90,7 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
               context.protocolParams,
               context.onSurplus
             )
-        context.validate(balanced)
+        context.validate(balanced).toTry.get
     }
 
     private def isScriptTx: Boolean =

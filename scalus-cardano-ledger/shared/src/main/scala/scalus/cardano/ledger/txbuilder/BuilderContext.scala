@@ -2,7 +2,7 @@ package scalus.cardano.ledger.txbuilder
 import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger.rules.{Context, State, UtxoEnv}
 import scalus.cardano.ledger.rules.STS.Validator
-import scalus.cardano.ledger.{CertState, Coin, PlutusScriptEvaluator, Sized, Transaction, TransactionInput, TransactionOutput, UTxO, Value}
+import scalus.cardano.ledger.{CertState, Coin, PlutusScriptEvaluator, Sized, Transaction, TransactionException, TransactionInput, TransactionOutput, UTxO, Value}
 import scalus.ledger.babbage.ProtocolParams
 
 case class BuilderContext(
@@ -17,14 +17,13 @@ case class BuilderContext(
     def buildNewTx: TxBuilder = TxBuilder(this)
     def selectInputs: Set[TransactionInput] = inputSelector.selectInputs(utxoProvider.utxo)
 
-    def validate(tx: Transaction): Transaction = {
+    def validate(tx: Transaction): Either[TransactionException, Transaction] = {
         val certState = CertState.empty
         val context = Context(tx.body.value.fee, UtxoEnv(1L, protocolParams, certState))
         val state = State(utxoProvider.utxo, certState)
         validators
             .map(_.validate(context, state, tx))
-            .collectFirst { x => ??? }
-        ???
+            .collectFirst { case l: Left[_, _] => l.value }.toLeft(tx)
 
     }
 }
