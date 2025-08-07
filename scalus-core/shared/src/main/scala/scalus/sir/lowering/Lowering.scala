@@ -270,8 +270,8 @@ object Lowering {
                 val loweredCond =
                     lowerSIR(cond, Some(SIRType.Boolean))
                         .toRepresentation(PrimitiveRepresentation.Constant, cond.anns.pos)
-                val loweredT = lowerSIR(t, optTargetType)
-                val loweredF = lowerSIR(f, optTargetType)
+                val loweredT = lowerSIR(t, Some(tp))
+                val loweredF = lowerSIR(f, Some(tp))
                 lvIfThenElse(loweredCond, loweredT, loweredF, anns.pos)
             case SIR.Cast(expr, tp, anns) =>
                 val loweredExpr = lowerSIR(expr, Some(tp))

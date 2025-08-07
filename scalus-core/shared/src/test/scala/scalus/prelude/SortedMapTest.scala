@@ -589,19 +589,40 @@ class SortedMapTest extends StdlibTestKit {
             map === fromDataMap
         }
 
-        // TODO: UPLC error
-//        assertEvalFails[RequirementError] {
-//            given [A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
-//                SortedMap.sortedMapFromDataWithValidation
-//
-//            val invalidMap = SortedMap
-//                .unsafeFromList(
-//                  List((BigInt(2), BigInt(2)), (BigInt(1), BigInt(1)))
-//                )
-//
-//            val data = invalidMap.toData
-//            fromData[SortedMap[BigInt, BigInt]](data)
-//        }
+        val sir = scalus.Compiler.compile {
+            given [A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
+                SortedMap.sortedMapFromDataWithValidation
+
+            val invalidMap = SortedMap
+                .unsafeFromList(
+                  List((BigInt(2), BigInt(2)), (BigInt(1), BigInt(1)))
+                )
+
+            val data = invalidMap.toData
+            fromData[SortedMap[BigInt, BigInt]](data)
+        }
+        import scalus.*
+        // val lw = sir.toLoweredValue()
+        val uplc = sir.toUplc()
+
+        // TODO:
+        //  Evaluation is succesful, because in the currrent codebase implementation,
+        //    fromData/toData is not used in the UPLC code, it is NOOP.
+        //  We need to find a way, how to specify validation in the UPLC code
+        //   disabling optimization.
+        // assertEvalFails[RequirementError] {
+        //    given [A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
+        //        SortedMap.sortedMapFromDataWithValidation
+        //
+        //    val invalidMap = SortedMap
+        //        .unsafeFromList(
+        //          List((BigInt(2), BigInt(2)), (BigInt(1), BigInt(1)))
+        //        )
+        //
+        //    val data = invalidMap.toData
+        //    fromData[SortedMap[BigInt, BigInt]](data)
+        // }
+
     }
 
     test("isEmpty") {

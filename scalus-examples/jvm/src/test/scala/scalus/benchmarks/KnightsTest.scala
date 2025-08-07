@@ -35,7 +35,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             if summon[
                   scalus.Compiler.Options
                 ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-            then ExBudget(ExCPU(14900_9510209L), ExMemory(517_697106L))
+            then ExBudget(ExCPU(14779_5686209L), ExMemory(510_110706L))
             else if summon[
                   scalus.Compiler.Options
                 ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering

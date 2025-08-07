@@ -6,6 +6,7 @@ import scalus.uplc.*
 import org.typelevel.paiges.Doc
 import scalus.sir.SIRType.isSum
 import scalus.sir.lowering.SumCaseClassRepresentation.SumDataList
+import scalus.sir.lowering.typegens.SirTypeUplcGenerator
 
 import scala.collection.mutable.Set as MutableSet
 import scala.collection.mutable.Map as MutableMap
@@ -285,6 +286,34 @@ class VariableLoweredValue(
     override def sirType: SIRType = sir.tp
     override def pos: SIRPosition = sir.anns.pos
 
+    override def toRepresentation(representation: LoweredValueRepresentation, pos: SIRPosition)(
+        using lctx: LoweringContext
+    ): LoweredValue = {
+        if representation == this.representation then this
+        else
+            otherRepresentations.get(representation) match {
+                case Some(depVar) =>
+                    // if we have already created dependent variable for this representation, return it
+                    depVar
+                case None =>
+                    val retval = summon[LoweringContext]
+                        .typeGenerator(sirType)
+                        .toRepresentation(this, representation, pos)
+                    val depId = lctx.uniqueVarName(name + "r")
+                    val depVar = DependendVariableLoweredValue(
+                      depId,
+                      depId,
+                      this,
+                      representation,
+                      retval,
+                      pos,
+                    )
+                    otherRepresentations.put(representation, depVar)
+                    depVar
+            }
+
+    }
+
     override def dominatingUplevelVars: Set[IdentifiableLoweredValue] =
         optRhs.map(rhs => rhs.dominatingUplevelVars).getOrElse(Set.empty)
 
@@ -353,17 +382,45 @@ class VariableLoweredValue(
 case class DependendVariableLoweredValue(
     id: String,
     name: String,
-    sir: SIR.Var,
+    parent: VariableLoweredValue,
     representation: LoweredValueRepresentation,
     rhs: LoweredValue,
+    inPos: SIRPosition,
     directDepended: MutableSet[IdentifiableLoweredValue] = MutableSet.empty,
     directDependFrom: MutableSet[IdentifiableLoweredValue] = MutableSet.empty
 ) extends IdentifiableLoweredValue {
 
     rhs.addDependent(this)
 
-    override def sirType: SIRType = sir.tp
-    override def pos: SIRPosition = sir.anns.pos
+    override def sirType: SIRType = parent.sirType
+    override def pos: SIRPosition = inPos
+
+    override def toRepresentation(representation: LoweredValueRepresentation, pos: SIRPosition)(
+        using LoweringContext
+    ): LoweredValue = {
+        if representation == this.representation then this
+        else if representation == parent.representation then parent
+        else {
+            parent.otherRepresentations.get(representation) match
+                case Some(depVar) =>
+                    depVar
+                case None =>
+                    val newRepr = summon[LoweringContext]
+                        .typeGenerator(sirType)
+                        .toRepresentation(this, representation, pos)
+                    val newId = summon[LoweringContext].uniqueVarName(name + "r")
+                    val newDepVar = DependendVariableLoweredValue(
+                      newId,
+                      newId,
+                      parent,
+                      representation,
+                      newRepr,
+                      pos
+                    )
+                    parent.otherRepresentations.put(representation, newDepVar)
+                    newDepVar
+        }
+    }
 
     override def dominatingUplevelVars: Set[IdentifiableLoweredValue] =
         rhs.dominatingUplevelVars
@@ -1709,7 +1766,21 @@ object LoweredValue {
                     nonNothingValues.groupBy(_.representation).map((k, v) => (k, v.length)).toMap
                 val nonErrored = byRepresentation.removed(ErrorRepresentation)
                 if nonErrored.isEmpty then byRepresentation.head._1
-                else nonErrored.toSeq.maxBy(_._2)._1
+                else {
+                    val compatibleOn =
+                        nonErrored.filter((lw, c) => lw.isCompatibleWithType(targetType))
+                    if compatibleOn.isEmpty
+                    then lctx.typeGenerator(targetType).defaultRepresentation(targetType)
+                    else {
+                        val candidates = compatibleOn.toSeq.sortBy(-_._2)
+                        candidates
+                            .find((r, c) => values.forall(v => r.isCompatibleWithType(v.sirType)))
+                            .map(_._1)
+                            .getOrElse(
+                              lctx.typeGenerator(targetType).defaultRepresentation(targetType)
+                            )
+                    }
+                }
         retval
     }
 

@@ -1,8 +1,8 @@
 package scalus.sir.lowering
 
+import scala.annotation.tailrec
 import scalus.sir.*
 import org.typelevel.paiges.Doc
-import scalus.sir.lowering.ProductCaseClassRepresentation.OneElementWrapper.retrieveArgType
 
 /** representation, depends on the type of the value.
   */
@@ -13,6 +13,7 @@ sealed trait LoweredValueRepresentation {
         lctx: LoweringContext
     ): Boolean =
         this == repr
+    def isCompatibleWithType(tp: SIRType): Boolean
     def doc: Doc = Doc.text(this.toString)
     def show = doc.render(80)
 }
@@ -20,7 +21,13 @@ sealed trait LoweredValueRepresentation {
 sealed trait SumCaseClassRepresentation(
     override val isPackedData: Boolean,
     override val isDataCentric: Boolean
-) extends LoweredValueRepresentation
+) extends LoweredValueRepresentation {
+
+    override def isCompatibleWithType(tp: SIRType): Boolean = {
+        SIRType.isSum(tp)
+    }
+
+}
 
 object SumCaseClassRepresentation {
 
@@ -38,6 +45,7 @@ object SumCaseClassRepresentation {
                 case TypeVarRepresentation(_) => true
                 case other                    => false
             }
+
     }
 
     /** Representation for sum case classes that are represented as a Pair of Int and DataList.
@@ -48,20 +56,61 @@ object SumCaseClassRepresentation {
       * `DataConstr`, this representation does not use a constructor tag, but use unList and
       * unListData to work with the data.
       */
-    case object SumDataList extends SumCaseClassRepresentation(false, true)
+    case object SumDataList extends SumCaseClassRepresentation(false, true) {
+        override def isCompatibleWithType(tp: SIRType): Boolean = {
+            SIRType.retrieveDataDecl(tp) match
+                case Left(_) => false
+                case Right(decl) =>
+                    decl.name == SIRType.List.dataDecl.name || decl.name == SIRType.BuiltinList.dataDecl.name
+        }
+    }
 
     /** List of pairs of data elements. result of unMapData
       */
-    case object SumDataPairList extends SumCaseClassRepresentation(false, true)
+    case object SumDataPairList extends SumCaseClassRepresentation(false, true) {
+
+        override def isCompatibleWithType(tp: SIRType): Boolean = {
+            SIRType.retrieveDataDecl(tp) match
+                case Left(_) => false
+                case Right(decl) =>
+                    val isList =
+                        decl.name == SIRType.List.dataDecl.name || decl.name == SIRType.BuiltinList.dataDecl.name
+                    if isList then
+                        retrieveListElementType(tp) match
+                            case Some(elementType) =>
+                                ProductCaseClassRepresentation.PairData.isPairOrTuple2(elementType)
+                            case None => false
+                    else false
+        }
+
+        def retrieveListElementType(tp: SIRType): Option[SIRType] = {
+            tp match
+                case SIRType.SumCaseClass(decl, typeArgs) =>
+                    Some(typeArgs.head)
+                case SIRType.TypeLambda(params, body) =>
+                    retrieveListElementType(body)
+                case _ =>
+                    None
+
+        }
+
+    }
 
     /** SumDataPairList packed as AssocMap
       */
-    case object SumDataAssocMap extends SumCaseClassRepresentation(true, true)
+    case object SumDataAssocMap extends SumCaseClassRepresentation(true, true) {
+        override def isCompatibleWithType(tp: SIRType): Boolean =
+            SumDataPairList.isCompatibleWithType(tp)
+    }
 
     /** packed in data representation as a list of data elements. i.e. unListData for unpacking into
       * DataList
       */
-    case object PackedSumDataList extends SumCaseClassRepresentation(true, true)
+    case object PackedSumDataList extends SumCaseClassRepresentation(true, true) {
+        override def isCompatibleWithType(tp: SIRType): Boolean = {
+            SumDataList.isCompatibleWithType(tp)
+        }
+    }
 
     /** Representation as tern Constr(i,x1,...,xn) where i is the index of the constructor and x is
       * a field
@@ -76,7 +125,13 @@ object SumCaseClassRepresentation {
 }
 
 sealed trait ProductCaseClassRepresentation(val isPackedData: Boolean, val isDataCentric: Boolean)
-    extends LoweredValueRepresentation
+    extends LoweredValueRepresentation {
+
+    override def isCompatibleWithType(tp: SIRType): Boolean = {
+        SIRType.isProd(tp)
+    }
+
+}
 
 object ProductCaseClassRepresentation {
 
@@ -84,7 +139,14 @@ object ProductCaseClassRepresentation {
 
     case object ProdDataList extends ProductCaseClassRepresentation(false, true)
 
-    case object PackedDataMap extends ProductCaseClassRepresentation(true, true)
+    case object PackedDataMap extends ProductCaseClassRepresentation(true, true) {
+        override def isCompatibleWithType(tp: SIRType): Boolean = {
+            SIRType.retrieveConstrDecl(tp) match
+                case Left(_) => false
+                case Right(constrDecl) =>
+                    constrDecl.name == "scalus.prelude.AssocMap" || constrDecl.name == "scalus.prelude.SortedMap"
+        }
+    }
 
     /** Data.Unconstr will give us a pair from data and index of the constructor.
       */
@@ -108,7 +170,26 @@ object ProductCaseClassRepresentation {
 
     /** Pair[Data, Data] ( unMapData will give us a pair of data elements. )
       */
-    case object PairData extends ProductCaseClassRepresentation(false, true)
+    case object PairData extends ProductCaseClassRepresentation(false, true) {
+
+        override def isCompatibleWithType(tp: SIRType): Boolean = {
+            isPairOrTuple2(tp)
+        }
+
+        @tailrec
+        def isPairOrTuple2(tp: SIRType): Boolean =
+            tp match
+                case SIRType.CaseClass(decl, typeArgs, _) =>
+                    decl.name == "scalus.builtin.Pair"
+                    ||
+                    decl.name == "scala.Tuple2"
+                case SIRType.TypeLambda(params, body) =>
+                    isPairOrTuple2(body)
+                case SIRType.TypeProxy(ref) =>
+                    isPairOrTuple2(ref)
+                case _ => false
+
+    }
 
     case object UplcConstr extends ProductCaseClassRepresentation(false, false)
 
@@ -303,6 +384,10 @@ case class LambdaRepresentation(
             case _ => repr.isPackedData
         }
 
+    override def isCompatibleWithType(tp: SIRType): Boolean = {
+        SIRUnify.topLevelUnifyType(funTp, tp, SIRUnify.Env.empty).isSuccess
+    }
+
     override def doc: Doc = {
         PrettyPrinter.inParens(
           canonicalRepresentationPair.inRepr.doc + Doc.text(
@@ -330,10 +415,25 @@ case class LambdaRepresentation(
 }
 
 sealed trait PrimitiveRepresentation(val isPackedData: Boolean, val isDataCentric: Boolean)
-    extends LoweredValueRepresentation
+    extends LoweredValueRepresentation {
+
+    override def isCompatibleWithType(tp: SIRType): Boolean = {
+        tp match {
+            case SIRType.Integer | SIRType.Data | SIRType.ByteString | SIRType.String |
+                SIRType.Boolean | SIRType.Unit | SIRType.BLS12_381_G1_Element |
+                SIRType.BLS12_381_G2_Element | SIRType.BLS12_381_MlResult =>
+                true
+            case _ => false
+        }
+    }
+
+}
 
 object PrimitiveRepresentation {
-    case object PackedData extends PrimitiveRepresentation(true, true)
+    case object PackedData extends PrimitiveRepresentation(true, true) {
+        override def isCompatibleWithType(tp: SIRType): Boolean =
+            super.isCompatibleWithType(tp) && tp != SIRType.Unit && tp != SIRType.BLS12_381_MlResult
+    }
 
     case object Constant extends PrimitiveRepresentation(false, false)
 }
@@ -351,6 +451,8 @@ case class TypeVarRepresentation(isBuiltin: Boolean) extends LoweredValueReprese
 
     override def isDataCentric: Boolean = isPackedData
 
+    override def isCompatibleWithType(tp: SIRType): Boolean = true
+
     override def doc: Doc = {
         Doc.text("TypeVar") + (if isBuiltin then Doc.text("(B)") else Doc.empty)
     }
@@ -361,6 +463,9 @@ case object ErrorRepresentation extends LoweredValueRepresentation {
     override def isPackedData: Boolean = false
 
     override def isDataCentric: Boolean = false
+
+    override def isCompatibleWithType(tp: SIRType): Boolean = true
+
 }
 
 object LoweredValueRepresentation {

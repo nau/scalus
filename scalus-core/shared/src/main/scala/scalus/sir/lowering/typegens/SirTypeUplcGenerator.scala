@@ -3,7 +3,6 @@ package scalus.sir.lowering.typegens
 import scalus.sir.*
 
 import java.util.IdentityHashMap
-import scala.annotation.tailrec
 //import scalus.sir.SIR.Pattern
 //import scalus.sir.SIRVarStorage.{DEFAULT, Data, ScottEncoding}
 //import scalus.sir.lowering.Lowering.{genError, lowerSIR, tpf}
@@ -155,18 +154,8 @@ object SirTypeUplcGenerator {
         retval
     }
 
-    @tailrec
     def isPairOrTuple2(tp: SIRType): Boolean =
-        tp match
-            case SIRType.CaseClass(decl, typeArgs, _) =>
-                decl.name == "scalus.builtin.Pair"
-                ||
-                decl.name == "scala.Tuple2"
-            case SIRType.TypeLambda(params, body) =>
-                isPairOrTuple2(body)
-            case SIRType.TypeProxy(ref) =>
-                isPairOrTuple2(ref)
-            case _ => false
+        ProductCaseClassRepresentation.PairData.isPairOrTuple2(tp)
 
     private def containsFun(
         types: List[SIRType],

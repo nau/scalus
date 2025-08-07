@@ -277,10 +277,12 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 RepresentationProxyLoweredValue(input, representation, pos)
             case (TypeVarRepresentation(isBuiltin), _) =>
                 if isBuiltin then RepresentationProxyLoweredValue(input, representation, pos)
-                else
-                    input
-                        .toRepresentation(ProductCaseClassRepresentation.ProdDataConstr, pos)
-                        .toRepresentation(representation, pos)
+                else {
+                    val inputDataConstr =
+                        input.toRepresentation(ProductCaseClassRepresentation.ProdDataConstr, pos)
+                    val output = inputDataConstr.toRepresentation(representation, pos)
+                    output
+                }
             case (_, TypeVarRepresentation(isBuiltin)) =>
                 if isBuiltin then input else toRepresentation(input, ProdDataConstr, pos)
             case _ =>
