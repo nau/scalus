@@ -5,6 +5,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 import scalus.cardano.ledger.TransactionException.ValueNotConservedUTxOException
+import scalus.cardano.ledger.rules.FeesOkValidator
 import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, Coin, CostModels, TransactionException, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value, *}
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
@@ -28,7 +29,9 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
       evaluator,
       Network.Mainnet,
       UtxoProvider.from(utxo),
-      OnSurplus.toFirstPayer
+      OnSurplus.toFirstPayer,
+      SelectInputs.all,
+      Seq(FeesOkValidator)
     )
 
     test("should balance the transaction when the inputs exceed the outputs") {
@@ -46,10 +49,10 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         )
 
         val paymentAmount = Value.lovelace(500L)
-        val tx = builderContext(utxo)
-            .buildNewTx()
+        val tx = builderContext(utxo).buildNewTx
             .payToAddress(faucet, paymentAmount)
-            .doFinalize(evaluator)
+            .doFinalize
+
         assert(tx.body.value.outputs.size == 2)
         assert(tx.body.value.outputs.exists(_.value.address == myAddress))
         assert(tx.body.value.outputs.exists(_.value.address == faucet))
@@ -77,10 +80,9 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val paymentAmount = 10_000L
 
         assertThrows[ValueNotConservedUTxOException] {
-            builderContext(utxo)
-                .buildNewTx()
+            builderContext(utxo).buildNewTx
                 .payToAddress(faucet, Value.lovelace(paymentAmount))
-                .doFinalize(evaluator)
+                .doFinalize
         }
     }
     test(
@@ -102,10 +104,9 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         // Technically available, but not with a fee
         val paymentAmount = availableLovelace - Value.lovelace(1L)
         assertThrows[TransactionException.IllegalArgumentException] {
-            builderContext(utxo)
-                .buildNewTx()
+            builderContext(utxo).buildNewTx
                 .payToAddress(faucet, paymentAmount)
-                .doFinalize(evaluator)
+                .doFinalize
         }
 
     }
@@ -138,17 +139,16 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
             val availableLovelace = Value.lovelace(10_000_000L)
             Map(
               TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
-            ) ++ hugeCollateral
+            )
 
         val datum = Data.unit
         val redeemer = Data.unit
 
-        val tx = builderContext(utxo)
-            .buildNewTx()
+        val tx = builderContext(utxo).buildNewTx
             .payToAddress(myAddress, Value.lovelace(1_000_000L))
             .withScript(script, datum, redeemer, 0)
             .withCollateral(hugeCollateral.keySet)
-            .doFinalize(evaluator)
+            .doFinalize
 
         assert(tx.body.value.outputs.nonEmpty)
         assert(tx.witnessSet.redeemers.isDefined)
@@ -197,12 +197,11 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val redeemer = Data.unit
 
         assertThrows[TransactionException.InsufficientTotalSumOfCollateralCoinsException] {
-            builderContext(utxo)
-                .buildNewTx()
+            builderContext(utxo).buildNewTx
                 .payToAddress(myAddress, Value.lovelace(1_000_000L))
                 .withScript(script, datum, redeemer, 0)
                 .withCollateral(insufficientCollateral.keySet)
-                .doFinalize(evaluator)
+                .doFinalize
         }
     }
 }

@@ -5,10 +5,7 @@ import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.TxBuilder.modifyBody
 import scalus.cardano.ledger.utils.TxBalance
 
-case class TxBuilder(
-                        txContext: BuilderContext,
-                        tx: Transaction = TxBuilder.emptyTx,
-) {
+case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyTx) {
 
     def payToAddress(address: Address, value: Value): TxBuilder = {
         val out = Sized(TransactionOutput(address, value))
@@ -79,19 +76,22 @@ case class TxBuilder(
     def withCollateral(collateralIn: Set[TransactionInput]): TxBuilder =
         copy(tx = modifyBody(tx, _.copy(collateralInputs = collateralIn)))
 
-    def doFinalize(scriptEvaluator: PlutusScriptEvaluator): Transaction =
-        if isScriptTx then {
-            TxBalance.doBalanceScript(tx, scriptEvaluator)(
-              txContext.utxoProvider.utxo,
-              txContext.protocolParams,
-              txContext.onSurplus
+    def doFinalize: Transaction = {
+        val withInputs = modifyBody(tx, _.copy(inputs = context.selectInputs))
+        val balanced = if isScriptTx then {
+            TxBalance.doBalanceScript(withInputs, context.evaluator)(
+              context.utxoProvider.utxo,
+              context.protocolParams,
+              context.onSurplus
             )
         } else
-            TxBalance.doBalance(tx)(
-              txContext.utxoProvider.utxo,
-              txContext.protocolParams,
-              txContext.onSurplus
+            TxBalance.doBalance(withInputs)(
+              context.utxoProvider.utxo,
+              context.protocolParams,
+              context.onSurplus
             )
+        context.validate(balanced)
+    }
 
     private def isScriptTx: Boolean =
         (tx.witnessSet.nativeScripts ++ tx.witnessSet.plutusV1Scripts ++ tx.witnessSet.plutusV2Scripts ++ tx.witnessSet.plutusV3Scripts).nonEmpty

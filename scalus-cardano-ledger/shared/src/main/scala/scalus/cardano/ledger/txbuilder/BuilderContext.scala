@@ -1,7 +1,8 @@
 package scalus.cardano.ledger.txbuilder
 import scalus.cardano.address.{Address, Network}
+import scalus.cardano.ledger.rules.{Context, State, UtxoEnv}
 import scalus.cardano.ledger.rules.STS.Validator
-import scalus.cardano.ledger.{Coin, PlutusScriptEvaluator, Sized, Transaction, TransactionOutput, UTxO, Value}
+import scalus.cardano.ledger.{CertState, Coin, PlutusScriptEvaluator, Sized, Transaction, TransactionInput, TransactionOutput, UTxO, Value}
 import scalus.ledger.babbage.ProtocolParams
 
 case class BuilderContext(
@@ -10,9 +11,22 @@ case class BuilderContext(
     network: Network,
     utxoProvider: UtxoProvider,
     onSurplus: OnSurplus,
+    inputSelector: SelectInputs,
+    validators: Seq[Validator] = Seq.empty
 ) {
+    def buildNewTx: TxBuilder = TxBuilder(this)
+    def selectInputs: Set[TransactionInput] = inputSelector.selectInputs(utxoProvider.utxo)
 
-    def buildNewTx(validators: Seq[Validator] = Seq.empty): TxBuilder = TxBuilder(this)
+    def validate(tx: Transaction): Transaction = {
+        val certState = CertState.empty
+        val context = Context(tx.body.value.fee, UtxoEnv(1L, protocolParams, certState))
+        val state = State(utxoProvider.utxo, certState)
+        validators
+            .map(_.validate(context, state, tx))
+            .collectFirst { x => ??? }
+        ???
+
+    }
 }
 
 trait OnSurplus {
@@ -49,4 +63,12 @@ trait UtxoProvider {
 }
 object UtxoProvider {
     def from(u: UTxO): UtxoProvider = new UtxoProvider { override def utxo: UTxO = u }
+}
+
+trait SelectInputs {
+    def selectInputs(utxo: UTxO): Set[TransactionInput]
+}
+
+object SelectInputs {
+    def all: SelectInputs = (utxo: UTxO) => utxo.keySet
 }
