@@ -10,7 +10,7 @@ import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.ProtocolVersion
 import scalus.ledger.api.v1.Credential.*
 import scalus.ledger.api.v2
-import scalus.prelude.AssocMap
+import scalus.prelude.SortedMap
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
 import scalus.uplc.*
@@ -98,11 +98,11 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
         fee = txInfo.fee,
         mint = txInfo.mint,
         dcert = txInfo.dcert,
-        withdrawals = AssocMap.empty,
+        withdrawals = SortedMap.empty,
         validRange = txInfo.validRange,
         signatories = txInfo.signatories,
-        data = AssocMap.empty,
-        redeemers = AssocMap.empty,
+        data = SortedMap.empty,
+        redeemers = SortedMap.empty,
         id = txInfo.id
       ),
       ScriptPurpose.Spending(TxOutRef(TxId(hex"6465616462656566"), 2))

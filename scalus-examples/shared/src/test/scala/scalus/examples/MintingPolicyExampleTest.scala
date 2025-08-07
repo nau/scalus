@@ -43,11 +43,11 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
             fee = Value.lovelace(BigInt("188021")),
             mint = value,
             dcert = scalus.prelude.List.Nil,
-            withdrawals = AssocMap.empty,
+            withdrawals = SortedMap.empty,
             validRange = Interval.always,
             signatories = scalus.prelude.List.Nil,
-            redeemers = AssocMap.empty,
-            data = AssocMap.empty,
+            redeemers = SortedMap.empty,
+            data = SortedMap.empty,
             id = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
           ),
           ScriptPurpose.Minting(hex"a0028f350aaabe0545fdcb56b039bfb08e4bb4d8c4d7c3c7d481c235")
@@ -162,7 +162,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
 
     val evaledTokens =
         val tokensSIR =
-            compile(AssocMap.singleton(hex"484f534b59", BigInt("1000000000000000")))
+            compile(SortedMap.singleton(hex"484f534b59", BigInt("1000000000000000")))
         tokensSIR.toUplc().evaluate
 
     test("Minting Policy Validator") {
@@ -173,7 +173,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
-        assert(flatSize == 2037)
+        assert(flatSize == 2007)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
     }
 
@@ -186,7 +186,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV2(appliedValidator).flatEncoded.length
-        assert(flatSize == 2693)
+        assert(flatSize == 2159)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
     }
 
@@ -200,7 +200,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
-        assert(flatSize == 881)
+        assert(flatSize == 851)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
     }
 }

@@ -52,7 +52,7 @@ case class BigRecord(
     s: String,
     d: Data,
     ls: scalus.prelude.List[BigInt],
-    m: scalus.prelude.AssocMap[BigInt, scalus.prelude.Option[String]]
+    m: scalus.prelude.SortedMap[BigInt, scalus.prelude.Option[String]]
 )
 
 @Compile
@@ -83,7 +83,7 @@ class FromDataDerivationTest
           s <- Arbitrary.arbitrary[String]
           d <- Arbitrary.arbitrary[Data]
           ls <- Arbitrary.arbitrary[scalus.prelude.List[BigInt]]
-          m <- Arbitrary.arbitrary[scalus.prelude.AssocMap[BigInt, scalus.prelude.Option[String]]]
+          m <- Arbitrary.arbitrary[scalus.prelude.SortedMap[BigInt, scalus.prelude.Option[String]]]
       yield BigRecord(a, b, bs, s, d, ls, m)
     )
 

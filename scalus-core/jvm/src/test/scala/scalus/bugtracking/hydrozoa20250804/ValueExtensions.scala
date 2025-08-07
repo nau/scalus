@@ -4,7 +4,7 @@ import scalus.Compile
 import scalus.ledger.api.v1.Value.{-, zero}
 import scalus.ledger.api.v3.{CurrencySymbol, TokenName, Value}
 import scalus.prelude.List.Cons
-import scalus.prelude.{fail, require, AssocMap, List, given}
+import scalus.prelude.{fail, require, List, given}
 
 @Compile
 object ValueExtensions:

@@ -4,7 +4,7 @@ import scalus.{Compile, CompileDerivations, Ignore}
 import scalus.builtin.Builtins.*
 import scalus.builtin.{ByteString, Data, FromData, Pair, ToData}
 import scalus.macros.Macros
-import Ord.{<=>, by, Order}
+import Ord.{<=>, Order}
 
 import scala.annotation.{nowarn, tailrec}
 import scalus.cardano.onchain.{ImpossibleLedgerStateError, OnchainError, RequirementError}
@@ -142,15 +142,17 @@ object EqCompanion:
             if self.eqv(lhs, rhs) then other.eqv(lhs, rhs) else false
 
         def orElseBy[B: Eq](mapper: A => B): Eq[A] = (lhs: A, rhs: A) =>
-            if self.eqv(lhs, rhs) then by[A, B](mapper).eqv(lhs, rhs) else false
+            if self.eqv(lhs, rhs) then Eq[B].eqv(mapper(lhs), mapper(rhs)) else false
 
     end extension
 
-    given [A: Eq, B: Eq]: Eq[(A, B)] = Eq.by[(A, B), A](_._1).orElseBy(_._2)
-    given [A: Eq, B: Eq, C: Eq]: Eq[(A, B, C)] =
-        Eq.by[(A, B, C), A](_._1).orElseBy(_._2).orElseBy(_._3)
+    given [A: Eq, B: Eq]: Eq[(A, B)] = (lhs: (A, B), rhs: (A, B)) =>
+        lhs._1 === rhs._1 && lhs._2 === rhs._2
 
-    def keyPairEq[A: Eq, B]: Eq[(A, B)] = Eq.by[(A, B), A](_._1)
+    given [A: Eq, B: Eq, C: Eq]: Eq[(A, B, C)] = (lhs: (A, B, C), rhs: (A, B, C)) =>
+        lhs._1 === rhs._1 && lhs._2 === rhs._2 && lhs._3 === rhs._3
+
+    def keyPairEq[A: Eq, B]: Eq[(A, B)] = (lhs: (A, B), rhs: (A, B)) => lhs._1 === rhs._1
 
 end EqCompanion
 
@@ -179,6 +181,9 @@ object Ord:
         def isGreaterEqual: Boolean = self match { case Less => false; case _ => true }
         def isEqual: Boolean = self match { case Equal => true; case _ => false }
         def nonEqual: Boolean = self match { case Equal => false; case _ => true }
+
+        inline infix def ifEqualThen(inline other: => Order): Order =
+            if self.nonEqual then self else other
 
     end extension
 
@@ -215,12 +220,10 @@ object Ord:
         inline def compare(inline lhs: A, inline rhs: A): Order = self.apply(lhs, rhs)
 
         def orElse(other: Ord[A]): Ord[A] = (lhs: A, rhs: A) =>
-            val order = self.compare(lhs, rhs)
-            if order.nonEqual then order else other.compare(lhs, rhs)
+            self.compare(lhs, rhs) ifEqualThen other.compare(lhs, rhs)
 
         def orElseBy[B: Ord](mapper: A => B): Ord[A] = (lhs: A, rhs: A) =>
-            val order = self.compare(lhs, rhs)
-            if order.nonEqual then order else by[A, B](mapper).compare(lhs, rhs)
+            self.compare(lhs, rhs) ifEqualThen Ord[B].compare(mapper(lhs), mapper(rhs))
 
     end extension
 
@@ -244,21 +247,83 @@ object Ord:
     given Ord[BigInt] = (x: BigInt, y: BigInt) =>
         if lessThanInteger(x, y) then Less else if lessThanInteger(y, x) then Greater else Equal
 
-    // TODO it's not truly overriding and doesn't work in generic function,
-    //  see extension methods <, <=, >, >=, equiv, nonEquiv for [A: Ord]
-    extension (self: BigInt)
-        inline def <(other: BigInt): Boolean = lessThanInteger(self, other)
-        inline def <=(other: BigInt): Boolean = lessThanEqualsInteger(self, other)
-        inline def >(other: BigInt): Boolean = lessThanInteger(other, self)
-        inline def >=(other: BigInt): Boolean = lessThanEqualsInteger(other, self)
-        inline def equiv(other: BigInt): Boolean = equalsInteger(self, other)
-        inline def nonEquiv(other: BigInt): Boolean = !equalsInteger(self, other)
+    given Ord[Boolean] = (x: Boolean, y: Boolean) =>
+        if x then if y then Equal else Greater
+        else if y then Less
+        else Equal
 
-    end extension
+    given Ord[Data] = (x: Data, y: Data) => {
+        import scalus.builtin
+        import Ord.Order.*
 
-    given [A: Ord, B: Ord]: Ord[(A, B)] = Ord.by[(A, B), A](_._1).orElseBy(_._2)
+        def compareBuiltinList(xs: builtin.List[Data], ys: builtin.List[Data]): Order = {
+            if xs.isEmpty && ys.isEmpty then Equal
+            else if xs.isEmpty then Less
+            else if ys.isEmpty then Greater
+            else (xs.head <=> ys.head) ifEqualThen compareBuiltinList(xs.tail, ys.tail)
+        }
 
-    def keyPairOrd[A: Ord, B]: Ord[(A, B)] = Ord.by[(A, B), A](_._1)
+        x match
+            case Data.Constr(_, _) =>
+                y match
+                    case Data.Constr(_, _) =>
+                        val px = unConstrData(x)
+                        val py = unConstrData(y)
+                        (px.fst <=> py.fst) ifEqualThen compareBuiltinList(px.snd, py.snd)
+                    case _ => Less
+
+            case Data.Map(_) =>
+                y match
+                    case Data.Constr(_, _) => Greater
+                    case Data.Map(_) =>
+                        val lstx = unMapData(x)
+                        val lsty = unMapData(y)
+                        def compareDataPair(px: Pair[Data, Data], py: Pair[Data, Data]): Order =
+                            (px.fst <=> py.fst) ifEqualThen (px.snd <=> py.snd)
+
+                        def go(
+                            xs: builtin.List[Pair[Data, Data]],
+                            ys: builtin.List[Pair[Data, Data]]
+                        ): Order = {
+                            if xs.isEmpty && ys.isEmpty then Equal
+                            else if xs.isEmpty then Less
+                            else if ys.isEmpty then Greater
+                            else compareDataPair(xs.head, ys.head) ifEqualThen go(xs.tail, ys.tail)
+                        }
+                        go(lstx, lsty)
+                    case _ => Less
+
+            case Data.List(_) =>
+                y match
+                    case Data.Constr(_, _) => Greater
+                    case Data.Map(_)       => Greater
+                    case Data.List(_) =>
+                        val lstx = unListData(x)
+                        val lsty = unListData(y)
+                        compareBuiltinList(lstx, lsty)
+                    case _ => Less
+
+            case Data.I(_) =>
+                y match
+                    case Data.Constr(_, _) => Greater
+                    case Data.Map(_)       => Greater
+                    case Data.List(_)      => Greater
+                    case Data.I(_)         => unIData(x) <=> unIData(y)
+                    case _                 => Less
+
+            case Data.B(_) =>
+                y match
+                    case Data.B(_) => unBData(x) <=> unBData(y)
+                    case _         => Greater
+    }
+
+    given [A: Ord, B: Ord]: Ord[(A, B)] = (lhs: (A, B), rhs: (A, B)) =>
+        (lhs._1 <=> rhs._1) ifEqualThen (lhs._2 <=> rhs._2)
+
+    given [A: Ord, B: Ord, C: Ord]: Ord[(A, B, C)] = (lhs: (A, B, C), rhs: (A, B, C)) =>
+        (lhs._1 <=> rhs._1) ifEqualThen (lhs._2 <=> rhs._2) ifEqualThen (lhs._3 <=> rhs._3)
+
+    def keyPairOrd[A: Ord, B]: Ord[(A, B)] = (lhs: (A, B), rhs: (A, B)) => lhs._1 <=> rhs._1
 
 end Ord
 

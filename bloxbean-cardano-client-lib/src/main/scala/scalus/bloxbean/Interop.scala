@@ -52,7 +52,7 @@ import scalus.ledger.babbage.PlutusV1Params
 import scalus.ledger.babbage.PlutusV2Params
 import scalus.ledger.babbage.PlutusV3Params
 import scalus.prelude
-import scalus.prelude.AssocMap
+import scalus.prelude.SortedMap
 import scalus.prelude.List
 import scalus.prelude.asScalus
 import scalus.uplc.eval.*
@@ -696,8 +696,7 @@ object Interop {
           fee = v1.Value.lovelace(body.getFee ?? BigInteger.ZERO),
           mint = getMintValue(body.getMint ?? util.List.of()),
           dcert = prelude.List.from(certs.asScala.map(getDCert)),
-          withdrawals =
-              AssocMap.unsafeFromList(getWithdrawals(body.getWithdrawals ?? util.List.of())),
+          withdrawals = SortedMap.fromList(getWithdrawals(body.getWithdrawals ?? util.List.of())),
           validRange = getInterval(tx, slotConfig, protocolVersion),
           signatories = prelude.List.from(
             body.getRequiredSigners.asScala
@@ -706,18 +705,17 @@ object Interop {
                 .map(v1.PubKeyHash.apply)
                 .toSeq
           ),
-          redeemers =
-              AssocMap.unsafeFromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-                  val purpose = getScriptPurposeV2(
-                    redeemer,
-                    body.getInputs,
-                    body.getMint,
-                    body.getCerts,
-                    body.getWithdrawals
-                  )
-                  purpose -> toScalusData(redeemer.getData)
-              })),
-          data = AssocMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
+          redeemers = SortedMap.fromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
+              val purpose = getScriptPurposeV2(
+                redeemer,
+                body.getInputs,
+                body.getMint,
+                body.getCerts,
+                body.getWithdrawals
+              )
+              purpose -> toScalusData(redeemer.getData)
+          })),
+          data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
           id = v1.TxId(ByteString.fromHex(txhash))
         )
     }
@@ -952,7 +950,7 @@ object Interop {
             case a: TreasuryWithdrawalsAction =>
                 v3.GovernanceAction.TreasuryWithdrawals(
                   withdrawals =
-                      AssocMap.unsafeFromList(prelude.List.from(a.getWithdrawals.asScala.map { w =>
+                      SortedMap.fromList(prelude.List.from(a.getWithdrawals.asScala.map { w =>
                           getCredential(
                             Address(w.getRewardAddress).getPaymentCredential.get
                           ) -> BigInt(
@@ -994,7 +992,7 @@ object Interop {
                   removedMembers = prelude.List.from(a.getMembersForRemoval.asScala.map { m =>
                       getCredential(m)
                   }),
-                  addedMembers = AssocMap.unsafeFromList(
+                  addedMembers = SortedMap.fromList(
                     prelude.List.from(a.getNewMembersAndTerms.asScala.map { (c, t) =>
                         getCredential(c) -> BigInt(t)
                     })
@@ -1033,14 +1031,14 @@ object Interop {
 
     def getVotingProcedures(
         voting: VotingProcedures
-    ): AssocMap[v3.Voter, AssocMap[GovernanceActionId, v3.Vote]] = {
-        if voting == null then return AssocMap.empty
-        AssocMap.unsafeFromList(
+    ): SortedMap[v3.Voter, SortedMap[GovernanceActionId, v3.Vote]] = {
+        if voting == null then return SortedMap.empty
+        SortedMap.fromList(
           prelude.List.from(
             voting.getVoting.asScala.toSeq
                 .sortBy(_._1)
                 .map: (voter, procedures) =>
-                    getVoterV3(voter) -> AssocMap.unsafeFromList(
+                    getVoterV3(voter) -> SortedMap.fromList(
                       prelude.List.from(
                         procedures.asScala.toSeq
                             .sortBy(_._1)
@@ -1105,7 +1103,7 @@ object Interop {
           fee = body.getFee ?? BigInteger.ZERO,
           mint = getValue(body.getMint ?? util.List.of()),
           certificates = prelude.List.from(certs.asScala.map(getTxCertV3)),
-          withdrawals = AssocMap.unsafeFromList(withdrawals),
+          withdrawals = SortedMap.fromList(withdrawals),
           validRange = getInterval(tx, slotConfig, protocolVersion),
           signatories = prelude.List.from(
             body.getRequiredSigners.asScala
@@ -1114,12 +1112,11 @@ object Interop {
                 .map(v1.PubKeyHash.apply)
                 .toSeq
           ),
-          redeemers =
-              AssocMap.unsafeFromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-                  val purpose = getScriptPurposeV3(tx, redeemer)
-                  purpose -> toScalusData(redeemer.getData)
-              })),
-          data = AssocMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
+          redeemers = SortedMap.fromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
+              val purpose = getScriptPurposeV3(tx, redeemer)
+              purpose -> toScalusData(redeemer.getData)
+          })),
+          data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
           id = v3.TxId(ByteString.fromHex(txhash)),
           votes = getVotingProcedures(body.getVotingProcedures),
           proposalProcedures = prelude.List

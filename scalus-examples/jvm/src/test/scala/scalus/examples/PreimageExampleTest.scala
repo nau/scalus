@@ -24,11 +24,11 @@ class PreimageExampleTest extends BaseValidatorTest {
             fee = Value.lovelace(BigInt("188021")),
             mint = Value.lovelace(BigInt("188021")),
             dcert = scalus.prelude.List.Nil,
-            withdrawals = scalus.prelude.AssocMap.empty,
+            withdrawals = scalus.prelude.SortedMap.empty,
             validRange = Interval.always,
             signatories = signatories,
-            redeemers = scalus.prelude.AssocMap.empty,
-            data = scalus.prelude.AssocMap.empty,
+            redeemers = scalus.prelude.SortedMap.empty,
+            data = scalus.prelude.SortedMap.empty,
             id = TxId(hex"1e0612fbd127baddfcd555706de96b46c4d4363ac78c73ab4dee6e6a7bf61fe9")
           ),
           ScriptPurpose.Spending(hoskyMintTxOutRef)

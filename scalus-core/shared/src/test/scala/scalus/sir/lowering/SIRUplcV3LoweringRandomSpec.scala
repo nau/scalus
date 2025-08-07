@@ -131,7 +131,7 @@ class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
         val sir = compile {
             import scalus.prelude.*
             import scalus.builtin.Data.toData
-            val mapData = AssocMap(List(("a", BigInt(1)), ("b", BigInt(2)))).toData
+            val mapData = SortedMap.unsafeFromList(List(("a", BigInt(1)), ("b", BigInt(2)))).toData
             val list_138 = scalus.builtin.Builtins.unMapData(mapData)
             val h1 = list_138.head
             h1.fst
@@ -169,7 +169,7 @@ class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
                     case List.Cons(pair, tail) =>
                         List.Cons(pair, go(tail))
 
-            AssocMap(go(List.empty))
+            SortedMap.unsafeFromList(go(List.empty))
 
         }
 

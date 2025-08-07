@@ -513,6 +513,25 @@ object Value {
       */
     given valueEq: Eq[Value] = (a, b) => eq(a, b)
 
+    /** Implementation of the [[prelude.Ord]] type class for `Value`. Only makes sense as a key for
+      * collections.
+      *
+      * Provides total ordering for `Value` instances by comparing their underlying sorted maps. The
+      * ordering is determined by:
+      *   1. First comparing currency symbols
+      *   2. For equal currency symbols, comparing their token maps
+      *   3. For equal token names, comparing their amounts
+      *
+      * @example
+      *   {{{
+      * val value1 = Value.lovelace(BigInt(1000000))
+      * val value2 = Value.lovelace(BigInt(500000))
+      *
+      * value1 <=> value2 // Returns Order.Greater
+      *   }}}
+      */
+    val valueOrd: Ord[Value] = (x: Value, y: Value) => x.toSortedMap <=> y.toSortedMap
+
     /** Implementation of the [[prelude.ToData]] type class for `Value`.
       *
       * Converts a `Value` to a `Data` representation by converting its sorted map structure.

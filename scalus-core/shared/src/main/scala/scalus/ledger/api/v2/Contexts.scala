@@ -7,7 +7,8 @@ import scalus.builtin.Data
 import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
-import scalus.prelude.{===, AssocMap, Eq, List, Option, given}
+import scalus.prelude.{===, Eq, List, Option, Ord, SortedMap, given}
+import scalus.prelude.Ord.{<=>, ifEqualThen, given}
 import scalus.builtin.ByteString.*
 
 @deprecated("Don't need anymore, use companion objects of appropriative types instead")
@@ -96,6 +97,25 @@ object OutputDatum {
                         case OutputDatum(datum2) => datum == datum2
                         case _                   => false
 
+    given Ord[scalus.ledger.api.v2.OutputDatum] =
+        (x: scalus.ledger.api.v2.OutputDatum, y: scalus.ledger.api.v2.OutputDatum) =>
+            x match
+                case NoOutputDatum =>
+                    y match
+                        case NoOutputDatum => Ord.Order.Equal
+                        case _             => Ord.Order.Less
+
+                case OutputDatumHash(hash1) =>
+                    y match
+                        case NoOutputDatum          => Ord.Order.Greater
+                        case OutputDatumHash(hash2) => hash1 <=> hash2
+                        case _                      => Ord.Order.Less
+
+                case OutputDatum(datum1) =>
+                    y match
+                        case OutputDatum(datum2) => datum1 <=> datum2
+                        case _                   => Ord.Order.Greater
+
     given ToData[scalus.ledger.api.v2.OutputDatum] = ToData.derived
     given FromData[scalus.ledger.api.v2.OutputDatum] = FromData.derived
 }
@@ -116,6 +136,13 @@ object TxOut {
             a.datum === b.datum &&
             a.referenceScript === b.referenceScript
 
+    given Ord[TxOut] = (x: TxOut, y: TxOut) =>
+        given Ord[Value] = Value.valueOrd
+        (x.address <=> y.address) ifEqualThen
+            (x.value <=> y.value) ifEqualThen
+            (x.datum <=> y.datum) ifEqualThen
+            (x.referenceScript <=> y.referenceScript)
+
     given ToData[TxOut] = ToData.derived
 
     given FromData[TxOut] = FromData.derived
@@ -126,6 +153,11 @@ case class TxInInfo(outRef: TxOutRef, resolved: TxOut)
 
 @Compile
 object TxInInfo {
+    given Eq[TxInInfo] = (a: TxInInfo, b: TxInInfo) =>
+        a.outRef === b.outRef && a.resolved === b.resolved
+
+    given Ord[TxInInfo] = (x: TxInInfo, y: TxInInfo) =>
+        (x.outRef <=> y.outRef) ifEqualThen (x.resolved <=> y.resolved)
 
     given ToData[TxInInfo] = ToData.derived
 
@@ -142,11 +174,11 @@ case class TxInfo(
     fee: Value,
     mint: Value,
     dcert: List[DCert],
-    withdrawals: AssocMap[StakingCredential, BigInt],
+    withdrawals: SortedMap[StakingCredential, BigInt],
     validRange: PosixTimeRange,
     signatories: List[PubKeyHash],
-    redeemers: AssocMap[ScriptPurpose, Redeemer],
-    data: AssocMap[DatumHash, Datum],
+    redeemers: SortedMap[ScriptPurpose, Redeemer],
+    data: SortedMap[DatumHash, Datum],
     id: TxId
 )
 
@@ -159,13 +191,42 @@ object TxInfo {
       fee = Value.zero,
       mint = Value.zero,
       dcert = List.empty,
-      withdrawals = AssocMap.empty,
+      withdrawals = SortedMap.empty,
       validRange = Interval.always,
       signatories = List.empty,
-      redeemers = AssocMap.empty,
-      data = AssocMap.empty,
+      redeemers = SortedMap.empty,
+      data = SortedMap.empty,
       id = TxId(hex"0000000000000000000000000000000000000000000000000000000000000000")
     )
+
+    given Eq[TxInfo] = (a: TxInfo, b: TxInfo) =>
+        a.inputs === b.inputs &&
+            a.referenceInputs === b.referenceInputs &&
+            a.outputs === b.outputs &&
+            a.fee === b.fee &&
+            a.mint === b.mint &&
+            a.dcert === b.dcert &&
+            a.withdrawals === b.withdrawals &&
+            a.validRange === b.validRange &&
+            a.signatories === b.signatories &&
+            a.redeemers === b.redeemers &&
+            a.data === b.data &&
+            a.id === b.id
+
+    given Ord[TxInfo] = (x: TxInfo, y: TxInfo) =>
+        given Ord[Value] = Value.valueOrd
+        (x.inputs <=> y.inputs) ifEqualThen
+            (x.referenceInputs <=> y.referenceInputs) ifEqualThen
+            (x.outputs <=> y.outputs) ifEqualThen
+            (x.fee <=> y.fee) ifEqualThen
+            (x.mint <=> y.mint) ifEqualThen
+            (x.dcert <=> y.dcert) ifEqualThen
+            (x.withdrawals <=> y.withdrawals) ifEqualThen
+            (x.validRange <=> y.validRange) ifEqualThen
+            (x.signatories <=> y.signatories) ifEqualThen
+            (x.redeemers <=> y.redeemers) ifEqualThen
+            (x.data <=> y.data) ifEqualThen
+            (x.id <=> y.id)
 
     given ToData[TxInfo] = ToData.derived
 
@@ -195,6 +256,11 @@ case class ScriptContext(
 
 @Compile
 object ScriptContext {
+    given Eq[ScriptContext] = (a: ScriptContext, b: ScriptContext) =>
+        a.txInfo === b.txInfo && a.purpose === b.purpose
+
+    given Ord[ScriptContext] = (x: ScriptContext, y: ScriptContext) =>
+        (x.txInfo <=> y.txInfo) ifEqualThen (x.purpose <=> y.purpose)
 
     given ToData[ScriptContext] = ToData.derived
     given FromData[ScriptContext] = FromData.derived
@@ -230,7 +296,7 @@ object Utils {
       */
     def findDatum(
         outputs: List[TxOut],
-        datum: AssocMap[DatumHash, Datum],
+        datum: SortedMap[DatumHash, Datum],
         datumHash: DatumHash
     ): Option[Datum] = {
         datum.get(datumHash) match

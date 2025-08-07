@@ -1,7 +1,7 @@
 package scalus.ledger.api.v3
 
 import scalus.prelude.StdlibTestKit
-import scalus.prelude.{AssocMap, List, Option, given}
+import scalus.prelude.{List, Option, SortedMap, given}
 import scalus.builtin.ByteString
 import scalus.ledger.api.v2.OutputDatum
 
@@ -72,7 +72,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
         // TODO: UPLC error
 //        checkEval { (txInfo: TxInfo, datum: Datum) =>
 //            val newTxInfo = txInfo.copy(
-//              data = AssocMap.singleton(datum.dataHash, datum),
+//              data = SortedMap.singleton(datum.dataHash, datum),
 //              outputs = List.empty
 //            )
 //
@@ -82,7 +82,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
         // TODO: UPLC error
 //        checkEval { (txInfo: TxInfo, datum: Datum) =>
 //            val newTxInfo = txInfo.copy(
-//              data = AssocMap.empty,
+//              data = SortedMap.empty,
 //              outputs = List(
 //                TxOut(
 //                  Address(
@@ -107,7 +107,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
 //        assertEvalEq(
 //          TxInfo.placeholder
 //              .copy(
-//                data = AssocMap.singleton(Data.unit.dataHash, Data.unit),
+//                data = SortedMap.singleton(Data.unit.dataHash, Data.unit),
 //                outputs = List.empty
 //              )
 //              .findOwnDatum(Data.unit.dataHash),
@@ -118,7 +118,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
 //        assertEvalEq(
 //          TxInfo.placeholder
 //              .copy(
-//                data = AssocMap.empty,
+//                data = SortedMap.empty,
 //                outputs = List(
 //                  TxOut(
 //                    Address(

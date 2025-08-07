@@ -151,7 +151,7 @@ class InvalidMkConsReprTest extends AnyFunSuite {
             fee = 2,
             certificates = scalus.prelude.List(txCert),
             signatories = scalus.prelude.List(pkhA),
-            redeemers = AssocMap.fromList(
+            redeemers = SortedMap.fromList(
               scalus.prelude.List((ScriptPurpose.Spending(txOutRef), Data.unit))
             ),
             id = currentTxId
@@ -182,14 +182,14 @@ class InvalidMkConsReprTest extends AnyFunSuite {
 
     }
 
-    test("check foldLeft over assocmap[ByteString, BigInt]") {
+    test("check foldLeft over SortedMap[ByteString, BigInt]") {
 
         val sir = compile {
 
             val aPayee: ByteString = ByteString.fromString("AAAA")
 
             val sumsPerPayee =
-                AssocMap.empty[ByteString, BigInt].insert(aPayee, BigInt(38))
+                SortedMap.empty[ByteString, BigInt].insert(aPayee, BigInt(38))
 
         }
 
@@ -212,7 +212,7 @@ class InvalidMkConsReprTest extends AnyFunSuite {
             val aPayee: ByteString = ByteString.fromString("AAAA")
 
             val sumsPerPayee =
-                AssocMap.empty[ByteString, BigInt].insert(aPayee, BigInt(38))
+                SortedMap.empty[ByteString, BigInt].insert(aPayee, BigInt(38))
 
             val (optSplit, optPayeeSumWithChange, nPayed) =
                 sumsPerPayee.toList.foldLeft(
@@ -260,7 +260,7 @@ class InvalidMkConsReprTest extends AnyFunSuite {
             fee = 2,
             certificates = scalus.prelude.List(txCert),
             signatories = scalus.prelude.List(pkhA),
-            redeemers = AssocMap.fromList(
+            redeemers = SortedMap.fromList(
               scalus.prelude.List((ScriptPurpose.Spending(txOutRef), Data.unit))
             ),
             id = currentTxId

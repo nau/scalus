@@ -5,7 +5,7 @@ import org.scalacheck.{Arbitrary, Gen}
 import scalus.*
 import scalus.ledger.api.v1.{Interval, PubKeyHash, Value}
 import scalus.ledger.api.v2
-import scalus.prelude.{AssocMap, List}
+import scalus.prelude.{List, SortedMap}
 
 object ArbitraryInstances extends ArbitraryInstances
 trait ArbitraryInstances extends v2.ArbitraryInstances {
@@ -44,11 +44,11 @@ trait ArbitraryInstances extends v2.ArbitraryInstances {
           fee = fee,
           mint = mint,
           certificates = List.Nil,
-          withdrawals = AssocMap.empty,
+          withdrawals = SortedMap.empty,
           validRange = interval,
           signatories = signatories,
-          redeemers = AssocMap.empty,
-          data = AssocMap.empty,
+          redeemers = SortedMap.empty,
+          data = SortedMap.empty,
           id = id,
         )
     }

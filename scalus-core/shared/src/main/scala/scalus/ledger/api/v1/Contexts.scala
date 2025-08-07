@@ -4,6 +4,8 @@ import scalus.Compile
 import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
 import scalus.prelude.{===, Eq, List, Option, Ord, given}
+import scalus.prelude.Eq.given
+import scalus.prelude.Ord.{<=>, ifEqualThen, given}
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.v1.IntervalBoundType.{Finite, NegInf, PosInf}
 
@@ -203,12 +205,9 @@ object IntervalBoundType {
                     case _      => Ord.Order.Less
             case Finite(a) =>
                 y match
-                    case NegInf => Ord.Order.Greater
-                    case Finite(b) =>
-                        if a < b then Ord.Order.Less
-                        else if a > b then Ord.Order.Greater
-                        else Ord.Order.Equal
-                    case PosInf => Ord.Order.Less
+                    case NegInf    => Ord.Order.Greater
+                    case Finite(b) => a <=> b
+                    case PosInf    => Ord.Order.Less
             case PosInf =>
                 y match
                     case PosInf => Ord.Order.Equal
@@ -237,22 +236,10 @@ type LowerBound[A] = IntervalBound
 object IntervalBound:
 
     given Eq[IntervalBound] = (x: IntervalBound, y: IntervalBound) =>
-        x match
-            case IntervalBound(bound, closure1) =>
-                y match
-                    case IntervalBound(bound2, closure2) =>
-                        bound === bound2 && closure1 === closure2
+        (x.boundType === y.boundType) && (x.isInclusive === y.isInclusive)
 
     given Ord[IntervalBound] = (x: IntervalBound, y: IntervalBound) =>
-        x match
-            case IntervalBound(bound, closure1) =>
-                y match
-                    case IntervalBound(bound2, closure2) =>
-                        if bound === bound2 then
-                            if closure1 === closure2 then Ord.Order.Equal
-                            else if closure1 then Ord.Order.Greater
-                            else Ord.Order.Less
-                        else Ord[IntervalBoundType].compare(bound, bound2)
+        (x.boundType <=> y.boundType) ifEqualThen (x.isInclusive <=> y.isInclusive)
 
     given ToData[IntervalBound] = ToData.derived
 
@@ -271,12 +258,10 @@ case class Interval(from: IntervalBound, to: IntervalBound)
 @Compile
 object Interval:
 
-    given Eq[Interval] = (x: Interval, y: Interval) =>
-        x match
-            case Interval(from1, to1) =>
-                y match
-                    case Interval(from2, to2) =>
-                        from1 === from2 && to1 === to2
+    given Eq[Interval] = (x: Interval, y: Interval) => (x.from === y.from) && (x.to === y.to)
+
+    given Ord[Interval] = (x: Interval, y: Interval) =>
+        (x.from <=> y.from) ifEqualThen (x.to <=> y.to)
 
     given ToData[Interval] = ToData.derived
 
@@ -450,6 +435,61 @@ object DCert {
                     case DCert.Mir => true
                     case _         => false
 
+    given Ord[DCert] = (x: DCert, y: DCert) =>
+        x match
+            case DCert.DelegRegKey(cred1) =>
+                y match
+                    case DCert.DelegRegKey(cred2) => cred1 <=> cred2
+                    case _                        => Ord.Order.Less
+
+            case DCert.DelegDeRegKey(cred1) =>
+                y match
+                    case DCert.DelegRegKey(_)       => Ord.Order.Greater
+                    case DCert.DelegDeRegKey(cred2) => cred1 <=> cred2
+                    case _                          => Ord.Order.Less
+
+            case DCert.DelegDelegate(cred1, del1) =>
+                y match
+                    case DCert.DelegRegKey(_)   => Ord.Order.Greater
+                    case DCert.DelegDeRegKey(_) => Ord.Order.Greater
+                    case DCert.DelegDelegate(cred2, del2) =>
+                        (cred1 <=> cred2) ifEqualThen (del1 <=> del2)
+                    case _ => Ord.Order.Less
+
+            case DCert.PoolRegister(id1, vrf1) =>
+                y match
+                    case DCert.DelegRegKey(_)      => Ord.Order.Greater
+                    case DCert.DelegDeRegKey(_)    => Ord.Order.Greater
+                    case DCert.DelegDelegate(_, _) => Ord.Order.Greater
+                    case DCert.PoolRegister(id2, vrf2) =>
+                        (id1 <=> id2) ifEqualThen (vrf1 <=> vrf2)
+                    case _ => Ord.Order.Less
+
+            case DCert.PoolRetire(id1, epoch1) =>
+                y match
+                    case DCert.DelegRegKey(_)      => Ord.Order.Greater
+                    case DCert.DelegDeRegKey(_)    => Ord.Order.Greater
+                    case DCert.DelegDelegate(_, _) => Ord.Order.Greater
+                    case DCert.PoolRegister(_, _)  => Ord.Order.Greater
+                    case DCert.PoolRetire(id2, epoch2) =>
+                        (id1 <=> id2) ifEqualThen (epoch1 <=> epoch2)
+                    case _ => Ord.Order.Less
+
+            case DCert.Genesis =>
+                y match
+                    case DCert.DelegRegKey(_)      => Ord.Order.Greater
+                    case DCert.DelegDeRegKey(_)    => Ord.Order.Greater
+                    case DCert.DelegDelegate(_, _) => Ord.Order.Greater
+                    case DCert.PoolRegister(_, _)  => Ord.Order.Greater
+                    case DCert.PoolRetire(_, _)    => Ord.Order.Greater
+                    case DCert.Genesis             => Ord.Order.Equal
+                    case DCert.Mir                 => Ord.Order.Less
+
+            case DCert.Mir =>
+                y match
+                    case DCert.Mir => Ord.Order.Equal
+                    case _         => Ord.Order.Greater
+
     given ToData[DCert] = ToData.derived
 
     given FromData[DCert] = FromData.derived
@@ -463,6 +503,7 @@ case class TxId(hash: Hash):
 object TxId:
 
     given Eq[TxId] = (a: TxId, b: TxId) => a.hash === b.hash
+    given Ord[TxId] = (a: TxId, b: TxId) => a.hash <=> b.hash
 
     given ToData[TxId] = ToData.derived
     given FromData[TxId] = FromData.derived
@@ -474,12 +515,10 @@ case class TxOutRef(id: TxId, idx: BigInt)
 @Compile
 object TxOutRef {
 
-    given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) =>
-        a match
-            case TxOutRef(aTxId, aTxOutIndex) =>
-                b match
-                    case TxOutRef(bTxId, bTxOutIndex) =>
-                        aTxOutIndex === bTxOutIndex && aTxId === bTxId
+    given Eq[TxOutRef] = (a: TxOutRef, b: TxOutRef) => a.id === b.id && a.idx === b.idx
+
+    given Ord[TxOutRef] = (a: TxOutRef, b: TxOutRef) =>
+        (a.id <=> b.id) ifEqualThen (a.idx <=> b.idx)
 
     given ToData[TxOutRef] = ToData.derived
 
@@ -495,6 +534,8 @@ case class PubKeyHash(hash: Hash) {
 object PubKeyHash {
 
     given Eq[PubKeyHash] = (a: PubKeyHash, b: PubKeyHash) => a.hash === b.hash
+
+    given Ord[PubKeyHash] = (a: PubKeyHash, b: PubKeyHash) => a.hash <=> b.hash
 
     given ToData[PubKeyHash] = (a: PubKeyHash) => summon[ToData[ByteString]](a.hash)
 
@@ -520,6 +561,17 @@ object Credential {
                     case Credential.PubKeyCredential(hash2) => false
                     case Credential.ScriptCredential(hash2) => hash === hash2
 
+    given Ord[Credential] = (a: Credential, b: Credential) =>
+        a match
+            case Credential.PubKeyCredential(hash) =>
+                b match
+                    case Credential.PubKeyCredential(hash2) => hash <=> hash2
+                    case Credential.ScriptCredential(_)     => Ord.Order.Less
+            case Credential.ScriptCredential(hash) =>
+                b match
+                    case Credential.PubKeyCredential(_)     => Ord.Order.Greater
+                    case Credential.ScriptCredential(hash2) => hash <=> hash2
+
     given FromData[Credential] = FromData.derived
 
     given ToData[Credential] = ToData.derived
@@ -543,6 +595,18 @@ object StakingCredential {
                     case StakingCredential.StakingPtr(a2, b2, c2) =>
                         a === a2 && b === b2 && c === c2
 
+    given Ord[StakingCredential] = (lhs: StakingCredential, rhs: StakingCredential) =>
+        lhs match
+            case StakingCredential.StakingHash(cred) =>
+                rhs match
+                    case StakingCredential.StakingHash(cred2)  => cred <=> cred2
+                    case StakingCredential.StakingPtr(_, _, _) => Ord.Order.Less
+            case StakingCredential.StakingPtr(a, b, c) =>
+                rhs match
+                    case StakingCredential.StakingHash(_) => Ord.Order.Greater
+                    case StakingCredential.StakingPtr(a2, b2, c2) =>
+                        (a <=> a2) ifEqualThen (b <=> b2) ifEqualThen (c <=> c2)
+
     given FromData[StakingCredential] = FromData.derived
 
     given ToData[StakingCredential] = ToData.derived
@@ -557,11 +621,10 @@ case class Address(
 object Address {
 
     given Eq[Address] = (a: Address, b: Address) =>
-        a match
-            case Address(aCredential, aStakingCredential) =>
-                b match
-                    case Address(bCredential, bStakingCredential) =>
-                        aCredential === bCredential && aStakingCredential === bStakingCredential
+        a.credential === b.credential && a.stakingCredential === b.stakingCredential
+
+    given Ord[Address] = (a: Address, b: Address) =>
+        (a.credential <=> b.credential) ifEqualThen (a.stakingCredential <=> b.stakingCredential)
 
     given ToData[Address] = ToData.derived
 
@@ -583,6 +646,12 @@ case class TxOut(address: Address, value: Value, datumHash: Option[DatumHash]) {
 
 @Compile
 object TxOut {
+    given Eq[TxOut] = (a: TxOut, b: TxOut) =>
+        a.address === b.address && a.value === b.value && a.datumHash === b.datumHash
+
+    given Ord[TxOut] = (a: TxOut, b: TxOut) =>
+        given Ord[Value] = Value.valueOrd
+        (a.address <=> b.address) ifEqualThen (a.value <=> b.value) ifEqualThen (a.datumHash <=> b.datumHash)
 
     given ToData[TxOut] = ToData.derived
 
@@ -597,6 +666,11 @@ case class TxInInfo(
 
 @Compile
 object TxInInfo {
+    given Eq[TxInInfo] = (a: TxInInfo, b: TxInInfo) =>
+        a.outRef === b.outRef && a.resolved === b.resolved
+
+    given Ord[TxInInfo] = (a: TxInInfo, b: TxInInfo) =>
+        (a.outRef <=> b.outRef) ifEqualThen (a.resolved <=> b.resolved)
 
     given ToData[TxInInfo] = ToData.derived
 
@@ -648,6 +722,31 @@ object TxInfo {
       data = List.empty,
       id = TxId(hex"0000000000000000000000000000000000000000000000000000000000000000")
     )
+
+    given Eq[TxInfo] = (x: TxInfo, y: TxInfo) =>
+        x.inputs === y.inputs &&
+            x.outputs === y.outputs &&
+            x.fee === y.fee &&
+            x.mint === y.mint &&
+            x.dcert === y.dcert &&
+            x.withdrawals === y.withdrawals &&
+            x.validRange === y.validRange &&
+            x.signatories === y.signatories &&
+            x.data === y.data &&
+            x.id === y.id
+
+    given Ord[TxInfo] = (x: TxInfo, y: TxInfo) =>
+        given Ord[Value] = Value.valueOrd
+        (x.inputs <=> y.inputs) ifEqualThen
+            (x.outputs <=> y.outputs) ifEqualThen
+            (x.fee <=> y.fee) ifEqualThen
+            (x.mint <=> y.mint) ifEqualThen
+            (x.dcert <=> y.dcert) ifEqualThen
+            (x.withdrawals <=> y.withdrawals) ifEqualThen
+            (x.validRange <=> y.validRange) ifEqualThen
+            (x.signatories <=> y.signatories) ifEqualThen
+            (x.data <=> y.data) ifEqualThen
+            (x.id <=> y.id)
 
     given ToData[TxInfo] = ToData.derived
     given FromData[TxInfo] = FromData.derived
@@ -706,6 +805,31 @@ object ScriptPurpose {
                     case ScriptPurpose.Certifying(cert) => cert === cert
                     case _                              => false
 
+    given Ord[ScriptPurpose] = (x: ScriptPurpose, y: ScriptPurpose) =>
+        x match
+            case ScriptPurpose.Minting(sym1) =>
+                y match
+                    case ScriptPurpose.Minting(sym2) => sym1 <=> sym2
+                    case _                           => Ord.Order.Less
+
+            case ScriptPurpose.Spending(ref1) =>
+                y match
+                    case ScriptPurpose.Minting(_)     => Ord.Order.Greater
+                    case ScriptPurpose.Spending(ref2) => ref1 <=> ref2
+                    case _                            => Ord.Order.Less
+
+            case ScriptPurpose.Rewarding(cred1) =>
+                y match
+                    case ScriptPurpose.Minting(_)       => Ord.Order.Greater
+                    case ScriptPurpose.Spending(_)      => Ord.Order.Greater
+                    case ScriptPurpose.Rewarding(cred2) => cred1 <=> cred2
+                    case _                              => Ord.Order.Less
+
+            case ScriptPurpose.Certifying(cert1) =>
+                y match
+                    case ScriptPurpose.Certifying(cert2) => cert1 <=> cert2
+                    case _                               => Ord.Order.Greater
+
     given ToData[ScriptPurpose] = ToData.derived
 
     given FromData[ScriptPurpose] = FromData.derived
@@ -716,6 +840,11 @@ case class ScriptContext(txInfo: TxInfo, purpose: ScriptPurpose)
 
 @Compile
 object ScriptContext:
+    given Eq[ScriptContext] = (x: ScriptContext, y: ScriptContext) =>
+        x.txInfo === y.txInfo && x.purpose === y.purpose
+
+    given Ord[ScriptContext] = (x: ScriptContext, y: ScriptContext) =>
+        (x.txInfo <=> y.txInfo) ifEqualThen (x.purpose <=> y.purpose)
 
     given FromData[ScriptContext] = FromData.derived
 

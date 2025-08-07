@@ -451,16 +451,16 @@ object List {
           * @tparam K
           *   The type of the keys.
           * @return
-          *   An `AssocMap` mapping each key to a list of elements that have that key.
+          *   An `SortedMap` mapping each key to a list of elements that have that key.
           * @example
           *   {{{
-          *   List.empty[BigInt].groupBy(_ % 2) === AssocMap.empty
+          *   List.empty[BigInt].groupBy(_ % 2) === SortedMap.empty
           *
           *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
-          *   list.groupBy(_ % 2) === AssocMap.from((BigInt(1), Cons(1, Cons(3, Nil))), (BigInt(0), Cons(2, Cons(4, Nil))))
+          *   list.groupBy(_ % 2) === SortedMap.fromList((BigInt(0), Cons(2, Cons(4, Nil))), (BigInt(1), Cons(1, Cons(3, Nil))))
           *   }}}
           */
-        def groupBy[K: Eq](keyExtractor: A => K): AssocMap[K, List[A]] =
+        def groupBy[K: Ord](keyExtractor: A => K): SortedMap[K, List[A]] =
             groupMap(keyExtractor)(identity)
 
         /** Groups the elements of this list by the keys returned by the key extractor function and
@@ -475,20 +475,20 @@ object List {
           * @tparam B
           *   The type of the transformed elements.
           * @return
-          *   An `AssocMap` mapping each key to a list of transformed elements that have that key.
+          *   An `SortedMap` mapping each key to a list of transformed elements that have that key.
           * @example
           *   {{{
-          *   List.empty[BigInt].groupMap(_ % 2)(_ * 2) === AssocMap.empty
+          *   List.empty[BigInt].groupMap(_ % 2)(_ * 2) === SortedMap.empty
           *
           *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
-          *   list.groupMap(_ % 2)(_ * 2) === AssocMap.from((BigInt(1), Cons(2, Cons(6, Nil))), (BigInt(0), Cons(4, Cons(8, Nil))))
+          *   list.groupMap(_ % 2)(_ * 2) === SortedMap.fromList((BigInt(0), Cons(4, Cons(8, Nil))), (BigInt(1), Cons(2, Cons(6, Nil))))
           *   }}}
           */
-        def groupMap[K: Eq, B](
+        def groupMap[K: Ord, B](
             keyExtractor: A => K
-        )(valueExtractor: A => B): AssocMap[K, List[B]] = {
+        )(valueExtractor: A => B): SortedMap[K, List[B]] = {
             @tailrec
-            def go(list: List[A], acc: AssocMap[K, List[B]]): AssocMap[K, List[B]] =
+            def go(list: List[A], acc: SortedMap[K, List[B]]): SortedMap[K, List[B]] =
                 list match
                     case Nil => acc
                     case Cons(head, tail) =>
@@ -503,7 +503,7 @@ object List {
                                 val newAcc = acc.insert(key, newLst)
                                 go(tail, newAcc)
 
-            go(self, AssocMap.empty).mapValues { _.reverse }
+            go(self, SortedMap.empty).mapValues { _.reverse }
         }
 
         /** Groups elements by the keys returned by the key extractor function, transforms each
@@ -521,20 +521,20 @@ object List {
           * @tparam B
           *   The type of the transformed elements.
           * @return
-          *   An `AssocMap` mapping each key to the reduced value of all elements with that key.
+          *   An `SortedMap` mapping each key to the reduced value of all elements with that key.
           * @example
           *   {{{
-          *   List.empty[BigInt].groupMapReduce(_ % 2)(identity)(_ + _) === AssocMap.empty
+          *   List.empty[BigInt].groupMapReduce(_ % 2)(identity)(_ + _) === SortedMap.empty
           *
           *   val list: List[BigInt] = Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
-          *   list.groupMapReduce(_ % 2)(identity)(_ + _) === AssocMap.from((BigInt(1), BigInt(4)), (BigInt(0), BigInt(6)))
+          *   list.groupMapReduce(_ % 2)(identity)(_ + _) === SortedMap.fromList((BigInt(0), BigInt(6)), (BigInt(1), BigInt(4)))
           *   }}}
           */
-        def groupMapReduce[K: Eq, B](
+        def groupMapReduce[K: Ord, B](
             keyExtractor: A => K
-        )(valueExtractor: A => B)(reducer: (B, B) => B): AssocMap[K, B] = {
+        )(valueExtractor: A => B)(reducer: (B, B) => B): SortedMap[K, B] = {
             @tailrec
-            def go(list: List[A], acc: AssocMap[K, B]): AssocMap[K, B] =
+            def go(list: List[A], acc: SortedMap[K, B]): SortedMap[K, B] =
                 list match
                     case Nil => acc
                     case Cons(head, tail) =>
@@ -549,7 +549,7 @@ object List {
                                 val newAcc = acc.insert(key, newValue)
                                 go(tail, newAcc)
 
-            go(self, AssocMap.empty)
+            go(self, SortedMap.empty)
         }
 
         /** Zips this list with another list, producing a list of pairs.

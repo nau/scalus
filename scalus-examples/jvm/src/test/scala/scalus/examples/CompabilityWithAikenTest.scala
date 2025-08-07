@@ -162,7 +162,7 @@ class CompabilityWithAikenTest extends AnyFunSuite, ScalusTest {
             outputs = txOutputs,
             fee = fee,
             signatories = extraSignatories.map(x => PubKeyHash(x)),
-            redeemers = AssocMap.unsafeFromList(
+            redeemers = SortedMap.fromList(
               scalus.prelude.List((ScriptPurpose.Spending(txOutRef), redeemer))
             ),
             id = txId

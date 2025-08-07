@@ -4,6 +4,7 @@ import scalus.*
 import scalus.builtin.Builtins.{multiplyInteger, remainderInteger}
 import scalus.prelude.{*, given}
 import scalus.prelude.Eq.given
+import scalus.prelude.Ord.<=>
 import scalus.uplc.*
 import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -35,7 +36,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             if summon[
                   scalus.Compiler.Options
                 ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-            then ExBudget(ExCPU(10446_0437215L), ExMemory(375_335998L))
+            then ExBudget(ExCPU(92669_862343L), ExMemory(326_509238L))
             else if summon[
                   scalus.Compiler.Options
                 ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering
@@ -117,7 +118,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
                       moveNumber = 36,
                       start = Option.Some((1, 1)),
                       visited = List(
-                        // format: off 
+                        // format: off
                         (3, 2), (5, 3), (6, 1), (4, 2), (3, 4), (2, 6), (1, 4), (2, 2), (4, 1),
                         (6, 2), (5, 4), (6, 6), (4, 5), (3, 3), (2, 1), (1, 3), (2, 5), (4, 6),
                         (6, 5), (4, 4), (5, 2), (6, 4), (5, 6), (3, 5), (1, 6), (2, 4), (1, 2),
@@ -136,7 +137,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
         val scalusBudget =
             summon[scalus.Compiler.Options].targetLoweringBackend match
                 case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    ExBudget(ExCPU(304731_228574L), ExMemory(113_3501315L))
+                    ExBudget(ExCPU(226311_783322L), ExMemory(809_818747L))
                 case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     ExBudget(ExCPU(115775_218834L), ExMemory(645_799142L))
                 case _ =>
@@ -235,7 +236,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
         val scalusBudget = {
             summon[scalus.Compiler.Options].targetLoweringBackend match {
                 case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    ExBudget(ExCPU(635928_150134L), ExMemory(2388_801621L))
+                    ExBudget(ExCPU(447480_485498L), ExMemory(1611_406129L))
                 case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     ExBudget(ExCPU(235822_700067L), ExMemory(1315_097779L))
                 case scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>
@@ -313,10 +314,13 @@ object KnightsTest:
         createBoard(size, tile)
 
     given Eq[ChessSet] =
-        import Eq.orElseBy
-        Eq.by[ChessSet, BigInt](_.size).orElseBy(_.moveNumber).orElseBy(_.start).orElseBy(_.visited)
+        (lhs: ChessSet, rhs: ChessSet) =>
+            lhs.size === rhs.size &&
+                lhs.moveNumber === rhs.moveNumber &&
+                lhs.start === rhs.start &&
+                lhs.visited === rhs.visited
 
-    given Ord[ChessSet] = Ord.by[ChessSet, List[Tile]](_.visited)
+    given Ord[ChessSet] = (lhs: ChessSet, rhs: ChessSet) => lhs.visited <=> rhs.visited
 
     extension (self: ChessSet)
         def addPiece(tile: Tile): ChessSet =

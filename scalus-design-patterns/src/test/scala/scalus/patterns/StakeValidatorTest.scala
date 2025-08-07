@@ -15,8 +15,8 @@ class StakeValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          withdrawals = AssocMap.singleton(credential, 0),
-          redeemers = AssocMap.singleton(ScriptPurpose.Rewarding(credential), Data.unit),
+          withdrawals = SortedMap.singleton(credential, 0),
+          redeemers = SortedMap.singleton(ScriptPurpose.Rewarding(credential), Data.unit),
           id = random[TxId]
         )
 
@@ -35,8 +35,8 @@ class StakeValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          withdrawals = AssocMap.singleton(credential, 0),
-          redeemers = AssocMap.empty,
+          withdrawals = SortedMap.singleton(credential, 0),
+          redeemers = SortedMap.empty,
           id = random[TxId]
         )
 
@@ -57,8 +57,8 @@ class StakeValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          withdrawals = AssocMap.empty,
-          redeemers = AssocMap.singleton(ScriptPurpose.Rewarding(credential), Data.unit),
+          withdrawals = SortedMap.empty,
+          redeemers = SortedMap.singleton(ScriptPurpose.Rewarding(credential), Data.unit),
           id = random[TxId]
         )
 
@@ -79,8 +79,8 @@ class StakeValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          withdrawals = AssocMap.singleton(credential, 0),
-          redeemers = AssocMap.singleton(ScriptPurpose.Rewarding(credential), Data.unit),
+          withdrawals = SortedMap.singleton(credential, 0),
+          redeemers = SortedMap.singleton(ScriptPurpose.Rewarding(credential), Data.unit),
           id = random[TxId]
         )
 
@@ -101,7 +101,7 @@ class StakeValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          withdrawals = AssocMap.singleton(credential, 0),
+          withdrawals = SortedMap.singleton(credential, 0),
           id = random[TxId]
         )
 
@@ -118,7 +118,7 @@ class StakeValidatorTest extends AnyFunSuite with ScalusTest {
 
         val txInfo = TxInfo(
           inputs = List.empty,
-          withdrawals = AssocMap.empty,
+          withdrawals = SortedMap.empty,
           id = random[TxId]
         )
 

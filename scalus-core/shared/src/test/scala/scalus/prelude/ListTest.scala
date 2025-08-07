@@ -1,6 +1,6 @@
 package scalus.prelude
 
-import scalus.prelude.List.{single, Cons, Nil}
+import scalus.prelude.List.{Cons, Nil}
 import scalus.prelude.Option.{None, Some}
 
 class ListTest extends StdlibTestKit {
@@ -437,19 +437,19 @@ class ListTest extends StdlibTestKit {
             }
         }
 
-        assertEvalEq(List.empty[BigInt].groupBy(_ % 2), AssocMap.empty[BigInt, List[BigInt]])
+        assertEvalEq(List.empty[BigInt].groupBy(_ % 2), SortedMap.empty[BigInt, List[BigInt]])
 
         assertEvalEq(
           List.single(BigInt(1)).groupBy(_ % 2),
-          AssocMap.singleton(BigInt(1), List.single(BigInt(1)))
+          SortedMap.singleton(BigInt(1), List.single(BigInt(1)))
         )
 
         assertEvalEq(
           Cons(BigInt(1), Cons(BigInt(2), Nil)).groupBy(_ % 2),
-          AssocMap.unsafeFromList(
+          SortedMap.unsafeFromList(
             Cons(
-              (BigInt(1), List.single(BigInt(1))),
-              Cons((BigInt(0), List.single(BigInt(2))), Nil)
+              (BigInt(0), List.single(BigInt(2))),
+              Cons((BigInt(1), List.single(BigInt(1))), Nil)
             )
           )
         )
@@ -471,20 +471,20 @@ class ListTest extends StdlibTestKit {
 
         assertEvalEq(
           List.empty[BigInt].groupMap(_ % 2)(identity),
-          AssocMap.empty[BigInt, List[BigInt]]
+          SortedMap.empty[BigInt, List[BigInt]]
         )
 
         assertEvalEq(
           List.single(BigInt(1)).groupMap(_ % 2)(identity),
-          AssocMap.singleton(BigInt(1), List.single(BigInt(1)))
+          SortedMap.singleton(BigInt(1), List.single(BigInt(1)))
         )
 
         assertEvalEq(
           Cons(BigInt(1), Cons(BigInt(2), Nil)).groupMap(_ % 2)(identity),
-          AssocMap.unsafeFromList(
+          SortedMap.unsafeFromList(
             Cons(
-              (BigInt(1), List.single(BigInt(1))),
-              Cons((BigInt(0), List.single(BigInt(2))), Nil)
+              (BigInt(0), List.single(BigInt(2))),
+              Cons((BigInt(1), List.single(BigInt(1))), Nil)
             )
           )
         )
@@ -505,19 +505,19 @@ class ListTest extends StdlibTestKit {
 
         assertEvalEq(
           List.empty[BigInt].groupMapReduce(_ % 2)(identity)(_ + _),
-          AssocMap.empty[BigInt, BigInt]
+          SortedMap.empty[BigInt, BigInt]
         )
 
         assertEvalEq(
           List.single(BigInt(1)).groupMapReduce(_ % 2)(identity)(_ + _),
-          AssocMap.singleton(BigInt(1), BigInt(1))
+          SortedMap.singleton(BigInt(1), BigInt(1))
         )
 
         assertEvalEq(
           Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Cons(BigInt(4), Nil))))
               .groupMapReduce(_ % 2)(identity)(_ + _),
-          AssocMap.unsafeFromList(
-            Cons((BigInt(1), BigInt(4)), Cons((BigInt(0), BigInt(6)), Nil))
+          SortedMap.unsafeFromList(
+            Cons((BigInt(0), BigInt(6)), Cons((BigInt(1), BigInt(4)), Nil))
           )
         )
     }

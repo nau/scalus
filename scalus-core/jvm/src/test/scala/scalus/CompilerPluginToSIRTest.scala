@@ -2234,7 +2234,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile scala methd with zero arguments") {
         val compiled = compile {
             import scalus.prelude.*
-            val m: AssocMap[BigInt, BigInt] = AssocMap.empty[BigInt, BigInt]
+            val m: SortedMap[BigInt, BigInt] = SortedMap.empty[BigInt, BigInt]
             m.get(BigInt(1)) match {
                 case Option.None    => BigInt(0)
                 case Option.Some(v) => v
@@ -2266,8 +2266,8 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               SIRType.FreeUnificator,
               Apply(
                 SIR.ExternalVar(
-                  "scalus.prelude.AssocMap$",
-                  "scalus.prelude.AssocMap$.empty",
+                  "scalus.prelude.SortedMap$",
+                  "scalus.prelude.SortedMap$.empty",
                   SIRType.FreeUnificator,
                   AnE
                 ),
@@ -2291,7 +2291,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         val compiled = compile {
             import scalus.prelude.*
-            AssocMap.empty[BigInt, BigInt].get(BigInt(1)) match {
+            SortedMap.empty[BigInt, BigInt].get(BigInt(1)) match {
                 case Option.None    => BigInt(0)
                 case Option.Some(v) => v
             }
