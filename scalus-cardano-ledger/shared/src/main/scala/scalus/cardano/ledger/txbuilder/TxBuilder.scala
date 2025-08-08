@@ -1,71 +1,122 @@
 package scalus.cardano.ledger.txbuilder
-import scalus.cardano.address.{Address, Network}
+import scalus.builtin.Data
+import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.utils.TxBalance.modifyBody
-import scalus.cardano.ledger.utils.{MinTransactionFee, OnSurplus, TxBalance}
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.txbuilder.TxBuilder.modifyBody
+import scalus.cardano.ledger.utils.TxBalance
 
-import scala.annotation.tailrec
-
-case class TxBuilder(
-    utxo: UTxO,
-    protocolParams: ProtocolParams,
-    network: Network,
-    tx: Transaction = TxBuilder.emptyTx,
-    onSurplus: OnSurplus = OnSurplus.toFirstPayer
-) {
+case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyTx) {
 
     def payToAddress(address: Address, value: Value): TxBuilder = {
         val out = Sized(TransactionOutput(address, value))
         copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
     }
 
-    def onSurplus(onSurplus: OnSurplus): TxBuilder = copy(onSurplus = onSurplus)
-
-    def map(f: Transaction => Transaction): TxBuilder = copy(tx = f(tx))
+    def withScript(script: Script, datum: Data, redeemer: Data, index: Int): TxBuilder = {
+        val plutusData = TaggedSet.from(
+          tx.witnessSet.plutusData.value.toIndexedSeq :+ KeepRaw(datum) :+ KeepRaw(redeemer)
+        )
+        val updatedWitnessSet = script match {
+            case plutusV1: Script.PlutusV1 =>
+                tx.witnessSet.copy(
+                  plutusV1Scripts = tx.witnessSet.plutusV1Scripts + plutusV1,
+                  plutusData = KeepRaw(plutusData),
+                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer)))
+                )
+            case plutusV2: Script.PlutusV2 =>
+                tx.witnessSet.copy(
+                  plutusV2Scripts = tx.witnessSet.plutusV2Scripts + plutusV2,
+                  plutusData = KeepRaw(plutusData),
+                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer)))
+                )
+            case plutusV3: Script.PlutusV3 =>
+                tx.witnessSet.copy(
+                  plutusV3Scripts = tx.witnessSet.plutusV3Scripts + plutusV3,
+                  plutusData = KeepRaw(plutusData),
+                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer)))
+                )
+            case native: Script.Native =>
+                tx.witnessSet.copy(
+                  nativeScripts = tx.witnessSet.nativeScripts + native
+                )
+        }
+        copy(tx = tx.copy(witnessSet = updatedWitnessSet))
+    }
 
     def signedBy(vk: VKeyWitness): TxBuilder = {
         val wSet = tx.witnessSet.copy(vkeyWitnesses = tx.witnessSet.vkeyWitnesses + vk)
         copy(tx = tx.copy(witnessSet = wSet))
     }
 
-    def doFinalize = TxBalance.doBalance(tx)(utxo, protocolParams, onSurplus)
+    private def addRedeemer(index: Int, redeemerData: Data): Redeemers = {
+        val newRedeemer = Redeemer(
+          tag = RedeemerTag.Spend,
+          index = index,
+          data = redeemerData,
+          exUnits = TxBuilder.dummyExUnits
+        )
+
+        tx.witnessSet.redeemers match {
+            case Some(existingRedeemers) =>
+                val existing = existingRedeemers.value.toIndexedSeq
+                val updated = existing.filterNot(r =>
+                    r.tag == RedeemerTag.Spend && r.index == index
+                ) :+ newRedeemer
+                Redeemers.from(updated)
+            case None =>
+                Redeemers.from(Seq(newRedeemer))
+        }
+    }
+
+    def mapWs(f: TransactionWitnessSet => TransactionWitnessSet): Transaction = {
+        val newWs = f(tx.witnessSet)
+        tx.copy(witnessSet = newWs)
+    }
+
+    def withInputs(inputs: Set[TransactionInput]): TxBuilder =
+        copy(tx = modifyBody(tx, _.copy(inputs = inputs)))
+
+    def selectInputs(selectInputs: SelectInputs): TxBuilder = withInputs(selectInputs(context.utxo))
+
+    def withCollateral(collateralIn: Set[TransactionInput]): TxBuilder =
+        copy(tx = modifyBody(tx, _.copy(collateralInputs = collateralIn)))
+
+    def doFinalize: Transaction = {
+        val balanced = if isScriptTx then {
+            TxBalance.doBalanceScript(tx, context.evaluator)(
+              context.utxoProvider.utxo,
+              context.protocolParams,
+              context.onSurplus
+            )
+        } else
+            TxBalance.doBalance(tx)(
+              context.utxoProvider.utxo,
+              context.protocolParams,
+              context.onSurplus
+            )
+        context.validate(balanced).toTry.get
+    }
+
+    private def isScriptTx: Boolean =
+        (tx.witnessSet.nativeScripts ++ tx.witnessSet.plutusV1Scripts ++ tx.witnessSet.plutusV2Scripts ++ tx.witnessSet.plutusV3Scripts).nonEmpty
 }
 
 object TxBuilder {
+    // will be updated during balancing
+    private def dummyExUnits = ExUnits(memory = 0L, steps = 0L)
+
+    def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody) = {
+        val newBody = f(tx.body.value)
+        tx.copy(body = KeepRaw(newBody))
+    }
+
     val emptyTx: Transaction = Transaction(
       TransactionBody(Set.empty, IndexedSeq.empty, Coin.zero),
       TransactionWitnessSet.empty
     )
 
-    private def withInputsFromUtxos(utxo: UTxO) = Transaction(
+    def withInputsFromUtxos(utxo: UTxO) = Transaction(
       TransactionBody(utxo.keySet, IndexedSeq.empty, Coin.zero),
       TransactionWitnessSet.empty
     )
-
-    // Fetching these most likely involves effectful computations, `initialize` is an entry point to the pure API.
-    def initialize(utxo: UTxO, protocolParams: ProtocolParams, network: Network): TxBuilder =
-        TxBuilder(
-          utxo,
-          protocolParams,
-          network,
-          withInputsFromUtxos(utxo)
-        )
-
-    def modifyWs(
-        tx: Transaction,
-        f: TransactionWitnessSet => TransactionWitnessSet
-    ): Transaction = {
-        val newWs = f(tx.witnessSet)
-        tx.copy(witnessSet = newWs)
-    }
-}
-
-trait UtxoProvider {
-    def utxos: UTxO
-}
-object UtxoProvider {
-    def givenUtxos(u: UTxO): UtxoProvider = new UtxoProvider {
-        override def utxos: UTxO = u
-    }
 }

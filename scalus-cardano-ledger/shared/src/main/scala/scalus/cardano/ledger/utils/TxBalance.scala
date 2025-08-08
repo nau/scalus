@@ -1,8 +1,9 @@
 package scalus.cardano.ledger.utils
 import scalus.cardano.address.Address
-import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.txbuilder.TxBuilder
+import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
+import scalus.cardano.ledger.rules.{Context, FeesOkValidator, State, UtxoEnv}
+import scalus.cardano.ledger.txbuilder.OnSurplus
 import scalus.ledger.babbage.ProtocolParams
 
 import scala.annotation.tailrec
@@ -100,7 +101,7 @@ object TxBalance {
         val consumed = TxBalance.consumed(tx, CertState.empty, utxo, protocolParams).toTry.get
         val produced = TxBalance.produced(tx)
         if consumed.coin < produced.coin then {
-            throw new TransactionException.ValueNotConservedUTxOException(tx.id, consumed, produced)
+            throw TransactionException.ValueNotConservedUTxOException(tx.id, consumed, produced)
         }
 
         @tailrec
@@ -125,7 +126,7 @@ object TxBalance {
                     }
                 case 0L => currentTx
                 case _ => // diff < 0, we cannot cover the tx
-                    throw new TransactionException.IllegalArgumentException(
+                    throw TransactionException.IllegalArgumentException(
                       "Insufficient funds to cover transaction"
                     )
             }
@@ -140,29 +141,66 @@ object TxBalance {
         val newBody = f(tx.body.value)
         tx.copy(body = KeepRaw(newBody))
     }
-}
 
-trait OnSurplus {
-    def apply(utxo: UTxO, surplus: Coin): Transaction => Transaction
-}
-object OnSurplus {
-    import TxBalance.modifyBody
-    def toFee: OnSurplus = (_, surplus: Coin) =>
-        tx => {
-            val fee = tx.body.value.fee + surplus
-            modifyBody(tx, _.copy(fee = fee))
+    def doBalanceScript(
+        tx: Transaction,
+        scriptEvaluator: PlutusScriptEvaluator
+    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: OnSurplus): Transaction = {
+        val redeemers = scriptEvaluator.evalPlutusScripts(tx, utxo)
+        val updatedWitnessSet = if redeemers.nonEmpty then {
+            tx.witnessSet.copy(redeemers = Some(KeepRaw(Redeemers.from(redeemers))))
+        } else {
+            tx.witnessSet
         }
+        val txWithEvaluatedScript = tx.copy(witnessSet = updatedWitnessSet)
+        val baseFee = MinTransactionFee(txWithEvaluatedScript, utxo, protocolParams).toTry.get
+        val scriptExecPrice = redeemers
+            .map(r => scriptExecutionPrice(r.exUnits, protocolParams))
+            .foldLeft(Coin.zero)(_ + _)
+        val totalFee = Coin(baseFee.value + scriptExecPrice.value)
 
-    def toAddress(address: Address): OnSurplus = (_, surplus: Coin) =>
-        tx => {
-            val changeOutput = TransactionOutput(address, Value(surplus))
-            modifyBody(tx, b => b.copy(outputs = b.outputs :+ Sized(changeOutput)))
+        /*
+         * According to cip-40, we are required to return the excess collateral.
+         * for now, todo,
+         * and expect the caller to pass the collateral correctly
+         * 
+         * val returnCollatAdress = ???
+         * val collateralReturn = if (totalCollateralValue > requiredCollateral) {
+         *     val returnAmount = Coin(totalCollateralValue.value - requiredCollateral.value)
+         *     Some(Sized(TransactionOutput(
+         *         returnCollatAdress,
+         *         Value(returnAmount)
+         *     )))
+         * } else None
+         */
 
-        }
+        val txWithFeeAndCollateral = modifyBody(
+          txWithEvaluatedScript,
+          body =>
+              body.copy(
+                fee = totalFee,
+                totalCollateral =
+                    if body.collateralInputs.nonEmpty then
+                        Some(
+                          body.collateralInputs.toSeq
+                              .flatMap(utxo.get)
+                              .map(_.value.coin)
+                              .foldLeft(Coin.zero)(_ + _)
+                        )
+                    else None
+              )
+        )
 
-    def toFirstPayer: OnSurplus = (utxo: UTxO, surplus: Coin) =>
-        tx => {
-            val firstPayer = utxo.head
-            toAddress(firstPayer._2.address)(utxo, surplus)(tx)
-        }
+        doBalance(txWithFeeAndCollateral)(utxo, protocolParams, onSurplus)
+    }
+
+    private def scriptExecutionPrice(
+        executionUnits: ExUnits,
+        protocolParams: ProtocolParams
+    ): Coin = {
+        val memoryPrice = protocolParams.executionUnitPrices.priceMemory
+        val stepsPrice = protocolParams.executionUnitPrices.priceSteps
+        val scriptCost = memoryPrice * executionUnits.memory + stepsPrice * executionUnits.steps
+        Coin(scriptCost.toDouble.toLong)
+    }
 }
