@@ -80,8 +80,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val paymentAmount = 10_000L
 
         assertThrows[ValueNotConservedUTxOException] {
-            builderContext(utxo)
-                .buildNewTx
+            builderContext(utxo).buildNewTx
                 .selectInputs(SelectInputs.all)
                 .payToAddress(faucet, Value.lovelace(paymentAmount))
                 .doFinalize
@@ -106,8 +105,7 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         // Technically available, but not with a fee
         val paymentAmount = availableLovelace - Value.lovelace(1L)
         assertThrows[TransactionException.IllegalArgumentException] {
-            builderContext(utxo)
-                .buildNewTx
+            builderContext(utxo).buildNewTx
                 .selectInputs(SelectInputs.all)
                 .payToAddress(faucet, paymentAmount)
                 .doFinalize

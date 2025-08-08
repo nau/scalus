@@ -73,7 +73,8 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
         tx.copy(witnessSet = newWs)
     }
 
-    def withInputs(inputs: Set[TransactionInput]): TxBuilder = copy(tx = modifyBody(tx, _.copy(inputs = inputs)))
+    def withInputs(inputs: Set[TransactionInput]): TxBuilder =
+        copy(tx = modifyBody(tx, _.copy(inputs = inputs)))
 
     def selectInputs(selectInputs: SelectInputs): TxBuilder = withInputs(selectInputs(context.utxo))
 
