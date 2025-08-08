@@ -11,21 +11,19 @@ case class BuilderContext(
     network: Network,
     utxoProvider: UtxoProvider,
     onSurplus: OnSurplus,
-    inputSelector: SelectInputs,
     validators: Seq[Validator] = Seq.empty
 ) {
     def buildNewTx: TxBuilder = TxBuilder(this)
-    def selectInputs: Set[TransactionInput] = inputSelector.selectInputs(utxoProvider.utxo)
+    def utxo = utxoProvider.utxo
 
     def validate(tx: Transaction): Either[TransactionException, Transaction] = {
         val certState = CertState.empty
         val context = Context(tx.body.value.fee, UtxoEnv(1L, protocolParams, certState))
-        val state = State(utxoProvider.utxo, certState)
+        val state = State(utxo, certState)
         validators
             .map(_.validate(context, state, tx))
             .collectFirst { case l: Left[?, ?] => l.value }
             .toLeft(tx)
-
     }
 }
 
@@ -67,8 +65,8 @@ object UtxoProvider {
 
 trait SelectInputs {
     def selectInputs(utxo: UTxO): Set[TransactionInput]
+    final def apply(utxo: UTxO): Set[TransactionInput] = selectInputs(utxo)
 }
-
 object SelectInputs {
     def all: SelectInputs = (utxo: UTxO) => utxo.keySet
     def particular(inputs: Set[TransactionInput]): SelectInputs = _ => inputs

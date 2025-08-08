@@ -24,13 +24,12 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
       costModels = costModels
     )
 
-    private def builderContext(utxo: UTxO, selectInputs: SelectInputs) = BuilderContext(
+    private def builderContext(utxo: UTxO) = BuilderContext(
       params,
       evaluator,
       Network.Mainnet,
       UtxoProvider.from(utxo),
       OnSurplus.toFirstPayer,
-      selectInputs,
       Seq(FeesOkValidator)
     )
 
@@ -49,7 +48,8 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         )
 
         val paymentAmount = Value.lovelace(500L)
-        val tx = builderContext(utxo, SelectInputs.all).buildNewTx
+        val tx = builderContext(utxo).buildNewTx
+            .selectInputs(SelectInputs.all)
             .payToAddress(faucet, paymentAmount)
             .doFinalize
 
@@ -80,7 +80,9 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val paymentAmount = 10_000L
 
         assertThrows[ValueNotConservedUTxOException] {
-            builderContext(utxo, SelectInputs.all).buildNewTx
+            builderContext(utxo)
+                .buildNewTx
+                .selectInputs(SelectInputs.all)
                 .payToAddress(faucet, Value.lovelace(paymentAmount))
                 .doFinalize
         }
@@ -104,7 +106,9 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         // Technically available, but not with a fee
         val paymentAmount = availableLovelace - Value.lovelace(1L)
         assertThrows[TransactionException.IllegalArgumentException] {
-            builderContext(utxo, SelectInputs.all).buildNewTx
+            builderContext(utxo)
+                .buildNewTx
+                .selectInputs(SelectInputs.all)
                 .payToAddress(faucet, paymentAmount)
                 .doFinalize
         }
@@ -144,8 +148,9 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val datum = Data.unit
         val redeemer = Data.unit
 
-        val tx = builderContext(utxo, SelectInputs.particular(txInputs.keySet)).buildNewTx
+        val tx = builderContext(utxo).buildNewTx
             .payToAddress(myAddress, Value.lovelace(1_000_000L))
+            .withInputs(txInputs.keySet)
             .withScript(script, datum, redeemer, 0)
             .withCollateral(hugeCollateral.keySet)
             .doFinalize
@@ -198,8 +203,9 @@ class TxBuilderTest extends AnyFunSuite with ArbAddresses with ArbLedger {
         val redeemer = Data.unit
 
         assertThrows[TransactionException.InsufficientTotalSumOfCollateralCoinsException] {
-            builderContext(utxo, SelectInputs.particular(txInputs.keySet)).buildNewTx
+            builderContext(utxo).buildNewTx
                 .payToAddress(myAddress, Value.lovelace(1_000_000L))
+                .withInputs(txInputs.keySet)
                 .withScript(script, datum, redeemer, 0)
                 .withCollateral(insufficientCollateral.keySet)
                 .doFinalize

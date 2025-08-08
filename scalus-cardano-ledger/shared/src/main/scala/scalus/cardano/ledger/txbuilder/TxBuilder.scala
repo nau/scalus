@@ -73,19 +73,22 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
         tx.copy(witnessSet = newWs)
     }
 
+    def withInputs(inputs: Set[TransactionInput]): TxBuilder = copy(tx = modifyBody(tx, _.copy(inputs = inputs)))
+
+    def selectInputs(selectInputs: SelectInputs): TxBuilder = withInputs(selectInputs(context.utxo))
+
     def withCollateral(collateralIn: Set[TransactionInput]): TxBuilder =
         copy(tx = modifyBody(tx, _.copy(collateralInputs = collateralIn)))
 
     def doFinalize: Transaction = {
-        val withInputs = modifyBody(tx, _.copy(inputs = context.selectInputs))
         val balanced = if isScriptTx then {
-            TxBalance.doBalanceScript(withInputs, context.evaluator)(
+            TxBalance.doBalanceScript(tx, context.evaluator)(
               context.utxoProvider.utxo,
               context.protocolParams,
               context.onSurplus
             )
         } else
-            TxBalance.doBalance(withInputs)(
+            TxBalance.doBalance(tx)(
               context.utxoProvider.utxo,
               context.protocolParams,
               context.onSurplus
