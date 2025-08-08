@@ -5,6 +5,11 @@ import scalus.cardano.ledger.rules.STS.Validator
 import scalus.cardano.ledger.{CertState, Coin, PlutusScriptEvaluator, Sized, Transaction, TransactionException, TransactionInput, TransactionOutput, UTxO, Value}
 import scalus.ledger.babbage.ProtocolParams
 
+/*
+ * Name (and purpose) tbd, potentially this is `BuilderSettings`.
+ * Builder combinators are pure, while assembling BuilderContext, or settings, will involve a lot of
+ * effectful computations.
+ */
 case class BuilderContext(
     protocolParams: ProtocolParams,
     evaluator: PlutusScriptEvaluator,
