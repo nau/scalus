@@ -6,7 +6,7 @@ import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 import scalus.cardano.ledger.TransactionException.ValueNotConservedUTxOException
 import scalus.cardano.ledger.rules.STS.Validator
-import scalus.cardano.ledger.rules.{AllInputsMustBeInUtxoValidator, CardanoMutator, EmptyInputsValidator, FeesOkValidator, InputsAndReferenceInputsDisjointValidator, MissingKeyHashesValidator, MissingOrExtraScriptHashesValidator, NativeScriptsValidator, OutputsHaveNotEnoughCoinsValidator, OutputsHaveTooBigValueStorageSizeValidator, OutsideForecastValidator, OutsideValidityIntervalValidator, TransactionSizeValidator, ValidatorRulesTestKit, ValueNotConservedUTxOValidator, VerifiedSignaturesInWitnessesValidator}
+import scalus.cardano.ledger.rules.{AllInputsMustBeInUtxoValidator, CardanoMutator, EmptyInputsValidator, ExUnitsTooBigValidator, FeesOkValidator, InputsAndReferenceInputsDisjointValidator, MissingKeyHashesValidator, MissingOrExtraScriptHashesValidator, NativeScriptsValidator, OutputsHaveNotEnoughCoinsValidator, OutputsHaveTooBigValueStorageSizeValidator, OutsideForecastValidator, OutsideValidityIntervalValidator, TooManyCollateralInputsValidator, TransactionSizeValidator, ValidatorRulesTestKit, ValueNotConservedUTxOValidator, VerifiedSignaturesInWitnessesValidator}
 import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, Coin, CostModels, TransactionException, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value, *}
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
@@ -72,7 +72,7 @@ class TxBuilderTest
     }
 
     test(
-      "should create a pay do address transaction that passes a full suit of cardano ledger rule validators"
+      "should create a pay do address tx that passes a full suit of cardano ledger rule validators"
     ) {
         val (privateKey, publicKey) = generateKeyPair()
 
@@ -95,29 +95,8 @@ class TxBuilderTest
 
         val paymentAmount = Value.lovelace(50 * 1_000_000L)
 
-        val signatureTestValidator = new Validator {
-            override type Error = TransactionException
-            override def validate(context: Context, state: State, event: Event): Result =
-                for
-                    _ <- EmptyInputsValidator.validate(context, state, event)
-                    _ <- InputsAndReferenceInputsDisjointValidator.validate(context, state, event)
-                    _ <- AllInputsMustBeInUtxoValidator.validate(context, state, event)
-                    _ <- ValueNotConservedUTxOValidator.validate(context, state, event)
-                    _ <- VerifiedSignaturesInWitnessesValidator.validate(context, state, event)
-                    _ <- MissingKeyHashesValidator.validate(context, state, event)
-                    _ <- MissingOrExtraScriptHashesValidator.validate(context, state, event)
-                    _ <- NativeScriptsValidator.validate(context, state, event)
-                    _ <- TransactionSizeValidator.validate(context, state, event)
-                    _ <- FeesOkValidator.validate(context, state, event)
-                    _ <- OutputsHaveNotEnoughCoinsValidator.validate(context, state, event)
-                    _ <- OutputsHaveTooBigValueStorageSizeValidator.validate(context, state, event)
-                    _ <- OutsideValidityIntervalValidator.validate(context, state, event)
-                    _ <- OutsideForecastValidator.validate(context, state, event)
-                yield ()
-        }
-
         val contextWithKeys =
-            builderContext(utxo, Seq(signatureTestValidator)).withSigningKey(publicKey, privateKey)
+            builderContext(utxo, Seq(fullSuiteValidator)).withSigningKey(publicKey, privateKey)
 
         val tx = contextWithKeys.buildNewTx
             .selectInputs(SelectInputs.all)
@@ -134,6 +113,59 @@ class TxBuilderTest
         val fee = tx.body.value.fee
         assert(Value(sumOutputs + fee) == availableLovelace)
     }
+
+    test(
+      "should create a script tx that that passes a full suit of cardano ledger rule validators"
+    ) {
+        val emptyScriptBytes = Array(69, 1, 1, 0, 36, -103).map(_.toByte)
+        val scriptBytes = ByteString.unsafeFromArray(emptyScriptBytes)
+        val script = Script.PlutusV3(scriptBytes)
+
+        val (privateKey, publicKey) = generateKeyPair()
+        val keyHash = AddrKeyHash(platform.blake2b_224(publicKey))
+        val myAddress = ShelleyAddress(
+          Network.Testnet,
+          ShelleyPaymentPart.Key(keyHash),
+          ShelleyDelegationPart.Null
+        )
+
+        val hash = arbitrary[TransactionHash].sample.get
+
+        val scriptAddress = ShelleyAddress(
+          Network.Testnet,
+          ShelleyPaymentPart.Script(script.scriptHash),
+          ShelleyDelegationPart.Null
+        )
+        val availableLovelace = Value.lovelace(100_000_000L)
+        val txInputs = Map(
+          TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
+        )
+        val hugeCollateral = Map(
+          TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
+            myAddress,
+            Value.lovelace(100_000_000L)
+          )
+        )
+        val utxo: UTxO = txInputs ++ hugeCollateral
+
+        val datum = Data.unit
+        val redeemer = Data.unit
+
+        val contextWithAllValidators =
+            builderContext(utxo, Seq(fullSuiteValidator)).withSigningKey(publicKey, privateKey)
+
+        val tx = contextWithAllValidators.buildNewTx
+            .payToAddress(myAddress, Value.lovelace(50_000_000L))
+            .withInputs(txInputs.keySet)
+            .withScript(script, datum, redeemer, 0)
+            .withCollateral(hugeCollateral.keySet)
+            .doFinalize
+
+        assert(tx.body.value.outputs.nonEmpty)
+        assert(tx.witnessSet.redeemers.isDefined)
+        assert(tx.witnessSet.redeemers.get.value.toSeq.size == 1)
+    }
+
     test("should throw when trying to create a transaction where outputs exceed the inputs") {
         val myAddress = arbitrary[Address].sample.get
         val faucet = arbitrary[Address].sample.get
@@ -156,9 +188,8 @@ class TxBuilderTest
                 .doFinalize
         }
     }
-    test(
-      "should throw when trying to create a transaction where outputs cover the input, but don't cover the fee"
-    ) {
+
+    test("should throw when trying to create a tx where outputs cover the input, but not the fee") {
         val myAddress = arbitrary[Address].sample.get
         val faucet = arbitrary[Address].sample.get
         val hash = arbitrary[TransactionHash].sample.get
@@ -226,7 +257,6 @@ class TxBuilderTest
         assert(tx.body.value.outputs.nonEmpty)
         assert(tx.witnessSet.redeemers.isDefined)
         assert(tx.witnessSet.redeemers.get.value.toSeq.size == 1)
-
     }
 
     test("should throw when a tx contains insufficient collateral") {
@@ -278,5 +308,28 @@ class TxBuilderTest
                 .withCollateral(insufficientCollateral.keySet)
                 .doFinalize
         }
+    }
+
+    private lazy val fullSuiteValidator: Validator { type Error = TransactionException } = new Validator {
+        override type Error = TransactionException
+        override def validate(context: Context, state: State, event: Event): Result =
+            for
+                _ <- EmptyInputsValidator.validate(context, state, event)
+                _ <- InputsAndReferenceInputsDisjointValidator.validate(context, state, event)
+                _ <- AllInputsMustBeInUtxoValidator.validate(context, state, event)
+                _ <- ValueNotConservedUTxOValidator.validate(context, state, event)
+                _ <- VerifiedSignaturesInWitnessesValidator.validate(context, state, event)
+                _ <- MissingKeyHashesValidator.validate(context, state, event)
+                _ <- MissingOrExtraScriptHashesValidator.validate(context, state, event)
+                _ <- NativeScriptsValidator.validate(context, state, event)
+                _ <- TransactionSizeValidator.validate(context, state, event)
+                _ <- FeesOkValidator.validate(context, state, event)
+                _ <- OutputsHaveNotEnoughCoinsValidator.validate(context, state, event)
+                _ <- OutputsHaveTooBigValueStorageSizeValidator.validate(context, state, event)
+                _ <- OutsideValidityIntervalValidator.validate(context, state, event)
+                _ <- OutsideForecastValidator.validate(context, state, event)
+                _ <- ExUnitsTooBigValidator.validate(context, state, event)
+                _ <- TooManyCollateralInputsValidator.validate(context, state, event)
+            yield ()
     }
 }
