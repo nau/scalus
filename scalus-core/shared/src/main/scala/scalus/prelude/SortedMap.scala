@@ -28,7 +28,7 @@ object SortedMap {
       *   SortedMap.empty.toList === List.empty
       *   }}}
       */
-    def empty[A, B]: SortedMap[A, B] = SortedMap(List.empty[(A, B)])
+    def empty[A, B]: SortedMap[A, B] = SortedMap(List.empty)
 
     /** Constructs a `SortedMap` with a single key-value pair.
       *
@@ -556,8 +556,12 @@ object SortedMap {
           *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).foldLeft(0)(_ + _._2) === 3
           *   }}}
           */
-        def foldLeft[C](init: C)(combiner: (C, (A, B)) => C): C =
-            self.toList.foldLeft(init) { (acc, pair) => combiner(acc, pair) }
+        def foldLeft[C](init: C)(combiner: (C, (A, B)) => C): C = {
+            self.toList match
+                case Nil => init
+                case Cons(pair, tail) =>
+                    SortedMap(tail).foldLeft(combiner(init, pair))(combiner)
+        }
 
         /** Folds the `SortedMap` from the right, combining key-value pairs into a single value.
           *
@@ -681,16 +685,18 @@ object SortedMap {
           *   }}}
           */
         def delete(key: A): SortedMap[A, B] = {
-            def go(lst: List[(A, B)]): List[(A, B)] = lst match
-                case Nil => Nil
+            def go(m: SortedMap[A, B]): SortedMap[A, B] = m.toList match
+                case Nil => m
                 case Cons(pair, tail) =>
                     pair match
                         case (k, v) =>
                             key <=> k match
-                                case Order.Less    => lst
-                                case Order.Greater => Cons(pair, go(tail))
-                                case Order.Equal   => tail
-
-            SortedMap(go(self.toList))
+                                case Order.Less    => m
+                                case Order.Greater =>
+                                    // TODO: check that cons is use PairList representation.
+                                    SortedMap(Cons(pair, go(SortedMap(tail)).toList))
+                                case Order.Equal => SortedMap(tail)
+            go(self)
         }
+
 }
