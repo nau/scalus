@@ -1,4 +1,5 @@
 package scalus.cardano.ledger.txbuilder
+import scalus.builtin.ByteString
 import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger.rules.{Context, State, UtxoEnv}
 import scalus.cardano.ledger.rules.STS.Validator
@@ -16,10 +17,17 @@ case class BuilderContext(
     network: Network,
     utxoProvider: UtxoProvider,
     onSurplus: OnSurplus,
-    validators: Seq[Validator] = Seq.empty
+    validators: Seq[Validator] = Seq.empty,
+    signingKeys: Map[ByteString, ByteString] = Map.empty
 ) {
     def buildNewTx: TxBuilder = TxBuilder(this)
     def utxo = utxoProvider.utxo
+
+    def withSigningKey(publicKey: ByteString, privateKey: ByteString): BuilderContext =
+        copy(signingKeys = signingKeys + (publicKey -> privateKey))
+
+    def withSigningKeys(keys: Map[ByteString, ByteString]): BuilderContext =
+        copy(signingKeys = signingKeys ++ keys)
 
     def validate(tx: Transaction): Either[TransactionException, Transaction] = {
         val certState = CertState.empty

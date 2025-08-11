@@ -1,8 +1,8 @@
 package scalus.cardano.ledger.txbuilder
-import scalus.builtin.Data
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.txbuilder.TxBuilder.modifyBody
+import scalus.cardano.ledger.txbuilder.TxBuilder.{dummyVkey, modifyBody, modifyWs}
 import scalus.cardano.ledger.utils.TxBalance
 
 case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyTx) {
@@ -43,11 +43,6 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
         copy(tx = tx.copy(witnessSet = updatedWitnessSet))
     }
 
-    def signedBy(vk: VKeyWitness): TxBuilder = {
-        val wSet = tx.witnessSet.copy(vkeyWitnesses = tx.witnessSet.vkeyWitnesses + vk)
-        copy(tx = tx.copy(witnessSet = wSet))
-    }
-
     private def addRedeemer(index: Int, redeemerData: Data): Redeemers = {
         val newRedeemer = Redeemer(
           tag = RedeemerTag.Spend,
@@ -68,11 +63,6 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
         }
     }
 
-    def mapWs(f: TransactionWitnessSet => TransactionWitnessSet): Transaction = {
-        val newWs = f(tx.witnessSet)
-        tx.copy(witnessSet = newWs)
-    }
-
     def withInputs(inputs: Set[TransactionInput]): TxBuilder =
         copy(tx = modifyBody(tx, _.copy(inputs = inputs)))
 
@@ -81,33 +71,72 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
     def withCollateral(collateralIn: Set[TransactionInput]): TxBuilder =
         copy(tx = modifyBody(tx, _.copy(collateralInputs = collateralIn)))
 
+    private def addDummyVkey(tx: Transaction) =
+        modifyWs(tx, ws => ws.copy(vkeyWitnesses = ws.vkeyWitnesses + dummyVkey))
+
+    private def removeDummyVkey(tx: Transaction) =
+        modifyWs(tx, ws => ws.copy(vkeyWitnesses = ws.vkeyWitnesses - dummyVkey))
+
     def doFinalize: Transaction = {
-        val balanced = if isScriptTx then {
-            TxBalance.doBalanceScript(tx, context.evaluator)(
+        val withDummyVkey = addDummyVkey(tx)
+        val balanced = if isScriptTx(withDummyVkey) then {
+            TxBalance.doBalanceScript(withDummyVkey, context.evaluator)(
               context.utxoProvider.utxo,
               context.protocolParams,
               context.onSurplus
             )
         } else
-            TxBalance.doBalance(tx)(
+            TxBalance.doBalance(withDummyVkey)(
               context.utxoProvider.utxo,
               context.protocolParams,
               context.onSurplus
             )
-        context.validate(balanced).toTry.get
+
+        val signed = signTx(removeDummyVkey(balanced))
+        context.validate(signed).toTry.get
     }
 
-    private def isScriptTx: Boolean =
-        (tx.witnessSet.nativeScripts ++ tx.witnessSet.plutusV1Scripts ++ tx.witnessSet.plutusV2Scripts ++ tx.witnessSet.plutusV3Scripts).nonEmpty
+    private def signTx(txToSign: Transaction): Transaction = {
+        if context.signingKeys.isEmpty then {
+            txToSign
+        } else {
+            val signatures = context.signingKeys.map { (publicKey, privateKey) =>
+                val signature = platform.signEd25519(privateKey, txToSign.id)
+                VKeyWitness(publicKey, signature)
+            }.toSet
+
+            modifyWs(txToSign, ws => ws.copy(vkeyWitnesses = ws.vkeyWitnesses ++ signatures))
+        }
+    }
+
+    private def isScriptTx(transaction: Transaction): Boolean =
+        (transaction.witnessSet.nativeScripts ++
+            transaction.witnessSet.plutusV1Scripts ++
+            transaction.witnessSet.plutusV2Scripts ++
+            transaction.witnessSet.plutusV3Scripts).nonEmpty
 }
 
 object TxBuilder {
     // will be updated during balancing
-    private def dummyExUnits = ExUnits(memory = 0L, steps = 0L)
+    private val dummyExUnits = ExUnits(memory = 0L, steps = 0L)
+
+    // needed during fee calculation and prior to signing
+    private val dummyVkey = VKeyWitness(
+      ByteString.fromString("0".repeat(32)),
+      ByteString.fromString("0".repeat(64))
+    )
 
     def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody) = {
         val newBody = f(tx.body.value)
         tx.copy(body = KeepRaw(newBody))
+    }
+
+    def modifyWs(
+        tx: Transaction,
+        f: TransactionWitnessSet => TransactionWitnessSet
+    ): Transaction = {
+        val newWs = f(tx.witnessSet)
+        tx.copy(witnessSet = newWs)
     }
 
     val emptyTx: Transaction = Transaction(
