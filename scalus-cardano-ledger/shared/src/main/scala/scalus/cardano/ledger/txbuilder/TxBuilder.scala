@@ -1,7 +1,7 @@
 package scalus.cardano.ledger.txbuilder
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
-import scalus.cardano.ledger.*
+import scalus.cardano.ledger.{Coin, DataHash, DatumOption, ExUnits, KeepRaw, Redeemer, RedeemerTag, Redeemers, Script, Sized, TaggedSet, Transaction, TransactionBody, TransactionInput, TransactionOutput, TransactionWitnessSet, UTxO, VKeyWitness, Value}
 import scalus.cardano.ledger.txbuilder.TxBuilder.{dummyVkey, modifyBody, modifyWs}
 import scalus.cardano.ledger.utils.TxBalance
 
@@ -9,6 +9,16 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
 
     def payToAddress(address: Address, value: Value): TxBuilder = {
         val out = Sized(TransactionOutput(address, value))
+        copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
+    }
+
+    def payToAddress(address: Address, value: Value, datum: Data) = {
+        val out = Sized(TransactionOutput(address, value, Some(DatumOption.Inline(datum))))
+        copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
+    }
+
+    def payToAddress(address: Address, value: Value, datumHash: DataHash) = {
+        val out = Sized(TransactionOutput(address, value, Some(DatumOption.Hash(datumHash))))
         copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
     }
 

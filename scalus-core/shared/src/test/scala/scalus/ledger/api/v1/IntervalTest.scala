@@ -88,14 +88,17 @@ class IntervalTest extends StdlibTestKit with scalus.ledger.api.v1.ArbitraryInst
 
     test("entirelyBetween") {
         forAll { (from: PosixTime, to: PosixTime, after: PosixTime, before: PosixTime) =>
-            whenever(from <= to && after < before) {
-                val interval = Interval.between(from, to)
-                val entirelyBetween = interval.entirelyBetween(after, before)
+            val orderedFrom = from.min(to)
+            val orderedTo = from.max(to)
+            val orderedAfter = after.min(before)
+            val orderedBefore = after.max(before)
 
-                entirelyBetween == (interval.entirelyAfter(after) && interval.entirelyBefore(
-                  before
-                ))
-            }
+            val interval = Interval.between(orderedFrom, orderedTo)
+            val entirelyBetween = interval.entirelyBetween(orderedAfter, orderedBefore)
+
+            entirelyBetween == (interval.entirelyAfter(orderedAfter) && interval.entirelyBefore(
+              orderedBefore
+            ))
         }
 
         assertEval {
