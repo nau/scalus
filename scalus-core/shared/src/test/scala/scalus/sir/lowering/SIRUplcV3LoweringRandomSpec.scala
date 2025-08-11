@@ -27,7 +27,7 @@ class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = false,
-      debug = true
+      debug = false
     )
 
     import SIRUplcV3LoweringRandomSpec.*
