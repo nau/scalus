@@ -72,11 +72,3 @@ object WrongNetworkInTxBodyValidator extends STS.Validator {
         ???
     }
 }
-
-object TooManyCollateralInputsValidator extends STS.Validator {
-    override final type Error = TransactionException
-
-    override def validate(context: Context, state: State, event: Event): Result = {
-        ???
-    }
-}

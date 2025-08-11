@@ -127,4 +127,34 @@ class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
         }
     }
 
+    test("lowering unmapping to buildin list") {
+        val sir = compile {
+            import scalus.prelude.*
+            import scalus.builtin.Data.toData
+            val mapData = AssocMap(List(("a", BigInt(1)), ("b", BigInt(2)))).toData
+            val list_138 = scalus.builtin.Builtins.unMapData(mapData)
+            val h1 = list_138.head
+            h1.fst
+        }
+        // println(sir.show)
+        val lowering = SirToUplcV3Lowering(sir, generateErrorTraces = true)
+        val term = lowering.lower()
+        val lv = lowering.lastLoweredValue.getOrElse {
+            this.fail("No lowered value found")
+        }
+        // println(lv.show)
+        // println(s"lv.sirType = ${lv.sirType.show}")
+        // println(s"lv.representation=${lv.representation.show}")
+        val result = term.evaluateDebug
+        result match {
+            case Result.Success(term, budget, costs, log) =>
+                val dataString = Data.toData("a")
+                assert(term == Term.Const(Constant.Data(dataString)))
+            case Result.Failure(err, budget, costs, log) =>
+                this.fail(
+                  s"Lowering failed with error: $err,  log: $log"
+                )
+        }
+    }
+
 }

@@ -106,15 +106,67 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
 
     given Arbitrary[Constitution] = autoDerived
 
+    /** Generates a MultiAsset with a configurable number of policies and assets.
+      *
+      * Policies are generated with unique PolicyIds, and each policy contains a map of AssetNames
+      * to values. The values are always positive.
+      *
+      * @param minPolicies
+      *   Minimum number of policies to generate
+      * @param maxPolicies
+      *   Maximum number of policies to generate
+      * @param minAssets
+      *   Minimum number of assets per policy
+      * @param maxAssets
+      *   Maximum number of assets per policy
+      *
+      * @return
+      *   A generator for MultiAsset instances with the specified constraints.
+      */
     def genMultiAsset(
         minPolicies: Int = 1,
         maxPolicies: Int = 8,
         minAssets: Int = 1,
         maxAssets: Int = 8
     ): Gen[MultiAsset] = {
-        given Arbitrary[Long] = Arbitrary(
-          Gen.oneOf(Gen.choose(Long.MinValue, -1L), Gen.choose(1L, Long.MaxValue))
+        genConfigurableMultiAsset(minPolicies, maxPolicies, minAssets, maxAssets)(
+          Gen.choose(1L, Long.MaxValue)
         )
+    }
+
+    /** Generates a Mint with a configurable number of policies and assets.
+      *
+      * Policies are generated with unique PolicyIds, and each policy contains a map of AssetNames
+      * to values. The values can be negative (for burning) or positive (for minting). Values never
+      * equal to zero.
+      *
+      * @param minPolicies
+      *   Minimum number of policies to generate
+      * @param maxPolicies
+      *   Maximum number of policies to generate
+      * @param minAssets
+      *   Minimum number of assets per policy
+      * @param maxAssets
+      *   Maximum number of assets per policy
+      */
+    def genMint(
+        minPolicies: Int = 1,
+        maxPolicies: Int = 8,
+        minAssets: Int = 1,
+        maxAssets: Int = 8
+    ): Gen[Mint] = {
+        genConfigurableMultiAsset(minPolicies, maxPolicies, minAssets, maxAssets)(
+          Gen.oneOf(Gen.choose(Long.MinValue, -1L), Gen.choose(1L, Long.MaxValue))
+        ).map(Mint.apply)
+    }
+
+    private def genConfigurableMultiAsset(
+        minPolicies: Int = 1,
+        maxPolicies: Int = 8,
+        minAssets: Int = 1,
+        maxAssets: Int = 8
+    )(valueGen: Gen[Long]): Gen[MultiAsset] = {
+        given Arbitrary[Long] = Arbitrary(valueGen)
         given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
           genMapOfSizeFromArbitrary(minAssets, maxAssets)
         )
@@ -137,9 +189,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     }
 
     given Arbitrary[Mint] = Arbitrary {
-        genMultiAsset(minPolicies = 1, maxPolicies = 4, minAssets = 1, maxAssets = 4).map(
-          Mint.apply
-        )
+        genMint(minPolicies = 1, maxPolicies = 4, minAssets = 1, maxAssets = 4)
     }
 
     given Arbitrary[Value] = autoDerived

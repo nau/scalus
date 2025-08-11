@@ -11,7 +11,7 @@ class SirDSLTypingTest extends AnyFunSuite:
     test("type list of ints moved to SIR via implicit conversion") {
         val sir: SIR = List(1, 2, 3)
 
-        assert(sir.tp == SIRType.List(SIRType.Integer))
+        assert(sir.tp == SIRType.BuiltinList(SIRType.Integer))
 
     }
 
@@ -33,6 +33,14 @@ class SirDSLTypingTest extends AnyFunSuite:
     test("list type fron macro is created without unfilled proxies") {
         val stp = SIRType.List(SIRType.Integer)
         assert(SIRType.checkAllProxiesFilled(stp))
+    }
+
+    test("builtin.List is used in constants") {
+
+        val sir: SIR = List(1, 2, 3)
+
+        assert(sir.tp == SIRType.BuiltinList(SIRType.Integer))
+        assert(sir.isInstanceOf[SIR.Const])
     }
 
     // test("calculate types extract pair types") {

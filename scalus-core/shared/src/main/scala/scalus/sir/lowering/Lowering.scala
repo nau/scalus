@@ -59,7 +59,23 @@ object Lowering {
                             case None =>
                                 lctx.typeGenerator(resolvedType)
                     else lctx.typeGenerator(resolvedType)
-                typeGenerator.genConstr(constr)
+                try typeGenerator.genConstr(constr)
+                catch
+                    case NonFatal(ex) =>
+                        println(
+                          s"Error lowering constr: ${constr.pretty.render(100)} at ${constr.anns.pos.file}:${constr.anns.pos.startLine + 1}"
+                        )
+                        println(s"resolvedType = ${resolvedType.show}")
+                        println(s"targetType = ${optTargetType.map(_.show).getOrElse("None")}")
+                        println(s"typeGenerator = $typeGenerator")
+                        lctx.debug = true
+                        lctx.debugLevel = 50
+                        val myTypeGenerator = lctx.typeGenerator(resolvedType)
+                        println(
+                          s"myTypeGenerator = ${myTypeGenerator}"
+                        )
+                        // typeGenerator.genConstr(constr)
+                        throw ex
             case sirMatch @ SIR.Match(scrutinee, cases, rhsType, anns) =>
                 if lctx.debug then
                     lctx.log(
@@ -254,8 +270,8 @@ object Lowering {
                 val loweredCond =
                     lowerSIR(cond, Some(SIRType.Boolean))
                         .toRepresentation(PrimitiveRepresentation.Constant, cond.anns.pos)
-                val loweredT = lowerSIR(t, optTargetType)
-                val loweredF = lowerSIR(f, optTargetType)
+                val loweredT = lowerSIR(t, Some(tp))
+                val loweredF = lowerSIR(f, Some(tp))
                 lvIfThenElse(loweredCond, loweredT, loweredF, anns.pos)
             case SIR.Cast(expr, tp, anns) =>
                 val loweredExpr = lowerSIR(expr, Some(tp))

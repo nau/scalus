@@ -72,8 +72,11 @@ object ScalusRuntime {
           retvalForTuples,
           lambdaForPairs,
           LambdaRepresentation(
-            SumCaseClassRepresentation.SumDataPairList,
-            SumCaseClassRepresentation.SumDataList
+            lambdaForPairs,
+            InOutRepresentationPair(
+              SumCaseClassRepresentation.SumDataPairList,
+              SumCaseClassRepresentation.SumDataList
+            )
           ),
           AnnotationsDecl.empty.pos
         )
@@ -98,17 +101,21 @@ object ScalusRuntime {
           rhs,
           AnnotationsDecl.empty.pos
         )
+        val lambdaType = SIRType.TypeLambda2(
+          "A",
+          "B",
+          (ta, tb) => SIRType.List(SIRType.Tuple2(ta, tb)) ->: SIRType.List(SIRType.Tuple2(ta, tb)),
+          false
+        )
         val tailsProxy = TypeRepresentationProxyLoweredValue(
           funTuples,
-          SIRType.TypeLambda2(
-            "A",
-            "B",
-            (ta, tb) => SIRType.List(SIRType.Pair(ta, tb)) ->: SIRType.List(SIRType.Pair(ta, tb)),
-            false
-          ),
+          lambdaType,
           LambdaRepresentation(
-            SumCaseClassRepresentation.SumDataList,
-            SumCaseClassRepresentation.SumDataPairList
+            lambdaType,
+            InOutRepresentationPair(
+              SumCaseClassRepresentation.SumDataList,
+              SumCaseClassRepresentation.SumDataPairList
+            )
           ),
           AnnotationsDecl.empty.pos
         )
@@ -144,8 +151,11 @@ object ScalusRuntime {
             SIRType.Fun(tpInTupleList, tpOutTupleList)
         val lambdaType = SIRType.TypeLambda(List(tpA, tpB), funType)
         val lambdaRepr = LambdaRepresentation(
-          SumCaseClassRepresentation.SumDataPairList,
-          SumCaseClassRepresentation.SumDataList
+          lambdaType,
+          InOutRepresentationPair(
+            SumCaseClassRepresentation.SumDataPairList,
+            SumCaseClassRepresentation.SumDataList
+          )
         )
 
         val whenNil = {
@@ -275,8 +285,11 @@ object ScalusRuntime {
             SIRType.Fun(tpInTupleList, tpOutPairList)
         val lambdaType = SIRType.TypeLambda(List(tpA, tpB), funType)
         val lambdaRepr = LambdaRepresentation(
-          SumCaseClassRepresentation.SumDataList,
-          SumCaseClassRepresentation.SumDataPairList
+          lambdaType,
+          InOutRepresentationPair(
+            SumCaseClassRepresentation.SumDataList,
+            SumCaseClassRepresentation.SumDataPairList
+          )
         )
 
         val whenNil = lvBuiltinApply0(
@@ -416,10 +429,16 @@ object ScalusRuntime {
                 l,
                 outType ->: outType ->: outType,
                 LambdaRepresentation(
-                  outRepresentation,
-                  LambdaRepresentation(
+                  outType ->: outType ->: outType,
+                  InOutRepresentationPair(
                     outRepresentation,
-                    outRepresentation
+                    LambdaRepresentation(
+                      outType ->: outType,
+                      InOutRepresentationPair(
+                        outRepresentation,
+                        outRepresentation
+                      )
+                    )
                   )
                 ),
                 AnnotationsDecl.empty.pos
@@ -428,7 +447,10 @@ object ScalusRuntime {
               AnnotationsDecl.empty.pos,
               Some(outType ->: outType),
               Some(
-                LambdaRepresentation(outRepresentation, outRepresentation)
+                LambdaRepresentation(
+                  outType ->: outType,
+                  InOutRepresentationPair(outRepresentation, outRepresentation)
+                )
               )
             ),
             lvDelay(t2, AnnotationsDecl.empty.pos),

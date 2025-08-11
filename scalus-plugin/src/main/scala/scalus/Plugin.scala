@@ -110,7 +110,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                   s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms, options=${options}"
                 )
 
-            convertSIRToTree(result, tree.span, isCompileDebug)
+            convertSIRToTree(result, code, tree.span, isCompileDebug)
         else tree
     end transformApply
 
@@ -139,6 +139,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
       */
     private def convertSIRToTree(
         sir: SIR,
+        origin: Tree,
         span: Spans.Span,
         debug: Boolean
     )(using Context): Tree = {
@@ -187,9 +188,6 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         // Concatenate all the strings: "str1" + "str2" + ...
         val concatenatedStrings =
             strings.reduce((lhs, rhs) => lhs.select(nme.Plus).appliedTo(rhs).withSpan(span))
-        // Generate scalus.sir.ToExprHSSIRFlat.decodeStringLatin1(str1 + str2 + ...)
-        val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
-        val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
         if debug then {
             // save the SIR to a file for debugging purposes
             val groupedBytes = bytes.grouped(45000).toList
@@ -210,6 +208,9 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             report.echo(s"Scalus: saved SIR to ${path}")
             report.echo(s"Scalus: SIR size: ${codedStr.length} characters, ${bitSize} bits")
         }
+        // // Generate scalus.sir.ToExprHSSIRFlat.decodeStringLatin1(str1 + str2 + ...)
+        val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
+        val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
         ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
     }
 
@@ -237,7 +238,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                     parsed = false
                     report.warning(
                       s"ScalusPhase: Expected an identifier or select expression for targetLoweringBackend, but found: ${value.show}",
-                      posTree.srcPos
+                      value.srcPos
                     )
             }
             if backend.equals("SirToUplcV3Lowering") then useUniversalDataConversion = true
@@ -249,7 +250,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             else {
                 report.warning(
                   s"ScalusPhase: Failed to parse targetLoweringBackend, using default: ${backend}",
-                  posTree.srcPos
+                  value.srcPos
                 )
             }
         }
@@ -260,7 +261,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 case _ =>
                     report.warning(
                       s"ScalusPhase: Expected a boolean literal, but found: ${value.show}\ntree:${value}",
-                      posTree.srcPos
+                      value.srcPos
                     )
                     false
             }
@@ -272,7 +273,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 case _ =>
                     report.warning(
                       s"ScalusPhase: Expected an integer literal, but found: ${value.show}",
-                      posTree.srcPos
+                      posTree.srcPos.startPos
                     )
                     0 // default value if parsing fails
             }
@@ -294,7 +295,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                     else {
                         report.warning(
                           s"ScalusPhase: Unknown compiler option: $name",
-                          posTree.srcPos
+                          posTree.srcPos.startPos
                         )
                     }
                 case value =>
@@ -311,7 +312,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                         case _ =>
                             report.warning(
                               s"ScalusPhase: too many position argiments for scalus.compiler.Options, expected max 4, but found ${idx + 1}",
-                              posTree.srcPos
+                              posTree.srcPos.startPos
                             )
         }
 
@@ -361,10 +362,10 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                             )
                 else report.warning("defdef expected as compiler options", deftree.srcPos)
             case failure @ Implicits.SearchFailure(_) =>
-                if isCompilerDebug || debugLevel > 0 then {
+                if isCompilerDebug && debugLevel > 20 then {
                     report.warning(
                       s"ScalusPhase: No compiler options found, using default options",
-                      posTree.srcPos
+                      posTree.srcPos.startPos
                     )
                     report.warning(s"search result: ${failure.show}")
                 } else {

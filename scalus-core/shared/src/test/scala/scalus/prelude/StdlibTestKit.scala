@@ -4,8 +4,6 @@ import scalus.*
 import scalus.uplc.{Constant, Term}
 import scalus.uplc.eval.{PlutusVM, Result}
 import scalus.uplc.test.ArbitraryInstances
-import scalus.builtin.Data
-import scalus.builtin.Data.{FromData, ToData}
 import scalus.sir.{AnnotationsDecl, SIR, SIRType}
 import scalus.sir.SirDSL.$
 
@@ -23,10 +21,10 @@ import scala.reflect.ClassTag
 class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     export org.scalatestplus.scalacheck.Checkers.*
     export org.scalacheck.{Arbitrary, Gen, Shrink}
+    export scalus.builtin.Data
     export scalus.builtin.Data.{fromData, toData, FromData, ToData}
-    export scalus.prelude.{Eq, Ord}
+    export scalus.prelude.{!==, ===, Eq, Ord}
     export Eq.given
-    export scalus.prelude.{!==, ===}
     export Ord.{<=>, Order}
 
     inline given scalus.Compiler.Options = scalus.Compiler.Options(

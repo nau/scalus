@@ -198,30 +198,35 @@ object SIRBuiltins {
       SIRType.TypeLambda2(
         "chooseList_A",
         "chooseList_B",
-        (a, b) => SIRType.List(a) ->: b ->: b ->: b,
+        (a, b) => SIRType.BuiltinList(a) ->: b ->: b ->: b,
         true
       ),
       AnnotationsDecl.empty
     )
     val mkCons: SIR.Builtin = SIR.Builtin(
       DefaultFun.MkCons,
-      SIRType.TypeLambda("mkCons_A", a => a ->: SIRType.List(a) ->: SIRType.List(a), true),
+      SIRType.TypeLambda(
+        "mkCons_A",
+        a => a ->: SIRType.BuiltinList(a) ->: SIRType.BuiltinList(a),
+        true
+      ),
       AnnotationsDecl.empty
     )
     val headList: SIR.Builtin =
         SIR.Builtin(
           DefaultFun.HeadList,
-          SIRType.TypeLambda("headList_A", a => SIRType.List(a) ->: a, true),
+          SIRType.TypeLambda("headList_A", a => SIRType.BuiltinList(a) ->: a, true),
           AnnotationsDecl.empty
         )
     val tailList: SIR.Builtin = SIR.Builtin(
       DefaultFun.TailList,
-      SIRType.TypeLambda("tailList_A", a => SIRType.List(a) ->: SIRType.List(a), true),
+      SIRType
+          .TypeLambda("tailList_A", a => SIRType.BuiltinList(a) ->: SIRType.BuiltinList(a), true),
       AnnotationsDecl.empty
     )
     val nullList: SIR.Builtin = SIR.Builtin(
       DefaultFun.NullList,
-      SIRType.TypeLambda("nullList_A", a => SIRType.List(a) ->: SIRType.Boolean, true),
+      SIRType.TypeLambda("nullList_A", a => SIRType.BuiltinList(a) ->: SIRType.Boolean, true),
       AnnotationsDecl.empty
     )
 
@@ -238,38 +243,38 @@ object SIRBuiltins {
         )
     val constrData: SIR.Builtin = SIR.Builtin(
       DefaultFun.ConstrData,
-      SIRType.Integer ->: SIRType.List(SIRType.Data) ->: SIRType.Data,
+      SIRType.Integer ->: SIRType.BuiltinList(SIRType.Data) ->: SIRType.Data,
       AnnotationsDecl.empty
     )
     val mapData: SIR.Builtin = SIR.Builtin(
       DefaultFun.MapData,
-      SIRType.List(SIRType.Pair(SIRType.Data, SIRType.Data)) ->: SIRType.Data,
+      SIRType.BuiltinList(SIRType.Pair(SIRType.Data, SIRType.Data)) ->: SIRType.Data,
       AnnotationsDecl.empty
     )
     val listData: SIR.Builtin =
         SIR.Builtin(
           DefaultFun.ListData,
-          SIRType.List(SIRType.Data) ->: SIRType.Data,
+          SIRType.BuiltinList(SIRType.Data) ->: SIRType.Data,
           AnnotationsDecl.empty
         )
     val iData: SIR.Builtin =
         SIR.Builtin(DefaultFun.IData, SIRType.Integer ->: SIRType.Data, AnnotationsDecl.empty)
     val bData: SIR.Builtin =
-        SIR.Builtin(DefaultFun.BData, SIRType.Boolean ->: SIRType.Data, AnnotationsDecl.empty)
+        SIR.Builtin(DefaultFun.BData, SIRType.ByteString ->: SIRType.Data, AnnotationsDecl.empty)
     val unConstrData: SIR.Builtin = SIR.Builtin(
       DefaultFun.UnConstrData,
-      SIRType.Data ->: SIRType.Pair(SIRType.Integer, SIRType.List(SIRType.Data)),
+      SIRType.Data ->: SIRType.Pair(SIRType.Integer, SIRType.BuiltinList(SIRType.Data)),
       AnnotationsDecl.empty
     )
     val unMapData: SIR.Builtin = SIR.Builtin(
       DefaultFun.UnMapData,
-      SIRType.Data ->: SIRType.List(SIRType.Pair(SIRType.Data, SIRType.Data)),
+      SIRType.Data ->: SIRType.BuiltinList(SIRType.Pair(SIRType.Data, SIRType.Data)),
       AnnotationsDecl.empty
     )
     val unListData: SIR.Builtin =
         SIR.Builtin(
           DefaultFun.UnListData,
-          SIRType.Data ->: SIRType.List(SIRType.Data),
+          SIRType.Data ->: SIRType.BuiltinList(SIRType.Data),
           AnnotationsDecl.empty
         )
     val unIData: SIR.Builtin =
@@ -299,13 +304,13 @@ object SIRBuiltins {
     val mkNilData: SIR.Builtin =
         SIR.Builtin(
           DefaultFun.MkNilData,
-          SIRType.Unit ->: SIRType.List(SIRType.Data),
+          SIRType.Unit ->: SIRType.BuiltinList(SIRType.Data),
           AnnotationsDecl.empty
         )
     val mkNilPairData: SIR.Builtin =
         SIR.Builtin(
           DefaultFun.MkNilPairData,
-          SIRType.Unit ->: SIRType.List(SIRType.Pair(SIRType.Data, SIRType.Data)),
+          SIRType.Unit ->: SIRType.BuiltinList(SIRType.Pair(SIRType.Data, SIRType.Data)),
           AnnotationsDecl.empty
         )
 
@@ -460,7 +465,7 @@ object SIRBuiltins {
 
     val writeBits: SIR.Builtin = SIR.Builtin(
       DefaultFun.WriteBits,
-      SIRType.ByteString ->: SIRType.List(
+      SIRType.ByteString ->: SIRType.BuiltinList(
         SIRType.Integer
       ) ->: SIRType.Boolean ->: SIRType.ByteString,
       AnnotationsDecl.empty

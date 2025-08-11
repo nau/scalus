@@ -5,6 +5,7 @@ import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
 import scalus.prelude.{===, Eq, List, Option, Ord, given}
 import scalus.builtin.ByteString.*
+import scalus.ledger.api.v1.IntervalBoundType.{Finite, NegInf, PosInf}
 
 type Hash = ByteString
 type ValidatorHash = Hash
@@ -325,6 +326,82 @@ object Interval:
       */
     def between(from: PosixTime, to: PosixTime): Interval =
         new Interval(finite(from), finite(to))
+
+    /** An empty interval that contains no values, ∄ posixTime ∣ never.contains(posixTime)
+      */
+    val never: Interval = {
+        /*
+         * Not the biggest fan of using the sentinel neginf here, other options are using an enum to represent the
+         * `never`. Invariants expressed in IntervalTest should hold regardless of the implementation
+         */
+        val negInfExclusive = new IntervalBound(NegInf, false)
+        new Interval(negInfExclusive, negInfExclusive)
+    }
+
+    extension (self: Interval)
+
+        def contains(time: PosixTime): Boolean = {
+            val aboveFrom = {
+                self.from.boundType match {
+                    case IntervalBoundType.Finite(from) =>
+                        if self.from.isInclusive then time >= from else time > from
+                    case IntervalBoundType.NegInf => true
+                    case IntervalBoundType.PosInf => false
+                }
+            }
+            val belowTo = {
+                self.to.boundType match {
+                    case IntervalBoundType.Finite(to) =>
+                        if self.to.isInclusive then time <= to else time < to
+                    case IntervalBoundType.NegInf => false
+                    case IntervalBoundType.PosInf => true
+                }
+            }
+
+            aboveFrom && belowTo
+        }
+
+        /** Checks if an interval is entirely after a given time. Returns true if all values in the
+          * interval are greater than the given time.
+          */
+        def entirelyAfter(time: PosixTime): Boolean =
+            self match
+                case Interval(from, to) =>
+                    val negInfExclusive = new IntervalBound(NegInf, false)
+                    if from === negInfExclusive && to === negInfExclusive then {
+                        false
+                    } else
+                        from.boundType match
+                            case IntervalBoundType.NegInf => false
+                            case IntervalBoundType.PosInf => true
+                            case IntervalBoundType.Finite(fromTime) =>
+                                if from.isInclusive then fromTime > time
+                                else fromTime >= time
+
+        /** Checks if an interval is entirely before a given time. Returns true if all values in the
+          * interval are less than the given time.
+          */
+        def entirelyBefore(time: PosixTime): Boolean =
+            self match
+                case Interval(from, to) =>
+                    val negInfExclusive = new IntervalBound(NegInf, false)
+                    if from === negInfExclusive && to === negInfExclusive then {
+                        false
+                    } else
+                        to.boundType match
+                            case IntervalBoundType.NegInf => true
+                            case IntervalBoundType.PosInf => false
+                            case IntervalBoundType.Finite(toTime) =>
+                                if to.isInclusive then toTime < time
+                                else toTime <= time
+
+        /** Checks if an interval is entirely between two given times. Returns true if all values in
+          * the interval are between the given times.
+          */
+        def entirelyBetween(after: PosixTime, before: PosixTime): Boolean =
+            entirelyAfter(after) && entirelyBefore(before)
+
+    end extension
 
 end Interval
 

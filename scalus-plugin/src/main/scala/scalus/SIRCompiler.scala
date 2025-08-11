@@ -68,18 +68,7 @@ object AdtConstructorCallInfo {
         )
 }
 
-case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR) {
-
-    if fullName.name == "scalus.prelude.List$.foldLeft" then {
-        body.tp match
-            case SIRType.TypeLambda(_, _) =>
-            case _ =>
-                throw new RuntimeException(
-                  s"TopLevelBinding for ${fullName.name} should be a type lambda, but got ${body.tp}"
-                )
-    }
-
-}
+case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR)
 
 enum ScalusCompilationMode:
     case AllDefs
@@ -767,11 +756,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     if isNoArgsMethod(e.symbol) then SIRType.Fun(SIRType.Unit, origType)
                     else origType
                 val (moduleName, valName) =
-                    if e.symbol.owner.fullName.toString == "scalus.prelude" then
-                        if e.symbol.fullName.toString == "scalus.prelude.List" then
-                            ("scalus.prelude.List$", "scalus.prelude.List$.apply")
-                        else (e.symbol.owner.fullName.toString, e.symbol.name.show)
-                    else (e.symbol.owner.fullName.toString, e.symbol.fullName.toString)
+                    (e.symbol.owner.fullName.toString, e.symbol.fullName.toString)
                 (
                   SIR.ExternalVar(
                     moduleName,
@@ -832,6 +817,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         else if vd.symbol.hasAnnotation(IgnoreAnnot) then
             CompileMemberDefResult.Ignored(sirTypeInEnv(vd.tpe, vd.srcPos, env))
         else
+
             // TODO store comments in the SIR
             // vd.rawComment
             val rhsFixed =
@@ -852,9 +838,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     }
                 } else vd.rhs
             val bodyExpr = compileExpr(env, rhsFixed)
-
             val valSirType = sirTypeInEnv(vd.tpe.widen, vd.srcPos, env)
-
             // insert Apply if the left part hava a type T and right: Unit=>T
             val bodyExpr1 =
                 if SIRType.isPolyFunOrFunUnit(bodyExpr.tp)
@@ -1798,6 +1782,13 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                           t,
                           posAnns
                         )
+                    case SIRType.BuiltinList(t) =>
+                        SIR.Apply(
+                          SIRBuiltins.headList,
+                          exprA,
+                          t,
+                          posAnns
+                        )
                     case other =>
                         throw new Exception("expected that exprA.tp is List")
                         error(
@@ -1838,11 +1829,11 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             println(s"compileBuiltinListConstructor: ${ex.show}, list: $list, tpe: $tpe")
         val tpeE = typeReprToDefaultUni(tpe.tpe, list)
         val tpeTp = sirTypeInEnv(tpe.tpe, tree.srcPos, env)
-        val listTp = SIRType.List(tpeTp)
+        val builtinListTp = SIRType.BuiltinList(tpeTp)
         val anns = AnnotationsDecl.fromSrcPos(tree.srcPos)
         if env.debug then
             println(
-              s"compileBuiltinListConstructor: tpeE: $tpeE, tpeTp: $tpeTp, listTp: $listTp, listTp.show=${listTp.show}"
+              s"compileBuiltinListConstructor: tpeE: $tpeE, tpeTp: $tpeTp,  builtinListTp.show=${builtinListTp.show}"
             )
         ex match
             case SeqLiteral(args, _) =>
@@ -1851,13 +1842,13 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                     val lits = args.map(compileConstant)
                     SIR.Const(
                       scalus.uplc.Constant.List(tpeE, lits),
-                      listTp,
+                      builtinListTp,
                       AnnotationsDecl.fromSrcPos(list.srcPos)
                     )
                 else
                     val nil: AnnotatedSIR = SIR.Const(
                       scalus.uplc.Constant.List(tpeE, Nil),
-                      SIRType.List.Nil,
+                      SIRType.BuiltinList.Nil(),
                       AnnotationsDecl.fromSrcPos(ex.srcPos)
                     )
                     val retval = args.foldRight(nil) { (arg, acc) =>
@@ -1865,11 +1856,11 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                           SIR.Apply(
                             SIRBuiltins.mkCons,
                             compileExpr(env, arg),
-                            SIRType.Fun(listTp, listTp),
+                            SIRType.Fun(builtinListTp, builtinListTp),
                             anns
                           ),
                           acc,
-                          listTp,
+                          builtinListTp,
                           anns
                         )
                     }
@@ -1897,7 +1888,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
 
         if env0.debug then
             println(
-              s"compileApply: ${f.show}, targs: $targs, args: $args, applyTpe: $applyTpe, applyTree: $applyTree"
+              s"compileApply: ${f.show}, targs: $targs, args: $args, applyTpe: ${applyTpe.show}, applyTree: $applyTree"
             )
         val env = fillTypeParamInTypeApply(f.symbol, targs, env0)
         // val isNoSymApply = f match
@@ -2275,7 +2266,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 val tpeE = typeReprToDefaultUni(tpe.tpe, tree)
                 SIR.Const(
                   scalus.uplc.Constant.List(tpeE, Nil),
-                  SIRType.List(sirTypeInEnv(tpe.tpe, tree.srcPos, env)),
+                  SIRType.BuiltinList(sirTypeInEnv(tpe.tpe, tree.srcPos, env)),
                   AnnotationsDecl.fromSrcPos(tree.srcPos)
                 )
             case Apply(
@@ -2369,13 +2360,24 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 val classSymbol: Symbol = apply.symbol.owner.linkedClass
                 compileNewConstructor(env, classSymbol.typeRef, tree.tpe.widen, args, tree)
             // f.apply[A, B](arg) => Apply(f, arg)
-            /* When we have something like this:
-             * (f: [A] => List[A] => A, a: A) => f[Data](a)
-             * f.tpe will be a MethodType
-             */
-            case a @ Apply(applied @ TypeApply(fun @ Select(f, nme.apply), targs), args)
-                if defn.isFunctionType(fun.tpe.widen) || applied.tpe.isMethodType =>
-                compileApply(env, f, targs, args, tree.tpe, a)
+            case a @ Apply(applied @ TypeApply(fun @ Select(f, nme.apply), targs), args) =>
+                if f.symbol.is(Flags.Module) then
+                    // apply method in a companion object
+                    compileApply(env, fun, targs, args, tree.tpe, a)
+                else if defn.isFunctionType(fun.tpe.widen) || applied.tpe.isMethodType then
+                    /* When we have something like this:
+                     * (f: [A] => List[A] => A, a: A) => f[Data](a)
+                     * f.tpe will be a MethodType
+                     */
+                    compileApply(env, f, targs, args, tree.tpe, a)
+                else
+                    error(
+                      ExpressionNotSupported(a.show, tree.srcPos),
+                      SIR.Error(
+                        "Unsupported apply expression",
+                        AnnotationsDecl.fromSrcPos(tree.srcPos)
+                      )
+                    )
             // case a @ Apply(applied @ TypeApply(fun @ Select(f, nme.apply), targs), args) =>
             //    ???
             // f.apply(arg) => Apply(f, arg)

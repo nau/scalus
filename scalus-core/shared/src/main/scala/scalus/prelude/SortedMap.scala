@@ -164,21 +164,10 @@ object SortedMap {
             lhs: List[(A, B)],
             rhs: List[(A, C)]
         ): List[(A, These[B, C])] = lhs match
-            case Nil =>
-                rhs match
-                    case Nil => Nil
-                    case Cons(rhsPair, rhsTail) =>
-                        Cons(
-                          (rhsPair._1, These.That(rhsPair._2)),
-                          rhsTail.map { pair => (pair._1, These.That(pair._2)) }
-                        )
+            case Nil => rhs.map { pair => (pair._1, These.That(pair._2)) }
             case Cons(lhsPair, lhsTail) =>
                 rhs match
-                    case Nil =>
-                        Cons(
-                          (lhsPair._1, These.This(lhsPair._2)),
-                          lhsTail.map { pair => (pair._1, These.This(pair._2)) }
-                        )
+                    case Nil => lhs.map { pair => (pair._1, These.This(pair._2)) }
                     case Cons(rhsPair, rhsTail) =>
                         lhsPair match
                             case (lhsKey, lhsValue) =>
@@ -198,6 +187,72 @@ object SortedMap {
                                             case Order.Equal =>
                                                 Cons(
                                                   (lhsKey, These.These(lhsValue, rhsValue)),
+                                                  go(lhsTail, rhsTail)
+                                                )
+
+        SortedMap(go(lhs.toList, rhs.toList))
+    }
+
+    /** Merges two `SortedMap`s into a new `SortedMap` and maps the combined values using a
+      * function.
+      *
+      * Similar to `union` but additionally transforms the values. Keys that exist only in the left
+      * map have their values wrapped in `These.This`, keys that exist only in the right map have
+      * their values wrapped in `These.That`, and keys that exist in both maps have their values
+      * wrapped in `These.These` before being passed to the mapping function.
+      *
+      * @param lhs
+      *   the left-hand side `SortedMap`
+      * @param rhs
+      *   the right-hand side `SortedMap`
+      * @param f
+      *   the function to transform the combined values
+      * @return
+      *   a new `SortedMap` containing merged and transformed values
+      * @example
+      *   {{{
+      *   val map1 = SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil)))
+      *   val map2 = SortedMap.fromList(List.Cons(("b", 3), List.Cons(("c", 4), List.Nil)))
+      *   val combined = SortedMap.unionMap(map1, map2, {
+      *     case These.This(x) => x * 10      // Only in left map
+      *     case These.That(y) => y * 100     // Only in right map
+      *     case These.These(x, y) => x + y   // In both maps
+      *   })
+      *   combined === List.Cons(("a", 10), List.Cons(("b", 5), List.Cons(("c", 400), List.Nil)))
+      *   }}}
+      */
+    def unionMap[A: Ord, B, C, D](
+        lhs: SortedMap[A, B],
+        rhs: SortedMap[A, C],
+        f: These[B, C] => D
+    ): SortedMap[A, D] = {
+        def go(
+            lhs: List[(A, B)],
+            rhs: List[(A, C)]
+        ): List[(A, D)] = lhs match
+            case Nil => rhs.map { pair => (pair._1, f(These.That(pair._2))) }
+            case Cons(lhsPair, lhsTail) =>
+                rhs match
+                    case Nil => lhs.map { pair => (pair._1, f(These.This(pair._2))) }
+                    case Cons(rhsPair, rhsTail) =>
+                        lhsPair match
+                            case (lhsKey, lhsValue) =>
+                                rhsPair match
+                                    case (rhsKey, rhsValue) =>
+                                        lhsKey <=> rhsKey match
+                                            case Order.Less =>
+                                                Cons(
+                                                  (lhsKey, f(These.This(lhsValue))),
+                                                  go(lhsTail, rhs)
+                                                )
+                                            case Order.Greater =>
+                                                Cons(
+                                                  (rhsKey, f(These.That(rhsValue))),
+                                                  go(lhs, rhsTail)
+                                                )
+                                            case Order.Equal =>
+                                                Cons(
+                                                  (lhsKey, f(These.These(lhsValue, rhsValue))),
                                                   go(lhsTail, rhsTail)
                                                 )
 

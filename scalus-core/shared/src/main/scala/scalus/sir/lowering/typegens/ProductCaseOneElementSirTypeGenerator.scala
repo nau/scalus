@@ -80,18 +80,19 @@ case class ProductCaseOneElementSirTypeGenerator(
                   outRepr @ TypeVarRepresentation(isBuiltin)
                 ) =>
                 if isBuiltin then input
-                else if argRepr.isCompatible(representation) then
-                    new RepresentationProxyLoweredValue(input, representation, pos)
                 else
                     val argValue = argLoweredValue(input)
-                    val newArg = argGenerator.toRepresentation(argValue, representation, pos)
-                    val inPos = pos
-                    new TypeRepresentationProxyLoweredValue(
-                      newArg,
-                      input.sirType,
-                      outRepr,
-                      inPos
-                    )
+                    if argRepr.isCompatibleOn(argValue.sirType, outRepr, pos) then
+                        new RepresentationProxyLoweredValue(input, outRepr, pos)
+                    else
+                        val newArg = argGenerator.toRepresentation(argValue, representation, pos)
+                        val inPos = pos
+                        new TypeRepresentationProxyLoweredValue(
+                          newArg,
+                          input.sirType,
+                          outRepr,
+                          inPos
+                        )
             case (
                   inRepr @ TypeVarRepresentation(isBuiltin),
                   outRepr @ ProductCaseClassRepresentation.OneElementWrapper(argRepr)
@@ -99,7 +100,7 @@ case class ProductCaseOneElementSirTypeGenerator(
                 if isBuiltin then new RepresentationProxyLoweredValue(input, representation, pos)
                 else
                     val argValue = argLoweredValue(input)
-                    if argRepr.isCompatible(argValue.representation) then
+                    if argRepr.isCompatibleOn(argValue.sirType, argValue.representation, pos) then
                         new RepresentationProxyLoweredValue(input, representation, pos)
                     else
                         // we need to convert the argument to the new representation

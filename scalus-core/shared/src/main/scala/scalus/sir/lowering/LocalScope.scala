@@ -11,32 +11,6 @@ case class LocalScope(
 
     def getByName(name: String): Option[VariableLoweredValue] = byName.get(name)
 
-    def getOrCreateById(
-        id: String,
-        representation: LoweredValueRepresentation,
-        pos: SIRPosition
-    )(using LoweringContext): Option[IdentifiableLoweredValue] = {
-        byId.get(id) match {
-            case Some(v) =>
-                if v.representation == representation then Some(v)
-                else
-                    v.otherRepresentations.get(representation) match
-                        case Some(other) => Some(other)
-                        case None =>
-                            val newVarRhs = v.toRepresentation(representation, pos)
-                            val newVar = new DependendVariableLoweredValue(
-                              id = id,
-                              name = v.name,
-                              sir = v.sir,
-                              representation = representation,
-                              rhs = newVarRhs
-                            )
-                            v.otherRepresentations.update(representation, newVar)
-                            Some(newVar)
-            case None => None
-        }
-    }
-
     def get(
         id: String,
         representation: LoweredValueRepresentation

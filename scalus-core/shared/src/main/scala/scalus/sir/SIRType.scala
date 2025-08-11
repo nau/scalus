@@ -439,6 +439,72 @@ object SIRType {
 
     }
 
+    object BuiltinList {
+        val name = "scalus.builtin.List"
+
+        object Nil {
+            val name = "scalus.builtin.List$.Nil"
+            lazy val constrDecl: ConstrDecl = {
+                ConstrDecl(
+                  name,
+                  scala.Nil,
+                  scala.Nil,
+                  scala.List(SIRType.TypeNothing),
+                  AnnotationsDecl.empty
+                )
+            }
+            def tp = BuiltinList.dataDecl.constrType(name)
+            def apply(): SIRType = tp
+        }
+
+        object Cons {
+            val name = "scalus.builtin.List$.Cons"
+
+            def buildConstrDecl(tv: TypeVar, listType: SIRType) = {
+                ConstrDecl(
+                  name,
+                  scala.List(TypeBinding("h", tv), TypeBinding("tl", listType)),
+                  scala.List(tv),
+                  scala.List(tv),
+                  AnnotationsDecl.empty
+                )
+            }
+
+        }
+
+        lazy val dataDecl: DataDecl = {
+            val consProxy = new TypeProxy(null)
+            val a = TypeVar("A", Some(2), false)
+            val consA: SIRType.TypeVar = TypeVar("A", Some(1), false)
+            val retval = DataDecl(
+              name,
+              scala.List(
+                BuiltinList.Nil.constrDecl,
+                BuiltinList.Cons.buildConstrDecl(consA, consProxy)
+              ),
+              scala.List(a),
+              AnnotationsDecl.empty
+            )
+            consProxy.ref = typeApply(retval.tp, scala.List(consA))
+            retval
+        }
+
+        def apply(elemType: SIRType) =
+            SumCaseClass(dataDecl, scala.List(elemType))
+
+        def unapply(tp: SIRType): Option[SIRType] = {
+            tp match
+                case SumCaseClass(dataDecl, scala.List(elemType)) if dataDecl.name == name =>
+                    Some(elemType)
+                case CaseClass(constrDecl, typeArgs, optParent) =>
+                    if constrDecl.name == Cons.name then Some(typeArgs.head)
+                    else if constrDecl.name == Nil.name then Some(SIRType.TypeNothing)
+                    else None
+                case _ => None
+        }
+
+    }
+
     /** Check if the type is a function or a polymorphic function without unfolding type arguments.
       * (i.e. isPolyFunOrFun(SIRType.Fun(SIRType.Unit, SIRType.Unit)) == true,
       * isPolyFunOrFun(SIRType.TypeVar("A")) == false even if A is a needed function)
@@ -645,7 +711,11 @@ object SIRType {
             case SIRType.Fun(in, out) =>
                 val (uniqueIn, inTps) = unrollTypeLambda(in, true)
                 val (uniqueOut, outTps) = unrollTypeLambda(out, true)
-                SIRUnify.topLevelUnifyType(uniqueIn, uniqueArg, ctx.env.withUpcasting) match
+                SIRUnify.topLevelUnifyType(
+                  uniqueIn,
+                  uniqueArg,
+                  ctx.env.withUpcasting.setDebug(ctx.debug)
+                ) match
                     case SIRUnify.UnificationSuccess(env, unificator) =>
                         ctx.env = env
                         val argTpsRest = argTps.filterNot(ctx.env.filledTypes.contains)
@@ -686,9 +756,17 @@ object SIRType {
                         val resParams = ground
                         if resParams.isEmpty then resBody
                         else SIRType.TypeLambda(resParams, resBody)
-                    case SIRUnify.UnificationFailure(_, _, _) =>
+                    case SIRUnify.UnificationFailure(path, left, right) =>
+                        if ctx.debug then {
+                            println(
+                              s"Failed unification ${uniqueIn.show} and ${uniqueArg.show}, path= ${path.mkString(".")}"
+                            )
+                            println(s"left = ${left}")
+                            println(s"right= ${right}")
+                        }
                         throw CaclulateApplyTypeException(
-                          s"Cannot calculate apply type for ${f.show} to ${arg.show}, function type does not match argument type"
+                          s"Cannot calculate apply type for ${f.show} to ${arg.show}, function type does not match argument type.\n" +
+                              s"Failed unification ${uniqueIn.show} and ${uniqueArg.show}, path= ${path.mkString(".")}, "
                         )
             case tv: TypeVar =>
                 ctx.env.filledTypes.get(tv) match
@@ -753,7 +831,7 @@ object SIRType {
             case DefaultUni.BLS12_381_MlResult   => BLS12_381_MlResult
             case DefaultUni.ProtoList =>
                 val a = TypeVar("A", Some(DefaultUni.ProtoList.hashCode()), true)
-                TypeLambda(scala.List(a), SumCaseClass(List.dataDecl, scala.List(a)))
+                TypeLambda(scala.List(a), SumCaseClass(BuiltinList.dataDecl, scala.List(a)))
             case DefaultUni.ProtoPair =>
                 val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()), true)
                 val b = TypeVar("B", Some(DefaultUni.ProtoPair.hashCode() + 1), true)
@@ -761,7 +839,7 @@ object SIRType {
             case DefaultUni.Apply(f, arg) =>
                 f match
                     case DefaultUni.ProtoList =>
-                        List(fromDefaultUni(arg))
+                        BuiltinList(fromDefaultUni(arg))
                     case DefaultUni.Apply(DefaultUni.ProtoPair, a) =>
                         Pair(fromDefaultUni(a), fromDefaultUni(arg))
                     case DefaultUni.ProtoPair =>
@@ -1170,12 +1248,9 @@ object SIRType {
 
         val stack = scala.collection.mutable.Stack[(SIRType, Set[TypeVar])]()
 
-        val debug =
-            tvs.exists(x => x.optId.getOrElse(0L) == 240216L || x.optId.getOrElse(0L) == 240221L)
-
         @tailrec
         def advance(tp: SIRType, unshadowedSet: Set[TypeVar]): Unit = {
-            if debug then
+            if false then
                 println(
                   s"advance: ${tp.show}, unshadowedSet=${unshadowedSet.map(_.show).mkString(", ")}"
                 )

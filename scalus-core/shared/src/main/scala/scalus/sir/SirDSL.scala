@@ -67,7 +67,7 @@ object SirDSL:
                 case Constant.List(elemType, value) =>
                     SIR.Const(
                       c,
-                      SIRType.List(SIRType.fromDefaultUni(elemType)),
+                      SIRType.BuiltinList(SIRType.fromDefaultUni(elemType)),
                       AnnotationsDecl.empty
                     )
                 case Constant.Pair(a, b) =>

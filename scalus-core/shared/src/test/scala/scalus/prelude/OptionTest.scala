@@ -9,10 +9,13 @@ import scalus.uplc.Term
 import scala.language.implicitConversions
 
 class OptionTest extends StdlibTestKit {
+
     test("eq") {
+
         assert(Option.empty[String] == None)
         assert(Option.Some(BigInt(1)) == Option.Some(BigInt(1)))
         assert(Option.Some(BigInt(1)) !== Option.Some(BigInt(2)))
+
         assertEval(Option.Some(true) !== None)
         assertEval(Option.Some(true) === Option.Some(true))
         assertEval(Option.Some(true) !== Option.Some(false))
@@ -21,6 +24,7 @@ class OptionTest extends StdlibTestKit {
         assert(Option.empty[String].asScala.isEmpty)
         assert(scala.Some(BigInt(1)).asScalus == Option.Some(BigInt(1)))
         assert(Option.Some(BigInt(1)).asScala.contains(BigInt(1)))
+
     }
 
     test("ord") {

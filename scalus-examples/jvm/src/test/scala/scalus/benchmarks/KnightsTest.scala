@@ -27,7 +27,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             val expected: Solution = List.empty
             require(result === expected)
         }
-        val lw = sir.toLoweredValue()
+        // val lw = sir.toLoweredValue()
         // println(s"Lowered value: ${lw.pretty.render(100)}")
         val result = sir.toUplcOptimized(false).evaluateDebug
 
@@ -35,7 +35,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             if summon[
                   scalus.Compiler.Options
                 ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-            then ExBudget(ExCPU(148252_408171L), ExMemory(513_120810L))
+            then ExBudget(ExCPU(14779_5686209L), ExMemory(510_110706L))
             else if summon[
                   scalus.Compiler.Options
                 ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering
@@ -257,7 +257,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
         val scalusBudget =
             summon[scalus.Compiler.Options].targetLoweringBackend match
                 case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    ExBudget(ExCPU(588582_114603L), ExMemory(200_1335583L))
+                    ExBudget(ExCPU(590118_847167L), ExMemory(201_0721671L))
                 case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     ExBudget(ExCPU(115775_218834L), ExMemory(645_799142L))
                 case _ =>
@@ -518,7 +518,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
         val scalusBudget = {
             summon[scalus.Compiler.Options].targetLoweringBackend match {
                 case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    ExBudget(ExCPU(1_252110_226515L), ExMemory(4272_312749L))
+                    ExBudget(ExCPU(1_254829_729305L), ExMemory(4288_862729L))
                 case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     ExBudget(ExCPU(235822_700067L), ExMemory(1315_097779L))
                 case scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>

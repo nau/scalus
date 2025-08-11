@@ -480,6 +480,8 @@ case class TxInInfo(
 
 @Compile
 object TxInInfo:
+    given Eq[TxInInfo] = (a: TxInInfo, b: TxInInfo) =>
+        a.outRef === b.outRef && a.resolved === b.resolved
 
     given FromData[TxInInfo] = FromData.derived
     given ToData[TxInInfo] = ToData.derived
@@ -517,14 +519,61 @@ object TxInfo {
     )
 
     extension (self: TxInfo) {
+
+        /** Finds a transaction input in this transaction's inputs by its output reference.
+          *
+          * @param outRef
+          *   the transaction output reference to search for
+          * @return
+          *   Some(TxInInfo) if the input is found, None otherwise
+          * @example
+          *   {{{
+          * val txInfo = TxInfo(...)
+          * val outRef = TxOutRef(txId, 0)
+          * val maybeInput = txInfo.findOwnInput(outRef)
+          * // Returns Some(TxInInfo) if the outRef exists in txInfo.inputs
+          * // Returns None if the outRef is not found
+          *   }}}
+          */
         def findOwnInput(outRef: TxOutRef): Option[TxInInfo] = {
             Utils.findInput(self.inputs, outRef)
         }
 
+        /** Finds a datum in this transaction's outputs or datum lookup map by its hash.
+          *
+          * @param datumHash
+          *   the hash of the datum to search for
+          * @return
+          *   Some(Datum) if the datum is found in either transaction outputs or datum lookup map,
+          *   None otherwise
+          * @example
+          *   {{{
+          * val txInfo = TxInfo(...)
+          * val datumHash = DatumHash(...)
+          * val maybeDatum = txInfo.findOwnDatum(datumHash)
+          * // Returns Some(Datum) if the datumHash exists in txInfo.data or txInfo.outputs
+          * // Returns None if the datumHash is not found
+          *   }}}
+          */
         def findOwnDatum(datumHash: DatumHash): Option[Datum] = {
             Utils.findDatum(self.outputs, self.data, datumHash)
         }
 
+        /** Finds all transaction outputs that are locked by a specific validator script.
+          *
+          * @param scriptHash
+          *   the hash of the validator script to search for
+          * @return
+          *   List of transaction outputs that are locked by the given validator script
+          * @example
+          *   {{{
+          * val txInfo = TxInfo(...)
+          * val validatorHash = ValidatorHash(...)
+          * val scriptOutputs = txInfo.findOwnScriptOutputs(validatorHash)
+          * // Returns List[TxOut] containing all outputs locked by the validator script
+          * // Returns empty List if no matching outputs are found
+          *   }}}
+          */
         def findOwnScriptOutputs(scriptHash: ValidatorHash): List[v2.TxOut] = {
             Utils.findScriptOutputs(self.outputs, scriptHash)
         }

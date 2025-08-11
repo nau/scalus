@@ -11,7 +11,8 @@ class LoweringContext(
     var scope: LocalScope = LocalScope.empty,
     val plutusVersion: Int = 3,
     val generateErrorTraces: Boolean = false,
-    val uplcGeneratorPolicy: SIRType => SirTypeUplcGenerator = SirTypeUplcGenerator(_),
+    val uplcGeneratorPolicy: (SIRType, LoweringContext) => SirTypeUplcGenerator = (tp, lctx) =>
+        SirTypeUplcGenerator(tp, lctx.debugLevel > 30),
     var typeUnifyEnv: SIRUnify.Env = SIRUnify.Env.empty,
     var debug: Boolean = false,
     var debugLevel: Int = 0,
@@ -28,7 +29,7 @@ class LoweringContext(
     }
 
     def typeGenerator(sirType: SIRType): SirTypeUplcGenerator = {
-        uplcGeneratorPolicy(sirType)
+        uplcGeneratorPolicy(sirType, this)
     }
 
     /** If this is typevariable, try get the value from context, else leave it as is.

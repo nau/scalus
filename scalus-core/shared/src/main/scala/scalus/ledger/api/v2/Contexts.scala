@@ -110,6 +110,12 @@ case class TxOut(
 @Compile
 object TxOut {
 
+    given Eq[TxOut] = (a: TxOut, b: TxOut) =>
+        a.address === b.address &&
+            a.value === b.value &&
+            a.datum === b.datum &&
+            a.referenceScript === b.referenceScript
+
     given ToData[TxOut] = ToData.derived
 
     given FromData[TxOut] = FromData.derived

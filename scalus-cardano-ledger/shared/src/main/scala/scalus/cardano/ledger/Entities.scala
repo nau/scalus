@@ -186,9 +186,27 @@ object TransactionException {
           s"Incorrect total collateral for transactionId $transactionId, total sum of collateral coins: $totalSumOfCollateralCoins, total collateral: $totalCollateral"
         )
 
+    // It's Alonzo.ExUnitsTooBigUTxO in cardano-ledger
+    final case class ExUnitsExceedMaxException(
+        transactionId: TransactionHash,
+        supplied: ExUnits,
+        max: ExUnits
+    ) extends TransactionException(
+          s"Execution units for transaction $transactionId exceed the maximum. Maximum: $max, actual: $supplied"
+        )
+
     // It's Babbage.NoCollateralInputs in cardano-ledger
     final case class NoCollateralInputsException(transactionId: TransactionHash)
         extends TransactionException(s"No collateral inputs for transactionId $transactionId")
+
+    // It's Alonzo.TooManyCollateralInputs in cardano-ledger
+    final case class TooManyCollateralInputsException(
+        transactionId: TransactionHash,
+        supplied: Int,
+        expected: Long
+    ) extends TransactionException(
+          s"Too many collateral inputs for transactionId $transactionId. Expected at most: $expected, actual: $supplied"
+        )
 
     // TODO placeholder for general exception, remove after finishing development
     final case class IllegalArgumentException(message: String) extends TransactionException(message)

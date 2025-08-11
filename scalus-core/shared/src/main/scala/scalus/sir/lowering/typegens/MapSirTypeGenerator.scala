@@ -1,6 +1,5 @@
 package scalus.sir.lowering.typegens
 
-import scala.util.control.NonFatal
 import org.typelevel.paiges.Doc
 import scalus.sir.*
 import scalus.sir.lowering.*

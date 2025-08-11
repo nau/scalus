@@ -59,7 +59,10 @@ object ForcedBuiltinsExtractor {
                 )
             case _: Var | _: Const | _: Builtin | Error => term
         val term1 = go(term, Map.empty)
-        val withVars = extracted.foldRight(term1) { case ((term, name), acc) =>
+        // optimization shpuld be deterministic, so we sort the extracted terms by name
+        // to have a lambdas in a deterministic order.
+        val sortedExtracted = extracted.toSeq.sortBy(_._2)
+        val withVars = sortedExtracted.foldRight(term1) { case ((term, name), acc) =>
             LamAbs(name, acc) $ term
         }
         (withVars, logs)
