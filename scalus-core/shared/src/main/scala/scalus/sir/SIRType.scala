@@ -937,6 +937,7 @@ object SIRType {
         }
     }
 
+    @tailrec
     def prodParent(tp: SIRType): Option[SIRType] = {
         tp match {
             case CaseClass(_, _, Some(parent)) => Some(parent)
@@ -945,6 +946,22 @@ object SIRType {
                 else prodParent(ref)
             case TypeLambda(_, body) => prodParent(body)
             case _                   => None
+        }
+    }
+
+    def collectSum(tp: SIRType): Option[(scala.List[TypeVar], DataDecl, scala.List[SIRType])] = {
+        tp match {
+            case SumCaseClass(decl, typeArgs) =>
+                Some((scala.List.empty, decl, typeArgs))
+            case TypeProxy(ref) =>
+                if ref == null then None
+                else collectSum(ref)
+            case TypeLambda(tps, body) =>
+                collectSum(body) match
+                    case Some((accTps, decl, typeArgs)) =>
+                        Some((tps ++ accTps, decl, typeArgs))
+                    case None => None
+            case _ => None
         }
     }
 

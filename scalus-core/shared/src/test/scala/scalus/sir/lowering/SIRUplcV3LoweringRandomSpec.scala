@@ -157,4 +157,27 @@ class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
         }
     }
 
+    test("lowering pairlist repr") {
+        import scalus.*
+        import scalus.prelude.*
+
+        val sir = scalus.Compiler.compile {
+            def go(lst: List[(BigInt, BigInt)]): List[(BigInt, BigInt)] =
+                lst match
+                    case List.Nil =>
+                        List.Cons((BigInt(1), BigInt(1)), List.Nil)
+                    case List.Cons(pair, tail) =>
+                        List.Cons(pair, go(tail))
+
+            AssocMap(go(List.empty))
+
+        }
+
+        // val lw = sir.toLoweredValue()
+        val uplc = sir.toUplc()
+        val result = uplc.evaluateDebug
+        assert(result.isSuccess)
+
+    }
+
 }

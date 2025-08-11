@@ -122,15 +122,12 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                   pos
                 )
             case (PackedDataList, ProdDataList) =>
-                lvTrace(
-                  "ProcuctCase:109",
-                  lvBuiltinApply(
-                    SIRBuiltins.unListData,
-                    input,
-                    input.sirType,
-                    ProductCaseClassRepresentation.ProdDataList,
-                    pos
-                  )
+                lvBuiltinApply(
+                  SIRBuiltins.unListData,
+                  input,
+                  input.sirType,
+                  ProductCaseClassRepresentation.ProdDataList,
+                  pos
                 )
             case (PackedDataList, PackedDataList) =>
                 input

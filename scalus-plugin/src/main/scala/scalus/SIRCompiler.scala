@@ -151,6 +151,18 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
         flags: LocalBingingFlags
     ) extends LocalBindingOrSubmodule:
 
+        tp match
+            case SIRType.Fun(a, b) =>
+                body.tp match {
+                    case SIRType.Fun(a1, b1 @ SIRType.Fun(c1, d1)) =>
+                        if !(a ~=~ a1) || !(b ~=~ b1) then
+                            throw new RuntimeException(
+                              s"Function type mismatch in binding ${name}: expected ${a.show} -> ${b.show}, got ${a1.show} -> ${b1.show}"
+                            )
+                    case _ =>
+                }
+            case _ =>
+
         def fullName(using Context): FullName = FullName(symbol)
 
     end LocalBinding
@@ -843,7 +855,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
             val bodyExpr1 =
                 if SIRType.isPolyFunOrFunUnit(bodyExpr.tp)
                 then
-                    if !SIRType.isPolyFunOrFun(valSirType) then
+                    if !SIRType.isPolyFunOrFunUnit(valSirType) then
                         SIR.Apply(
                           bodyExpr,
                           SIR.Const(scalus.uplc.Constant.Unit, SIRType.Unit, AnnotationsDecl.empty),
@@ -861,15 +873,34 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
                 else valSirType
 
             CompileMemberDefResult.Compiled(
-              LocalBinding(
-                name.show,
-                bindingSirType,
-                vd.symbol,
-                Recursivity.NonRec,
-                bodyExpr1,
-                vd.sourcePos,
-                calculateLocalBindingFlags(vd.tpe)
-              )
+              try
+                  LocalBinding(
+                    name.show,
+                    bindingSirType,
+                    vd.symbol,
+                    Recursivity.NonRec,
+                    bodyExpr1,
+                    vd.sourcePos,
+                    calculateLocalBindingFlags(vd.tpe)
+                  )
+              catch
+                  case NonFatal(e) =>
+                      println(s"vd.rhs=${vd.rhs.show}")
+                      println(s"rhsFixed = ${rhsFixed.show}")
+                      println(s"bodyExpr = ${bodyExpr}")
+                      println(s"bodyExpr1 = ${bodyExpr1}")
+                      println(
+                        s"SIRType.isPolyFunOrFunUnit(bodyExpr.tp)=${SIRType.isPolyFunOrFunUnit(bodyExpr.tp)}"
+                      )
+                      println(
+                        s"SIRType.isPolyFunOrFun(valSirType)=${SIRType.isPolyFunOrFun(valSirType)}"
+                      )
+                      println(
+                        s"SIRType.isPolyFunOrFunUnit(valSirType)=${SIRType.isPolyFunOrFunUnit(valSirType)}"
+                      )
+                      println(s"vd.rhs.tpe.widen=${vd.rhs.tpe.widen.show}")
+                      println(s"vd.tpe.widen=${vd.tpe.widen.show}")
+                      throw e
             )
     }
 

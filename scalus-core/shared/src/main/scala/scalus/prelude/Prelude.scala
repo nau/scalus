@@ -47,9 +47,11 @@ trait Show[A] extends (A => String) with CompileDerivations {
     override def apply(v: A): String
 }
 
+extension [A: Show](self: A) inline def show: String = summon[Show[A]].apply(self)
+
 @Compile
 object Show {
-    extension [A: Show](self: A) inline def show: String = summon[Show[A]].apply(self)
+    // extension [A: Show](self: A) inline def show: String = summon[Show[A]].apply(self)
 
     given Show[Unit] = (x: Unit) => "()"
     given Show[ByteString] = (x: ByteString) =>

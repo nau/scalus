@@ -934,7 +934,12 @@ object LoweredValue {
         )(using
             lctx: LoweringContext
         ): LoweredValue = {
-            // if lctx.debug then Thread.dumpStack()
+            // if lctx.debug then {
+            //    Thread.dumpStack()
+            //    throw new RuntimeException(
+            //      s"lvApply called with f = ${f.pretty.render(100)}, arg = ${arg.pretty.render(100)}"
+            //    )
+            // }
 
             val prevDebug = lctx.debug
 
@@ -967,49 +972,6 @@ object LoweredValue {
                 case fArgTp => fArgTp
             }
 
-            /*
-            val (targetArgType1, targetArgRepresentation1) = argType(f.sirType) match {
-                case tv @ SIRType.TypeVar(name, optId, isBuiltin) =>
-                    val resolvedFArgType = lctx.resolveTypeVarIfNeeded(tv)
-                    if isBuiltin then
-                        (
-                          resolvedFArgType,
-                          lctx.typeGenerator(resolvedFArgType)
-                              .defaultRepresentation(resolvedFArgType)
-                        )
-                    else
-                        (
-                          resolvedFArgType,
-                          lctx.typeGenerator(resolvedFArgType)
-                              .defaultTypeVarReperesentation(resolvedFArgType)
-                        )
-                case SIRType.FreeUnificator =>
-                    (
-                      arg.sirType,
-                      lctx.typeGenerator(arg.sirType).defaultTypeVarReperesentation(arg.sirType)
-                    )
-                case fArgTp =>
-                    f.representation match {
-                        case LambdaRepresentation(reprFun) =>
-                            reprFun(arg.sirType)
-                            val inRepr = LoweredValueRepresentation.findClosest(
-                              fArgTp,
-                              arg.representation,
-                              pairs.map(_.inRepr)
-                            )
-                            (fArgTp, inRepr)
-                        case TypeVarRepresentation(isBuiltin) =>
-                            (SIRType.FreeUnificator, TypeVarRepresentation(isBuiltin))
-                        case _ =>
-                            lctx.warn(
-                              s"Warning: function application with non-lambda representation",
-                              f.pos
-                            )
-                            (fArgTp, lctx.typeGenerator(fArgTp).defaultRepresentation(fArgTp))
-                    }
-            }
-            
-             */
             if lctx.debug then {
                 lctx.log(
                   s"lvApply: argType(f.sirType) = ${argType(f.sirType).show}, f.sirType = ${f.sirType.show}, arg.sirType = ${arg.sirType.show}"

@@ -240,12 +240,6 @@ object ProductCaseClassRepresentation {
 
     }
 
-    // TODO: implement
-    // case class PairWrapper(
-    //    first: LoweredValueRepresentation,
-    //    second: LoweredValueRepresentation
-    // ) extends ProductCaseClassRepresentation
-
 }
 
 case class InOutRepresentationPair(

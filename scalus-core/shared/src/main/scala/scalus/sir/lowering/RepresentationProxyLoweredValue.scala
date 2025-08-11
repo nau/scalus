@@ -44,6 +44,13 @@ final class RepresentationProxyLoweredValue(
         input.docRef(ctx).bracketBy(left, right)
     }
 
+    override def toRepresentation(representation: LoweredValueRepresentation, pos: SIRPosition)(
+        using LoweringContext
+    ): LoweredValue = {
+        if input.representation == representation then input
+        else super.toRepresentation(representation, pos)
+    }
+
 }
 
 object RepresentationProxyLoweredValue {

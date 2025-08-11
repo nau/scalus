@@ -120,7 +120,8 @@ object AssocMap {
 
         def insert(key: A, value: B): AssocMap[A, B] = {
             def go(lst: List[(A, B)]): List[(A, B)] = lst match
-                case Nil => Cons((key, value), Nil)
+                case Nil =>
+                    Cons((key, value), Nil)
                 case Cons(pair, tail) =>
                     pair match
                         case (k, v) =>

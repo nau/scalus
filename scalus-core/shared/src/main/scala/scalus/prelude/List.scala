@@ -3,8 +3,8 @@ package scalus.prelude
 import scalus.Compile
 import scalus.Ignore
 import scalus.builtin.Builtins.*
-import scalus.builtin.Data.fromData
-import scalus.builtin.{Data, FromData, ToData}
+import scalus.builtin.Data.{fromData, toData}
+import scalus.builtin.{Data, FromData, Pair, ToData}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import Ord.{<=>, Order}
@@ -210,12 +210,44 @@ object List {
             listData(loop(a))
         }
 
+    given listPairToData[A: ToData, B: ToData]
+        : ToData[scalus.prelude.List[scalus.builtin.Pair[A, B]]] =
+        (a: scalus.prelude.List[scalus.builtin.Pair[A, B]]) => {
+            def loop(
+                a: scalus.prelude.List[scalus.builtin.Pair[A, B]]
+            ): scalus.builtin.List[Pair[Data, Data]] =
+                a match
+                    case scalus.prelude.List.Nil => scalus.builtin.Builtins.mkNilPairData()
+                    case scalus.prelude.List.Cons(head, tail) =>
+                        mkCons(
+                          mkPairData(summon[ToData[A]](head.fst), summon[ToData[B]](head.snd)),
+                          loop(tail)
+                        )
+
+            mapData(loop(a))
+        }
+
     /** Provides a `FromData` instance for `List[A]` where value type is instances of `FromData`. */
     given listFromData[A: FromData]: FromData[scalus.prelude.List[A]] = (d: Data) =>
         def loop(ls: scalus.builtin.List[Data]): scalus.prelude.List[A] =
             if ls.isEmpty then List.Nil
             else List.Cons(fromData[A](ls.head), loop(ls.tail))
         loop(unListData(d))
+
+    @Ignore
+    given listPairsFromData[A: FromData, B: FromData]
+        : FromData[scalus.prelude.List[scalus.builtin.Pair[A, B]]] =
+        (d: Data) =>
+            def loop(
+                ls: scalus.builtin.List[Pair[Data, Data]]
+            ): scalus.prelude.List[scalus.builtin.Pair[A, B]] =
+                if ls.isEmpty then List.Nil
+                else
+                    List.Cons(
+                      scalus.builtin.Pair(fromData[A](ls.head.fst), fromData[B](ls.head.snd)),
+                      loop(ls.tail)
+                    )
+            loop(unMapData(d))
 
     /** Provides an `Eq` instance for `List[A]` where value type is instances of `Eq`. */
     given listEq[A: Eq]: Eq[List[A]] = (lhs: List[A], rhs: List[A]) =>
@@ -1028,9 +1060,11 @@ object List {
           *   List.empty[BigInt].headOption === None
           *   }}}
           */
-        def headOption: Option[A] = self match
-            case Nil            => None
-            case Cons(value, _) => Some(value)
+        def headOption: Option[A] = {
+            self match
+                case Nil            => None
+                case Cons(value, _) => Some(value)
+        }
 
         /** Returns a list consisting of all elements except the first element of this list or
           * throws an exception if the list is empty.

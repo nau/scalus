@@ -24,7 +24,7 @@ object SumDataListSirTypeGenerator extends SumListCommonSirTypeGenerator {
     override def defaultTypeVarReperesentation(tp: SIRType)(using
         LoweringContext
     ): LoweredValueRepresentation =
-        SumCaseClassRepresentation.SumDataList
+        SumCaseClassRepresentation.PackedSumDataList
 
     override def defaultListRepresentation(using LoweringContext): LoweredValueRepresentation =
         SumCaseClassRepresentation.SumDataList

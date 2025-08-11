@@ -16,7 +16,7 @@ trait SirTypeUplcGenerator {
     def defaultRepresentation(tp: SIRType)(using LoweringContext): LoweredValueRepresentation
 
     /** Get default representation for data representation of this type. This representation is used
-      * when converting to data.
+      * when converting to data instrucutres, which holds value as data.
       */
     def defaultDataRepresentation(tp: SIRType)(using LoweringContext): LoweredValueRepresentation
 
@@ -87,9 +87,7 @@ object SirTypeUplcGenerator {
                 val trace = new IdentityHashMap[SIRType, SIRType]()
                 if decl.name == "scalus.prelude.List" then
                     if !containsFun(tp, trace) then {
-                        val isPair = isPairOrTuple2(typeArgs.head)
-                        if debug then println(s"tp: ${typeArgs.head}, isPair: ${isPair}")
-                        if isPairOrTuple2(typeArgs.head)
+                        if isPair(typeArgs.head) // isPairOrTuple2(typeArgs.head)
                         then SumPairDataListSirTypeGenerator
                         else SumDataListSirTypeGenerator
                     } else SumCaseUplcOnlySirTypeGenerator
@@ -156,6 +154,12 @@ object SirTypeUplcGenerator {
 
     def isPairOrTuple2(tp: SIRType): Boolean =
         ProductCaseClassRepresentation.PairData.isPairOrTuple2(tp)
+
+    def isPair(tp: SIRType): Boolean =
+        SIRType.retrieveConstrDecl(tp) match {
+            case Right(constrDecl) => constrDecl.name == SIRType.Pair.name
+            case Left(_)           => false
+        }
 
     private def containsFun(
         types: List[SIRType],

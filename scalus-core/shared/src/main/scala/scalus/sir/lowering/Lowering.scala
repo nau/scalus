@@ -59,23 +59,7 @@ object Lowering {
                             case None =>
                                 lctx.typeGenerator(resolvedType)
                     else lctx.typeGenerator(resolvedType)
-                try typeGenerator.genConstr(constr)
-                catch
-                    case NonFatal(ex) =>
-                        println(
-                          s"Error lowering constr: ${constr.pretty.render(100)} at ${constr.anns.pos.file}:${constr.anns.pos.startLine + 1}"
-                        )
-                        println(s"resolvedType = ${resolvedType.show}")
-                        println(s"targetType = ${optTargetType.map(_.show).getOrElse("None")}")
-                        println(s"typeGenerator = $typeGenerator")
-                        lctx.debug = true
-                        lctx.debugLevel = 50
-                        val myTypeGenerator = lctx.typeGenerator(resolvedType)
-                        println(
-                          s"myTypeGenerator = ${myTypeGenerator}"
-                        )
-                        // typeGenerator.genConstr(constr)
-                        throw ex
+                typeGenerator.genConstr(constr)
             case sirMatch @ SIR.Match(scrutinee, cases, rhsType, anns) =>
                 if lctx.debug then
                     lctx.log(
@@ -332,17 +316,23 @@ object Lowering {
                     bindings match
                         case List(Binding(name, tp, rhs)) =>
                             lctx.zCombinatorNeeded = true
+                            val rhsRepr =
+                                SirTypeUplcGenerator(rhs.tp).defaultRepresentation(tp)
                             val newVar = VariableLoweredValue(
                               id = lctx.uniqueVarName(name),
                               name = name,
                               sir = SIR.Var(name, tp, anns),
-                              representation =
-                                  SirTypeUplcGenerator(rhs.tp).defaultRepresentation(tp)
+                              representation = rhsRepr
                             )
                             val prevScope = lctx.scope
                             lctx.scope = lctx.scope.add(newVar)
-                            val loweredRhs = lowerSIR(rhs).maybeUpcast(tp, anns.pos)
+
+                            val loweredRhs =
+                                lowerSIR(rhs)
+                                    .maybeUpcast(tp, anns.pos)
+                                    .toRepresentation(rhsRepr, anns.pos)
                             val loweredBody = lowerSIR(body)
+
                             lctx.scope = prevScope
                             LetRecLoweredValue(newVar, loweredRhs, loweredBody, sirLet.anns.pos)
                         case Nil =>
