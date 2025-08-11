@@ -6,11 +6,9 @@ import scalus.uplc.eval.{PlutusVM, Result}
 import scalus.uplc.test.ArbitraryInstances
 import scalus.sir.{AnnotationsDecl, SIR, SIRType}
 import scalus.sir.SirDSL.$
-
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-
 import org.scalacheck.{Arbitrary, Prop}
 import org.scalacheck.util.Pretty
 import org.scalactic.{source, Prettifier}
@@ -153,11 +151,13 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         pos: source.Position
     ): Assertion = {
         val sir = Compiler.compileInline { (data: Data) => f(fromData[A1](data)) }
+        val uplc = sir.toUplc(true)
 
         def handler(payload: A1): Boolean = {
-            val applied =
-                sir $ SIR.Const(Constant.Data(payload.toData), SIRType.Data, AnnotationsDecl.empty)
-            val resultTerm = applied.toUplc(true).evaluate
+            // val applied =
+            //    sir $ SIR.Const(Constant.Data(payload.toData), SIRType.Data, AnnotationsDecl.empty)
+            val applied = uplc $ Term.Const(Constant.Data(payload.toData))
+            val resultTerm = applied.evaluate
             Term.alphaEq(resultTerm, trueTerm) && f(payload)
         }
 
