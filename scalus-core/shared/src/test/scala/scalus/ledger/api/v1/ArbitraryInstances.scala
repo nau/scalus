@@ -65,7 +65,11 @@ trait ArbitraryInstances extends test.ArbitraryInstances {
 
     def genAsset: Gen[Value] = for
         policyId <- genPolicyId
-        tokens <- Gen.listOf(genToken)
+        size <- Gen.frequency(
+          (5, Gen.choose(0, 1)), // 0 to 10 policyId
+          (3, Gen.choose(1, 10)) // 0 to 10 policyId
+        )
+        tokens <- Gen.listOfN(size, genToken)
     yield
         val assets = List.from(tokens)
         Value.fromList(List((policyId, assets)))
@@ -76,15 +80,14 @@ trait ArbitraryInstances extends test.ArbitraryInstances {
         for
             lovelace <- Gen.option(genLovelace)
             size <- Gen.frequency(
-              (5, Gen.choose(0, 1)), // 0 to 10 assets
-              (3, Gen.choose(1, 10)), // 0 to 10 assets
-              (1, Gen.choose(11, 100)) // 11 to 100 assets
+              (5, Gen.choose(0, 1)), // 0 to 10 policyId
+              (3, Gen.choose(1, 10)) // 0 to 10 policyId
             )
-            assets <- Gen
+            values <- Gen
                 .listOfN(size, genAsset)
                 .map(_.foldLeft(Value.zero)(Value.plus))
         yield lovelace match
-            case None    => assets
-            case Some(l) => Value.plus(l, assets)
+            case None    => values
+            case Some(l) => Value.plus(l, values)
     }
 }

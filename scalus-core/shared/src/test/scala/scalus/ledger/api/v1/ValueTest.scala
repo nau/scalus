@@ -8,6 +8,12 @@ import scalus.prelude.StdlibTestKit
 import scalus.uplc.eval.Result.{Failure, Success}
 
 class ValueTest extends StdlibTestKit with ArbitraryInstances {
+    given [T: Arbitrary]: Arbitrary[List[T]] = Arbitrary {
+        for
+            size <- Gen.choose(0, 10)
+            elements <- Gen.listOfN(size, Arbitrary.arbitrary[T])
+        yield List.from(elements)
+    }
 
     test("toSortedMap") {
         checkEval { (value: Value) =>

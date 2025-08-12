@@ -182,14 +182,13 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             f(fromData[A1](d1), fromData[A2](d2))
         }
 
+        val uplc = sir.toUplc(true)
+
         def handler(payload1: A1, payload2: A2): Boolean = {
-            val applied =
-                sir $ SIR.Const(
-                  Constant.Data(payload1.toData),
-                  SIRType.Data,
-                  AnnotationsDecl.empty
-                ) $ SIR.Const(Constant.Data(payload2.toData), SIRType.Data, AnnotationsDecl.empty)
-            val resultTerm = applied.toUplc(true).evaluate
+            val applied = uplc $ Term.Const(Constant.Data(payload1.toData)) $ Term.Const(
+              Constant.Data(payload2.toData)
+            )
+            val resultTerm = applied.evaluate
             Term.alphaEq(resultTerm, trueTerm) && f(payload1, payload2)
         }
 
@@ -221,18 +220,13 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             f(fromData[A1](d1), fromData[A2](d2), fromData[A3](d3))
         }
 
+        val uplc = sir.toUplc(true)
+
         def handler(payload1: A1, payload2: A2, payload3: A3): Boolean = {
-            val applied =
-                sir $ SIR.Const(
-                  Constant.Data(payload1.toData),
-                  SIRType.Data,
-                  AnnotationsDecl.empty
-                ) $ SIR.Const(
-                  Constant.Data(payload2.toData),
-                  SIRType.Data,
-                  AnnotationsDecl.empty
-                ) $ SIR.Const(Constant.Data(payload3.toData), SIRType.Data, AnnotationsDecl.empty)
-            val resultTerm = applied.toUplc(true).evaluate
+            val applied = uplc $ Term.Const(Constant.Data(payload1.toData)) $ Term.Const(
+              Constant.Data(payload2.toData)
+            ) $ Term.Const(Constant.Data(payload3.toData))
+            val resultTerm = applied.evaluate
             Term.alphaEq(resultTerm, trueTerm) && f(payload1, payload2, payload3)
         }
 
@@ -268,17 +262,15 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             f(fromData[A1](d1), fromData[A2](d2), fromData[A3](d3), fromData[A4](d4))
         }
 
+        val uplc = sir.toUplc(true)
+
         def handler(payload1: A1, payload2: A2, payload3: A3, payload4: A4): Boolean = {
-            val applied =
-                sir $ SIR.Const(
-                  Constant.Data(payload1.toData),
-                  SIRType.Data,
-                  AnnotationsDecl.empty
-                ) $
-                    SIR.Const(Constant.Data(payload2.toData), SIRType.Data, AnnotationsDecl.empty) $
-                    SIR.Const(Constant.Data(payload3.toData), SIRType.Data, AnnotationsDecl.empty) $
-                    SIR.Const(Constant.Data(payload4.toData), SIRType.Data, AnnotationsDecl.empty)
-            val resultTerm = applied.toUplc(true).evaluate
+            val applied = uplc $ Term.Const(Constant.Data(payload1.toData)) $ Term.Const(
+              Constant.Data(payload2.toData)
+            ) $ Term.Const(Constant.Data(payload3.toData)) $ Term.Const(
+              Constant.Data(payload4.toData)
+            )
+            val resultTerm = applied.evaluate
             Term.alphaEq(resultTerm, trueTerm) && f(payload1, payload2, payload3, payload4)
         }
 
@@ -324,6 +316,8 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             )
         }
 
+        val uplc = sir.toUplc(true)
+
         def handler(
             payload1: A1,
             payload2: A2,
@@ -331,17 +325,12 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             payload4: A4,
             payload5: A5
         ): Boolean = {
-            val applied =
-                sir $ SIR.Const(
-                  Constant.Data(payload1.toData),
-                  SIRType.Data,
-                  AnnotationsDecl.empty
-                ) $
-                    SIR.Const(Constant.Data(payload2.toData), SIRType.Data, AnnotationsDecl.empty) $
-                    SIR.Const(Constant.Data(payload3.toData), SIRType.Data, AnnotationsDecl.empty) $
-                    SIR.Const(Constant.Data(payload4.toData), SIRType.Data, AnnotationsDecl.empty) $
-                    SIR.Const(Constant.Data(payload5.toData), SIRType.Data, AnnotationsDecl.empty)
-            val resultTerm = applied.toUplc(true).evaluate
+            val applied = uplc $ Term.Const(Constant.Data(payload1.toData)) $ Term.Const(
+              Constant.Data(payload2.toData)
+            ) $ Term.Const(Constant.Data(payload3.toData)) $ Term.Const(
+              Constant.Data(payload4.toData)
+            ) $ Term.Const(Constant.Data(payload5.toData))
+            val resultTerm = applied.evaluate
             Term.alphaEq(resultTerm, trueTerm) && f(
               payload1,
               payload2,
@@ -399,6 +388,8 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
                 )
         }
 
+        val uplc = sir.toUplc(true)
+
         def handler(
             payload1: A1,
             payload2: A2,
@@ -407,18 +398,14 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             payload5: A5,
             payload6: A6
         ): Boolean = {
-            val applied =
-                sir $ SIR.Const(
-                  Constant.Data(payload1.toData),
-                  SIRType.Data,
-                  AnnotationsDecl.empty
-                ) $
-                    SIR.Const(Constant.Data(payload2.toData), SIRType.Data, AnnotationsDecl.empty) $
-                    SIR.Const(Constant.Data(payload3.toData), SIRType.Data, AnnotationsDecl.empty) $
-                    SIR.Const(Constant.Data(payload4.toData), SIRType.Data, AnnotationsDecl.empty) $
-                    SIR.Const(Constant.Data(payload5.toData), SIRType.Data, AnnotationsDecl.empty) $
-                    SIR.Const(Constant.Data(payload6.toData), SIRType.Data, AnnotationsDecl.empty)
-            val resultTerm = applied.toUplc(true).evaluate
+            val applied = uplc $ Term.Const(Constant.Data(payload1.toData)) $ Term.Const(
+              Constant.Data(payload2.toData)
+            ) $ Term.Const(Constant.Data(payload3.toData)) $ Term.Const(
+              Constant.Data(payload4.toData)
+            ) $ Term.Const(Constant.Data(payload5.toData)) $ Term.Const(
+              Constant.Data(payload6.toData)
+            )
+            val resultTerm = applied.evaluate
             Term.alphaEq(resultTerm, trueTerm) && f(
               payload1,
               payload2,
