@@ -1,5 +1,5 @@
 package scalus.cardano.ledger.rules
-import scalus.cardano.ledger.TransactionException
+import scalus.cardano.ledger.{ExUnits, TransactionException}
 
 import scala.math.Ordered.orderingToOrdered
 
@@ -19,7 +19,7 @@ object ExUnitsTooBigValidator extends STS.Validator {
             redeemers <- tx.witnessSet.redeemers.toSeq
             redeemer <- redeemers.value.toSeq
             exUnit = redeemer.exUnits
-        } yield exUnit).reduce(_ + _)
+        } yield exUnit).fold(ExUnits.zero)(_ + _)
         if totalExUnits > cap then {
             failure(
               TransactionException.ExUnitsExceedMaxException(
