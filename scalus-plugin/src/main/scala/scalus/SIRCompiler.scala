@@ -115,6 +115,7 @@ final class SIRCompiler(
     private val ToDataSymbol = requiredClass("scalus.builtin.ToData")
     private val typer = new SIRTyper
     private val pmCompiler = new PatternMatchingCompiler(this)
+    
 
     extension (t: Type)
         def isPair: Boolean = t.typeConstructor.classSymbol == PairSymbol
