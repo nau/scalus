@@ -12,6 +12,7 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
+import dotty.tools.io.ClassPath
 import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.{EncoderState, Flat}
 import scalus.flat.FlatInstantces.given
@@ -88,7 +89,7 @@ object SIRCompilerOptions {
     val default: SIRCompilerOptions = SIRCompilerOptions()
 }
 
-final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default)(using
+final class SIRCompiler(sirLoader: SIRLoader,  options: SIRCompilerOptions = SIRCompilerOptions.default)(using
     ctx: Context
 ) {
     import tpd.*
@@ -111,7 +112,7 @@ final class SIRCompiler(options: SIRCompilerOptions = SIRCompilerOptions.default
     private val ToDataSymbol = requiredClass("scalus.builtin.ToData")
     private val typer = new SIRTyper
     private val pmCompiler = new PatternMatchingCompiler(this)
-    private val sirLoader = new SIRLoader(using ctx)
+    
 
     extension (t: Type)
         def isPair: Boolean = t.typeConstructor.classSymbol == PairSymbol

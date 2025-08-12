@@ -7,9 +7,18 @@ import scalus.flat.FlatInstantces.given
 import scalus.sir.Module
 
 import java.io.InputStream
+import java.net.URL
 import scala.util.control.NonFatal
 
-class SIRLoader(using ctx: Context):
+case class SIRLoaderOptions(
+    classPath: List[String],
+    /** additional directory */
+    additionalUrl: Option[URL],
+    /** predefined sir-s ifexists */
+    predefinedSirs: Option[String],
+)
+
+class SIRLoader(options: SIRLoaderOptions):
 
     private val classLoader: ClassLoader = makeClassLoader
 
@@ -20,11 +29,21 @@ class SIRLoader(using ctx: Context):
         val filename = moduleName.replace('.', '/') + ".sir"
         findAndReadModuleFromClassloader(filename) match
             case Left(filename) =>
-                if debug then println(s"read for ${filename} failed, look at predefined-sirs")
-                val file =
-                    new java.io.File(s"./shared/src/main/resources/predefined-sirs/${filename}")
-                if file.exists() then findAndReadModuleFromFile(file, debug)
-                else Left(filename)
+                options.predefinedSirs match {
+                    case None =>
+                        if debug then println(s"read for ${filename} failed")
+                        Left(filename)
+                    case Some(predefinedSirs) =>
+                        if debug then
+                            println(s"read for ${filename} failed, look at predefined-sirs")
+                        val file = new java.io.File(s"${predefinedSirs}/${filename}")
+                        if file.exists() then
+                            findAndReadModuleFromFile(
+                              new java.io.File(s"${predefinedSirs}/${filename}"),
+                              debug
+                            )
+                        else Left(filename)
+                }
             case r @ Right(module) => r
     }
 
@@ -66,12 +85,11 @@ class SIRLoader(using ctx: Context):
 
     private def makeClassLoader: ClassLoader = {
         import scala.language.unsafeNulls
-        val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
+        val entries = options.classPath
+        // val entries = ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true)
         val urls = entries.map(cp => java.nio.file.Paths.get(cp).toUri.toURL)
-        val out = Option(
-          ctx.settings.outputDir.value.toURL
-        ) // to find classes in case of suspended compilation
-        val allUrls = urls ++ out.toList
+        val out = options.additionalUrl.toList
+        val allUrls = urls ++ out
         new java.net.URLClassLoader(allUrls.toArray, getClass.getClassLoader)
     }
 

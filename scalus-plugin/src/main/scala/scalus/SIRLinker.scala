@@ -23,7 +23,7 @@ case class SIRLinkerOptions(
   * It traverses the SIR tree and links external definitions and data declarations to the global
   * definitions and data declarations.
   */
-class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
+class SIRLinker(options: SIRLinkerOptions, sirLoader: SIRLoader)(using ctx: Context) {
 
     private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
         mutable.LinkedHashMap.empty
@@ -32,7 +32,7 @@ class SIRLinker(options: SIRLinkerOptions)(using ctx: Context) {
     private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[FullName, SIR]] =
         mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
-    private val sirLoader = new SIRLoader(using ctx)
+    // private val sirLoader = new SIRLoader(options.loaderOptions)
 
     private def error[A](error: CompilationError, defaultValue: A): A = {
         report.error(error.message, error.srcPos)

@@ -10,6 +10,7 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.util.Spans
 import dotty.tools.dotc.typer.Implicits
+import dotty.tools.io.ClassPath
 import scalus.flat.{DecoderState, FlatInstantces}
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
 import scalus.sir.{RemoveRecursivity, SIR}
@@ -64,7 +65,8 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         else
             if debugLevel > 0 then report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
             val options = retrieveCompilerOptions(tree, debugLevel > 0)
-            val compiler = new SIRCompiler(options)
+            val sirLoader = createSirLoader
+            val compiler = new SIRCompiler(sirLoader, options)
             compiler.compileModule(tree)
             ctx
     }
@@ -94,12 +96,14 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 else debugLevel
 
             val code = tree.args.head
-            val compiler = new SIRCompiler(options)
+            val sirLoader = createSirLoader
+            val compiler = new SIRCompiler(sirLoader, options)
             val start = System.currentTimeMillis()
             val result =
                 val result = compiler.compileToSIR(code, isCompileDebug)
                 val linked = SIRLinker(
-                  SIRLinkerOptions(options.universalDataRepresentation, localDebugLevel)
+                  SIRLinkerOptions(options.universalDataRepresentation, localDebugLevel),
+                  sirLoader
                 )
                     .link(result, tree.srcPos)
                 RemoveRecursivity(linked)
@@ -212,6 +216,16 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
         val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
         ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
+    }
+
+    private def createSirLoader(using Context): SIRLoader = {
+        new SIRLoader(
+          SIRLoaderOptions(
+            ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true),
+            Some(ctx.settings.outputDir.value.toURL),
+            Some("./shared/src/main/resources/predefined-sirs/")
+          )
+        )
     }
 
     private def retrieveCompilerOptions(
