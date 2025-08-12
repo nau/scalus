@@ -44,30 +44,40 @@ class ScalusTransactionEvaluator(
 ) extends TransactionEvaluator {
 
     /** Constructor with protocol params, utxo supplier, script supplier and mode. Uses
-      * [[SlotConfig.Mainnet]].
+      * default SlotConfig [[SlotConfig.Mainnet]], if not provided.
       *
       * @param protocolParams
       * @param utxoSupplier
       * @param scriptSupplier
       * @param mode
+      * @param slotConfig
       */
     def this(
         protocolParams: ProtocolParams,
         utxoSupplier: UtxoSupplier,
         scriptSupplier: ScriptSupplier,
-        mode: EvaluatorMode
-    ) = this(SlotConfig.Mainnet, protocolParams, utxoSupplier, scriptSupplier, mode)
+        mode: EvaluatorMode,
+        slotConfig: SlotConfig = SlotConfig.Mainnet
+    ) = this(slotConfig, protocolParams, utxoSupplier, scriptSupplier, mode)
 
     /** Constructor with protocol params and utxo supplier. Uses
-      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode and [[SlotConfig.Mainnet]].
+      * SlotConfig [[SlotConfig.Mainnet]] if not provided
+      * and
+      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode
       * @param protocolParams
       *   Protocol parameters
       * @param utxoSupplier
       *   Utxo supplier
+      * @param slotConfig
+      *   Slot config
       */
-    def this(protocolParams: ProtocolParams, utxoSupplier: UtxoSupplier) =
+    def this(
+        protocolParams: ProtocolParams,
+        utxoSupplier: UtxoSupplier,
+        slotConfig: SlotConfig = SlotConfig.Mainnet
+    ) =
         this(
-          SlotConfig.Mainnet,
+          slotConfig,
           protocolParams,
           utxoSupplier,
           NoScriptSupplier(),
@@ -75,21 +85,26 @@ class ScalusTransactionEvaluator(
         )
 
     /** Constructor with protocol params, utxo supplier and script supplier. Uses
-      * [[SlotConfig.Mainnet]] and [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
+      * SlotConfig [[SlotConfig.Mainnet]] if not provided
+      * and
+      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
       * @param protocolParams
       *   Protocol parameters
       * @param utxoSupplier
       *   Utxo supplier
       * @param scriptSupplier
       *   Additional script supplier
+      * @param slotConfig
+      *   Slot config
       */
     def this(
         protocolParams: ProtocolParams,
         utxoSupplier: UtxoSupplier,
-        scriptSupplier: ScriptSupplier
+        scriptSupplier: ScriptSupplier,
+        slotConfig: SlotConfig = SlotConfig.Mainnet
     ) =
         this(
-          SlotConfig.Mainnet,
+          slotConfig,
           protocolParams,
           utxoSupplier,
           scriptSupplier,
