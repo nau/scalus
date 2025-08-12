@@ -43,8 +43,8 @@ class ScalusTransactionEvaluator(
     @BeanProperty val debugDumpFilesForTesting: Boolean = false
 ) extends TransactionEvaluator {
 
-    /** Constructor with protocol params, utxo supplier, script supplier and mode. Uses
-      * default SlotConfig [[SlotConfig.Mainnet]], if not provided.
+    /** Constructor with protocol params, utxo supplier, script supplier and mode. Uses default
+      * SlotConfig [[SlotConfig.Mainnet]], if not provided.
       *
       * @param protocolParams
       * @param utxoSupplier
@@ -60,10 +60,8 @@ class ScalusTransactionEvaluator(
         slotConfig: SlotConfig = SlotConfig.Mainnet
     ) = this(slotConfig, protocolParams, utxoSupplier, scriptSupplier, mode)
 
-    /** Constructor with protocol params and utxo supplier. Uses
-      * SlotConfig [[SlotConfig.Mainnet]] if not provided
-      * and
-      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode
+    /** Constructor with protocol params and utxo supplier. Uses SlotConfig [[SlotConfig.Mainnet]]
+      * if not provided and [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode
       * @param protocolParams
       *   Protocol parameters
       * @param utxoSupplier
@@ -84,10 +82,8 @@ class ScalusTransactionEvaluator(
           EvaluatorMode.EVALUATE_AND_COMPUTE_COST
         )
 
-    /** Constructor with protocol params, utxo supplier and script supplier. Uses
-      * SlotConfig [[SlotConfig.Mainnet]] if not provided
-      * and
-      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
+    /** Constructor with protocol params, utxo supplier and script supplier. Uses SlotConfig
+      * [[SlotConfig.Mainnet]] if not provided and [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
       * @param protocolParams
       *   Protocol parameters
       * @param utxoSupplier
