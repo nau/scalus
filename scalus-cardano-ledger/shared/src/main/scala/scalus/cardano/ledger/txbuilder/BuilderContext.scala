@@ -23,6 +23,8 @@ case class BuilderContext(
     def buildNewTx: TxBuilder = TxBuilder(this)
     def utxo = utxoProvider.utxo
 
+    def withUtxo(utxo: UTxO): BuilderContext = copy(utxoProvider = utxoProvider.extendWith(utxo))
+
     def withSigningKey(publicKey: ByteString, privateKey: ByteString): BuilderContext =
         copy(signingKeys = signingKeys + (publicKey -> privateKey))
 
@@ -71,9 +73,15 @@ object OnSurplus {
 
 trait UtxoProvider {
     def utxo: UTxO
+    def extendWith(utxo: UTxO): UtxoProvider
 }
 object UtxoProvider {
-    def from(u: UTxO): UtxoProvider = new UtxoProvider { override def utxo: UTxO = u }
+    private case class InMemoryUtxo(u: UTxO) extends UtxoProvider {
+        override def utxo: UTxO = u
+        override def extendWith(u2: UTxO): UtxoProvider = copy(u = u ++ u2)
+    }
+
+    def from(u: UTxO): UtxoProvider = InMemoryUtxo(u)
 }
 
 trait SelectInputs {
