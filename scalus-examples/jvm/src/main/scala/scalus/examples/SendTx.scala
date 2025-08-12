@@ -18,7 +18,7 @@ import com.bloxbean.cardano.client.quicktx.ScriptTx
 import com.bloxbean.cardano.client.quicktx.Tx
 import scalus.*
 import scalus.bloxbean.Interop.toPlutusData
-import scalus.bloxbean.ScalusTransactionEvaluator
+import scalus.bloxbean.{ScalusTransactionEvaluator, SlotConfig}
 import scalus.builtin.{platform, ByteString, Data, PlatformSpecific, given}
 import scalus.utils.Utils
 
@@ -86,7 +86,9 @@ object SendTx:
             .compose(scriptTx)
             .feePayer(sender.baseAddress())
             .withSigner(SignerProviders.signerFrom(sender))
-            .withTxEvaluator(ScalusTransactionEvaluator(protocolParams, utxoSupplier))
+            .withTxEvaluator(
+              ScalusTransactionEvaluator(protocolParams, utxoSupplier, SlotConfig.Mainnet)
+            )
             .withRequiredSigners(pubKeyHashBytes.bytes)
             .ignoreScriptCostEvaluationError(false)
             .buildAndSign()

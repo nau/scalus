@@ -43,9 +43,7 @@ class ScalusTransactionEvaluator(
     @BeanProperty val debugDumpFilesForTesting: Boolean = false
 ) extends TransactionEvaluator {
 
-    /** Constructor with protocol params, utxo supplier, script supplier and mode. Uses default
-      * SlotConfig [[SlotConfig.Mainnet]], if not provided.
-      *
+    /** Constructor with protocol params, utxo supplier, script supplier and mode.
       * @param protocolParams
       * @param utxoSupplier
       * @param scriptSupplier
@@ -57,11 +55,11 @@ class ScalusTransactionEvaluator(
         utxoSupplier: UtxoSupplier,
         scriptSupplier: ScriptSupplier,
         mode: EvaluatorMode,
-        slotConfig: SlotConfig = SlotConfig.Mainnet
+        slotConfig: SlotConfig
     ) = this(slotConfig, protocolParams, utxoSupplier, scriptSupplier, mode)
 
-    /** Constructor with protocol params and utxo supplier. Uses SlotConfig [[SlotConfig.Mainnet]]
-      * if not provided and [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode
+    /** Constructor with protocol params and utxo supplier. Uses
+      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
       * @param protocolParams
       *   Protocol parameters
       * @param utxoSupplier
@@ -72,7 +70,7 @@ class ScalusTransactionEvaluator(
     def this(
         protocolParams: ProtocolParams,
         utxoSupplier: UtxoSupplier,
-        slotConfig: SlotConfig = SlotConfig.Mainnet
+        slotConfig: SlotConfig
     ) =
         this(
           slotConfig,
@@ -82,8 +80,8 @@ class ScalusTransactionEvaluator(
           EvaluatorMode.EVALUATE_AND_COMPUTE_COST
         )
 
-    /** Constructor with protocol params, utxo supplier and script supplier. Uses SlotConfig
-      * [[SlotConfig.Mainnet]] if not provided and [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
+    /** Constructor with protocol params, utxo supplier and script supplier. Uses
+      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
       * @param protocolParams
       *   Protocol parameters
       * @param utxoSupplier
@@ -97,7 +95,7 @@ class ScalusTransactionEvaluator(
         protocolParams: ProtocolParams,
         utxoSupplier: UtxoSupplier,
         scriptSupplier: ScriptSupplier,
-        slotConfig: SlotConfig = SlotConfig.Mainnet
+        slotConfig: SlotConfig
     ) =
         this(
           slotConfig,
