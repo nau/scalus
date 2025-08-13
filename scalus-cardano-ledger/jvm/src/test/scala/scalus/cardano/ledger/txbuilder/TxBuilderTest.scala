@@ -330,13 +330,13 @@ class TxBuilderTest
         )
 
         val nativeScript = Script.Native(Timelock.Signature(keyHash))
-        
+
         val scriptAddress = ShelleyAddress(
           Network.Testnet,
           ShelleyPaymentPart.Script(nativeScript.scriptHash),
           ShelleyDelegationPart.Null
         )
-        
+
         val tokenName = AssetName(ByteString.fromString("co2"))
         val tokenAmount = 1000L
         val tokensToMint = MultiAsset(
@@ -358,7 +358,7 @@ class TxBuilderTest
         assert(tx.body.value.mint.isDefined)
         assert(tx.body.value.mint.get == tokensToMint)
         assert(tx.witnessSet.nativeScripts.contains(nativeScript))
-        
+
         val outputWithTokens = tx.body.value.outputs.find(_.value.value.assets == tokensToMint)
         assert(outputWithTokens.isDefined)
     }
