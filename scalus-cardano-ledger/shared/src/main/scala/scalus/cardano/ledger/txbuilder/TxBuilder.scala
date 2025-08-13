@@ -103,8 +103,8 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
 
     def doFinalize: Transaction = {
         val withDummyVkey = addDummyVkey(tx)
-        val balanced = if isScriptTx(withDummyVkey) then {
-            TxBalance.doBalanceScript(withDummyVkey, context.evaluator)(
+        val balanced = if isPlutusScriptTx(withDummyVkey) then {
+            TxBalance.doBalancePlutusScript(withDummyVkey, context.evaluator)(
               context.utxoProvider.utxo,
               context.protocolParams,
               context.onSurplus
@@ -133,11 +133,10 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
         }
     }
 
-    private def isScriptTx(transaction: Transaction): Boolean =
-        (transaction.witnessSet.nativeScripts ++
-            transaction.witnessSet.plutusV1Scripts ++
-            transaction.witnessSet.plutusV2Scripts ++
-            transaction.witnessSet.plutusV3Scripts).nonEmpty
+    private def isPlutusScriptTx(transaction: Transaction): Boolean =
+        transaction.witnessSet.plutusV1Scripts.size +
+            transaction.witnessSet.plutusV2Scripts.size +
+            transaction.witnessSet.plutusV3Scripts.size > 0
 }
 
 object TxBuilder {

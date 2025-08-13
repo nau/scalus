@@ -1,8 +1,6 @@
 package scalus.cardano.ledger.utils
-import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
-import scalus.cardano.ledger.rules.{Context, FeesOkValidator, State, UtxoEnv}
 import scalus.cardano.ledger.txbuilder.OnSurplus
 import scalus.ledger.babbage.ProtocolParams
 
@@ -74,12 +72,13 @@ object TxBalance {
     def produced(tx: Transaction): Value = {
         val txBody = tx.body.value
         val mint = txBody.mint.getOrElse(MultiAsset.empty)
-        val burned = Value(
-          Coin.zero,
-          MultiAsset(mint.assets.map { case (policy, assets) =>
-              policy -> assets.filter((_, value) => value < 0)
-          })
-        )
+        val burned =
+            val negativeMints = mint.assets.flatMap { case (policy, assets) =>
+                val burns = assets.filter((_, value) => value < 0)
+                if burns.isEmpty then None else Some(policy -> burns)
+            }
+            if negativeMints.isEmpty then Value.zero
+            else Value(Coin.zero, MultiAsset(negativeMints))
         val outputs = txBody.outputs
             .map(_.value.value)
             .foldLeft(Value.zero)(_ + _)
@@ -142,7 +141,7 @@ object TxBalance {
         tx.copy(body = KeepRaw(newBody))
     }
 
-    def doBalanceScript(
+    def doBalancePlutusScript(
         tx: Transaction,
         scriptEvaluator: PlutusScriptEvaluator
     )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: OnSurplus): Transaction = {
