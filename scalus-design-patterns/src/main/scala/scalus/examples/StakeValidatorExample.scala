@@ -4,7 +4,7 @@ import scalus.*
 import scalus.builtin.Data
 import scalus.ledger.api.v3.*
 import scalus.patterns.StakeValidator
-import scalus.prelude.{*, given}
+import scalus.prelude.*
 
 // Example for a validator that requires a withdrawal from its script for each
 // spend. Note that depending on an external script is typically more

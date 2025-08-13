@@ -4,7 +4,7 @@ import scalus.*
 import scalus.builtin.{ByteString, Data, FromData}
 import scalus.ledger.api.v3.*
 import scalus.patterns.TransactionLevelMinterValidator
-import scalus.prelude.{*, given}
+import scalus.prelude.*
 
 @Compile
 object TransactionLevelMinterValidatorExample extends Validator {

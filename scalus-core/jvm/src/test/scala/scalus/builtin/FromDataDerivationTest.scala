@@ -12,7 +12,6 @@ import scalus.builtin.Data.*
 import scalus.uplc.*
 import scalus.uplc.eval.PlutusVM
 import scalus.uplc.test.ArbitraryInstances
-import scalus.prelude.given
 
 import scala.annotation.nowarn
 import scala.language.implicitConversions

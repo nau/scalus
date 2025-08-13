@@ -6,7 +6,6 @@ import scalus.builtin.Data.fromData
 import scalus.builtin.{Data, FromData, ToData}
 import scala.annotation.tailrec
 
-@deprecated("Use SortedMap instead")
 case class AssocMap[A, B](toList: List[(A, B)])
 
 @Compile

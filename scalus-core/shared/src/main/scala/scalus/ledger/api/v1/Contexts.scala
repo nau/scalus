@@ -3,11 +3,11 @@ package scalus.ledger.api.v1
 import scalus.Compile
 import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
-import scalus.prelude.{===, Eq, List, Option, Ord, given}
+import scalus.prelude.{===, Eq, List, Option, Ord}
 import scalus.prelude.Eq.given
 import scalus.prelude.Ord.{<=>, ifEqualThen, given}
 import scalus.builtin.ByteString.*
-import scalus.ledger.api.v1.IntervalBoundType.{Finite, NegInf, PosInf}
+import scalus.ledger.api.v1.IntervalBoundType.{Finite, NegInf}
 
 type Hash = ByteString
 type ValidatorHash = Hash

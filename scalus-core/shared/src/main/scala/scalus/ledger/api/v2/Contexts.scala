@@ -7,7 +7,7 @@ import scalus.builtin.Data
 import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
-import scalus.prelude.{===, Eq, List, Option, Ord, SortedMap, given}
+import scalus.prelude.{===, Eq, List, Option, Ord, SortedMap}
 import scalus.prelude.Ord.{<=>, ifEqualThen, given}
 import scalus.builtin.ByteString.*
 

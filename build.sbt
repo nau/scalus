@@ -395,7 +395,9 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       mimaBinaryIssueFilters ++= Seq(
         ProblemFilters
             .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getMintValue"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getValue")
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getValue"),
+        ProblemFilters
+            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getVotingProcedures")
       ),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",

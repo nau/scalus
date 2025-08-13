@@ -2,7 +2,7 @@ package scalus.benchmarks
 
 import scalus.*
 import scalus.builtin.Builtins.{multiplyInteger, remainderInteger}
-import scalus.prelude.{*, given}
+import scalus.prelude.*
 import scalus.prelude.Eq.given
 import scalus.prelude.Ord.<=>
 import scalus.uplc.*
@@ -36,7 +36,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
             if summon[
                   scalus.Compiler.Options
                 ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-            then ExBudget(ExCPU(92669_862343L), ExMemory(326_509238L))
+            then ExBudget(ExCPU(92615_910343L), ExMemory(326_172038L))
             else if summon[
                   scalus.Compiler.Options
                 ].targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering
@@ -137,7 +137,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
         val scalusBudget =
             summon[scalus.Compiler.Options].targetLoweringBackend match
                 case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    ExBudget(ExCPU(226311_783322L), ExMemory(809_818747L))
+                    ExBudget(ExCPU(226221_111322L), ExMemory(809_252047L))
                 case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     ExBudget(ExCPU(115775_218834L), ExMemory(645_799142L))
                 case _ =>
@@ -236,7 +236,7 @@ class KnightsTest extends AnyFunSuite, ScalusTest:
         val scalusBudget = {
             summon[scalus.Compiler.Options].targetLoweringBackend match {
                 case scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering =>
-                    ExBudget(ExCPU(447480_485498L), ExMemory(1611_406129L))
+                    ExBudget(ExCPU(447334_085498L), ExMemory(1610_491129L))
                 case scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering =>
                     ExBudget(ExCPU(235822_700067L), ExMemory(1315_097779L))
                 case scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering =>

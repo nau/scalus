@@ -60,15 +60,21 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
       */
     override def prepareForUnit(tree: Tree)(using Context): Context = {
         // bug in dotty: sometimes we called with the wrong phase in context
-        if summon[Context].phase != this then
-            prepareForUnit(tree)(using summon[Context].withPhase(this))
-        else
-            if debugLevel > 0 then report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
-            val options = retrieveCompilerOptions(tree, debugLevel > 0)
-            val sirLoader = createSirLoader
-            val compiler = new SIRCompiler(sirLoader, options)
-            compiler.compileModule(tree)
-            ctx
+        try
+            if summon[Context].phase != this then
+                prepareForUnit(tree)(using summon[Context].withPhase(this))
+            else
+                if debugLevel > 0 then
+                    report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
+                val options = retrieveCompilerOptions(tree, debugLevel > 0)
+                val sirLoader = createSirLoader
+                val compiler = new SIRCompiler(sirLoader, options)
+                compiler.compileModule(tree)
+                ctx
+        catch
+            case scala.util.control.NonFatal(ex) =>
+                ex.printStackTrace()
+                throw ex
     }
 
     override def prepareForApply(tree: tpd.Apply)(using Context): Context = {
@@ -81,41 +87,46 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
       * representation.
       */
     override def transformApply(tree: tpd.Apply)(using Context): tpd.Tree =
-        val compilerModule = requiredModule("scalus.Compiler")
-        val compileSymbol = compilerModule.requiredMethod("compile")
-        val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
-        val isCompileDebug = tree.fun.symbol == compileDebugSymbol
+        try
+            val compilerModule = requiredModule("scalus.Compiler")
+            val compileSymbol = compilerModule.requiredMethod("compile")
+            val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
+            val isCompileDebug = tree.fun.symbol == compileDebugSymbol
 
-        if tree.fun.symbol == compileSymbol || isCompileDebug then
-            // report.echo(tree.showIndented(2))
-            val options = retrieveCompilerOptions(tree, isCompileDebug)
+            if tree.fun.symbol == compileSymbol || isCompileDebug then
+                // report.echo(tree.showIndented(2))
+                val options = retrieveCompilerOptions(tree, isCompileDebug)
 
-            val localDebugLevel =
-                if options.debugLevel == 0 && debugLevel == 0 && isCompileDebug then 10
-                else if options.debugLevel > debugLevel then options.debugLevel
-                else debugLevel
+                val localDebugLevel =
+                    if options.debugLevel == 0 && debugLevel == 0 && isCompileDebug then 10
+                    else if options.debugLevel > debugLevel then options.debugLevel
+                    else debugLevel
 
-            val code = tree.args.head
-            val sirLoader = createSirLoader
-            val compiler = new SIRCompiler(sirLoader, options)
-            val start = System.currentTimeMillis()
-            val result =
-                val result = compiler.compileToSIR(code, isCompileDebug)
-                val linked = SIRLinker(
-                  SIRLinkerOptions(options.universalDataRepresentation, localDebugLevel),
-                  sirLoader
-                )
-                    .link(result, tree.srcPos)
-                RemoveRecursivity(linked)
+                val code = tree.args.head
+                val sirLoader = createSirLoader
+                val compiler = new SIRCompiler(sirLoader, options)
+                val start = System.currentTimeMillis()
+                val result =
+                    val result = compiler.compileToSIR(code, isCompileDebug)
+                    val linked = SIRLinker(
+                      SIRLinkerOptions(options.universalDataRepresentation, localDebugLevel),
+                      sirLoader
+                    )
+                        .link(result, tree.srcPos)
+                    RemoveRecursivity(linked)
 
-            if isCompileDebug then
-                val time = System.currentTimeMillis() - start
-                report.echo(
-                  s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms, options=${options}"
-                )
+                if isCompileDebug then
+                    val time = System.currentTimeMillis() - start
+                    report.echo(
+                      s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms, options=${options}"
+                    )
 
-            convertSIRToTree(result, code, tree.span, isCompileDebug)
-        else tree
+                convertSIRToTree(result, code, tree.span, isCompileDebug)
+            else tree
+        catch
+            case scala.util.control.NonFatal(ex) =>
+                ex.printStackTrace()
+                throw ex
     end transformApply
 
     /** Convert SIR to a [[Tree]] that represents that SIR by encoding it to a string and generating
@@ -222,7 +233,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         new SIRLoader(
           SIRLoaderOptions(
             ClassPath.expandPath(ctx.settings.classpath.value, expandStar = true),
-            Some(ctx.settings.outputDir.value.toURL),
+            Option(ctx.settings.outputDir.value.toURL),
             Some("./shared/src/main/resources/predefined-sirs/")
           )
         )

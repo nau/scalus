@@ -2,11 +2,8 @@ package scalus.prelude
 
 import scalus.Compiler
 import scalus.Compiler.Options
-import scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering
 import scalus.builtin.ByteString.hex
-import scalus.builtin.Data.toData
-import scalus.builtin.{Builtins, Data}
-import scalus.prelude.Show.*
+import scalus.builtin.Data
 
 class ShowTest extends StdlibTestKit {
 

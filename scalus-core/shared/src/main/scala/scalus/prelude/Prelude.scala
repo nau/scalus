@@ -6,7 +6,7 @@ import scalus.builtin.{ByteString, Data, FromData, Pair, ToData}
 import scalus.macros.Macros
 import Ord.{<=>, Order}
 
-import scala.annotation.{nowarn, tailrec}
+import scala.annotation.tailrec
 import scalus.cardano.onchain.{ImpossibleLedgerStateError, OnchainError, RequirementError}
 
 extension [A](self: A)
@@ -114,22 +114,13 @@ object Show {
     }
 }
 
-type Eq[-A] = (A, A) => Boolean
-
-// given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
-inline given Eq[BigInt] = equalsInteger
-inline given Eq[ByteString] = equalsByteString
-inline given Eq[String] = equalsString
-@nowarn
-inline given Eq[Boolean] = _ == _
-inline given Eq[Data] = equalsData
-@nowarn
-inline given Eq[Unit] = (_: Unit, _: Unit) => true
-
-val Eq: EqCompanion.type = EqCompanion
+@FunctionalInterface
+trait Eq[-A] extends ((A, A) => Boolean) with scalus.CompileDerivations {
+    override def apply(lhs: A, rhs: A): Boolean
+}
 
 @Compile
-object EqCompanion:
+object Eq:
     inline def apply[A: Eq]: Eq[A] = summon[Eq[A]]
 
     def by[A, B: Eq](mapper: A => B): Eq[A] = (lhs: A, rhs: A) => mapper(lhs) === mapper(rhs)
@@ -146,6 +137,15 @@ object EqCompanion:
 
     end extension
 
+    // given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
+
+    given Eq[BigInt] = (x: BigInt, y: BigInt) => equalsInteger(x, y)
+    given Eq[ByteString] = (x: ByteString, y: ByteString) => equalsByteString(x, y)
+    given Eq[String] = (x: String, y: String) => equalsString(x, y)
+    given Eq[Boolean] = (x: Boolean, y: Boolean) => x == y
+    given Eq[Data] = (x: Data, y: Data) => equalsData(x, y)
+    given Eq[Unit] = (_: Unit, _: Unit) => true
+
     given [A: Eq, B: Eq]: Eq[(A, B)] = (lhs: (A, B), rhs: (A, B)) =>
         lhs._1 === rhs._1 && lhs._2 === rhs._2
 
@@ -154,14 +154,14 @@ object EqCompanion:
 
     def keyPairEq[A: Eq, B]: Eq[(A, B)] = (lhs: (A, B), rhs: (A, B)) => lhs._1 === rhs._1
 
-end EqCompanion
+end Eq
 
 extension [A](x: A)
     inline def ===(inline y: A)(using inline eq: Eq[A]): Boolean = eq(x, y)
     inline def !==(inline y: A)(using inline eq: Eq[A]): Boolean = !eq(x, y)
 
 @FunctionalInterface
-trait Ord[-A] extends Function2[A, A, Ord.Order] with scalus.CompileDerivations {
+trait Ord[-A] extends ((A, A) => Ord.Order) with scalus.CompileDerivations {
     override def apply(lhs: A, rhs: A): Ord.Order
 }
 
@@ -316,6 +316,8 @@ object Ord:
                     case Data.B(_) => unBData(x) <=> unBData(y)
                     case _         => Greater
     }
+
+    given Ord[Unit] = (_: Unit, _: Unit) => Equal
 
     given [A: Ord, B: Ord]: Ord[(A, B)] = (lhs: (A, B), rhs: (A, B)) =>
         (lhs._1 <=> rhs._1) ifEqualThen (lhs._2 <=> rhs._2)

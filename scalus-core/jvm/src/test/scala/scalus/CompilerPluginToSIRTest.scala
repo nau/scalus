@@ -8,7 +8,6 @@ import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific}
 import scalus.ledger.api.v1.*
 import scalus.sir.SIRType
 import scalus.prelude.List.{Cons, Nil}
-import scalus.prelude.given
 import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
 import scalus.sir.SIRType.{Boolean, Fun, TypeVar}
