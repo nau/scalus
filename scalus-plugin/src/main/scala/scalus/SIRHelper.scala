@@ -68,3 +68,4 @@ extension (pos: SourcePosition)
         if pos == NoSourcePosition then other
         else if other == NoSourcePosition then pos
         else SourcePosition(pos.source, pos.span.union(other.span), NoSourcePosition)
+

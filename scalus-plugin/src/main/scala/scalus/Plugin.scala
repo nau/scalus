@@ -5,9 +5,12 @@ import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.*
+import dotty.tools.dotc.core.Decorators.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.plugins.*
+import dotty.tools.dotc.transform.Pickler
+import dotty.tools.dotc.transform.PostTyper
 import dotty.tools.dotc.util.Spans
 import dotty.tools.dotc.typer.Implicits
 import dotty.tools.io.ClassPath
@@ -31,8 +34,65 @@ class Plugin extends StandardPlugin {
             .map(_.substring("debugLevel=".length))
             .map(_.toInt)
             .getOrElse(0)
-        new ScalusPhase(debugLevel) :: Nil
+        new ScalusPreparePhase(debugLevel) :: ScalusPhase(debugLevel) :: Nil
     }
+}
+
+/** A prepare phase which should run before pickling to create additional variables in objects,
+  * where SIR will be stored.
+  */
+class ScalusPreparePhase(debugLevel: Int) extends PluginPhase {
+    import tpd.*
+
+    val phaseName = "ScalusPrepare"
+
+    // We need to run before the "pickler" phase to have SIR available for pickling
+    override val runsAfter: Set[String] = Set(PostTyper.name)
+    override val runsBefore: Set[String] = Set(Pickler.name)
+
+    override def prepareForUnit(tree: Tree)(using Context): Context = {
+        // bug in dotty: sometimes we called with the wrong phase in context
+        if summon[Context].phase != this then
+            prepareForUnit(tree)(using summon[Context].withPhase(this))
+        else ctx
+    }
+
+    override def transformTemplate(tree: tpd.Template)(using Context): tpd.Tree = {
+
+        val compileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
+        if tree.symbol.hasAnnotation(compileAnnot) then
+            val treeHash = tree.hashCode()
+            // add sir to the end of the definition
+            val sirHashVar = tpd
+                .ValDef(
+                  Symbols
+                      .newSymbol(
+                        tree.symbol,
+                        s"sir_${treeHash}".toTermName,
+                        Flags.Mutable | Flags.Lazy,
+                        defn.IntType
+                      ),
+                  Literal(Constant(treeHash)).withSpan(tree.span)
+                )
+                .withSpan(tree.span)
+            val sirStringVar = tpd
+                .ValDef(
+                  Symbols
+                      .newSymbol(
+                        tree.symbol,
+                        s"sir_".toTermName,
+                        Flags.Mutable | Flags.Lazy,
+                        defn.StringType
+                      )
+                )
+                .withSpan(tree.span)
+            cpy.Template(tree)(
+              body = tree.body :+ sirHashVar :+ sirStringVar
+            )
+        else tree
+
+    }
+
 }
 
 /** A plugin phase that compiles Scala code to Scalus Intermediate Representation (SIR).
@@ -128,6 +188,13 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 ex.printStackTrace()
                 throw ex
     end transformApply
+    
+    override def transformTemplate(tree: tpd.Template)(using Context): tpd.Tree =
+        // If the template has a compile annotation, we need to add a variable for SIR
+        val compileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
+        if tree.symbol.hasAnnotation(compileAnnot) then
+            
+        else tree
 
     /** Convert SIR to a [[Tree]] that represents that SIR by encoding it to a string and generating
       * a code that decodes it back.
