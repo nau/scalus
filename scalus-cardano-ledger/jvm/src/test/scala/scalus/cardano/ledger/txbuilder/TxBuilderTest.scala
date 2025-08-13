@@ -8,6 +8,7 @@ import scalus.cardano.ledger.TransactionException.ValueNotConservedUTxOException
 import scalus.cardano.ledger.rules.STS.Validator
 import scalus.cardano.ledger.rules.*
 import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, Coin, CostModels, TransactionException, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value, *}
+import scalus.ledger.api.Timelock.MOf
 import scalus.ledger.api.{MajorProtocolVersion, Timelock}
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
@@ -312,9 +313,15 @@ class TxBuilderTest
         }
     }
 
-    // todo: verify hydrozoa minting `InitTxBuilder`
-    ignore("should create a transaction with native script minting") {
-        val myAddress = arbitrary[Address].sample.get
+    test("should create a transaction with native script minting") {
+        val (privateKey, publicKey) = generateKeyPair()
+
+        val keyHash = AddrKeyHash(platform.blake2b_224(publicKey))
+        val myAddress = ShelleyAddress(
+          Network.Testnet,
+          ShelleyPaymentPart.Key(keyHash),
+          ShelleyDelegationPart.Null
+        )
         val hash = arbitrary[TransactionHash].sample.get
 
         val availableLovelace = Value.lovelace(10_000_000L)
@@ -322,17 +329,14 @@ class TxBuilderTest
           TransactionInput(hash, 0) -> TransactionOutput(myAddress, availableLovelace)
         )
 
-        val keyHash = arbitrary[AddrKeyHash].sample.get
         val nativeScript = Script.Native(Timelock.Signature(keyHash))
 
-        // Create script address for the minting policy
         val scriptAddress = ShelleyAddress(
           Network.Testnet,
           ShelleyPaymentPart.Script(nativeScript.scriptHash),
           ShelleyDelegationPart.Null
         )
 
-        // Create tokens to mint using the native script's hash as policy ID
         val tokenName = AssetName(ByteString.fromString("co2"))
         val tokenAmount = 1000L
         val tokensToMint = MultiAsset(
@@ -340,9 +344,12 @@ class TxBuilderTest
             nativeScript.scriptHash -> SortedMap(tokenName -> tokenAmount)
           )
         )
-        val mintValue = Value(Coin.zero, tokensToMint)
+        val mintValue = Value(Coin(2_000_000L), tokensToMint)
 
-        val tx = builderContext(utxo, Seq(fullSuiteValidator)).buildNewTx
+        val contextWithKeys =
+            builderContext(utxo, Seq(fullSuiteValidator)).withSigningKey(publicKey, privateKey)
+
+        val tx = contextWithKeys.buildNewTx
             .selectInputs(SelectInputs.all)
             .payAndMint(myAddress, mintValue)
             .withScript(nativeScript, 0)
@@ -352,7 +359,6 @@ class TxBuilderTest
         assert(tx.body.value.mint.get == tokensToMint)
         assert(tx.witnessSet.nativeScripts.contains(nativeScript))
 
-        // Verify output contains minted tokens
         val outputWithTokens = tx.body.value.outputs.find(_.value.value.assets == tokensToMint)
         assert(outputWithTokens.isDefined)
     }

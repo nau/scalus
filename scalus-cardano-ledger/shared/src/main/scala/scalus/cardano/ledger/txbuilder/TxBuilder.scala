@@ -1,7 +1,7 @@
 package scalus.cardano.ledger.txbuilder
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
-import scalus.cardano.ledger.{Coin, DataHash, DatumOption, ExUnits, KeepRaw, Mint, Redeemer, RedeemerTag, Redeemers, Script, Sized, TaggedSet, Transaction, TransactionBody, TransactionInput, TransactionOutput, TransactionWitnessSet, UTxO, VKeyWitness, Value}
+import scalus.cardano.ledger.{AddrKeyHash, Coin, DataHash, DatumOption, ExUnits, KeepRaw, Mint, Redeemer, RedeemerTag, Redeemers, Script, Sized, Slot, TaggedSet, Transaction, TransactionBody, TransactionInput, TransactionOutput, TransactionWitnessSet, UTxO, VKeyWitness, Value}
 import scalus.cardano.ledger.txbuilder.TxBuilder.{dummyVkey, modifyBody, modifyWs}
 import scalus.cardano.ledger.utils.TxBalance
 
@@ -19,14 +19,22 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
         copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
     }
 
-    def payToAddress(address: Address, value: Value, datum: Data) = {
+    def validFrom(slot: Slot): TxBuilder = {
+        copy(tx = modifyBody(tx, b => b.copy(validityStartSlot = Some(slot.slot))))
+    }
+
+    def payToAddress(address: Address, value: Value, datum: Data): TxBuilder = {
         val out = Sized(TransactionOutput(address, value, Some(DatumOption.Inline(datum))))
         copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
     }
 
-    def payToAddress(address: Address, value: Value, datumHash: DataHash) = {
+    def payToAddress(address: Address, value: Value, datumHash: DataHash): TxBuilder = {
         val out = Sized(TransactionOutput(address, value, Some(DatumOption.Hash(datumHash))))
         copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
+    }
+
+    def withRequiredSigners(signers: Set[AddrKeyHash]): TxBuilder = {
+        copy(tx = modifyBody(tx, b => b.copy(requiredSigners = b.requiredSigners ++ signers)))
     }
 
     def withScript(script: Script, datum: Data, redeemer: Data, index: Int): TxBuilder = {
@@ -103,8 +111,8 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
 
     def doFinalize: Transaction = {
         val withDummyVkey = addDummyVkey(tx)
-        val balanced = if isScriptTx(withDummyVkey) then {
-            TxBalance.doBalanceScript(withDummyVkey, context.evaluator)(
+        val balanced = if isPlutusScriptTx(withDummyVkey) then {
+            TxBalance.doBalancePlutusScript(withDummyVkey, context.evaluator)(
               context.utxoProvider.utxo,
               context.protocolParams,
               context.onSurplus
@@ -133,11 +141,10 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
         }
     }
 
-    private def isScriptTx(transaction: Transaction): Boolean =
-        (transaction.witnessSet.nativeScripts ++
-            transaction.witnessSet.plutusV1Scripts ++
-            transaction.witnessSet.plutusV2Scripts ++
-            transaction.witnessSet.plutusV3Scripts).nonEmpty
+    private def isPlutusScriptTx(transaction: Transaction): Boolean =
+        transaction.witnessSet.plutusV1Scripts.size +
+            transaction.witnessSet.plutusV2Scripts.size +
+            transaction.witnessSet.plutusV3Scripts.size > 0
 }
 
 object TxBuilder {
