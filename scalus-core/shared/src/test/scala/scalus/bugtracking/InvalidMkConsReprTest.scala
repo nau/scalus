@@ -3,7 +3,7 @@ package scalus.bugtracking
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
 import scalus.*
-import scalus.prelude.{*, given}
+import scalus.prelude.*
 import scalus.builtin.{ByteString, Data}
 import scalus.builtin.Data.toData
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}

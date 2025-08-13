@@ -3,7 +3,6 @@ package scalus.ledger.api.v1
 import scalus.cardano.onchain.RequirementError
 import scalus.prelude.{List, Option, SortedMap}
 import scalus.builtin.ByteString
-import scalus.prelude.given
 import scalus.prelude.StdlibTestKit
 import scalus.uplc.eval.Result.{Failure, Success}
 

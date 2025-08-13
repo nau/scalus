@@ -10,7 +10,7 @@ import scalus.ledger.api.v2.TxOut
 import scalus.ledger.api.v3.{TxInfo, TxOutRef}
 import scalus.prelude.List.*
 import scalus.prelude.Option.*
-import scalus.prelude.{*, given}
+import scalus.prelude.*
 
 /** Split payouts equally among a list of specified payees
   *

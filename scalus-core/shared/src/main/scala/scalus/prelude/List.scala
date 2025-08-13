@@ -3,7 +3,7 @@ package scalus.prelude
 import scalus.Compile
 import scalus.Ignore
 import scalus.builtin.Builtins.*
-import scalus.builtin.Data.{fromData, toData}
+import scalus.builtin.Data.fromData
 import scalus.builtin.{Data, FromData, Pair, ToData}
 import scala.annotation.tailrec
 import scala.collection.mutable

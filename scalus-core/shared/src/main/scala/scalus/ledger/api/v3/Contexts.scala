@@ -11,7 +11,7 @@ import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.ledger.api.v1.*
 import scalus.ledger.api.v2
-import scalus.prelude.{*, given}
+import scalus.prelude.*
 import scalus.builtin.ByteString.*
 
 export scalus.ledger.api.v1.Hash

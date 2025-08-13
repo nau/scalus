@@ -92,7 +92,6 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
 
     test("check that apply with implicit parameters is mapped to corret SIR.Apply") {
         import scalus.prelude.*
-        import scalus.prelude.given
         import scalus.builtin.ByteString
         val sir = compile { (l: scalus.prelude.List[ByteString], v: ByteString) =>
             l.contains(v)

@@ -22,7 +22,6 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
     export scalus.builtin.Data
     export scalus.builtin.Data.{fromData, toData, FromData, ToData}
     export scalus.prelude.{!==, ===, Eq, Ord}
-    export Eq.given
     export Ord.{<=>, Order}
 
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
