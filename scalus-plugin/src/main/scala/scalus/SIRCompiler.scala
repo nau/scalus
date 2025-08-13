@@ -89,7 +89,10 @@ object SIRCompilerOptions {
     val default: SIRCompilerOptions = SIRCompilerOptions()
 }
 
-final class SIRCompiler(sirLoader: SIRLoader,  options: SIRCompilerOptions = SIRCompilerOptions.default)(using
+final class SIRCompiler(
+    sirLoader: SIRLoader,
+    options: SIRCompilerOptions = SIRCompilerOptions.default
+)(using
     ctx: Context
 ) {
     import tpd.*
@@ -112,7 +115,6 @@ final class SIRCompiler(sirLoader: SIRLoader,  options: SIRCompilerOptions = SIR
     private val ToDataSymbol = requiredClass("scalus.builtin.ToData")
     private val typer = new SIRTyper
     private val pmCompiler = new PatternMatchingCompiler(this)
-    
 
     extension (t: Type)
         def isPair: Boolean = t.typeConstructor.classSymbol == PairSymbol
