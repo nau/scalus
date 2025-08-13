@@ -11,7 +11,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
             TxInfo.placeholder.findOwnInput(txOutRef).isEmpty
         }
 
-        // TODO: UPLC error
+        // TODO: UPLC error -- need support to copy in case class
 //        checkEval { (txInfo: TxInfo, txInInfo: TxInInfo) =>
 //            val newTxInfo = txInfo.copy(inputs = txInInfo +: txInfo.inputs)
 //            newTxInfo.findOwnInput(txInInfo.outRef) === Option.Some(txInInfo)
