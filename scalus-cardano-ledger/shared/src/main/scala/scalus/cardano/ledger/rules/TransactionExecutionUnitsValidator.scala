@@ -3,7 +3,7 @@ package rules
 
 import scalus.uplc.eval.{ExBudget, ExCPU, ExMemory}
 
-// It's Alonzo.validateExUnitsTooBigUTxO in cardano ledger
+// FIXME: What is it part of? --> It's Alonzo.validateExUnitsTooBigUTxO in cardano ledger
 object TransactionExecutionUnitsValidator extends STS.Validator {
     override final type Error = TransactionException.IllegalArgumentException
 

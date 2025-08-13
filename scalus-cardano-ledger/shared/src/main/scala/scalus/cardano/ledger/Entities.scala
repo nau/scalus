@@ -208,7 +208,7 @@ object TransactionException {
           s"Too many collateral inputs for transactionId $transactionId. Expected at most: $expected, actual: $supplied"
         )
 
-    // TODO placeholder for general exception, remove after finishing development
+    // TODO: placeholder for general exception, remove after finishing development
     final case class IllegalArgumentException(message: String) extends TransactionException(message)
 }
 

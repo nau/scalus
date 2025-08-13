@@ -8,6 +8,10 @@ export default {
   //  title: 'Developing DApp',
   //  display: 'hidden',
   //},
+  ledger: {
+    title: "Ledger framework",
+    display: 'hidden',
+  }, 
   advanced: 'Advanced Optimisations',
-
+  catalyst: 'Catalyst',
 }
