@@ -57,40 +57,61 @@ class ScalusPreparePhase(debugLevel: Int) extends PluginPhase {
         else ctx
     }
 
-    override def transformTemplate(tree: tpd.Template)(using Context): tpd.Tree = {
-
+    override def transformTypeDef(tree: tpd.TypeDef)(using Context): tpd.Tree = {
+        // If the template has a compile annotation, we need to add a variable for SIR
         val compileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
-        if tree.symbol.hasAnnotation(compileAnnot) then
-            val treeHash = tree.hashCode()
-            // add sir to the end of the definition
-            val sirHashVar = tpd
-                .ValDef(
-                  Symbols
-                      .newSymbol(
-                        tree.symbol,
-                        s"sir_${treeHash}".toTermName,
-                        Flags.Mutable | Flags.Lazy,
-                        defn.IntType
-                      ),
-                  Literal(Constant(treeHash)).withSpan(tree.span)
-                )
-                .withSpan(tree.span)
-            val sirStringVar = tpd
-                .ValDef(
-                  Symbols
-                      .newSymbol(
-                        tree.symbol,
-                        s"sir_".toTermName,
-                        Flags.Mutable | Flags.Lazy,
-                        defn.StringType
-                      )
-                )
-                .withSpan(tree.span)
-            cpy.Template(tree)(
-              body = tree.body :+ sirHashVar :+ sirStringVar
-            )
-        else tree
-
+        val ignoreAnnotRef = requiredClassRef("scalus.Ignore")
+        val ignoreAnnot = ignoreAnnotRef.symbol.asClass
+        val sirType = requiredClassRef("scalus.sir.SIR")
+        if tree.symbol.hasAnnotation(compileAnnot) && tree.symbol.is(Flags.Module) then {
+            println(s"typedef with compile annotation found: ${tree.symbol.fullName}")
+            tree.rhs match
+                case template: tpd.Template =>
+                    // add sir to the end of the definition
+                    val templateHash = template.hashCode()
+                    val sirHashSym = Symbols
+                        .newSymbol(
+                          tree.symbol,
+                          s"sir_${templateHash}".toTermName,
+                          Flags.EmptyFlags,
+                          defn.IntType
+                        )
+                    sirHashSym.addAnnotation(ignoreAnnot)
+                    val sirHashVar = tpd
+                        .ValDef(
+                          sirHashSym,
+                          Literal(Constant(templateHash)).withSpan(template.span)
+                        )
+                        .withSpan(template.span)
+                    val sirSym = Symbols
+                        .newSymbol(
+                          template.symbol,
+                          s"sir_".toTermName,
+                          Flags.Lazy,
+                          defn.StringType
+                        )
+                    sirSym.addAnnotation(ignoreAnnot)
+                    /*
+                    val sirStringVar = tpd
+                        .ValDef(sirSym)
+                        .withSpan(tree.span)
+                        .withAnnotations(List(TypeTree(ignoreAnnotRef)))
+                        .withSpan(template.span)
+                        
+                     */
+                    val newTemplate = cpy.Template(template)(
+                      body = template.body :+ sirHashVar /*:+ sirStringVar */
+                    )
+                    val retval = cpy.TypeDef(tree)(name = tree.name, rhs = newTemplate)
+                    println("prepared typedef with compile annotation: " + retval.show)
+                    retval
+                case _ =>
+                    report.warning(
+                      s"ScalusPrepare: Expected a template for type definition, but found: ${tree.show}",
+                      tree.srcPos.startPos
+                    )
+                    tree
+        } else tree
     }
 
 }
@@ -188,113 +209,14 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 ex.printStackTrace()
                 throw ex
     end transformApply
-    
-    override def transformTemplate(tree: tpd.Template)(using Context): tpd.Tree =
+
+    override def transformTypeDef(tree: tpd.TypeDef)(using Context): tpd.Tree =
         // If the template has a compile annotation, we need to add a variable for SIR
         val compileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
-        if tree.symbol.hasAnnotation(compileAnnot) then
-            
-        else tree
-
-    /** Convert SIR to a [[Tree]] that represents that SIR by encoding it to a string and generating
-      * a code that decodes it back.
-      *
-      * So a call to `compile` or `compileDebug` will be replaced with a string literal that
-      * contains the encoded SIR and a call to `decodeStringLatin1` that will decode it back.
-      *
-      * {{{
-      *   val sir = compile(true)
-      * }}}
-      * becomes
-      * {{{
-      *  val sir = decodeStringLatin1("...encoded SIR...")
-      *  // that decodes to SIR.Const(true)
-      * }}}
-      * This is a bit of a hack. Otherwise, we need to convert every SIR node to a [[Tree]] manually
-      * by something like
-      * {{{
-      *   val sirVar = requiredModule("scalus.sir.SIR.Var").requiredMethod("apply")
-      *   val varTree = ref(sirVar).appliedTo(arg)
-      *   ...
-      * }}}
-      * which is a lot of boilerplate. And we have [[Flat]] encoding for SIR, so we can use it.
-      */
-    private def convertSIRToTree(
-        sir: SIR,
-        origin: Tree,
-        span: Spans.Span,
-        debug: Boolean
-    )(using Context): Tree = {
-        val bitSize = SIRHashConsedFlat.bitSizeHC(sir, HashConsed.State.empty)
-        val byteSize = ((bitSize + 1 /* for filler */ ) / 8) + 1 /* minimum size */
-        val encodedState = HashConsedEncoderState.withSize(byteSize)
-        SIRHashConsedFlat.encodeHC(sir, encodedState)
-        encodedState.encode.filler()
-        val bytes = encodedState.encode.result
-        if debug then
-            // try to decode the SIR back
-            val decodeState = HashConsedDecoderState(DecoderState(bytes), HashConsed.State.empty)
-            val decodedRef = SIRHashConsedFlat.decodeHC(decodeState)
-            decodeState.runFinCallbacks()
-            @nowarn val sirRer: SIR =
-                decodedRef.finValue(decodeState.hashConsed, 0, new HSRIdentityHashMap)
-            report.echo("ScalusPhace.convertSIRToTree: sir was decoded back successfully")
-
-        /*
-            We could generate Array[Byte] constant from bytes directly, like this:
-
-            val bytesLiterals = bytes.map(b => Literal(Constant(b))).toList
-            JavaSeqLiteral(bytesLiterals, TypeTree(defn.ByteType))
-
-            But Scala 3.3.4 generates the array literal inside a method.
-            That sometimes produces "Method too large" error. JVM has a limit of 64KB for a method.
-            But for String's it appears to generate a `LDC` opcode loading the String from a constant pool.
-
-            So we convert the bytes to a String in ISO_8859_1 encoding to get a one byte per character.
-            It was Base64 encoded before, but it's 33% larger than the original bytes.
-            We could fit two bytes in one character, but then it's not a valid UTF-16 string.
-
-            We split the bytes into chunks of 65000 bytes, because the maximum size of a String literal is 65535 bytes.
-            https://stackoverflow.com/questions/816142/strings-maximum-length-in-java-calling-length-method
-            https://asm.ow2.io/javadoc/org/objectweb/asm/ByteVector.html#putUTF8(java.lang.String)
-
-            But for some reason, it's not possible to create a string literal with 65535 bytes.
-            45000 is a safe value that works.
-         */
-        val strings = (
-          for bytes <- bytes.grouped(45000)
-          yield
-              val str = new String(bytes, StandardCharsets.ISO_8859_1)
-              Literal(Constant(str)).withSpan(span): Tree
-        ).toList
-        // Concatenate all the strings: "str1" + "str2" + ...
-        val concatenatedStrings =
-            strings.reduce((lhs, rhs) => lhs.select(nme.Plus).appliedTo(rhs).withSpan(span))
-        if debug then {
-            // save the SIR to a file for debugging purposes
-            val groupedBytes = bytes.grouped(45000).toList
-            val strings = groupedBytes.map { b =>
-                Literal(Constant(new String(b, StandardCharsets.ISO_8859_1))).withSpan(span)
-            }
-            val parts = strings.map {
-                case Literal(Constant(str: String)) => str
-                case _ => throw new RuntimeException("Expected a string literal")
-            }
-            val codedStr = parts.mkString
-            report.echo(s"string.length: ${codedStr.length},  nParts: ${parts.size}")
-            val path = ctx.settings.outputDir.value.file.toPath
-                .resolve(s"${ctx.compilationUnit.source.file.name}_${span.start}.sir")
-            import java.nio.file.Files
-            Files.createDirectories(path.getParent)
-            Files.write(path, codedStr.getBytes(StandardCharsets.ISO_8859_1))
-            report.echo(s"Scalus: saved SIR to ${path}")
-            report.echo(s"Scalus: SIR size: ${codedStr.length} characters, ${bitSize} bits")
-        }
-        // // Generate scalus.sir.ToExprHSSIRFlat.decodeStringLatin1(str1 + str2 + ...)
-        val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
-        val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
-        ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
-    }
+        if tree.symbol.hasAnnotation(compileAnnot) then {
+            println(s"typedef with compile annotation found: ${tree.symbol.fullName}")
+            tree
+        } else tree
 
     private def createSirLoader(using Context): SIRLoader = {
         new SIRLoader(
