@@ -29,6 +29,7 @@ object HashPurpose {
 
 opaque type Hash[+HashFunction, +Purpose] <: ByteString = ByteString
 object Hash {
+
     def apply[HF: HashSize, Purpose](bytes: ByteString): Hash[HF, Purpose] = {
         val size = summon[HashSize[HF]].size
         require(bytes.size == size, s"Hash must be $size bytes, got ${bytes.size}")
@@ -56,6 +57,19 @@ object Hash {
             ByteString.given_Ordering_ByteString.compare(x, y)
 }
 
+trait HashConstructors[HashType >: Hash[HashFunction, Purpose], HashFunction: HashSize, Purpose] {
+
+    type THashType = HashType
+    type THashFunction = HashFunction
+    type THashPurpose = Purpose
+
+    def fromByteString(bytes: ByteString): HashType =
+        Hash[HashFunction, Purpose](bytes)
+    def fromHex(hex: String): HashType = fromByteString(ByteString.fromHex(hex))
+    def fromArray(bytes: Array[Byte]): HashType = fromByteString(ByteString.fromArray(bytes))
+
+}
+
 type AnyHash = Hash[Any, Any]
 
 /** Represents a key hash used in addresses in the Cardano blockchain.
@@ -67,18 +81,13 @@ type AnyHash = Hash[Any, Any]
   *   The 28-byte hash value
   */
 type AddrKeyHash = Hash[Blake2b_224, HashPurpose.KeyHash]
-object AddrKeyHash {
+object AddrKeyHash extends HashConstructors[AddrKeyHash, Blake2b_224, HashPurpose.KeyHash] {
 
     def apply(bytes: ByteString): AddrKeyHash = {
         require(bytes.size == 28, s"AddrKeyHash must be 28 bytes, got ${bytes.size}")
         Hash[Blake2b_224, HashPurpose.KeyHash](bytes)
     }
 
-    /** Create an AddrKeyHash from a hex string */
-    def fromHex(hex: String): AddrKeyHash = {
-        val bytes = ByteString.fromHex(hex)
-        Hash[Blake2b_224, HashPurpose.KeyHash](bytes)
-    }
 }
 
 /** Represents a script hash in Cardano
@@ -91,28 +100,39 @@ object AddrKeyHash {
   *   - "\x03" for Plutus V3 scripts
   */
 type ScriptHash = Hash[Blake2b_224, HashPurpose.ScriptHash]
-object ScriptHash {
+object ScriptHash extends HashConstructors[ScriptHash, Blake2b_224, HashPurpose.ScriptHash]
 
-    /** Create a ScriptHash from a hex string */
-    def fromHex(hex: String): ScriptHash = {
-        Hash(Hash28.fromHex(hex))
-    }
-}
 type DataHash = Hash[Blake2b_256, HashPurpose.DataHash]
+object DataHash extends HashConstructors[DataHash, Blake2b_256, HashPurpose.DataHash]
+
 type MetadataHash = Hash[Blake2b_256, HashPurpose.MetadataHash]
+object MetadataHash extends HashConstructors[MetadataHash, Blake2b_256, HashPurpose.MetadataHash]
+
 type BlockHash = Hash[Blake2b_256, HashPurpose.BlockHash]
+
+object BlockHash extends HashConstructors[BlockHash, Blake2b_256, HashPurpose.BlockHash]
+
 type AuxiliaryDataHash = Hash[Blake2b_256, HashPurpose.AuxiliaryDataHash]
+
+object AuxiliaryDataHash
+    extends HashConstructors[AuxiliaryDataHash, Blake2b_256, HashPurpose.AuxiliaryDataHash]
+
 type VrfKeyHash = Hash[Blake2b_256, HashPurpose.VrfKeyHash]
+
+object VrfKeyHash extends HashConstructors[VrfKeyHash, Blake2b_256, HashPurpose.VrfKeyHash]
+
 type PoolKeyHash = Hash[Blake2b_224, HashPurpose.PoolKeyHash]
+
+object PoolKeyHash extends HashConstructors[PoolKeyHash, Blake2b_224, HashPurpose.PoolKeyHash]
+
 type StakeKeyHash = Hash[Blake2b_224, HashPurpose.StakeKeyHash]
 
+object StakeKeyHash extends HashConstructors[StakeKeyHash, Blake2b_224, HashPurpose.StakeKeyHash]
+
 type TransactionHash = Hash[Blake2b_256, HashPurpose.TransactionHash]
-object TransactionHash {
-    def fromHex(hex: String): TransactionHash = {
-        val bytes = ByteString.fromHex(hex)
-        Hash[Blake2b_256, HashPurpose.TransactionHash](bytes)
-    }
-}
+
+object TransactionHash
+    extends HashConstructors[TransactionHash, Blake2b_256, HashPurpose.TransactionHash]
 
 /** Represents a hash of the script data
   *
@@ -123,35 +143,27 @@ object TransactionHash {
   */
 type ScriptDataHash = Hash[Blake2b_256, HashPurpose.ScriptDataHash]
 
+object ScriptDataHash
+    extends HashConstructors[ScriptDataHash, Blake2b_256, HashPurpose.ScriptDataHash]
+
 /** Represents a 28-byte Blake2b_224 hash value used in Cardano
   *
   * Hash28 is commonly used for address key hashes and script hashes
   */
 type Hash28 = Hash[Blake2b_224, Any]
 
-object Hash28 {
+object Hash28 extends HashConstructors[Hash28, Blake2b_224, Any] {
 
     def apply(bytes: ByteString): Hash28 = {
         Hash[Blake2b_224, Any](bytes)
     }
 
-    /** Create a Hash28 from a hex string */
-    def fromHex(hex: String): Hash28 = {
-        val bytes = ByteString.fromHex(hex)
-        Hash28(bytes)
-    }
 }
 
 type Hash32 = Hash[Blake2b_256, Any]
 
-object Hash32 {
-
-    /** Create a Hash32 from a hex string */
-    def fromHex(hex: String): Hash32 = {
-        val bytes = ByteString.fromHex(hex)
-        Hash(bytes)
-    }
-}
+object Hash32 extends HashConstructors[Hash32, Blake2b_256, Any]
 
 type PolicyHash = ScriptHash
+
 type PolicyId = ScriptHash
