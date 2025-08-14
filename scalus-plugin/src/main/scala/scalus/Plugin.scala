@@ -64,7 +64,6 @@ class ScalusPreparePhase(debugLevel: Int) extends PluginPhase {
         val ignoreAnnot = ignoreAnnotRef.symbol.asClass
         val sirType = requiredClassRef("scalus.sir.SIR")
         if tree.symbol.hasAnnotation(compileAnnot) && tree.symbol.is(Flags.Module) then {
-            println(s"typedef with compile annotation found: ${tree.symbol.fullName}")
             tree.rhs match
                 case template: tpd.Template =>
                     // add sir to the end of the definition
@@ -103,7 +102,6 @@ class ScalusPreparePhase(debugLevel: Int) extends PluginPhase {
                       body = template.body :+ sirHashVar /*:+ sirStringVar */
                     )
                     val retval = cpy.TypeDef(tree)(name = tree.name, rhs = newTemplate)
-                    println("prepared typedef with compile annotation: " + retval.show)
                     retval
                 case _ =>
                     report.warning(
