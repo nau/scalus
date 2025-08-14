@@ -74,6 +74,24 @@ class ScalusTransactionEvaluator(
           EvaluatorMode.EVALUATE_AND_COMPUTE_COST
         )
 
+    /** Constructor with slot config, protocol params and utxo supplier. Uses
+      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
+      * @param slotConfig
+      *   Slot configuration
+      * @param protocolParams
+      *   Protocol parameters
+      * @param utxoSupplier
+      *   Utxo supplier
+      */
+    def this(slotConfig: SlotConfig, protocolParams: ProtocolParams, utxoSupplier: UtxoSupplier) =
+        this(
+          slotConfig,
+          protocolParams,
+          utxoSupplier,
+          NoScriptSupplier(),
+          EvaluatorMode.EVALUATE_AND_COMPUTE_COST
+        )
+
     /** Constructor with protocol params, utxo supplier and script supplier. Uses
       * [[SlotConfig.Mainnet]] and [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
       * @param protocolParams
@@ -90,6 +108,31 @@ class ScalusTransactionEvaluator(
     ) =
         this(
           SlotConfig.Mainnet,
+          protocolParams,
+          utxoSupplier,
+          scriptSupplier,
+          EvaluatorMode.EVALUATE_AND_COMPUTE_COST
+        )
+
+    /** Constructor with slot config, protocol params, utxo supplier and script supplier. Uses
+      * [[EvaluatorMode.EVALUATE_AND_COMPUTE_COST]] mode.
+      * @param slotConfig
+      *   Slot configuration
+      * @param protocolParams
+      *   Protocol parameters
+      * @param utxoSupplier
+      *   Utxo supplier
+      * @param scriptSupplier
+      *   Additional script supplier
+      */
+    def this(
+        slotConfig: SlotConfig,
+        protocolParams: ProtocolParams,
+        utxoSupplier: UtxoSupplier,
+        scriptSupplier: ScriptSupplier
+    ) =
+        this(
+          slotConfig,
           protocolParams,
           utxoSupplier,
           scriptSupplier,
@@ -181,9 +224,9 @@ class ScalusTransactionEvaluator(
                 case e: TxEvaluationException =>
                     Result
                         .error(s"""Error evaluating transaction: ${e.getMessage}
-                               |Evaluation logs: ${e.logs.mkString("\n")}
-                               |===========================
-                               |""".stripMargin)
+                                  |Evaluation logs: ${e.logs.mkString("\n")}
+                                  |===========================
+                                  |""".stripMargin)
                         .asInstanceOf[Result[util.List[EvaluationResult]]]
                 case e: Exception =>
                     Result
