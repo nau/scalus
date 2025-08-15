@@ -16,7 +16,6 @@ case class BuilderContext(
     evaluator: PlutusScriptEvaluator,
     network: Network,
     utxoProvider: UtxoProvider,
-    onSurplus: OnSurplus,
     validators: Seq[Validator] = Seq.empty,
     signingKeys: Map[ByteString, ByteString] = Map.empty
 ) {

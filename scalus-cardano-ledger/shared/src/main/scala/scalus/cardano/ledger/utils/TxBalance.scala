@@ -152,11 +152,7 @@ object TxBalance {
             tx.witnessSet
         }
         val txWithEvaluatedScript = tx.copy(witnessSet = updatedWitnessSet)
-        val baseFee = MinTransactionFee(txWithEvaluatedScript, utxo, protocolParams).toTry.get
-        val scriptExecPrice = redeemers
-            .map(r => scriptExecutionPrice(r.exUnits, protocolParams))
-            .foldLeft(Coin.zero)(_ + _)
-        val totalFee = Coin(baseFee.value + scriptExecPrice.value)
+        val fee = MinTransactionFee(txWithEvaluatedScript, utxo, protocolParams).toTry.get
 
         /*
          * According to cip-40, we are required to return the excess collateral.
@@ -177,7 +173,7 @@ object TxBalance {
           txWithEvaluatedScript,
           body =>
               body.copy(
-                fee = totalFee,
+                fee = fee,
                 totalCollateral =
                     if body.collateralInputs.nonEmpty then
                         Some(
@@ -191,15 +187,5 @@ object TxBalance {
         )
 
         doBalance(txWithFeeAndCollateral)(utxo, protocolParams, onSurplus)
-    }
-
-    private def scriptExecutionPrice(
-        executionUnits: ExUnits,
-        protocolParams: ProtocolParams
-    ): Coin = {
-        val memoryPrice = protocolParams.executionUnitPrices.priceMemory
-        val stepsPrice = protocolParams.executionUnitPrices.priceSteps
-        val scriptCost = memoryPrice * executionUnits.memory + stepsPrice * executionUnits.steps
-        Coin(scriptCost.toDouble.toLong)
     }
 }

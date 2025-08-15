@@ -1,21 +1,37 @@
 package scalus.cardano.ledger.txbuilder
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
-import scalus.cardano.ledger.{AddrKeyHash, Coin, DataHash, DatumOption, ExUnits, KeepRaw, Mint, Redeemer, RedeemerTag, Redeemers, Script, Sized, Slot, TaggedSet, Transaction, TransactionBody, TransactionInput, TransactionOutput, TransactionWitnessSet, UTxO, VKeyWitness, Value}
+import scalus.cardano.ledger.{AddrKeyHash, Coin, DataHash, DatumOption, ExUnits, KeepRaw, Mint, PlutusScript, Redeemer, RedeemerTag, Redeemers, Script, Sized, Slot, TaggedSet, Transaction, TransactionBody, TransactionInput, TransactionOutput, TransactionWitnessSet, UTxO, VKeyWitness, Value}
 import scalus.cardano.ledger.txbuilder.TxBuilder.{dummyVkey, modifyBody, modifyWs}
 import scalus.cardano.ledger.utils.TxBalance
 
-case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyTx) {
+case class TxBuilder(
+    context: BuilderContext,
+    onSurplus: OnSurplus = OnSurplus.toFirstPayer,
+    tx: Transaction = TxBuilder.emptyTx
+) {
 
-    def payAndMint(address: Address, value: Value): TxBuilder = {
+    def onSurplus(onSurplus: OnSurplus) = copy(onSurplus = onSurplus)
+
+    def mint(address: Address, value: Value, script: Script): TxBuilder = {
         val out = Sized(TransactionOutput(address, value))
         copy(tx =
             modifyBody(tx, b => b.copy(mint = Some(Mint(value.assets)), outputs = b.outputs :+ out))
         )
     }
 
-    def payToAddress(address: Address, value: Value): TxBuilder = {
+    def payTo(address: Address, value: Value): TxBuilder = {
         val out = Sized(TransactionOutput(address, value))
+        copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
+    }
+
+    def payToScript(address: Address, value: Value, datum: Data): TxBuilder = {
+        val out = Sized(TransactionOutput(address, value, Some(DatumOption.Inline(datum))))
+        copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
+    }
+
+    def payToScript(address: Address, value: Value, datumHash: DataHash): TxBuilder = {
+        val out = Sized(TransactionOutput(address, value, Some(DatumOption.Hash(datumHash))))
         copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
     }
 
@@ -23,21 +39,30 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
         copy(tx = modifyBody(tx, b => b.copy(validityStartSlot = Some(slot.slot))))
     }
 
-    def payToAddress(address: Address, value: Value, datum: Data): TxBuilder = {
-        val out = Sized(TransactionOutput(address, value, Some(DatumOption.Inline(datum))))
-        copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
-    }
-
-    def payToAddress(address: Address, value: Value, datumHash: DataHash): TxBuilder = {
-        val out = Sized(TransactionOutput(address, value, Some(DatumOption.Hash(datumHash))))
-        copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
-    }
-
     def withRequiredSigners(signers: Set[AddrKeyHash]): TxBuilder = {
         copy(tx = modifyBody(tx, b => b.copy(requiredSigners = b.requiredSigners ++ signers)))
     }
 
-    def withScript(script: Script, datum: Data, redeemer: Data, index: Int): TxBuilder = {
+    def attachSpendingScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
+        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Spend)
+    def attachMintingScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
+        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Mint)
+    def attachCertScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
+        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Cert)
+    def attachRewardScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
+        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Reward)
+    def attachVotingScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
+        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Voting)
+    def attachProposingScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
+        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Proposing)
+
+    def attachPlutusScript(
+        script: PlutusScript,
+        datum: Data,
+        redeemer: Data,
+        index: Int,
+        tag: RedeemerTag
+    ) = {
         val plutusData = TaggedSet.from(
           tx.witnessSet.plutusData.value.toIndexedSeq :+ KeepRaw(datum) :+ KeepRaw(redeemer)
         )
@@ -46,38 +71,34 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
                 tx.witnessSet.copy(
                   plutusV1Scripts = tx.witnessSet.plutusV1Scripts + plutusV1,
                   plutusData = KeepRaw(plutusData),
-                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer)))
+                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer, tag)))
                 )
             case plutusV2: Script.PlutusV2 =>
                 tx.witnessSet.copy(
                   plutusV2Scripts = tx.witnessSet.plutusV2Scripts + plutusV2,
                   plutusData = KeepRaw(plutusData),
-                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer)))
+                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer, tag)))
                 )
             case plutusV3: Script.PlutusV3 =>
                 tx.witnessSet.copy(
                   plutusV3Scripts = tx.witnessSet.plutusV3Scripts + plutusV3,
                   plutusData = KeepRaw(plutusData),
-                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer)))
-                )
-            case native: Script.Native =>
-                tx.witnessSet.copy(
-                  nativeScripts = tx.witnessSet.nativeScripts + native
+                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer, tag)))
                 )
         }
         copy(tx = tx.copy(witnessSet = updatedWitnessSet))
     }
 
-    def withScript(script: Script.Native, index: Int): TxBuilder = {
+    def attachNativeScript(script: Script.Native, index: Int): TxBuilder = {
         val updatedWitnessSet = tx.witnessSet.copy(
           nativeScripts = tx.witnessSet.nativeScripts + script
         )
         copy(tx = tx.copy(witnessSet = updatedWitnessSet))
     }
 
-    private def addRedeemer(index: Int, redeemerData: Data): Redeemers = {
+    private def addRedeemer(index: Int, redeemerData: Data, tag: RedeemerTag): Redeemers = {
         val newRedeemer = Redeemer(
-          tag = RedeemerTag.Spend,
+          tag = tag,
           index = index,
           data = redeemerData,
           exUnits = TxBuilder.dummyExUnits
@@ -86,9 +107,8 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
         tx.witnessSet.redeemers match {
             case Some(existingRedeemers) =>
                 val existing = existingRedeemers.value.toIndexedSeq
-                val updated = existing.filterNot(r =>
-                    r.tag == RedeemerTag.Spend && r.index == index
-                ) :+ newRedeemer
+                val updated =
+                    existing.filterNot(r => r.tag == tag && r.index == index) :+ newRedeemer
                 Redeemers.from(updated)
             case None =>
                 Redeemers.from(Seq(newRedeemer))
@@ -109,19 +129,19 @@ case class TxBuilder(context: BuilderContext, tx: Transaction = TxBuilder.emptyT
     private def removeDummyVkey(tx: Transaction) =
         modifyWs(tx, ws => ws.copy(vkeyWitnesses = ws.vkeyWitnesses - dummyVkey))
 
-    def doFinalize: Transaction = {
+    def build: Transaction = {
         val withDummyVkey = addDummyVkey(tx)
         val balanced = if isPlutusScriptTx(withDummyVkey) then {
             TxBalance.doBalancePlutusScript(withDummyVkey, context.evaluator)(
               context.utxoProvider.utxo,
               context.protocolParams,
-              context.onSurplus
+              onSurplus
             )
         } else
             TxBalance.doBalance(withDummyVkey)(
               context.utxoProvider.utxo,
               context.protocolParams,
-              context.onSurplus
+              onSurplus
             )
 
         val signed = signTx(removeDummyVkey(balanced))

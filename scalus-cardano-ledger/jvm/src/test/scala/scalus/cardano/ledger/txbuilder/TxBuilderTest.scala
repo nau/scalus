@@ -32,13 +32,12 @@ class TxBuilderTest
       costModels = costModels
     )
 
-    private def builderContext(utxo: UTxO, validators: Seq[Validator] = Seq(FeesOkValidator)) =
+    private def builderContext(utxo: UTxO, validators: Seq[Validator] = Seq(FeesOkValidator)): BuilderContext =
         BuilderContext(
           params,
           evaluator,
           Network.Mainnet,
           UtxoProvider.from(utxo),
-          OnSurplus.toFirstPayer,
           validators
         )
 
@@ -59,8 +58,8 @@ class TxBuilderTest
         val paymentAmount = Value.lovelace(500L)
         val tx = builderContext(utxo).buildNewTx
             .selectInputs(SelectInputs.all)
-            .payToAddress(faucet, paymentAmount)
-            .doFinalize
+            .payTo(faucet, paymentAmount)
+            .build
 
         assert(tx.body.value.outputs.size == 2)
         assert(tx.body.value.outputs.exists(_.value.address == myAddress))
@@ -103,8 +102,8 @@ class TxBuilderTest
 
         val tx = contextWithKeys.buildNewTx
             .selectInputs(SelectInputs.all)
-            .payToAddress(faucet, paymentAmount)
-            .doFinalize
+            .payTo(faucet, paymentAmount)
+            .build
 
         assert(tx.body.value.outputs.size == 2)
         assert(tx.body.value.outputs.exists(_.value.address == myAddress))
@@ -151,18 +150,15 @@ class TxBuilderTest
         )
         val utxo: UTxO = txInputs ++ hugeCollateral
 
-        val datum = Data.unit
-        val redeemer = Data.unit
-
         val contextWithAllValidators =
             builderContext(utxo, Seq(fullSuiteValidator)).withSigningKey(publicKey, privateKey)
 
         val tx = contextWithAllValidators.buildNewTx
-            .payToAddress(myAddress, Value.lovelace(50_000_000L))
+            .payTo(myAddress, Value.lovelace(50_000_000L))
             .withInputs(txInputs.keySet)
-            .withScript(script, datum, redeemer, 0)
+            .attachSpendingScript(script, Data.unit, Data.unit, 0)
             .withCollateral(hugeCollateral.keySet)
-            .doFinalize
+            .build
 
         assert(tx.body.value.outputs.nonEmpty)
         assert(tx.witnessSet.redeemers.isDefined)
@@ -187,8 +183,8 @@ class TxBuilderTest
         assertThrows[ValueNotConservedUTxOException] {
             builderContext(utxo).buildNewTx
                 .selectInputs(SelectInputs.all)
-                .payToAddress(faucet, Value.lovelace(paymentAmount))
-                .doFinalize
+                .payTo(faucet, Value.lovelace(paymentAmount))
+                .build
         }
     }
 
@@ -211,8 +207,8 @@ class TxBuilderTest
         assertThrows[TransactionException.IllegalArgumentException] {
             builderContext(utxo).buildNewTx
                 .selectInputs(SelectInputs.all)
-                .payToAddress(faucet, paymentAmount)
-                .doFinalize
+                .payTo(faucet, paymentAmount)
+                .build
         }
 
     }
@@ -251,11 +247,11 @@ class TxBuilderTest
         val redeemer = Data.unit
 
         val tx = builderContext(utxo).buildNewTx
-            .payToAddress(myAddress, Value.lovelace(1_000_000L))
+            .payTo(myAddress, Value.lovelace(1_000_000L))
             .withInputs(txInputs.keySet)
-            .withScript(script, datum, redeemer, 0)
+            .attachSpendingScript(script, datum, redeemer, 0)
             .withCollateral(hugeCollateral.keySet)
-            .doFinalize
+            .build
 
         assert(tx.body.value.outputs.nonEmpty)
         assert(tx.witnessSet.redeemers.isDefined)
@@ -305,11 +301,11 @@ class TxBuilderTest
 
         assertThrows[TransactionException.InsufficientTotalSumOfCollateralCoinsException] {
             builderContext(utxo).buildNewTx
-                .payToAddress(myAddress, Value.lovelace(1_000_000L))
+                .payTo(myAddress, Value.lovelace(1_000_000L))
                 .withInputs(txInputs.keySet)
-                .withScript(script, datum, redeemer, 0)
+                .attachSpendingScript(script, datum, redeemer, 0)
                 .withCollateral(insufficientCollateral.keySet)
-                .doFinalize
+                .build
         }
     }
 
@@ -351,9 +347,9 @@ class TxBuilderTest
 
         val tx = contextWithKeys.buildNewTx
             .selectInputs(SelectInputs.all)
-            .payAndMint(myAddress, mintValue)
-            .withScript(nativeScript, 0)
-            .doFinalize
+            .mint(myAddress, mintValue, nativeScript)
+            .attachNativeScript(nativeScript, 0)
+            .build
 
         assert(tx.body.value.mint.isDefined)
         assert(tx.body.value.mint.get == tokensToMint)
