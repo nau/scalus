@@ -1,7 +1,8 @@
 package scalus.cardano.ledger
 package rules
 
-// FIXME: Is it a part of Shelley.updateUTxOState in cardano-ledger?
+// WIP: Mutator that updates the fee in the context based on the transaction event
+// Maybe will be deleted in the future, because it is not a part of Cardano ledger rules
 object FeeMutator extends STS.Mutator {
     override final type Error = Nothing
 

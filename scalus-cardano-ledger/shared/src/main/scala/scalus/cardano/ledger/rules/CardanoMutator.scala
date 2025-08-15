@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
-// FIXME: Is validating and updating the UTxO state? What's equivalent in cardano-ledger?
+// WIP: It's a composition of Cardano ledger rules that mutate the state of the L1 ledger
 object CardanoMutator extends STS.Mutator {
     override final type Error = TransactionException
 
