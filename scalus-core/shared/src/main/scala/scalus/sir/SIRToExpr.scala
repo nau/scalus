@@ -1,8 +1,7 @@
 package scalus.sir
 
 import scalus.flat.*
-import scalus.flat.FlatInstantces.SIRHashConsedFlat
-import scalus.flat.FlatInstantces.SIRTypeHashConsedFlat
+import scalus.flat.FlatInstantces.{SIRHashConsedFlat, SIRTypeHashConsedFlat}
 import scalus.sir.SIRType.checkAllProxiesFilled
 import scalus.utils.*
 
@@ -169,3 +168,20 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
 }
 
 object SIRToExpr extends ToExprHS[SIR](ToExprHSSIRFlat, '{ ToExprHSSIRFlat }, summon[Type[SIR]])
+
+import scalus.flat.FlatInstantces.given HashConsedFlat[Module]
+
+object ModuleToExpr
+    extends ToExprHS[Module](
+      summon[HashConsedFlat[Module]],
+      '{ summon[HashConsedFlat[Module]] },
+      summon[Type[Module]]
+    ) {
+
+    def decodeStringLatin1(string: String): Module = {
+        val bytes = string.getBytes(StandardCharsets.ISO_8859_1)
+        val decoderState = HashConsedDecoderState(DecoderState(bytes), HashConsed.State.empty)
+        summon[HashConsedFlat[Module]].decodeHC(decoderState)
+    }
+
+}

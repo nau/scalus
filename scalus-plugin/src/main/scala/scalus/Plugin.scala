@@ -6,8 +6,10 @@ import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.*
 import dotty.tools.dotc.core.Decorators.*
+import dotty.tools.dotc.core.DenotTransformers.IdentityDenotTransformer
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
+import dotty.tools.dotc.core.Denotations.*
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.transform.Pickler
 import dotty.tools.dotc.transform.PostTyper
@@ -17,7 +19,6 @@ import dotty.tools.io.ClassPath
 import scalus.flat.{DecoderState, FlatInstantces}
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
 import scalus.sir.{RemoveRecursivity, SIR}
-import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState}
 
 import java.nio.charset.StandardCharsets
 import scala.annotation.nowarn
@@ -27,6 +28,8 @@ import scala.language.implicitConversions
 class Plugin extends StandardPlugin {
     val name: String = "scalus"
     override val description: String = "Compile Scala to Scalus IR"
+
+    // val compiledSirs: mutable.Map[String, SIR] = mmutable.Map.empty
 
     override def init(options: List[String]): List[PluginPhase] = {
         val debugLevel = options
@@ -38,11 +41,18 @@ class Plugin extends StandardPlugin {
     }
 }
 
+object Plugin {
+
+    // TODO: check that we have no variabl with such name in the source code
+    val SIR_MODULE_VAL_NAME = "sirModule"
+    val SIR_DEPS_VAL_NAME = "sirDeps"
+
+}
+
 /** A prepare phase which should run before pickling to create additional variables in objects,
   * where SIR will be stored.
   */
-class ScalusPreparePhase(debugLevel: Int) extends PluginPhase {
-    import tpd.*
+class ScalusPreparePhase(debugLevel: Int) extends PluginPhase with IdentityDenotTransformer {
 
     val phaseName = "ScalusPrepare"
 
@@ -50,7 +60,9 @@ class ScalusPreparePhase(debugLevel: Int) extends PluginPhase {
     override val runsAfter: Set[String] = Set(PostTyper.name)
     override val runsBefore: Set[String] = Set(Pickler.name)
 
-    override def prepareForUnit(tree: Tree)(using Context): Context = {
+    override def changesMembers: Boolean = true
+
+    override def prepareForTypeDef(tree: tpd.TypeDef)(using Context): Context = {
         // bug in dotty: sometimes we called with the wrong phase in context
         if summon[Context].phase != this then
             prepareForUnit(tree)(using summon[Context].withPhase(this))
@@ -58,58 +70,11 @@ class ScalusPreparePhase(debugLevel: Int) extends PluginPhase {
     }
 
     override def transformTypeDef(tree: tpd.TypeDef)(using Context): tpd.Tree = {
-        // If the template has a compile annotation, we need to add a variable for SIR
         val compileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
-        val ignoreAnnotRef = requiredClassRef("scalus.Ignore")
-        val ignoreAnnot = ignoreAnnotRef.symbol.asClass
-        val sirType = requiredClassRef("scalus.sir.SIR")
-        if tree.symbol.hasAnnotation(compileAnnot) && tree.symbol.is(Flags.Module) then {
-            tree.rhs match
-                case template: tpd.Template =>
-                    // add sir to the end of the definition
-                    val templateHash = template.hashCode()
-                    val sirHashSym = Symbols
-                        .newSymbol(
-                          tree.symbol,
-                          s"sir_${templateHash}".toTermName,
-                          Flags.EmptyFlags,
-                          defn.IntType
-                        )
-                    sirHashSym.addAnnotation(ignoreAnnot)
-                    val sirHashVar = tpd
-                        .ValDef(
-                          sirHashSym,
-                          Literal(Constant(templateHash)).withSpan(template.span)
-                        )
-                        .withSpan(template.span)
-                    val sirSym = Symbols
-                        .newSymbol(
-                          template.symbol,
-                          s"sir_".toTermName,
-                          Flags.Lazy,
-                          defn.StringType
-                        )
-                    sirSym.addAnnotation(ignoreAnnot)
-                    /*
-                    val sirStringVar = tpd
-                        .ValDef(sirSym)
-                        .withSpan(tree.span)
-                        .withAnnotations(List(TypeTree(ignoreAnnotRef)))
-                        .withSpan(template.span)
-                        
-                     */
-                    val newTemplate = cpy.Template(template)(
-                      body = template.body :+ sirHashVar /*:+ sirStringVar */
-                    )
-                    val retval = cpy.TypeDef(tree)(name = tree.name, rhs = newTemplate)
-                    retval
-                case _ =>
-                    report.warning(
-                      s"ScalusPrepare: Expected a template for type definition, but found: ${tree.show}",
-                      tree.srcPos.startPos
-                    )
-                    tree
-        } else tree
+        if tree.symbol.hasAnnotation(compileAnnot) && tree.symbol.is(Flags.Module) then
+            val preprocessor = new SIRPreprocessor(this, debugLevel)
+            preprocessor.transformTypeDef(tree)
+        else tree
     }
 
 }
@@ -200,7 +165,13 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                       s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms, options=${options}"
                     )
 
-                convertSIRToTree(result, code, tree.span, isCompileDebug)
+                convertFlatToTree(
+                  result,
+                  SIRHashConsedFlat,
+                  requiredModule("scalus.sir.ToExprHSSIRFlat"),
+                  tree.span,
+                  isCompileDebug
+                )
             else tree
         catch
             case scala.util.control.NonFatal(ex) =>
@@ -213,7 +184,43 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         val compileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
         if tree.symbol.hasAnnotation(compileAnnot) then {
             println(s"typedef with compile annotation found: ${tree.symbol.fullName}")
-            tree
+            val sirBodyAnnotation =
+                requiredClass("scalus.sir.SIRBodyAnnotation")
+            tree.symbol.getAnnotation(sirBodyAnnotation) match
+                case Some(annotation) =>
+                    println(
+                      s"ScalusPhase: SIRBodyAnnotation found for ${tree.symbol.fullName}"
+                    )
+                    val moduleSIR = annotation.arguments.head
+                    tree.rhs match
+                        case template: tpd.Template =>
+                            // Add a variable for SIR in the template
+                            val newBody = template.body.map { e =>
+                                e match {
+                                    case vd: ValDef
+                                        if vd.symbol.name.toString == Plugin.SIR_MODULE_VAL_NAME =>
+                                        cpy.ValDef(vd)(rhs = moduleSIR)
+                                    case vd: ValDef
+                                        if vd.symbol.name.toString == Plugin.SIR_DEPS_VAL_NAME =>
+                                        // If the variable already exists, we can skip it
+                                        cpy.ValDef(vd)(rhs = tpd.EmptyTree)
+                                    case _ =>
+                                        e
+                                }
+                            }
+                            val newTemplate = cpy.Template(template)(body = newBody)
+                            cpy.TypeDef(tree)(rhs = newTemplate)
+                        case _ =>
+                            report.warning(
+                              s"ScalusPhase: Expected a template for ${tree.symbol.fullName}, but found: ${tree.rhs.show}",
+                              tree.srcPos
+                            )
+                            tree
+                case None =>
+                    println(
+                      s"ScalusPhase: SIRBodyAnnotation not found for ${tree.symbol.fullName}"
+                    )
+                    tree
         } else tree
 
     private def createSirLoader(using Context): SIRLoader = {

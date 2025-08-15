@@ -12,9 +12,10 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
-import dotty.tools.io.ClassPath
 import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.{EncoderState, Flat}
+import scalus.utils.HashConsedReprRefFlat
+import scalus.flat.FlatInstantces.ModuleHashSetReprFlat
 import scalus.flat.FlatInstantces.given
 import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRUnify, SIRVersion, TypeBinding}
 import scalus.uplc.DefaultUni
@@ -113,6 +114,9 @@ final class SIRCompiler(
     private val ByteStringSymbolHex = ByteStringModuleSymbol.requiredMethod("hex")
     private val FromDataSymbol = requiredClass("scalus.builtin.FromData")
     private val ToDataSymbol = requiredClass("scalus.builtin.ToData")
+    private val moduleToExprSymbol = Symbols.requiredModule("scalus.sir.ModuleToExpr")
+    private val sirBodyAnnotation = requiredClass("scalus.sir.SIRBodyAnnotation")
+
     private val typer = new SIRTyper
     private val pmCompiler = new PatternMatchingCompiler(this)
     
@@ -381,6 +385,46 @@ final class SIRCompiler(
                   bindingsWithSpecialized
                 )
 
+            val moduleTree = convertFlatToTree(
+              module,
+              ModuleHashSetReprFlat,
+              moduleToExprSymbol,
+              td.span,
+              options.debugLevel > 0
+            )
+            /*
+            val submodulesTrees = ???
+             */
+            val emptyListTree =
+                tpd.ref(defn.NilModule).withSpan(td.symbol.srcPos.span)
+            val externalModuleNames = gatherExternalModules(module, Set.empty)
+            val moduleRefs = externalModuleNames.map { name =>
+                name -> {
+                    println("search for module: " + name)
+                    val cName = name.replace("$", "")
+                    val moduleSym = Symbols.requiredModule(cName)
+                    val moduleRef = tpd.ref(moduleSym).withSpan(td.symbol.srcPos.span)
+                    println(s"moduleRef: ${moduleRef.show}")
+                    println(s"flags: ${moduleSym.flags.flagsString}")
+                    val decls = moduleSym.info.decls.filter(x => true)
+                    println(s"methods: ${decls.map(_.show).mkString(", ")}")
+                    // val sirTree = moduleRef.select(sirSym).withSpan(td.symbol.srcPos.span)
+                    // sirTree
+                    moduleRef
+                }
+            }.toMap
+            val mapApplyModule = Symbols.requiredModule("scala.collection.immutable.Map")
+            val tuple2Module = Symbols.requiredModule("scala.Tuple2")
+            val sModuleRefs = moduleRefs
+                .map { case (k, v) =>
+                    k -> v.show.toString
+                }
+                .mkString(",")
+            println(s"deps for ${td.symbol.fullName.show}: ${sModuleRefs}")
+
+            td.symbol.addAnnotation(
+              Annotations.Annotation(sirBodyAnnotation, List(moduleTree), td.span)
+            )
             writeModule(module, td.symbol.fullName.toString)
 
             if options.debugLevel > 0 then
@@ -3025,6 +3069,69 @@ final class SIRCompiler(
         if tp.baseType(FromDataSymbol).exists || tp.baseType(ToDataSymbol).exists then
             LocalBindingFlags.ErasedOnDataRepr
         else LocalBindingFlags.None
+    }
+
+    private def gatherExternalModules(module: Module, acc: Set[String]): Set[String] = {
+        module.defs.foldLeft(acc) { (acc, binding) =>
+            gatherExternalModulesFromSir(binding.value, acc)
+        }
+    }
+
+    private def gatherExternalModulesFromSir(sir: SIR, acc: Set[String]): Set[String] = {
+        sir match {
+            case expr: AnnotatedSIR =>
+                gatherExternalModulesFromSirExpr(expr, acc)
+            case SIR.Decl(_, term) =>
+                gatherExternalModulesFromSir(term, acc)
+        }
+    }
+
+    private def gatherExternalModulesFromSirExpr(
+        sir: AnnotatedSIR,
+        acc: Set[String]
+    ): Set[String] = {
+        sir match
+            case SIR.ExternalVar(moduleName, _, _, _) =>
+                acc + moduleName
+            case SIR.Let(_, binding, body, _) =>
+                val acc1 =
+                    binding.foldLeft(acc)((acc, b) => gatherExternalModulesFromSir(b.value, acc))
+                gatherExternalModulesFromSir(body, acc1)
+            case SIR.LamAbs(_, term, _, _) =>
+                gatherExternalModulesFromSir(term, acc)
+            case SIR.Apply(f, arg, _, _) =>
+                val acc1 = gatherExternalModulesFromSir(f, acc)
+                gatherExternalModulesFromSir(arg, acc1)
+            case SIR.Select(obj, _, _, _) =>
+                gatherExternalModulesFromSir(obj, acc)
+
+            case SIR.And(x, y, _) =>
+                val acc1 = gatherExternalModulesFromSir(x, acc)
+                gatherExternalModulesFromSir(y, acc1)
+            case SIR.Or(x, y, _) =>
+                val acc1 = gatherExternalModulesFromSir(x, acc)
+                gatherExternalModulesFromSir(y, acc1)
+            case SIR.Not(x, _) =>
+                gatherExternalModulesFromSir(x, acc)
+            case SIR.IfThenElse(cond, t, f, _, _) =>
+                val acc1 = gatherExternalModulesFromSir(cond, acc)
+                val acc2 = gatherExternalModulesFromSir(t, acc1)
+                gatherExternalModulesFromSir(f, acc2)
+            case SIR.Constr(_, _, args, _, _) =>
+                args.foldLeft(acc) { (acc, arg) =>
+                    gatherExternalModulesFromSir(arg, acc)
+                }
+            case SIR.Match(scrutinee, cases, _, _) =>
+                val acc1 = gatherExternalModulesFromSir(scrutinee, acc)
+                cases.foldLeft(acc1) { (acc, c) =>
+                    gatherExternalModulesFromSir(c.body, acc)
+                }
+            case SIR.Cast(expr, _, _) =>
+                gatherExternalModulesFromSir(expr, acc)
+            case SIR.Error(_, _, _) | SIR.Var(_, _, _) | SIR.Builtin(_, _, _) |
+                SIR.Const(_, _, _) =>
+                acc
+
     }
 
 }

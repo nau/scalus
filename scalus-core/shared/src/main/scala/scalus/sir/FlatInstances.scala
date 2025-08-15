@@ -1462,6 +1462,7 @@ object FlatInstantces:
                 SIR.Decl(data.finValue(hs, l, p), term.finValue(hs, l, p))
             )
 
+    /*
     class ModuleSerializedRef(val version: (Int, Int), val defs: HashConsedRef[List[Binding]])
         extends HashConsedRef[Module] {
 
@@ -1473,12 +1474,12 @@ object FlatInstantces:
             Module(version, defs.finValue(hc, level + 1, parents))
         }
 
-    }
+    }*/
 
-    object ModuleHashSetReprFlat extends HashConsedReprFlat[Module, ModuleSerializedRef]:
+    object ModuleHashSetReprFlat extends HashConsedReprFlat[Module, HashConsedRef[Module]] {
 
-        override def toRepr(a: Module): ModuleSerializedRef =
-            new ModuleSerializedRef(a.version, HashConsedRef.fromData(a.defs))
+        override def toRepr(a: Module): HashConsedRef[Module] =
+            HashConsedRef.fromData(a)
 
         override def bitSizeHC(a: Module, hs: HashConsed.State): Int =
             summon[Flat[(Int, Int)]].bitSize(a.version) +
@@ -1488,10 +1489,13 @@ object FlatInstantces:
             summon[Flat[(Int, Int)]].encode(a.version, enc.encode)
             HashConsedReprFlat.listRepr(BindingFlat).encodeHC(a.defs, enc)
 
-        override def decodeHC(decoder: HashConsedDecoderState): ModuleSerializedRef =
+        override def decodeHC(decoder: HashConsedDecoderState): HashConsedRef[Module] = {
             val version = summon[Flat[(Int, Int)]].decode(decoder.decode)
             val defs = HashConsedReprFlat.listRepr(BindingFlat).decodeHC(decoder)
-            ModuleSerializedRef(version, defs)
+            HashConsedRef.deferred((hs, l, ps) => Module(version, defs.finValue(hs, l + 1, ps)))
+        }
+
+    }
 
     given HashConsedFlat[Module] with
         def bitSizeHC(a: Module, hs: HashConsed.State): Int =

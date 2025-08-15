@@ -77,6 +77,8 @@ trait HashConsedReprFlat[A <: AnyRef, SA <: HashConsedRef[A]] {
 
 }
 
+type HashConsedReprRefFlat[A <: AnyRef] = HashConsedReprFlat[A, HashConsedRef[A]]
+
 object HashConsedReprFlat {
 
     case class ListRepl[A <: AnyRef, SA <: HashConsedRef[A]](elems: List[SA])

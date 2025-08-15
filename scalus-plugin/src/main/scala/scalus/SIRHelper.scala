@@ -14,7 +14,7 @@ import dotty.tools.dotc.util.Spans
 import scalus.flat.{DecoderState, FlatInstantces}
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
 import scalus.sir.SIR
-import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState}
+import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState, HashConsedReprRefFlat}
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import scalus.sir.SIRPosition
 import scalus.sir.AnnotationsDecl
@@ -42,25 +42,26 @@ import scalus.sir.AnnotationsDecl
   * }}}
   * which is a lot of boilerplate. And we have [[Flat]] encoding for SIR, so we can use it.
   */
-private def convertSIRToTree(
-    sir: SIR,
-    origin: Tree,
+private def convertFlatToTree[T <: AnyRef](
+    data: T,
+    reprRefFlat: HashConsedReprRefFlat[T],
+    toExprFlatSymbol: Symbol,
     span: Spans.Span,
-    debug: Boolean
+    debug: Boolean,
 )(using Context): Tree = {
-    val bitSize = SIRHashConsedFlat.bitSizeHC(sir, HashConsed.State.empty)
+    val bitSize = reprRefFlat.bitSizeHC(data, HashConsed.State.empty)
     val byteSize = ((bitSize + 1 /* for filler */ ) / 8) + 1
     /* minimum size */
     val encodedState = HashConsedEncoderState.withSize(byteSize)
-    SIRHashConsedFlat.encodeHC(sir, encodedState)
+    reprRefFlat.encodeHC(data, encodedState)
     encodedState.encode.filler()
     val bytes = encodedState.encode.result
     if debug then
         // try to decode the SIR back
         val decodeState = HashConsedDecoderState(DecoderState(bytes), HashConsed.State.empty)
-        val decodedRef = SIRHashConsedFlat.decodeHC(decodeState)
+        val decodedRef = reprRefFlat.decodeHC(decodeState)
         decodeState.runFinCallbacks()
-        @nowarn val sirRer: SIR =
+        @nowarn val sirRer: T =
             decodedRef.finValue(decodeState.hashConsed, 0, new HSRIdentityHashMap)
         report.echo("ScalusPhace.convertSIRToTree: sir was decoded back successfully")
 
@@ -114,9 +115,9 @@ private def convertSIRToTree(
         report.echo(s"Scalus: saved SIR to ${path}")
         report.echo(s"Scalus: SIR size: ${codedStr.length} characters, ${bitSize} bits")
     // // Generate scalus.sir.ToExprHSSIRFlat.decodeStringLatin1(str1 + str2 + ...)
-    val sirToExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
-    val decodeLatin1SIR = sirToExprFlat.requiredMethod("decodeStringLatin1")
-    ref(sirToExprFlat).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
+    // val toExprFlat = requiredModule("scalus.sir.ToExprHSSIRFlat")
+    val decodeLatin1SIR = toExprFlatSymbol.requiredMethod("decodeStringLatin1")
+    ref(toExprFlatSymbol).select(decodeLatin1SIR).appliedTo(concatenatedStrings).withSpan(span)
 }
 
 extension (singleton: SIRPosition.type)
