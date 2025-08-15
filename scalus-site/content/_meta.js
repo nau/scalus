@@ -8,8 +8,12 @@ export default {
   //  title: 'Developing DApp',
   //  display: 'hidden',
   //},
+  'transaction-builder': {
+    title: "Transaction Builder",
+    display: 'hidden',
+  }, 
   ledger: {
-    title: "Ledger framework",
+    title: "Ledger Framework",
     display: 'hidden',
   }, 
   advanced: 'Advanced Optimisations',
