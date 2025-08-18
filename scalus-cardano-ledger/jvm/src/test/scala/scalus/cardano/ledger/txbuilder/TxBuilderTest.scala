@@ -32,7 +32,10 @@ class TxBuilderTest
       costModels = costModels
     )
 
-    private def builderContext(utxo: UTxO, validators: Seq[Validator] = Seq(FeesOkValidator)): BuilderContext =
+    private def builderContext(
+        utxo: UTxO,
+        validators: Seq[Validator] = Seq(FeesOkValidator)
+    ): BuilderContext =
         BuilderContext(
           params,
           evaluator,
