@@ -1,9 +1,13 @@
 package scalus.cardano.ledger.txbuilder
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
-import scalus.cardano.ledger.{AddrKeyHash, Coin, DataHash, DatumOption, ExUnits, KeepRaw, Mint, PlutusScript, Redeemer, RedeemerTag, Redeemers, Script, Sized, Slot, TaggedSet, Transaction, TransactionBody, TransactionInput, TransactionOutput, TransactionWitnessSet, UTxO, VKeyWitness, Value}
+import scalus.cardano.ledger.{AddrKeyHash, Coin, DataHash, DatumOption, ExUnits, KeepRaw, Mint, PlutusScript, Redeemer, RedeemerTag, Redeemers, Script, ScriptHash, Sized, Slot, TaggedSet, Transaction, TransactionBody, TransactionInput, TransactionOutput, TransactionWitnessSet, UTxO, VKeyWitness, Value}
 import scalus.cardano.ledger.txbuilder.TxBuilder.{dummyVkey, modifyBody, modifyWs}
 import scalus.cardano.ledger.utils.TxBalance
+
+import scala.collection.immutable.SortedSet
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 case class TxBuilder(
     context: BuilderContext,
@@ -114,9 +118,75 @@ case class TxBuilder(
                 Redeemers.from(Seq(newRedeemer))
         }
     }
+    /*
+
+    def spendScriptInput(input: TransactionInput): TxBuilder = {
+        val inputs = tx.body.value.inputs + input
+        copy(tx = modifyBody(tx, _.copy(inputs = inputs)))
+    }
+
+    val intentions: mutable.HashSet[Intention] = ???
+    def attach() = ??? //Intention.AttachNativeScript(script: Script.Native)
+     */
 
     def withInputs(inputs: Set[TransactionInput]): TxBuilder =
         copy(tx = modifyBody(tx, _.copy(inputs = inputs)))
+    /*
+    enum ScriptInput {
+        case Native(script: Script.Native)
+        case Plutus(script: PlutusScript, datum: Option[Data], redeemer: Data)
+    }
+
+    // what we want a transaction to do
+    enum Intention {
+        case From(input: TransactionInput)
+        case PayTo(address: Address, value: Value)
+        case PayToScript(address: Address, value: Value, datum: Option[Data])
+        case Mint(address: Address, value: Value, script: Script)
+        case AttachScript(script: ScriptInput)
+        case AttachNativeScript(script: Script.Native)
+        case ValidFrom(slot: Slot)
+        case WithRequiredSigners(signers: Set[AddrKeyHash])
+    }
+    // what we need to know to fulfill the intensions
+    enum Requirement {
+        case InputNeeded(input: TransactionInput)
+        case ScriptNeeded(script: ScriptHash)
+        case DatumNeeded(datum: DataHash)
+        case TxOutputNeeded(input: TransactionInput)
+    }
+    // all the info we need to build a transaction
+    class ResolvedTxRequirements {
+        val intentions: Set[Intention]
+        val requirements: Set[Requirement]
+        val inputs: SortedSet[TransactionInput]
+        val outputs: ArrayBuffer[TransactionOutput]
+        val feePayer: Option[TransactionInput]
+        val changeOutputs: ArrayBuffer[TransactionOutput]
+        val collateralInputs: Set[TransactionInput]
+        val mint: Option[Mint]
+        val validityStartSlot: Option[Slot]
+        val requiredSigners: SortedSet[AddrKeyHash]
+        val plutusData: SortedSet[Data]
+        val redeemers: Redeemers
+        val scripts: SortedSet[Script]
+    }
+
+    type Reqs = Set[Requirement]
+
+    def prepare(intentions: Set[Intention]): Reqs
+
+    // resolve intentions and requirements to a context
+    trait Resolver {
+        def resolve(intentions: Set[Intention], reqs: Reqs): ResolvedTxRequirements = ???
+    }
+    // pure tx building function
+    def build(ctx: ResolvedTxRequirements): Transaction
+
+
+    case class ResolvedScriptInput(input: TransactionInput, script: ScriptInput, output: TransactionOutput)
+
+    def fromScriptInput(in: ResolvedScriptInput) = ???*/
 
     def selectInputs(selectInputs: SelectInputs): TxBuilder = withInputs(selectInputs(context.utxo))
 
