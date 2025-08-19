@@ -1,5 +1,6 @@
 {
   inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     flake-utils.url = "github:numtide/flake-utils";
     plutus.url = "github:input-output-hk/plutus/1.40.0.0";
     rust-overlay.url = "github:oxalica/rust-overlay";
@@ -36,7 +37,7 @@
         devShells = {
           default =
             let
-              jdk = pkgs.openjdk21;
+              jdk = pkgs.openjdk23;
               sbt = pkgs.sbt.override { jre = jdk; };
             in
             pkgs.mkShell {
@@ -50,7 +51,7 @@
               buildInputs = [ pkgs.bashInteractive ];
               packages = with pkgs; [
                 git
-                openjdk21
+                jdk
                 sbt
                 mill
                 scalafmt
