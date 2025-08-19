@@ -3,9 +3,6 @@ package rules
 
 import scalus.cardano.ledger.utils.TxBalance
 
-import scala.util.boundary
-import scala.util.boundary.break
-
 /** This is Shelley.validateValueNotConservedUTxO
   *
   * consumed pp utxo txb = produced pp poolParams txb

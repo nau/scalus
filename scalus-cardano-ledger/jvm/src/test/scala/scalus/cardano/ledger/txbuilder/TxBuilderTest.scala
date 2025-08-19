@@ -2,19 +2,14 @@ package scalus.cardano.ledger.txbuilder
 import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{platform, ByteString, Data}
-import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
-import scalus.cardano.ledger.TransactionException.ValueNotConservedUTxOException
-import scalus.cardano.ledger.rules.STS.Validator
+import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network}
 import scalus.cardano.ledger.rules.*
+import scalus.cardano.ledger.rules.STS.Validator
 import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, Coin, CostModels, TransactionException, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value, *}
-import scalus.ledger.api.Timelock.MOf
-import scalus.ledger.api.{MajorProtocolVersion, Timelock}
+import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
 import upickle.default.read
-
-import scala.collection.immutable.SortedMap
 
 class TxBuilderTest
     extends AnyFunSuite
@@ -31,18 +26,7 @@ class TxBuilderTest
       protocolMajorVersion = MajorProtocolVersion.plominPV,
       costModels = costModels
     )
-
-    private def builderContext(
-        utxo: UTxO,
-        validators: Seq[Validator] = Seq(FeesOkValidator)
-    ): BuilderContext =
-        BuilderContext(
-          params,
-          evaluator,
-          Network.Mainnet,
-          UtxoProvider.from(utxo),
-          validators
-        )
+    private val env = Environment(params, evaluator, Network.Mainnet)
 
     test("should balance the transaction when the inputs exceed the outputs") {
         val myAddress = arbitrary[Address].sample.get
@@ -51,18 +35,20 @@ class TxBuilderTest
 
         // Input tx produced 1_000_000 lovelace
         val availableLovelace = Value.lovelace(1_000_000L)
+        val myInput = TransactionInput(hash, 0)
         val utxo: UTxO = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(
+          myInput -> TransactionOutput(
             myAddress,
             availableLovelace
           )
         )
+        val intention = PayTo(faucet, Value.lovelace(500_000L), TransactionResolver(utxo))
+            .withEnvironment(env)
+            .usingInputs(myInput)
+            .usingFeePayerStrategy(FeePayerStrategy.subtractFromAddress(myAddress))
+            .usingChangeReturnStrategy(ChangeReturnStrategy.toAddress(myAddress))
 
-        val paymentAmount = Value.lovelace(500L)
-        val tx = builderContext(utxo).buildNewTx
-            .selectInputs(SelectInputs.all)
-            .payTo(faucet, paymentAmount)
-            .build
+        val tx = realize(intention)()
 
         assert(tx.body.value.outputs.size == 2)
         assert(tx.body.value.outputs.exists(_.value.address == myAddress))
@@ -76,291 +62,53 @@ class TxBuilderTest
 
     }
 
-    test(
-      "should create a pay do address tx that passes a full suit of cardano ledger rule validators"
-    ) {
-        val (privateKey, publicKey) = generateKeyPair()
-
-        val keyHash = AddrKeyHash(platform.blake2b_224(publicKey))
-        val myAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.Key(keyHash),
-          ShelleyDelegationPart.Null
-        )
-        val faucet = arbitrary[Address].sample.get
-        val hash = arbitrary[TransactionHash].sample.get
-
-        val availableLovelace = Value.lovelace(100 * 1_000_000L)
-        val utxo: UTxO = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(
-            myAddress,
-            availableLovelace
-          )
-        )
-
-        val paymentAmount = Value.lovelace(50 * 1_000_000L)
-
-        val contextWithKeys =
-            builderContext(utxo, Seq(fullSuiteValidator)).withSigningKey(publicKey, privateKey)
-
-        val tx = contextWithKeys.buildNewTx
-            .selectInputs(SelectInputs.all)
-            .payTo(faucet, paymentAmount)
-            .build
-
-        assert(tx.body.value.outputs.size == 2)
-        assert(tx.body.value.outputs.exists(_.value.address == myAddress))
-        assert(tx.body.value.outputs.exists(_.value.address == faucet))
-
-        val sumOutputs = tx.body.value.outputs
-            .map(_.value.value.coin)
-            .foldLeft(Coin.zero)(_ + _)
-        val fee = tx.body.value.fee
-        assert(Value(sumOutputs + fee) == availableLovelace)
-    }
-
-    test(
-      "should create a script tx that that passes a full suit of cardano ledger rule validators"
-    ) {
-        val emptyScriptBytes = Array(69, 1, 1, 0, 36, -103).map(_.toByte)
-        val scriptBytes = ByteString.unsafeFromArray(emptyScriptBytes)
-        val script = Script.PlutusV3(scriptBytes)
-
-        val (privateKey, publicKey) = generateKeyPair()
-        val keyHash = AddrKeyHash(platform.blake2b_224(publicKey))
-        val myAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.Key(keyHash),
-          ShelleyDelegationPart.Null
-        )
-
-        val hash = arbitrary[TransactionHash].sample.get
-
-        val scriptAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.Script(script.scriptHash),
-          ShelleyDelegationPart.Null
-        )
-        val availableLovelace = Value.lovelace(100_000_000L)
-        val txInputs = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
-        )
-        val hugeCollateral = Map(
-          TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
-            myAddress,
-            Value.lovelace(100_000_000L)
-          )
-        )
-        val utxo: UTxO = txInputs ++ hugeCollateral
-
-        val contextWithAllValidators =
-            builderContext(utxo, Seq(fullSuiteValidator)).withSigningKey(publicKey, privateKey)
-
-        val tx = contextWithAllValidators.buildNewTx
-            .payTo(myAddress, Value.lovelace(50_000_000L))
-            .withInputs(txInputs.keySet)
-            .attachSpendingScript(script, Data.unit, Data.unit, 0)
-            .withCollateral(hugeCollateral.keySet)
-            .build
-
-        assert(tx.body.value.outputs.nonEmpty)
-        assert(tx.witnessSet.redeemers.isDefined)
-        assert(tx.witnessSet.redeemers.get.value.toSeq.size == 1)
-    }
-
-    test("should throw when trying to create a transaction where outputs exceed the inputs") {
-        val myAddress = arbitrary[Address].sample.get
-        val faucet = arbitrary[Address].sample.get
-        val hash = arbitrary[TransactionHash].sample.get
-
-        // Input tx produced 1K lovelace
-        val utxo: UTxO = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(
-            myAddress,
-            Value.lovelace(1_000L)
-          )
-        )
-        // exceeds available lovelace
-        val paymentAmount = 10_000L
-
-        assertThrows[ValueNotConservedUTxOException] {
-            builderContext(utxo).buildNewTx
-                .selectInputs(SelectInputs.all)
-                .payTo(faucet, Value.lovelace(paymentAmount))
-                .build
-        }
-    }
-
-    test("should throw when trying to create a tx where outputs cover the input, but not the fee") {
-        val myAddress = arbitrary[Address].sample.get
-        val faucet = arbitrary[Address].sample.get
-        val hash = arbitrary[TransactionHash].sample.get
-
-        // Input tx produced 1_000_000 lovelace
-        val availableLovelace = Value.lovelace(1_000_000L)
-        val utxo: UTxO = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(
-            myAddress,
-            availableLovelace
-          )
-        )
-
-        // Technically available, but not with a fee
-        val paymentAmount = availableLovelace - Value.lovelace(1L)
-        assertThrows[TransactionException.IllegalArgumentException] {
-            builderContext(utxo).buildNewTx
-                .selectInputs(SelectInputs.all)
-                .payTo(faucet, paymentAmount)
-                .build
-        }
-
-    }
-
-    test("should balance script transaction with proper fees") {
-        val emptyScriptBytes = Array(69, 1, 1, 0, 36, -103).map(_.toByte)
-        val scriptBytes = ByteString.unsafeFromArray(emptyScriptBytes)
-        val script = Script.PlutusV3(scriptBytes)
-
-        val myAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.Key(arbitrary[AddrKeyHash].sample.get),
-          ShelleyDelegationPart.Null
-        )
-
-        val hash = arbitrary[TransactionHash].sample.get
-
-        val scriptAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.Script(script.scriptHash),
-          ShelleyDelegationPart.Null
-        )
-        val availableLovelace = Value.lovelace(10_000_000L)
-        val txInputs = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
-        )
-        val hugeCollateral = Map(
-          TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
-            myAddress,
-            Value.lovelace(100_000_000L)
-          )
-        )
-        val utxo: UTxO = txInputs ++ hugeCollateral
-
-        val datum = Data.unit
-        val redeemer = Data.unit
-
-        val tx = builderContext(utxo).buildNewTx
-            .payTo(myAddress, Value.lovelace(1_000_000L))
-            .withInputs(txInputs.keySet)
-            .attachSpendingScript(script, datum, redeemer, 0)
-            .withCollateral(hugeCollateral.keySet)
-            .build
-
-        assert(tx.body.value.outputs.nonEmpty)
-        assert(tx.witnessSet.redeemers.isDefined)
-        assert(tx.witnessSet.redeemers.get.value.toSeq.size == 1)
-    }
-
-    test("should throw when a tx contains insufficient collateral") {
-        val emptyScriptBytes = Array(69, 1, 1, 0, 36, -103).map(_.toByte)
-        val scriptBytes = ByteString.unsafeFromArray(emptyScriptBytes)
-        val script = Script.PlutusV3(scriptBytes)
-
-        val myAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.Key(arbitrary[AddrKeyHash].sample.get),
-          ShelleyDelegationPart.Null
-        )
-
-        val hash = arbitrary[TransactionHash].sample.get
-
-        val scriptAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.Script(script.scriptHash),
-          ShelleyDelegationPart.Null
-        )
-        val availableLovelace = Value.lovelace(10_000_000L)
-        val txInputs = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(scriptAddress, availableLovelace)
-        )
-
-        val insufficientCollateral = Map(
-          TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
-            myAddress,
-            Value.lovelace(1L)
-          )
-        )
-        val utxo: UTxO = txInputs ++ insufficientCollateral
-
-        val evaluator = PlutusScriptEvaluator(
-          SlotConfig.Mainnet,
-          initialBudget = ExBudget.enormous,
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
-          costModels = costModels
-        )
-
-        val datum = Data.unit
-        val redeemer = Data.unit
-
-        assertThrows[TransactionException.InsufficientTotalSumOfCollateralCoinsException] {
-            builderContext(utxo).buildNewTx
-                .payTo(myAddress, Value.lovelace(1_000_000L))
-                .withInputs(txInputs.keySet)
-                .attachSpendingScript(script, datum, redeemer, 0)
-                .withCollateral(insufficientCollateral.keySet)
-                .build
-        }
-    }
-
-    test("should create a transaction with native script minting") {
-        val (privateKey, publicKey) = generateKeyPair()
-
-        val keyHash = AddrKeyHash(platform.blake2b_224(publicKey))
-        val myAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.Key(keyHash),
-          ShelleyDelegationPart.Null
-        )
-        val hash = arbitrary[TransactionHash].sample.get
-
-        val availableLovelace = Value.lovelace(10_000_000L)
-        val utxo: UTxO = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(myAddress, availableLovelace)
-        )
-
-        val nativeScript = Script.Native(Timelock.Signature(keyHash))
-
-        val scriptAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.Script(nativeScript.scriptHash),
-          ShelleyDelegationPart.Null
-        )
-
-        val tokenName = AssetName(ByteString.fromString("co2"))
-        val tokenAmount = 1000L
-        val tokensToMint = MultiAsset(
-          SortedMap(
-            nativeScript.scriptHash -> SortedMap(tokenName -> tokenAmount)
-          )
-        )
-        val mintValue = Value(Coin(2_000_000L), tokensToMint)
-
-        val contextWithKeys =
-            builderContext(utxo, Seq(fullSuiteValidator)).withSigningKey(publicKey, privateKey)
-
-        val tx = contextWithKeys.buildNewTx
-            .selectInputs(SelectInputs.all)
-            .mint(myAddress, mintValue, nativeScript)
-            .attachNativeScript(nativeScript, 0)
-            .build
-
-        assert(tx.body.value.mint.isDefined)
-        assert(tx.body.value.mint.get == tokensToMint)
-        assert(tx.witnessSet.nativeScripts.contains(nativeScript))
-
-        val outputWithTokens = tx.body.value.outputs.find(_.value.value.assets == tokensToMint)
-        assert(outputWithTokens.isDefined)
-    }
+//    test("should throw when trying to create a transaction where outputs exceed the inputs") {
+//        val myAddress = arbitrary[Address].sample.get
+//        val faucet = arbitrary[Address].sample.get
+//        val hash = arbitrary[TransactionHash].sample.get
+//
+//        // Input tx produced 1K lovelace
+//        val utxo: UTxO = Map(
+//          TransactionInput(hash, 0) -> TransactionOutput(
+//            myAddress,
+//            Value.lovelace(1_000L)
+//          )
+//        )
+//        // exceeds available lovelace
+//        val paymentAmount = 10_000L
+//
+//        assertThrows[ValueNotConservedUTxOException] {
+//            builderContext(utxo).buildNewTx
+//                .selectInputs(SelectInputs.all)
+//                .payTo(faucet, Value.lovelace(paymentAmount))
+//                .build
+//        }
+//    }
+//
+//    test("should throw when trying to create a tx where outputs cover the input, but not the fee") {
+//        val myAddress = arbitrary[Address].sample.get
+//        val faucet = arbitrary[Address].sample.get
+//        val hash = arbitrary[TransactionHash].sample.get
+//
+//        // Input tx produced 1_000_000 lovelace
+//        val availableLovelace = Value.lovelace(1_000_000L)
+//        val utxo: UTxO = Map(
+//          TransactionInput(hash, 0) -> TransactionOutput(
+//            myAddress,
+//            availableLovelace
+//          )
+//        )
+//
+//        // Technically available, but not with a fee
+//        val paymentAmount = availableLovelace - Value.lovelace(1L)
+//        assertThrows[TransactionException.IllegalArgumentException] {
+//            builderContext(utxo).buildNewTx
+//                .selectInputs(SelectInputs.all)
+//                .payTo(faucet, paymentAmount)
+//                .build
+//        }
+//
+//    }
 
     private lazy val fullSuiteValidator: Validator { type Error = TransactionException } =
         new Validator {

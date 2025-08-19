@@ -1,7 +1,7 @@
 package scalus.cardano.ledger.utils
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
-import scalus.cardano.ledger.txbuilder.OnSurplus
+import scalus.cardano.ledger.txbuilder.{ChangeReturnStrategy, FeePayerStrategy}
 import scalus.ledger.babbage.ProtocolParams
 
 import scala.annotation.tailrec
@@ -96,7 +96,12 @@ object TxBalance {
 
     def doBalance(
         tx: Transaction
-    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: OnSurplus): Transaction = {
+    )(
+        utxo: UTxO,
+        protocolParams: ProtocolParams,
+        changeReturnStrategy: ChangeReturnStrategy,
+        feePayerStrategy: FeePayerStrategy
+    ): Transaction = {
         val consumed = TxBalance.consumed(tx, CertState.empty, utxo, protocolParams).toTry.get
         val produced = TxBalance.produced(tx)
         if consumed.coin < produced.coin then {
@@ -107,12 +112,25 @@ object TxBalance {
         def go(currentTx: Transaction): Transaction = {
             val currentProduced = TxBalance.produced(currentTx)
             val diffLong = consumed.coin.value - currentProduced.coin.value
+
             diffLong match {
                 case d if d > 0L =>
                     val diff = Coin(d)
-                    val newTx = onSurplus(utxo, diff)(currentTx)
-                    val correctFee = MinTransactionFee(newTx, utxo, protocolParams).toTry.get
-                    val newTxWithFee = modifyBody(newTx, _.copy(fee = correctFee))
+                    val tempTx = modifyBody(
+                      currentTx,
+                      _.copy(outputs =
+                          changeReturnStrategy(diff, currentTx.body.value, utxo).map(Sized(_))
+                      )
+                    )
+                    val correctFee = MinTransactionFee(tempTx, utxo, protocolParams).toTry.get
+                    val changeWithFee = diff + correctFee
+                    val newOuts = changeReturnStrategy(changeWithFee, currentTx.body.value, utxo)
+                    val newTx = modifyBody(currentTx, _.copy(outputs = newOuts.map(Sized(_))))
+                    val outputsAfterAppliedFee = feePayerStrategy(correctFee, newOuts)
+                    val newTxWithFee = modifyBody(
+                      newTx,
+                      _.copy(fee = correctFee, outputs = outputsAfterAppliedFee.map(Sized(_)))
+                    )
                     val newProduced = TxBalance.produced(newTxWithFee)
                     if consumed.coin >= newProduced.coin then {
                         // fee is good
@@ -141,51 +159,51 @@ object TxBalance {
         tx.copy(body = KeepRaw(newBody))
     }
 
-    def doBalancePlutusScript(
-        tx: Transaction,
-        scriptEvaluator: PlutusScriptEvaluator
-    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: OnSurplus): Transaction = {
-        val redeemers = scriptEvaluator.evalPlutusScripts(tx, utxo)
-        val updatedWitnessSet = if redeemers.nonEmpty then {
-            tx.witnessSet.copy(redeemers = Some(KeepRaw(Redeemers.from(redeemers))))
-        } else {
-            tx.witnessSet
-        }
-        val txWithEvaluatedScript = tx.copy(witnessSet = updatedWitnessSet)
-        val fee = MinTransactionFee(txWithEvaluatedScript, utxo, protocolParams).toTry.get
-
-        /*
-         * According to cip-40, we are required to return the excess collateral.
-         * for now, todo,
-         * and expect the caller to pass the collateral correctly
-         * 
-         * val returnCollatAdress = ???
-         * val collateralReturn = if (totalCollateralValue > requiredCollateral) {
-         *     val returnAmount = Coin(totalCollateralValue.value - requiredCollateral.value)
-         *     Some(Sized(TransactionOutput(
-         *         returnCollatAdress,
-         *         Value(returnAmount)
-         *     )))
-         * } else None
-         */
-
-        val txWithFeeAndCollateral = modifyBody(
-          txWithEvaluatedScript,
-          body =>
-              body.copy(
-                fee = fee,
-                totalCollateral =
-                    if body.collateralInputs.nonEmpty then
-                        Some(
-                          body.collateralInputs.toSeq
-                              .flatMap(utxo.get)
-                              .map(_.value.coin)
-                              .foldLeft(Coin.zero)(_ + _)
-                        )
-                    else None
-              )
-        )
-
-        doBalance(txWithFeeAndCollateral)(utxo, protocolParams, onSurplus)
-    }
+//    def doBalancePlutusScript(
+//        tx: Transaction,
+//        scriptEvaluator: PlutusScriptEvaluator
+//    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: OnSurplus): Transaction = {
+//        val redeemers = scriptEvaluator.evalPlutusScripts(tx, utxo)
+//        val updatedWitnessSet = if redeemers.nonEmpty then {
+//            tx.witnessSet.copy(redeemers = Some(KeepRaw(Redeemers.from(redeemers))))
+//        } else {
+//            tx.witnessSet
+//        }
+//        val txWithEvaluatedScript = tx.copy(witnessSet = updatedWitnessSet)
+//        val fee = MinTransactionFee(txWithEvaluatedScript, utxo, protocolParams).toTry.get
+//
+//        /*
+//         * According to cip-40, we are required to return the excess collateral.
+//         * for now, todo,
+//         * and expect the caller to pass the collateral correctly
+//         *
+//         * val returnCollatAdress = ???
+//         * val collateralReturn = if (totalCollateralValue > requiredCollateral) {
+//         *     val returnAmount = Coin(totalCollateralValue.value - requiredCollateral.value)
+//         *     Some(Sized(TransactionOutput(
+//         *         returnCollatAdress,
+//         *         Value(returnAmount)
+//         *     )))
+//         * } else None
+//         */
+//
+//        val txWithFeeAndCollateral = modifyBody(
+//          txWithEvaluatedScript,
+//          body =>
+//              body.copy(
+//                fee = fee,
+//                totalCollateral =
+//                    if body.collateralInputs.nonEmpty then
+//                        Some(
+//                          body.collateralInputs.toSeq
+//                              .flatMap(utxo.get)
+//                              .map(_.value.coin)
+//                              .foldLeft(Coin.zero)(_ + _)
+//                        )
+//                    else None
+//              )
+//        )
+//
+//        doBalance(txWithFeeAndCollateral)(utxo, protocolParams, changeReturnStrategy, feePayerStrategy)
+//    }
 }
