@@ -144,22 +144,23 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
     }
 
     test("evaluate block 11544748") {
-        validateBlock(11544748)
+        validateBlock(11544748, expectedTxAmount = 22)
     }
 
     test("evaluate block 11544518") {
-        validateBlock(11544518)
+        validateBlock(11544518, expectedTxAmount = 33)
     }
 
     test("evaluate block 11553070") {
-        validateBlock(11553070)
+        validateBlock(11553070, expectedTxAmount = 53)
     }
 
-    private def validateBlock(num: Long): Unit = {
+    private def validateBlock(num: Long, expectedTxAmount: Int): Unit = {
         val bytes = getClass.getResourceAsStream(s"/blocks/block-$num.cbor").readAllBytes()
         given OriginalCborByteArray = OriginalCborByteArray(bytes)
         val block = BlockFile.fromCborArray(bytes).block
-        validateTransactions(block.transactions) // skip first 24 txs
+        assert(block.txCount == expectedTxAmount)
+        validateTransactions(block.transactions)
     }
 
     private def validateTransactions(txs: Seq[Transaction]): Unit = {
