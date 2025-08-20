@@ -11,8 +11,7 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Denotations.*
 import dotty.tools.dotc.plugins.*
-import dotty.tools.dotc.transform.Pickler
-import dotty.tools.dotc.transform.PostTyper
+import dotty.tools.dotc.transform.{ExpandSAMs, Pickler, PostTyper}
 import dotty.tools.dotc.util.Spans
 import dotty.tools.dotc.typer.Implicits
 import dotty.tools.io.ClassPath
@@ -65,7 +64,7 @@ class ScalusPreparePhase(debugLevel: Int) extends PluginPhase with IdentityDenot
     override def prepareForTypeDef(tree: tpd.TypeDef)(using Context): Context = {
         // bug in dotty: sometimes we called with the wrong phase in context
         if summon[Context].phase != this then
-            prepareForUnit(tree)(using summon[Context].withPhase(this))
+            prepareForTypeDef(tree)(using summon[Context].withPhase(this))
         else ctx
     }
 
@@ -182,16 +181,13 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
     override def transformTypeDef(tree: tpd.TypeDef)(using Context): tpd.Tree =
         // If the template has a compile annotation, we need to add a variable for SIR
         val compileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
-        if tree.symbol.hasAnnotation(compileAnnot) then {
-            println(s"typedef with compile annotation found: ${tree.symbol.fullName}")
+        if tree.symbol.hasAnnotation(compileAnnot) && tree.symbol.is(Flags.Module) then {
             val sirBodyAnnotation =
                 requiredClass("scalus.sir.SIRBodyAnnotation")
             tree.symbol.getAnnotation(sirBodyAnnotation) match
                 case Some(annotation) =>
-                    println(
-                      s"ScalusPhase: SIRBodyAnnotation found for ${tree.symbol.fullName}"
-                    )
                     val moduleSIR = annotation.arguments.head
+                    val depsMap = annotation.arguments.tail.head
                     tree.rhs match
                         case template: tpd.Template =>
                             // Add a variable for SIR in the template
@@ -203,7 +199,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                                     case vd: ValDef
                                         if vd.symbol.name.toString == Plugin.SIR_DEPS_VAL_NAME =>
                                         // If the variable already exists, we can skip it
-                                        cpy.ValDef(vd)(rhs = tpd.EmptyTree)
+                                        cpy.ValDef(vd)(rhs = depsMap)
                                     case _ =>
                                         e
                                 }

@@ -11,6 +11,10 @@ class SIRPreprocessingTest extends AnyFunSuite {
         val optionSirModule: scalus.sir.Module = scalus.prelude.Option.sirModule
         assert(optionSirModule != null)
 
+        val listDeps = scalus.prelude.List.sirDeps
+        // println("listDeps names: " + listDeps.map(_.sirModule.name).mkString(", "))
+        assert(listDeps.nonEmpty)
+        assert(listDeps.find(_.sirModule.name == "scalus.prelude.Option$") != None)
     }
 
 }

@@ -2,27 +2,39 @@ package scalus.sir
 
 import scala.annotation.StaticAnnotation
 
-/** trait which added by compiler plugin to compiled SIR
-  */
 trait SIRCompiled {
 
-    def sirModule_ : Module
+    /** The SIR module */
+    val sirModule: Module
 
-    def sirDeps_ : Map[String, Module]
-
+    /** The dependencies of the SIR module */
+    lazy val sirDeps: List[SIRCompiled]
 }
 
-case class SIRDependency(name: String, module: Module)
-
-case class SIRWithDeps(
-    sirModule: Module,
-    sirDeps: Map[String, Module]
+class SIRModuleWithDeps(
+    override val sirModule: Module,
+    sirDepsExpr: => List[SIRCompiled]
 ) extends SIRCompiled {
 
-    override def sirModule_ : Module = sirModule
+    /** The dependencies of the SIR module */
+    lazy val sirDeps: List[SIRCompiled] = sirDepsExpr
 
-    override def sirDeps_ : Map[String, Module] = sirDeps
+    override def toString: String = {
+        s"SIRModuleWithDeps(sirModule=$sirModule, sirDeps=${sirDeps.map(_.sirModule.name)})"
+    }
 
 }
 
-case class SIRBodyAnnotation(module: Module) extends StaticAnnotation
+object SIRModuleWithDeps {
+
+    def apply(sirModule: Module, sirDepsExpr: => List[SIRCompiled]): SIRModuleWithDeps = {
+        new SIRModuleWithDeps(sirModule, sirDepsExpr)
+    }
+
+    def list(deps: SIRModuleWithDeps*): List[SIRModuleWithDeps] = {
+        deps.toList
+    }
+
+}
+
+case class SIRBodyAnnotation(module: Module, deps: List[SIRModuleWithDeps]) extends StaticAnnotation

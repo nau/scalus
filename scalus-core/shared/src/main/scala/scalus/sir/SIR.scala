@@ -3,9 +3,9 @@ package scalus.sir
 import scalus.uplc.Constant.Integer
 import scalus.uplc.{Constant, DefaultFun, DefaultUni}
 
-val SIRVersion: (Int, Int) = (2, 0)
+val SIRVersion: (Int, Int) = (3, 0)
 
-case class Module(version: (Int, Int), defs: List[Binding])
+case class Module(version: (Int, Int), name: String, defs: List[Binding])
 
 case class Binding(name: String, tp: SIRType, value: SIR) {
 
@@ -33,7 +33,8 @@ case class SIRPosition(
     startLine: Int,
     startColumn: Int,
     endLine: Int,
-    endColumn: Int
+    endColumn: Int,
+    
 ) {
 
     def show: String = {

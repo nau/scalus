@@ -11,11 +11,8 @@ import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
-import dotty.tools.dotc.transform.FirstTransform
 import scalus.sir.{Module as SIRModule, *}
-import scalus.utils.HashConsedReprRefFlat
 import scalus.flat.FlatInstantces.ModuleHashSetReprFlat
-import scalus.sir.SIRType.Integer
 
 /** Preprocess SIR - run before the Pickiing and sbt.ExtreactApi phases and add toSIR-compiled
   * modules fields, which later set in Scalus phase and used during linking.
@@ -33,9 +30,9 @@ import scalus.sir.SIRType.Integer
   * @Compile
   * object Mybjs {
   *   ...
-  *   val sirHash_: Int = hash
-  *   val sir_: SIR = [NOT-SET]
-  *   val deps_: List[SIRCompiled] = [NOT-SETT]
+  *
+  *   val sirModule: scalus.sir.Module = [NOT-SET]
+  *   val sirDeps: List[SIRCompiled] = [NOT-SETT]
   * }
   * ```
   * sir_ and dpes_ wi
@@ -47,32 +44,14 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
     val ignoreAnnot = ignoreAnnotRef.symbol.asClass
     // val sirType = requiredClassRef("scalus.sir.SIR")
     val sirModuleType = requiredClassRef("scalus.sir.Module")
-    // val nakedMapType = requiredClassRef("scala.collection.immutable.Map")
-    val sirCompiledType = requiredClassRef("scalus.sir.SIRCompiled")
-    val sirCompiledListType =
-        AppliedType(requiredClassRef("scala.collection.immutable.List"), List(sirCompiledType))
+    val sirModuleWithDepsType = requiredClassRef("scalus.sir.SIRModuleWithDeps")
+    val sirModuleWithDepsModule = requiredModule("scalus.sir.SIRModuleWithDeps")
+    val listSirModuleWithDepsType = defn.ListClass.typeRef.appliedTo(sirModuleWithDepsType)
 
     def transformTypeDef(tree: tpd.TypeDef)(using Context): tpd.Tree = {
         // If the template has a compile annotation, we need to add a variable for SIR
         tree.rhs match
             case template: tpd.Template =>
-                // add sir to the end of the definition
-                val templateHash = template.hashCode()
-                val sirHashSym = Symbols
-                    .newSymbol(
-                      tree.symbol,
-                      s"sirhash_${templateHash}".toTermName,
-                      Flags.Permanent,
-                      defn.IntType
-                    )
-                sirHashSym.addAnnotation(ignoreAnnot)
-                sirHashSym.enteredAfter(thisPhase)
-                val sirHashVar = tpd
-                    .ValDef(
-                      sirHashSym,
-                      Literal(Constant(templateHash)).withSpan(template.span)
-                    )
-                    .withSpan(template.span)
                 val sirSym = Symbols
                     .newSymbol(
                       tree.symbol,
@@ -82,7 +61,7 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
                     )
                 sirSym.addAnnotation(ignoreAnnot)
                 sirSym.enteredAfter(thisPhase)
-                val module = SIRModule((1, 1), List.empty)
+                val module = SIRModule(SIRVersion, "init", List.empty)
                 val moduleToExprSym = Symbols.requiredModule("scalus.sir.ModuleToExpr")
                 val moduleTree =
                     convertFlatToTree(
@@ -100,7 +79,7 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
                       tree.symbol,
                       Plugin.SIR_DEPS_VAL_NAME.toTermName,
                       Flags.Lazy | Flags.Permanent,
-                      sirCompiledListType
+                      listSirModuleWithDepsType
                     )
                 sirDepsSym.addAnnotation(ignoreAnnot)
                 sirDepsSym.enteredAfter(thisPhase)
@@ -111,7 +90,7 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
                     )
                     .withSpan(tree.span)
                 val newTemplate = cpy.Template(template)(
-                  body = template.body ++ List(sirHashVar, sirModuleVal, sirDepsVal)
+                  body = template.body ++ List(sirModuleVal, sirDepsVal)
                 )
                 val retval = cpy.TypeDef(tree)(name = tree.name, rhs = newTemplate)
                 retval

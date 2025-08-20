@@ -1481,18 +1481,22 @@ object FlatInstantces:
         override def toRepr(a: Module): HashConsedRef[Module] =
             HashConsedRef.fromData(a)
 
-        override def bitSizeHC(a: Module, hs: HashConsed.State): Int =
+        override def bitSizeHC(a: Module, hs: HashConsed.State): Int = {
             summon[Flat[(Int, Int)]].bitSize(a.version) +
+                summon[Flat[String]].bitSize(a.name) +
                 HashConsedReprFlat.listRepr(BindingFlat).bitSizeHC(a.defs, hs)
+        }
 
         override def encodeHC(a: Module, enc: HashConsedEncoderState): Unit =
             summon[Flat[(Int, Int)]].encode(a.version, enc.encode)
+            summon[Flat[String]].encode(a.name, enc.encode)
             HashConsedReprFlat.listRepr(BindingFlat).encodeHC(a.defs, enc)
 
         override def decodeHC(decoder: HashConsedDecoderState): HashConsedRef[Module] = {
             val version = summon[Flat[(Int, Int)]].decode(decoder.decode)
+            val name = summon[Flat[String]].decode(decoder.decode)
             val defs = HashConsedReprFlat.listRepr(BindingFlat).decodeHC(decoder)
-            HashConsedRef.deferred((hs, l, ps) => Module(version, defs.finValue(hs, l + 1, ps)))
+            HashConsedRef.deferred((hs, l, ps) => Module(version, name, defs.finValue(hs, l + 1, ps)))
         }
 
     }

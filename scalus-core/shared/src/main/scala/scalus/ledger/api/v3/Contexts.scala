@@ -40,6 +40,7 @@ export scalus.ledger.api.v2.TxOut
 //type Value = scalus.ledger.api.v1.Value
 export scalus.ledger.api.v1.Value
 import scalus.prelude.Ord.{<=>, ifEqualThen, given}
+import scalus.builtin.Builtins
 
 @Compile
 @deprecated("Not need anymore, use companion objects instead")
@@ -831,6 +832,8 @@ end ScriptInfo
 @deprecated("Use ScriptInfo instead")
 case class SpendingScriptInfo(txOutRef: TxOutRef, datum: Option[Datum])
 
+@Compile
+@deprecated("Use ScriptInfo instead")
 object SpendingScriptInfo:
 
     @deprecated("Use ScriptInfo instead")
@@ -1000,7 +1003,7 @@ object TxInfo {
 
 case class ScriptContext(
     txInfo: TxInfo,
-    redeemer: Redeemer = Data.unit,
+    redeemer: Redeemer = Builtins.constrData(BigInt(0), Builtins.mkNilData()),
     scriptInfo: ScriptInfo
 )
 

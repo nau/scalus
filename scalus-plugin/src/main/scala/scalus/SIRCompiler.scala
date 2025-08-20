@@ -10,6 +10,7 @@ import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
+import dotty.tools.dotc.core.Decorators.toTermName
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
@@ -116,6 +117,13 @@ final class SIRCompiler(
     private val ToDataSymbol = requiredClass("scalus.builtin.ToData")
     private val moduleToExprSymbol = Symbols.requiredModule("scalus.sir.ModuleToExpr")
     private val sirBodyAnnotation = requiredClass("scalus.sir.SIRBodyAnnotation")
+    private val sirModuleType = requiredClassRef("scalus.sir.Module")
+    private val sirModuleWithDepsType = requiredClassRef("scalus.sir.SIRModuleWithDeps")
+    private val sirModuleWithDepsModule = requiredModule("scalus.sir.SIRModuleWithDeps")
+    private val listSirModuleWithDepsType = defn.ListClass.typeRef.appliedTo(sirModuleWithDepsType)
+    private val fun0ListSirModulesWithDepsType = defn.Function0.typeRef.appliedTo(
+      listSirModuleWithDepsType
+    ) // Function0[List[SIRModuleWithDeps]]
 
     private val typer = new SIRTyper
     private val pmCompiler = new PatternMatchingCompiler(this)
@@ -379,9 +387,11 @@ final class SIRCompiler(
                   s"skipping empty Scalus module ${td.name} in ${time}ms"
                 )
         } else
+            val moduleName = td.symbol.fullName.toString
             val module =
                 Module(
                   SIRVersion,
+                  moduleName,
                   bindingsWithSpecialized
                 )
 
@@ -392,38 +402,81 @@ final class SIRCompiler(
               td.span,
               options.debugLevel > 0
             )
+
             /*
             val submodulesTrees = ???
              */
             val emptyListTree =
                 tpd.ref(defn.NilModule).withSpan(td.symbol.srcPos.span)
-            val externalModuleNames = gatherExternalModules(module, Set.empty)
-            val moduleRefs = externalModuleNames.map { name =>
+            val externalModuleVars = gatherExternalModules(moduleName, module, Map.empty)
+            val moduleWithDepsRefs = externalModuleVars.map { case (name, externalVar) =>
                 name -> {
-                    println("search for module: " + name)
                     val cName = name.replace("$", "")
                     val moduleSym = Symbols.requiredModule(cName)
                     val moduleRef = tpd.ref(moduleSym).withSpan(td.symbol.srcPos.span)
-                    println(s"moduleRef: ${moduleRef.show}")
-                    println(s"flags: ${moduleSym.flags.flagsString}")
+                    // println(s"moduleRef: ${moduleRef.show}")
+                    // println(s"flags: ${moduleSym.flags.flagsString}")
                     val decls = moduleSym.info.decls.filter(x => true)
-                    println(s"methods: ${decls.map(_.show).mkString(", ")}")
-                    // val sirTree = moduleRef.select(sirSym).withSpan(td.symbol.srcPos.span)
-                    // sirTree
-                    moduleRef
+                    // println(s"methods: ${decls.map(_.show).mkString(", ")}")
+                    if moduleSym.info
+                            .findDecl(
+                              Plugin.SIR_MODULE_VAL_NAME.toTermName,
+                              EmptyFlags
+                            )
+                            == SymDenotations.NoDenotation
+                    then {
+                        report.error(
+                          s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} is not found",
+                          td.symbol.srcPos
+                        )
+                        // write empty module instean.
+                        val module = Module(SIRVersion, s"notfound:${cName}", List.empty)
+                        val moduleToExprSym = Symbols.requiredModule("scalus.sir.ModuleToExpr")
+                        val moduleTree = {
+                            convertFlatToTree(
+                              module,
+                              ModuleHashSetReprFlat,
+                              moduleToExprSym,
+                              td.span,
+                              false
+                            )
+                        }
+                        val depsTree = tpd.ref(defn.NilModule).withSpan(td.symbol.srcPos.span)
+                        val moduleWithDeps =
+                            tpd.ref(sirModuleWithDepsModule)
+                                .select(sirModuleWithDepsModule.requiredMethod("apply"))
+                                .appliedToArgs(List(moduleTree, depsTree))
+                                .withSpan(td.span)
+                        moduleWithDeps
+                    } else
+                        val valSirModuleSym = moduleSym.requiredMethod(Plugin.SIR_MODULE_VAL_NAME)
+                        val sirTree =
+                            moduleRef.select(valSirModuleSym).withSpan(td.symbol.srcPos.span)
+                        val valSirDepsSym = moduleSym.requiredMethod(Plugin.SIR_DEPS_VAL_NAME)
+                        val depsTree =
+                            moduleRef.select(valSirDepsSym).withSpan(td.symbol.srcPos.span)
+                        val moduleWithDeps = tpd
+                            .ref(sirModuleWithDepsModule)
+                            .select(sirModuleWithDepsModule.requiredMethod("apply"))
+                            .appliedToArgs(List(sirTree, depsTree))
+                        moduleWithDeps
                 }
-            }.toMap
-            val mapApplyModule = Symbols.requiredModule("scala.collection.immutable.Map")
-            val tuple2Module = Symbols.requiredModule("scala.Tuple2")
-            val sModuleRefs = moduleRefs
+            }
+            val listDeps = moduleWithDepsRefs.values.toList
+            val listDepsExpr =
+                ref(sirModuleWithDepsModule)
+                    .select(sirModuleWithDepsModule.requiredMethod("list"))
+                    .appliedTo(SeqLiteral(listDeps, TypeTree(sirModuleWithDepsType)))
+
+            val sModuleRefs = moduleWithDepsRefs
                 .map { case (k, v) =>
                     k -> v.show.toString
                 }
                 .mkString(",")
-            println(s"deps for ${td.symbol.fullName.show}: ${sModuleRefs}")
+            println(s"moduleWithDepsRefs for ${td.symbol.fullName.toString}: $sModuleRefs")
 
             td.symbol.addAnnotation(
-              Annotations.Annotation(sirBodyAnnotation, List(moduleTree), td.span)
+              Annotations.Annotation(sirBodyAnnotation, List(moduleTree, listDepsExpr), td.span)
             )
             writeModule(module, td.symbol.fullName.toString)
 
@@ -461,12 +514,13 @@ final class SIRCompiler(
             else Binding(lb.fullName.name, lb.tp, lb.body)
         }
         if bindings.nonEmpty then
-            val module = Module(SIRVersion, bindings)
+            val submoduleName = submodule.symbol.fullName.toString
+            val module = Module(SIRVersion, submoduleName, bindings)
             if options.debugLevel > 0 then
                 report.echo(
                   s"compiled Scalus module ${submodule.symbol.fullName} definitions: ${bindings.map(_.name)}"
                 )
-            writeModule(module, submodule.symbol.fullName.toString)
+            writeModule(module, submoduleName)
         subsubmodules.foreach(submodule => writeSubmodule(submodule, superBindings))
     }
 
@@ -3071,63 +3125,78 @@ final class SIRCompiler(
         else LocalBindingFlags.None
     }
 
-    private def gatherExternalModules(module: Module, acc: Set[String]): Set[String] = {
+    private def gatherExternalModules(
+        myModuleName: String,
+        module: Module,
+        acc: Map[String, SIR.ExternalVar]
+    ): Map[String, SIR.ExternalVar] = {
         module.defs.foldLeft(acc) { (acc, binding) =>
-            gatherExternalModulesFromSir(binding.value, acc)
+            gatherExternalModulesFromSir(myModuleName, binding.value, acc)
         }
     }
 
-    private def gatherExternalModulesFromSir(sir: SIR, acc: Set[String]): Set[String] = {
+    private def gatherExternalModulesFromSir(
+        myModuleName: String,
+        sir: SIR,
+        acc: Map[String, SIR.ExternalVar]
+    ): Map[String, SIR.ExternalVar] = {
         sir match {
             case expr: AnnotatedSIR =>
-                gatherExternalModulesFromSirExpr(expr, acc)
+                gatherExternalModulesFromSirExpr(myModuleName, expr, acc)
             case SIR.Decl(_, term) =>
-                gatherExternalModulesFromSir(term, acc)
+                gatherExternalModulesFromSir(myModuleName, term, acc)
         }
     }
 
     private def gatherExternalModulesFromSirExpr(
+        myModuleName: String,
         sir: AnnotatedSIR,
-        acc: Set[String]
-    ): Set[String] = {
+        acc: Map[String, SIR.ExternalVar]
+    ): Map[String, SIR.ExternalVar] = {
         sir match
-            case SIR.ExternalVar(moduleName, _, _, _) =>
-                acc + moduleName
+            case v @ SIR.ExternalVar(moduleName, _, _, _) =>
+                if moduleName == myModuleName then acc
+                else
+                    acc.get(moduleName) match
+                        case Some(_) => acc
+                        case None =>
+                            acc.updated(moduleName, v)
             case SIR.Let(_, binding, body, _) =>
                 val acc1 =
-                    binding.foldLeft(acc)((acc, b) => gatherExternalModulesFromSir(b.value, acc))
-                gatherExternalModulesFromSir(body, acc1)
+                    binding.foldLeft(acc)((acc, b) =>
+                        gatherExternalModulesFromSir(myModuleName, b.value, acc)
+                    )
+                gatherExternalModulesFromSir(myModuleName, body, acc1)
             case SIR.LamAbs(_, term, _, _) =>
-                gatherExternalModulesFromSir(term, acc)
+                gatherExternalModulesFromSir(myModuleName, term, acc)
             case SIR.Apply(f, arg, _, _) =>
-                val acc1 = gatherExternalModulesFromSir(f, acc)
-                gatherExternalModulesFromSir(arg, acc1)
+                val acc1 = gatherExternalModulesFromSir(myModuleName, f, acc)
+                gatherExternalModulesFromSir(myModuleName, arg, acc1)
             case SIR.Select(obj, _, _, _) =>
-                gatherExternalModulesFromSir(obj, acc)
-
+                gatherExternalModulesFromSir(myModuleName, obj, acc)
             case SIR.And(x, y, _) =>
-                val acc1 = gatherExternalModulesFromSir(x, acc)
-                gatherExternalModulesFromSir(y, acc1)
+                val acc1 = gatherExternalModulesFromSir(myModuleName, x, acc)
+                gatherExternalModulesFromSir(myModuleName, y, acc1)
             case SIR.Or(x, y, _) =>
-                val acc1 = gatherExternalModulesFromSir(x, acc)
-                gatherExternalModulesFromSir(y, acc1)
+                val acc1 = gatherExternalModulesFromSir(myModuleName, x, acc)
+                gatherExternalModulesFromSir(myModuleName, y, acc1)
             case SIR.Not(x, _) =>
-                gatherExternalModulesFromSir(x, acc)
+                gatherExternalModulesFromSir(myModuleName, x, acc)
             case SIR.IfThenElse(cond, t, f, _, _) =>
-                val acc1 = gatherExternalModulesFromSir(cond, acc)
-                val acc2 = gatherExternalModulesFromSir(t, acc1)
-                gatherExternalModulesFromSir(f, acc2)
+                val acc1 = gatherExternalModulesFromSir(myModuleName, cond, acc)
+                val acc2 = gatherExternalModulesFromSir(myModuleName, t, acc1)
+                gatherExternalModulesFromSir(myModuleName, f, acc2)
             case SIR.Constr(_, _, args, _, _) =>
                 args.foldLeft(acc) { (acc, arg) =>
-                    gatherExternalModulesFromSir(arg, acc)
+                    gatherExternalModulesFromSir(myModuleName, arg, acc)
                 }
             case SIR.Match(scrutinee, cases, _, _) =>
-                val acc1 = gatherExternalModulesFromSir(scrutinee, acc)
+                val acc1 = gatherExternalModulesFromSir(myModuleName, scrutinee, acc)
                 cases.foldLeft(acc1) { (acc, c) =>
-                    gatherExternalModulesFromSir(c.body, acc)
+                    gatherExternalModulesFromSir(myModuleName, c.body, acc)
                 }
             case SIR.Cast(expr, _, _) =>
-                gatherExternalModulesFromSir(expr, acc)
+                gatherExternalModulesFromSir(myModuleName, expr, acc)
             case SIR.Error(_, _, _) | SIR.Var(_, _, _) | SIR.Builtin(_, _, _) |
                 SIR.Const(_, _, _) =>
                 acc

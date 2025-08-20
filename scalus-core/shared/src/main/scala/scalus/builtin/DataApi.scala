@@ -16,7 +16,7 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 private trait DataApi {
     extension (self: Data)
-        def dataHash: ByteString =
+        inline def dataHash: ByteString =
             Builtins.blake2b_256(Builtins.serialiseData(self))
 
     /** JSON ReadWriter for the [[Data]] type.

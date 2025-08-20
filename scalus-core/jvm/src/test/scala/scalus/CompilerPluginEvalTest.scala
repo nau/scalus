@@ -48,7 +48,7 @@ class CompilerPluginEvalTest extends AnyFunSuite {
             pkh match
                 case PubKeyHash(hash) => hash
         }
-        // println(compiled.show)
+        println(compiled.show)
         val evaled = compiled.toUplc().evaluate
         assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(hex"deadbeef")))
     }
