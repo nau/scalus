@@ -56,6 +56,7 @@ class FileScriptSupplier(scriptsDirectory: Path, scriptSupplier: ScriptSupplier)
             script
         else
             val script = scriptSupplier.getScript(scriptHash)
+            Files.createDirectories(scriptsDirectory)
             Files.write(scriptsDirectory.resolve(scriptHash), Utils.hexToBytes(script.getCborHex))
             script
 }

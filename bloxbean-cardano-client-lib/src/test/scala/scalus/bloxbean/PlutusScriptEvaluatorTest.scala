@@ -144,17 +144,14 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
     }
 
     test("evaluate block 11544748") {
-        pending
         validateBlock(11544748)
     }
 
     test("evaluate block 11544518") {
-        pending
         validateBlock(11544518)
     }
 
     test("evaluate block 11553070") {
-        pending
         validateBlock(11553070)
     }
 
@@ -196,17 +193,17 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
         import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 
-        val cwd = Paths.get(".")
+        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
         val backendService =
             new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, BlocksValidation.apiKey)
         val utxoSupplier = CachedUtxoSupplier(
-          cwd.resolve("utxos"),
+          resourcesPath.resolve("utxos"),
           DefaultUtxoSupplier(backendService.getUtxoService)
         )
         // memory and file cached script supplier using the script service
         val scriptSupplier = InMemoryCachedScriptSupplier(
           FileScriptSupplier(
-            cwd.resolve("scripts"),
+            resourcesPath.resolve("scripts"),
             ScriptServiceSupplier(backendService.getScriptService)
           )
         )

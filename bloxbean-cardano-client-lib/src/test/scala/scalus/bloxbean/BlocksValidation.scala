@@ -56,16 +56,16 @@ object BlocksValidation:
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
         YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
 
-        val cwd = Paths.get(".")
+        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
-          cwd.resolve("utxos"),
+          resourcesPath.resolve("utxos"),
           DefaultUtxoSupplier(backendService.getUtxoService)
         )
         // memory and file cached script supplier using the script service
         val scriptSupplier = InMemoryCachedScriptSupplier(
           FileScriptSupplier(
-            cwd.resolve("scripts"),
+            resourcesPath.resolve("scripts"),
             ScriptServiceSupplier(backendService.getScriptService)
           )
         )
@@ -91,7 +91,7 @@ object BlocksValidation:
 
         println(s"Validating blocks of epoch $epoch...")
         for blockNum <- 11544518 to 11546100 do
-            val txs = readTransactionsFromBlockCbor(cwd.resolve(s"blocks/block-$blockNum.cbor"))
+            val txs = readTransactionsFromBlockCbor(resourcesPath.resolve(s"blocks/block-$blockNum.cbor"))
             val txsWithScripts =
                 val r = mutable.Buffer.empty[
                   (Transaction, util.List[ByteString], String, Map[ScriptHash, Script])
@@ -153,16 +153,16 @@ object BlocksValidation:
     }
 
     private def validateBlocksOfEpochWithScalus(epoch: Int): Unit = {
-        val cwd = Paths.get(".")
+        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
-          cwd.resolve("utxos"),
+          resourcesPath.resolve("utxos"),
           DefaultUtxoSupplier(backendService.getUtxoService)
         )
         // memory and file cached script supplier using the script service
         val scriptSupplier = InMemoryCachedScriptSupplier(
           FileScriptSupplier(
-            cwd.resolve("scripts"),
+            resourcesPath.resolve("scripts"),
             ScriptServiceSupplier(backendService.getScriptService)
           )
         )
@@ -309,8 +309,8 @@ object BlocksValidation:
     }
 
     private def getAllBlocksPaths(): IndexedSeq[Path] = {
-        val cwd = Paths.get(".")
-        val blocksDir = cwd.resolve("blocks")
+        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
+        val blocksDir = resourcesPath.resolve("blocks")
         if !Files.exists(blocksDir) then
             sys.error(
               s"Blocks directory $blocksDir does not exist. Please run `sbt bloxbean-cardano-client-lib/test` first."
@@ -385,20 +385,20 @@ object BlocksValidation:
             blocks: mutable.ArrayBuffer[Int] = mutable.ArrayBuffer.empty
         )
 
-        val cwd = Paths.get(".")
-        val blocksDir = cwd.resolve("blocks")
+        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
+        val blocksDir = resourcesPath.resolve("blocks")
         val stats = mutable.HashMap.empty[ByteString, Res].withDefaultValue(Res(0, 0))
         val start = System.currentTimeMillis()
 
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
-          cwd.resolve("utxos"),
+          resourcesPath.resolve("utxos"),
           DefaultUtxoSupplier(backendService.getUtxoService)
         )
         // memory and file cached script supplier using the script service
         val scriptSupplier = InMemoryCachedScriptSupplier(
           FileScriptSupplier(
-            cwd.resolve("scripts"),
+            resourcesPath.resolve("scripts"),
             ScriptServiceSupplier(backendService.getScriptService)
           )
         )

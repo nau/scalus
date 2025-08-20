@@ -4,7 +4,7 @@ import com.bloxbean.cardano.client.api.common.OrderEnum
 import com.bloxbean.cardano.client.api.model.Utxo
 import com.fasterxml.jackson.databind.ObjectMapper
 
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import java.util
 import java.util.Optional
 import scala.collection.mutable
@@ -35,6 +35,8 @@ class CachedUtxoSupplier(cachePath: Path, default: UtxoSupplier) extends UtxoSup
                 val utxo = default.getTxOutput(txHash, outputIndex)
                 utxo.ifPresent { u =>
                     cache.put((txHash, outputIndex), u)
+                    // Ensure parent directory exists before writing
+                    Files.createDirectories(file.getParentFile.toPath)
                     objectMapper.writeValue(file, u)
                     //                    println(s"queried $txHash-$outputIndex in blockfrost and saved to utxos folder")
                 }
