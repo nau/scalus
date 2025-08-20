@@ -56,7 +56,7 @@ object BlocksValidation:
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
         YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
 
-        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
+        val resourcesPath = Paths.get(".")
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
           resourcesPath.resolve("utxos"),
@@ -153,7 +153,7 @@ object BlocksValidation:
     }
 
     private def validateBlocksOfEpochWithScalus(epoch: Int): Unit = {
-        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
+        val resourcesPath = Paths.get(".")
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
           resourcesPath.resolve("utxos"),
@@ -309,7 +309,7 @@ object BlocksValidation:
     }
 
     private def getAllBlocksPaths(): IndexedSeq[Path] = {
-        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
+        val resourcesPath = Paths.get(".")
         val blocksDir = resourcesPath.resolve("blocks")
         if !Files.exists(blocksDir) then
             sys.error(
@@ -385,7 +385,7 @@ object BlocksValidation:
             blocks: mutable.ArrayBuffer[Int] = mutable.ArrayBuffer.empty
         )
 
-        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
+        val resourcesPath = Paths.get(".")
         val blocksDir = resourcesPath.resolve("blocks")
         val stats = mutable.HashMap.empty[ByteString, Res].withDefaultValue(Res(0, 0))
         val start = System.currentTimeMillis()

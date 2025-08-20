@@ -60,6 +60,7 @@
                 yarn
                 uplc
                 async-profiler
+                visualvm
                 llvm
                 clang
                 libsodium
