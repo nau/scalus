@@ -29,18 +29,18 @@ enum Intention {
 }
 
 def assemble(p: Intention.Pay)(
-                environmentGetter: EnvironmentGetter,
-                collateral: Set[TransactionInput],
-                inputs: Set[ResolvedTxInput],
-                resolver: TransactionResolver,
-                evaluator: PlutusScriptEvaluator
-            ): PayAssembler = PayAssembler(
-    p,
-    environmentGetter,
-    collateral,
-    inputs,
-    resolver,
-    evaluator
+    environmentGetter: EnvironmentGetter,
+    collateral: Set[TransactionInput],
+    inputs: Set[ResolvedTxInput],
+    resolver: TransactionResolver,
+    evaluator: PlutusScriptEvaluator
+): PayAssembler = PayAssembler(
+  p,
+  environmentGetter,
+  collateral,
+  inputs,
+  resolver,
+  evaluator
 )
 
 case class PayAssembler(
