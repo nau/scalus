@@ -68,15 +68,17 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
                 data: Option[DatumOption]
             ): ResolvedTxInput.Pubkey = ???
         }
-        Intention
-            .Pay(faucet, payment)
-            .assemble(
-              EnvironmentGetter(env),
-              collateral.keySet,
-              Set(ResolvedTxInput.Script(txInputs.head, script, Data.unit)),
-              dummyResolver,
-              evaluator
-            )
+        val intention: Intention.Pay = Intention.Pay(faucet, payment)
+        assemble(intention)(
+          EnvironmentGetter(env),
+          collateral.keySet,
+          Set(ResolvedTxInput.Script(txInputs.head, script, Data.unit)),
+          dummyResolver,
+          evaluator
+        ).assemble().build(
+          FeePayerStrategy.subtractFromAddress(myAddress),
+          ChangeReturnStrategy.toAddress(myAddress)
+        )
 
     }
 }

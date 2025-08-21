@@ -28,22 +28,20 @@ enum Intention {
     case RegisterStake
 }
 
-extension (p: Intention.Pay) {
-    def assemble(
-        environmentGetter: EnvironmentGetter,
-        collateral: Set[TransactionInput],
-        inputs: Set[ResolvedTxInput],
-        resolver: TransactionResolver,
-        evaluator: PlutusScriptEvaluator
-    ): PayAssembler = PayAssembler(
-      p,
-      environmentGetter,
-      collateral,
-      inputs,
-      resolver,
-      evaluator
-    )
-}
+def assemble(p: Intention.Pay)(
+                environmentGetter: EnvironmentGetter,
+                collateral: Set[TransactionInput],
+                inputs: Set[ResolvedTxInput],
+                resolver: TransactionResolver,
+                evaluator: PlutusScriptEvaluator
+            ): PayAssembler = PayAssembler(
+    p,
+    environmentGetter,
+    collateral,
+    inputs,
+    resolver,
+    evaluator
+)
 
 case class PayAssembler(
     intention: Intention.Pay,
