@@ -238,7 +238,7 @@ class PaymentSplitterTest extends AnyFunSuite, ScalusTest {
 
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
-      generateErrorTraces = true,
+      // generateErrorTraces = true,
       optimizeUplc = true,
       debug = false
     )

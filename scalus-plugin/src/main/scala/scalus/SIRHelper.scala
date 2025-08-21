@@ -2,7 +2,6 @@ package scalus
 
 import scala.annotation.nowarn
 import java.nio.charset.StandardCharsets
-
 import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.tpd.*
 import dotty.tools.dotc.core.*
@@ -11,9 +10,8 @@ import dotty.tools.dotc.core.Contexts.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.util.Spans
+import dotty.tools.dotc.util.Spans.Span
 import scalus.flat.{DecoderState, FlatInstantces}
-import scalus.flat.FlatInstantces.SIRHashConsedFlat
-import scalus.sir.SIR
 import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState, HashConsedReprRefFlat}
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import scalus.sir.SIRPosition
@@ -181,3 +179,18 @@ extension (pos: SourcePosition)
         if pos == NoSourcePosition then other
         else if other == NoSourcePosition then pos
         else SourcePosition(pos.source, pos.span.union(other.span), NoSourcePosition)
+
+def createSIRPositionTree(pos: SIRPosition, span: Span)(using Context): Tree = {
+    val posSym = Symbols.requiredClassRef("scalus.sir.SIRPosition")
+    val posModule = Symbols.requiredModule("scalus.sir.SIRPosition")
+    val posTree = ref(posModule).select(posModule.requiredMethod("apply"))
+    posTree
+        .appliedTo(
+          Literal(Constant(pos.file)),
+          Literal(Constant(pos.startLine)),
+          Literal(Constant(pos.startColumn)),
+          Literal(Constant(pos.endLine)),
+          Literal(Constant(pos.endColumn))
+        )
+        .withSpan(span)
+}

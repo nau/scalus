@@ -22,7 +22,7 @@ case class SIRLinkerOptions(
   * It traverses the SIR tree and links external definitions and data declarations to the global
   * definitions and data declarations.
   */
-class SIRLinker(options: SIRLinkerOptions, moduleDefs: mutable.Map[String, Module]) {
+class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
 
     import SIRLinker.LinkingDefState
     import SIRLinker.SIRLinkedBinding
@@ -256,12 +256,21 @@ object SIRLinker {
         case Linked(binding: SIRLinkedBinding) extends LinkingDefState
     }
 
-    def readModules(
-        module: Module,
-        deps: List[SIRCompiled]
-    ): Map[String, Module] = {
+    def link(
+        sir: SIR,
+        pos: SIRPosition,
+        deps: List[SIRCompiled],
+        options: SIRLinkerOptions
+    ): SIR = {
+        if options.debugLevel > 0 then
+            println(s"Linking SIR with deps: ${deps.map(_.sirModule.name).mkString(", ")}")
+        val modules = readModules(deps)
+        val linker = new SIRLinker(options, modules)
+        linker.link(sir, pos)
+    }
+
+    def readModules(deps: List[SIRCompiled]): Map[String, Module] = {
         var retval: Map[String, Module] = Map.empty
-        retval += (module.name -> module)
         val queue: mutable.Queue[SIRCompiled] = scala.collection.mutable.Queue.empty
         queue.enqueueAll(deps)
         while queue.nonEmpty do

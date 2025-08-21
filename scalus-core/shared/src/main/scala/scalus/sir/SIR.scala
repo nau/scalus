@@ -1,7 +1,7 @@
 package scalus.sir
 
 import scalus.uplc.Constant.Integer
-import scalus.uplc.{Constant, DefaultFun, DefaultUni}
+import scalus.uplc.{Constant, DefaultFun}
 
 val SIRVersion: (Int, Int) = (3, 0)
 

@@ -5,22 +5,17 @@ import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.*
-import dotty.tools.dotc.core.Decorators.*
 import dotty.tools.dotc.core.DenotTransformers.IdentityDenotTransformer
-import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
-import dotty.tools.dotc.core.Denotations.*
 import dotty.tools.dotc.plugins.*
-import dotty.tools.dotc.transform.{ExpandSAMs, Pickler, PostTyper}
-import dotty.tools.dotc.util.Spans
+import dotty.tools.dotc.transform.{ElimByName, ExpandSAMs, Pickler, PostTyper}
+import dotty.tools.dotc.util.{Spans, SrcPos}
 import dotty.tools.dotc.typer.Implicits
 import dotty.tools.io.ClassPath
-import scalus.flat.{DecoderState, FlatInstantces}
+import scalus.flat.FlatInstantces
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
-import scalus.sir.{RemoveRecursivity, SIR}
+import scalus.sir.{RemoveRecursivity, SIR, SIRPosition}
 
-import java.nio.charset.StandardCharsets
-import scala.annotation.nowarn
 import scala.collection.immutable
 import scala.language.implicitConversions
 
@@ -95,7 +90,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
     // like inlining, constant folding, etc.
     override val runsAfter: Set[String] = Set("firstTransform")
     // We need to run before the "patternMatcher" phase to have the SIR available for pattern matching
-    override val runsBefore: Set[String] = Set("patternMatcher")
+    override val runsBefore: Set[String] = Set("patternMatcher", ElimByName.name)
 
     override def allowsImplicitSearch: Boolean = true
 
@@ -149,14 +144,15 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 val sirLoader = createSirLoader
                 val compiler = new SIRCompiler(sirLoader, options)
                 val start = System.currentTimeMillis()
-                val result =
-                    val result = compiler.compileToSIR(code, isCompileDebug)
-                    val linked = SIRLinker(
-                      SIRLinkerOptions(options.universalDataRepresentation, localDebugLevel),
-                      sirLoader
-                    )
-                        .link(result, tree.srcPos)
-                    RemoveRecursivity(linked)
+                val sirResult =
+                    val sirOnly = compiler.compileToSIR(code, isCompileDebug)
+                    if options.linkInRuntime then sirOnly
+                    else
+                        val linked = SIRLinker(
+                          SIRLinkerOptions(options.universalDataRepresentation, localDebugLevel),
+                          sirLoader
+                        ).link(sirOnly, tree.srcPos)
+                        RemoveRecursivity(linked)
 
                 if isCompileDebug then
                     val time = System.currentTimeMillis() - start
@@ -164,13 +160,39 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                       s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms, options=${options}"
                     )
 
-                convertFlatToTree(
-                  result,
+                val flatTree = convertFlatToTree(
+                  sirResult,
                   SIRHashConsedFlat,
                   requiredModule("scalus.sir.ToExprHSSIRFlat"),
                   tree.span,
                   isCompileDebug
                 )
+                val result =
+                    if options.linkInRuntime then
+                        val myModuleName = s"${tree.srcPos.sourcePos.source}:${tree.srcPos.line}"
+                        val dependencyEntries = compiler.gatherExternalModulesFromSir(
+                          myModuleName,
+                          sirResult,
+                          Map.empty
+                        )
+                        val depsTree = compiler.buildDepsTree(dependencyEntries, tree.srcPos)
+                        val SIRLinkerModule = requiredModule("scalus.sir.SIRLinker")
+                        val SIRLinkerMethod = SIRLinkerModule.requiredMethod("link")
+                        val sirPos =
+                            createSIRPositionTree(SIRPosition.fromSrcPos(tree.srcPos), tree.span)
+                        val linkerOptionsTree = createLinkerOptionsTree(options, tree.srcPos)
+                        val sirLinkerCall = tpd
+                            .ref(SIRLinkerMethod)
+                            .appliedTo(
+                              flatTree,
+                              sirPos,
+                              depsTree,
+                              linkerOptionsTree
+                            )
+                            .withSpan(tree.span)
+                        sirLinkerCall
+                    else flatTree
+                result
             else tree
         catch
             case scala.util.control.NonFatal(ex) =>
@@ -241,6 +263,8 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         var debug: Boolean = false
         var codeDebugLevel: Int = 0
         var useUniversalDataConversion: Boolean = false
+        var runtimeLinker: Boolean = true
+        var writeSirToFile: Boolean = false
 
         def parseTargetLoweringBackend(value: Tree): Unit = {
             var parsed = true
@@ -270,43 +294,59 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             }
         }
 
-        def parseBooleanValue(value: Tree): Boolean = {
+        def parseBooleanValue(value: Tree): Option[Boolean] = {
             value match {
-                case Literal(Constant(flag: Boolean)) => flag
+                case Literal(Constant(flag: Boolean)) => Some(flag)
+                //  tree:Select(Select(Select(Ident(scalus),Compiler),Options),$lessinit$greater$default$2)
+                case Select(_, name) if name.toString.startsWith("$lessinit$greater$default") =>
+                    // This is a default value for a parameter,
+                    None
                 case _ =>
                     report.warning(
                       s"ScalusPhase: Expected a boolean literal, but found: ${value.show}\ntree:${value}",
                       value.srcPos
                     )
-                    false
+                    None
             }
         }
 
-        def parseIntValue(value: Tree): Int = {
+        def parseIntValue(value: Tree): Option[Int] = {
             value match {
-                case Literal(Constant(num: Int)) => num
+                case Literal(Constant(num: Int)) => Some(num)
+                case Select(_, name) if name.toString.startsWith("$lessinit$greater$default") =>
+                    None
                 case _ =>
                     report.warning(
                       s"ScalusPhase: Expected an integer literal, but found: ${value.show}",
                       posTree.srcPos.startPos
                     )
-                    0 // default value if parsing fails
+                    None // default value if parsing fails
             }
         }
 
+        // Parse the arguments of the compiler options
+        //  Note, that default values should be synchronized with the default value in scalus.Compiler.Options class
+        //  (which is unaccessibke from here, so we should keep them in sync manually)
         def parseArg(arg: Tree, idx: Int): Unit = {
             arg match
                 case tpd.NamedArg(name, value) =>
                     if name.toString == "targetLoweringBackend" then
                         parseTargetLoweringBackend(value)
                     else if name.toString == "generateErrorTraces" then
-                        generateErrorTraces = parseBooleanValue(value)
+                        generateErrorTraces = parseBooleanValue(value).getOrElse(true)
                     else if name.toString == "optimizeUplc" then
-                        optimizeUplc = parseBooleanValue(value)
-                    else if name.toString == "debug" then debug = parseBooleanValue(value)
-                    else if name.toString == "debugLevel" then codeDebugLevel = parseIntValue(value)
-                    else if name.toString == "useUniversalDataConversion" then
-                        useUniversalDataConversion = parseBooleanValue(value)
+                        optimizeUplc = parseBooleanValue(value).getOrElse(false)
+                    else if name.toString == "debug" then
+                        debug = parseBooleanValue(value).getOrElse(false)
+                    else if name.toString == "debugLevel" then
+                        codeDebugLevel = parseIntValue(value).getOrElse(0)
+                    // else if name.toString == "useUniversalDataConversion" then {
+                    //    useUniversalDataConversion = depend from the used backedm
+                    //    useUniversalDataConversion = parseBooleanValue(value).getOrElse(true)
+                    else if name.toString == "runtimeLinker" then
+                        runtimeLinker = parseBooleanValue(value).getOrElse(true)
+                    else if name.toString == "writeSirToFile" then
+                        writeSirToFile = parseBooleanValue(value).getOrElse(false)
                     else {
                         report.warning(
                           s"ScalusPhase: Unknown compiler option: $name",
@@ -318,12 +358,21 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                         case 0 => // targetLoweringBackend
                             parseTargetLoweringBackend(value)
                         case 1 => // generateErrorTraces
-                            generateErrorTraces = parseBooleanValue(value)
+                            generateErrorTraces = parseBooleanValue(value).getOrElse(true)
                         case 2 => // optimizeUplc
-                            optimizeUplc = parseBooleanValue(value)
+                            optimizeUplc = parseBooleanValue(value).getOrElse(false)
                         case 3 => // debug
-                            debug = parseBooleanValue(value)
+                            debug = parseBooleanValue(value).getOrElse(false)
                             if debug then codeDebugLevel = 10
+                        case 4 => // debugLevel
+                            codeDebugLevel = parseIntValue(value).getOrElse(0)
+                        case 5 => // useUniversalDataConversion
+                            useUniversalDataConversion =
+                                parseBooleanValue(value).getOrElse(useUniversalDataConversion)
+                        case 6 => // runtimeLinker
+                            runtimeLinker = parseBooleanValue(value).getOrElse(false)
+                        case 7 => // writeSirToFile
+                            writeSirToFile = parseBooleanValue(value).getOrElse(false)
                         case _ =>
                             report.warning(
                               s"ScalusPhase: too many position argiments for scalus.compiler.Options, expected max 4, but found ${idx + 1}",
@@ -388,7 +437,6 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 }
         }
         val retval = SIRCompilerOptions(
-          useSubmodules = false,
           universalDataRepresentation = useUniversalDataConversion,
           debugLevel = if debugLevel == 0 then codeDebugLevel else debugLevel
         )
@@ -397,6 +445,23 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
               s"retrieveCompilerOptions, retval=${retval}, useUniversalDataConversion=${useUniversalDataConversion}"
             )
         retval
+    }
+
+    def createLinkerOptionsTree(
+        options: SIRCompilerOptions,
+        pos: SrcPos
+    )(using Context): tpd.Tree = {
+        import tpd.*
+        val linkerOptionsModule = requiredModule("scalus.sir.linker.SIRLinkerOptions")
+        val linkerOptionsTree = ref(linkerOptionsModule).select(
+          linkerOptionsModule.requiredMethod("apply")
+        )
+        val args = List(
+          Literal(Constant(options.universalDataRepresentation)), // universalDataRepresentation
+          Literal(Constant(true)), // print errors
+          Literal(Constant(options.debugLevel)), // debug level
+        )
+        Apply(linkerOptionsTree, args).withSpan(pos.span)
     }
 
 }

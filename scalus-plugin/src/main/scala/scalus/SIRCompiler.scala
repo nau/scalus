@@ -13,7 +13,7 @@ import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.Decorators.toTermName
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
-import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
+//import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.{EncoderState, Flat}
 import scalus.utils.HashConsedReprRefFlat
 import scalus.flat.FlatInstantces.ModuleHashSetReprFlat
@@ -73,17 +73,14 @@ object AdtConstructorCallInfo {
 
 case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR)
 
-enum ScalusCompilationMode:
-    case AllDefs
-    case OnlyDerivations
-
 enum CompileDef:
     case Compiling
     case Compiled(binding: TopLevelBinding)
 
 case class SIRCompilerOptions(
-    useSubmodules: Boolean = false,
     universalDataRepresentation: Boolean = false,
+    linkInRuntime: Boolean = false,
+    writeSirToFile: Boolean = false,
     debugLevel: Int = 0
 )
 
@@ -121,9 +118,9 @@ final class SIRCompiler(
     private val sirModuleWithDepsType = requiredClassRef("scalus.sir.SIRModuleWithDeps")
     private val sirModuleWithDepsModule = requiredModule("scalus.sir.SIRModuleWithDeps")
     private val listSirModuleWithDepsType = defn.ListClass.typeRef.appliedTo(sirModuleWithDepsType)
-    private val fun0ListSirModulesWithDepsType = defn.Function0.typeRef.appliedTo(
-      listSirModuleWithDepsType
-    ) // Function0[List[SIRModuleWithDeps]]
+    // private val fun0ListSirModulesWithDepsType = defn.Function0.typeRef.appliedTo(
+    //  listSirModuleWithDepsType
+    // ) // Function0[List[SIRModuleWithDeps]]
 
     private val typer = new SIRTyper
     private val pmCompiler = new PatternMatchingCompiler(this)
@@ -155,7 +152,7 @@ final class SIRCompiler(
         val ErasedOnDataRepr: LocalBingingFlags = 1 << 0
     }
 
-    sealed trait LocalBindingOrSubmodule
+    // sealed trait LocalBindingOrSubmodule
 
     case class LocalBinding(
         name: String,
@@ -165,30 +162,18 @@ final class SIRCompiler(
         body: AnnotatedSIR,
         pos: SourcePosition,
         flags: LocalBingingFlags
-    ) extends LocalBindingOrSubmodule:
-
-        tp match
-            case SIRType.Fun(a, b) =>
-                body.tp match {
-                    case SIRType.Fun(a1, b1 @ SIRType.Fun(c1, d1)) =>
-                        if !(a ~=~ a1) || !(b ~=~ b1) then
-                            throw new RuntimeException(
-                              s"Function type mismatch in binding ${name}: expected ${a.show} -> ${b.show}, got ${a1.show} -> ${b1.show}"
-                            )
-                    case _ =>
-                }
-            case _ =>
+    ):
 
         def fullName(using Context): FullName = FullName(symbol)
 
     end LocalBinding
 
-    case class LocalSubmodule(
-        name: String,
-        symbol: Symbol,
-        bindings: Seq[LocalBindingOrSubmodule],
-        pos: SourcePosition
-    ) extends LocalBindingOrSubmodule
+    // case class LocalSubmodule(
+    //    name: String,
+    //    symbol: Symbol,
+    //    bindings: Seq[LocalBindingOrSubmodule],
+    //    pos: SourcePosition
+    // ) extends LocalBindingOrSubmodule
 
     private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
         mutable.LinkedHashMap.empty
@@ -262,15 +247,12 @@ final class SIRCompiler(
           * @param tree
           * @return
           */
-        def collectTypeDefs(tree: Tree): List[(TypeDef, ScalusCompilationMode)] = {
+        def collectTypeDefs(tree: Tree): List[TypeDef] = {
             tree match
                 case EmptyTree            => Nil
                 case PackageDef(_, stats) => stats.flatMap(collectTypeDefs)
                 case cd: TypeDef =>
-                    if cd.symbol.hasAnnotation(CompileAnnot) then
-                        List((cd, ScalusCompilationMode.AllDefs))
-                    else if options.useSubmodules then
-                        List((cd, ScalusCompilationMode.OnlyDerivations))
+                    if cd.symbol.hasAnnotation(CompileAnnot) then List(cd)
                     else List.empty
                 case vd: ValDef =>
                     // println(s"valdef $vd")
@@ -283,14 +265,14 @@ final class SIRCompiler(
         //    s"${td.name} ${td.isClassDef}"
         // })
 
-        allTypeDefs.foreach((td, mode) => compileTypeDef(td, mode))
+        allTypeDefs.foreach(td => compileTypeDef(td))
     }
 
-    private def compileTypeDef(td: TypeDef, mode: ScalusCompilationMode): Unit = {
+    private def compileTypeDef(td: TypeDef): Unit = {
         val start = System.currentTimeMillis()
         val tpl = td.rhs.asInstanceOf[Template]
 
-        val specializedParents = td.tpe.parents.flatMap { p =>
+        val staticInheritanceParents = td.tpe.parents.flatMap { p =>
             val hasAnnotation = p.typeSymbol.hasAnnotation(CompileAnnot)
             if hasAnnotation then
                 if p.typeSymbol.fullName.toString.startsWith("scalus.prelude.") then Some(p)
@@ -310,28 +292,23 @@ final class SIRCompiler(
         val baseEnv = Env.empty.copy(
           thisTypeSymbol = td.symbol,
           typeVars = sirTypeVars,
-          mode = mode
         )
 
-        val bindingsAndSubmodules = tpl.body.flatMap { tree =>
+        val bindings = tpl.body.flatMap { tree =>
             compileTreeInModule(baseEnv, td, tree)
         }
 
-        val (bindings, sumbodules) = bindingsAndSubmodules.foldRight(
-          (List.empty[LocalBinding], List.empty[LocalSubmodule])
-        ) { case (element, (bindings, submodules)) =>
-            element match
-                case lb: LocalBinding   => (lb +: bindings, submodules)
-                case ls: LocalSubmodule => (bindings, ls +: submodules)
-        }
+        // val bindings = localBindings.foldRight(List.empty[LocalBinding]) {
+        //    (element, bindings) => element +: bindings
+        // }
 
-        val possibleOverrides = specializedParents.flatMap { p =>
+        val possibleOverrides = staticInheritanceParents.flatMap { p =>
             bindings.map { lb =>
                 p.typeSymbol.fullName.show + "." + lb.name -> lb
             }
         }.toMap
 
-        val superBindings = specializedParents.flatMap { p =>
+        val superBindings = staticInheritanceParents.flatMap { p =>
             sirLoader.findAndReadModule(p.typeSymbol.fullName.show, true) match
                 case Left(message) =>
                     error(
@@ -352,7 +329,7 @@ final class SIRCompiler(
                         case _ => Nil
                     val parentTypeVars = (parentTypeParamsSymbols zip parentTypeArgs).toMap
                     val env = baseEnv.copy(typeVars = baseEnv.typeVars ++ parentTypeVars)
-                    specializeInModule(
+                    applyStaticInheritanceInModule(
                       p.typeSymbol,
                       module,
                       env,
@@ -369,7 +346,7 @@ final class SIRCompiler(
         val bindingsWithSpecialized =
             bindings.map { b =>
                 if superBindings.nonEmpty then
-                    val (newBody, changed) = specializeSIR(
+                    val (newBody, changed) = applyStaticInheritanceInSIR(
                       Symbols.NoSymbol,
                       b.body,
                       Env.empty.copy(thisTypeSymbol = td.symbol),
@@ -382,10 +359,9 @@ final class SIRCompiler(
 
         val time = System.currentTimeMillis() - start
         if bindingsWithSpecialized.isEmpty then {
-            if mode == ScalusCompilationMode.AllDefs then
-                report.echo(
-                  s"skipping empty Scalus module ${td.name} in ${time}ms"
-                )
+            report.echo(
+              s"skipping empty Scalus module ${td.name} in ${time}ms"
+            )
         } else
             val moduleName = td.symbol.fullName.toString
             val module =
@@ -403,77 +379,8 @@ final class SIRCompiler(
               options.debugLevel > 0
             )
 
-            /*
-            val submodulesTrees = ???
-             */
-            val emptyListTree =
-                tpd.ref(defn.NilModule).withSpan(td.symbol.srcPos.span)
             val externalModuleVars = gatherExternalModules(moduleName, module, Map.empty)
-            val moduleWithDepsRefs = externalModuleVars.map { case (name, externalVar) =>
-                name -> {
-                    val cName = name.replace("$", "")
-                    val moduleSym = Symbols.requiredModule(cName)
-                    val moduleRef = tpd.ref(moduleSym).withSpan(td.symbol.srcPos.span)
-                    // println(s"moduleRef: ${moduleRef.show}")
-                    // println(s"flags: ${moduleSym.flags.flagsString}")
-                    val decls = moduleSym.info.decls.filter(x => true)
-                    // println(s"methods: ${decls.map(_.show).mkString(", ")}")
-                    if moduleSym.info
-                            .findDecl(
-                              Plugin.SIR_MODULE_VAL_NAME.toTermName,
-                              EmptyFlags
-                            )
-                            == SymDenotations.NoDenotation
-                    then {
-                        report.error(
-                          s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} is not found",
-                          td.symbol.srcPos
-                        )
-                        // write empty module instean.
-                        val module = Module(SIRVersion, s"notfound:${cName}", List.empty)
-                        val moduleToExprSym = Symbols.requiredModule("scalus.sir.ModuleToExpr")
-                        val moduleTree = {
-                            convertFlatToTree(
-                              module,
-                              ModuleHashSetReprFlat,
-                              moduleToExprSym,
-                              td.span,
-                              false
-                            )
-                        }
-                        val depsTree = tpd.ref(defn.NilModule).withSpan(td.symbol.srcPos.span)
-                        val moduleWithDeps =
-                            tpd.ref(sirModuleWithDepsModule)
-                                .select(sirModuleWithDepsModule.requiredMethod("apply"))
-                                .appliedToArgs(List(moduleTree, depsTree))
-                                .withSpan(td.span)
-                        moduleWithDeps
-                    } else
-                        val valSirModuleSym = moduleSym.requiredMethod(Plugin.SIR_MODULE_VAL_NAME)
-                        val sirTree =
-                            moduleRef.select(valSirModuleSym).withSpan(td.symbol.srcPos.span)
-                        val valSirDepsSym = moduleSym.requiredMethod(Plugin.SIR_DEPS_VAL_NAME)
-                        val depsTree =
-                            moduleRef.select(valSirDepsSym).withSpan(td.symbol.srcPos.span)
-                        val moduleWithDeps = tpd
-                            .ref(sirModuleWithDepsModule)
-                            .select(sirModuleWithDepsModule.requiredMethod("apply"))
-                            .appliedToArgs(List(sirTree, depsTree))
-                        moduleWithDeps
-                }
-            }
-            val listDeps = moduleWithDepsRefs.values.toList
-            val listDepsExpr =
-                ref(sirModuleWithDepsModule)
-                    .select(sirModuleWithDepsModule.requiredMethod("list"))
-                    .appliedTo(SeqLiteral(listDeps, TypeTree(sirModuleWithDepsType)))
-
-            val sModuleRefs = moduleWithDepsRefs
-                .map { case (k, v) =>
-                    k -> v.show.toString
-                }
-                .mkString(",")
-            println(s"moduleWithDepsRefs for ${td.symbol.fullName.toString}: $sModuleRefs")
+            val listDepsExpr = buildDepsTree(externalModuleVars, td.srcPos)
 
             td.symbol.addAnnotation(
               Annotations.Annotation(sirBodyAnnotation, List(moduleTree, listDepsExpr), td.span)
@@ -484,44 +391,6 @@ final class SIRCompiler(
                 report.echo(
                   s"compiled Scalus module ${td.name} [${td.symbol.fullName.toString}] definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
                 )
-        for sumbodule <- sumbodules do {
-            writeSubmodule(sumbodule, superBindings)
-        }
-    }
-
-    private def writeSubmodule(
-        submodule: LocalSubmodule,
-        superBindings: List[SuperBinding]
-    ): Unit = {
-        val (localBindings, subsubmodules) = submodule.bindings.foldRight(
-          (List.empty[LocalBinding], List.empty[LocalSubmodule])
-        ) { case (element, (bindings, submodules)) =>
-            element match
-                case lb: LocalBinding   => (lb +: bindings, submodules)
-                case ls: LocalSubmodule => (bindings, ls +: submodules)
-        }
-        val superNames = superBindings.map(_.name).toSet
-        val bindings = localBindings.map { lb =>
-            if superBindings.nonEmpty then
-                val (newBody, changed) = specializeSIR(
-                  Symbols.NoSymbol,
-                  lb.body,
-                  Env.empty.copy(thisTypeSymbol = submodule.symbol),
-                  Map.empty,
-                  superNames
-                )
-                Binding(lb.fullName.name, lb.tp, newBody)
-            else Binding(lb.fullName.name, lb.tp, lb.body)
-        }
-        if bindings.nonEmpty then
-            val submoduleName = submodule.symbol.fullName.toString
-            val module = Module(SIRVersion, submoduleName, bindings)
-            if options.debugLevel > 0 then
-                report.echo(
-                  s"compiled Scalus module ${submodule.symbol.fullName} definitions: ${bindings.map(_.name)}"
-                )
-            writeModule(module, submoduleName)
-        subsubmodules.foreach(submodule => writeSubmodule(submodule, superBindings))
     }
 
     private def writeModule(module: Module, className: String): Unit = {
@@ -902,7 +771,7 @@ final class SIRCompiler(
 
     sealed trait CompileMemberDefResult
     object CompileMemberDefResult {
-        case class Compiled(b: LocalBindingOrSubmodule) extends CompileMemberDefResult
+        case class Compiled(b: LocalBinding) extends CompileMemberDefResult
         case class Builtin(name: String, tp: SIRType) extends CompileMemberDefResult
         case class Ignored(tp: SIRType) extends CompileMemberDefResult
         case object NotSupported extends CompileMemberDefResult
@@ -1415,22 +1284,18 @@ final class SIRCompiler(
             case dd: DefDef =>
                 compileDefDef(env, dd, isModuleDef)
             case x =>
-                env.mode match
-                    case ScalusCompilationMode.AllDefs =>
-                        val body = compileExpr(env, x)
-                        CompileMemberDefResult.Compiled(
-                          LocalBinding(
-                            s"__${stmt.source.file.name.takeWhile(_.isLetterOrDigit)}_line_${stmt.srcPos.line}",
-                            body.tp,
-                            NoSymbol,
-                            Recursivity.NonRec,
-                            body,
-                            stmt.sourcePos,
-                            LocalBindingFlags.None
-                          )
-                        )
-                    case ScalusCompilationMode.OnlyDerivations =>
-                        CompileMemberDefResult.Ignored(SIRType.TypeNothing)
+                val body = compileExpr(env, x)
+                CompileMemberDefResult.Compiled(
+                  LocalBinding(
+                    s"__${stmt.source.file.name.takeWhile(_.isLetterOrDigit)}_line_${stmt.srcPos.line}",
+                    body.tp,
+                    NoSymbol,
+                    Recursivity.NonRec,
+                    body,
+                    stmt.sourcePos,
+                    LocalBindingFlags.None
+                  )
+                )
     }
 
     private def compileBlock(env: Env, stmts: immutable.List[Tree], expr: Tree): AnnotatedSIR = {
@@ -1441,18 +1306,9 @@ final class SIRCompiler(
             case (env, _: TypeDef) => env // ignore local type definitions
             case (env, stmt) =>
                 compileStmt(env, stmt) match
-                    case CompileMemberDefResult.Compiled(bindOrSubmodule) =>
-                        bindOrSubmodule match
-                            case bind: LocalBinding =>
-                                exprs += bind
-                                env + (bind.name -> bind.tp)
-                            case submodule: LocalSubmodule =>
-                                val message = "Block can't contains submodules"
-                                report.error(
-                                  message,
-                                  expr.srcPos
-                                )
-                                env
+                    case CompileMemberDefResult.Compiled(bind) =>
+                        exprs += bind
+                        env + (bind.name -> bind.tp)
                     case _ => env
         }
         val exprExpr = compileExpr(exprEnv, expr)
@@ -2580,14 +2436,7 @@ final class SIRCompiler(
                   Closure(_, Ident(nme.ANON_FUN), _)
                 ) =>
                 compileStmt(env, dd) match
-                    case CompileMemberDefResult.Compiled(b) =>
-                        b match
-                            case lb: LocalBinding => lb.body
-                            case ls: LocalSubmodule =>
-                                val message =
-                                    s"Local objects are not supported, consider write ${ls.name} outside block"
-                                report.error(message, dd.srcPos)
-                                SIR.Error(message, AnnotationsDecl.fromSourcePosition(ls.pos))
+                    case CompileMemberDefResult.Compiled(b) => b.body
                     case ignored @ CompileMemberDefResult.Ignored(tp) =>
                         error(
                           GenericError(s"Ignoring closure, dd=${dd.show}", tree.srcPos),
@@ -2785,39 +2634,18 @@ final class SIRCompiler(
                     )
     }
 
-    private def compileSubmodule(env: Env, td: TypeDef): Option[LocalSubmodule] = {
-        td.rhs match
-            case tmpl: Template =>
-                val bindings = tmpl.body.flatMap { tree =>
-                    compileTreeInModule(env, td, tree)
-                }
-                if bindings.isEmpty then None
-                else
-                    Some(
-                      LocalSubmodule(td.symbol.fullName.toString, td.symbol, bindings, td.sourcePos)
-                    )
-            case _ => None
-    }
-
     private def compileTreeInModule(
         env: Env,
-        @unused td: TypeDef,
+        td: TypeDef,
         tree: Tree
-    ): Option[LocalBindingOrSubmodule] = {
+    ): Option[LocalBinding] = {
 
         tree match
             case dd: DefDef =>
-                val toProcess =
-                    env.mode match
-                        case AllDefs =>
-                            (
-                              !dd.symbol.flags.is(Flags.Synthetic) ||
-                                  dd.symbol.name.startsWith("derived")
-                            )
-                            && !dd.symbol.hasAnnotation(IgnoreAnnot)
-                        case OnlyDerivations =>
-                            dd.symbol.name.startsWith("derived") &&
-                            tryMethodResultType(dd).exists(_ <:< CompileDerivationsMarker)
+                val toProcess = (
+                  !dd.symbol.flags.is(Flags.Synthetic) ||
+                      dd.symbol.name.startsWith("derived")
+                ) && !dd.symbol.hasAnnotation(IgnoreAnnot)
                 if toProcess then
                     compileStmt(
                       env,
@@ -2828,19 +2656,13 @@ final class SIRCompiler(
                         case _                                  => None
                 else None
             case vd: ValDef =>
-                val toProcess = env.mode match {
-                    case AllDefs =>
-                        (
-                          !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
-                              ||
-                                  vd.symbol.name.startsWith("derived") && !vd.symbol.flags.is(
-                                    Flags.Case
-                                  )
-                        )
-                        && !vd.symbol.hasAnnotation(IgnoreAnnot)
-                    case OnlyDerivations =>
-                        vd.symbol.name.startsWith("derived") && vd.tpe <:< CompileDerivationsMarker
-                }
+                val toProcess = (
+                  !vd.symbol.flags.isOneOf(Flags.Synthetic | Flags.Case)
+                      ||
+                          vd.symbol.name.startsWith("derived") && !vd.symbol.flags.is(
+                            Flags.Case
+                          )
+                ) && !vd.symbol.hasAnnotation(IgnoreAnnot)
                 if toProcess then
                     // println(s"valdef: ${vd.symbol.fullName}")
                     compileStmt(
@@ -2863,14 +2685,9 @@ final class SIRCompiler(
                               None
                             )
                 else None
-            case cd: TypeDef if cd.symbol.flags.is(Flags.Module) && options.useSubmodules =>
-                val cbMode =
-                    if cd.symbol.hasAnnotation(CompileAnnot) then ScalusCompilationMode.AllDefs
-                    else ScalusCompilationMode.OnlyDerivations
-                compileSubmodule(
-                  env.copy(mode = cbMode),
-                  cd
-                )
+            case cd: TypeDef if cd.symbol.flags.is(Flags.Module) =>
+                // submodules are not supported for now.
+                None
             case _ =>
                 None
 
@@ -2950,7 +2767,7 @@ final class SIRCompiler(
         )
     }
 
-    private def specializeInModule(
+    private def applyStaticInheritanceInModule(
         parentSym: Symbol,
         module: scalus.sir.Module,
         env: Env,
@@ -2961,7 +2778,13 @@ final class SIRCompiler(
             binding <- module.defs
         } yield {
             val (nSIR, isChanged) =
-                specializeSIR(parentSym, binding.value, env, possibleOverrides, thisClassNames)
+                applyStaticInheritanceInSIR(
+                  parentSym,
+                  binding.value,
+                  env,
+                  possibleOverrides,
+                  thisClassNames
+                )
             SuperBinding(
               binding.name,
               binding.tp,
@@ -2973,7 +2796,7 @@ final class SIRCompiler(
         }
     }
 
-    private def specializeSIR(
+    private def applyStaticInheritanceInSIR(
         parentSym: Symbol,
         sir: SIR,
         env: Env,
@@ -2982,14 +2805,26 @@ final class SIRCompiler(
     ): (SIR, Boolean) = {
         sir match
             case asir: AnnotatedSIR =>
-                specializeAnnotatedSIR(parentSym, asir, env, possibleOverrides, thisClassNames)
+                applyStaticInheritanceInAnnotatedSIR(
+                  parentSym,
+                  asir,
+                  env,
+                  possibleOverrides,
+                  thisClassNames
+                )
             case SIR.Decl(data, term) =>
                 val (newTerm, changed) =
-                    specializeSIR(parentSym, term, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInSIR(
+                      parentSym,
+                      term,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 SIR.Decl(data, newTerm) -> changed
     }
 
-    private def specializeAnnotatedSIR(
+    private def applyStaticInheritanceInAnnotatedSIR(
         parentSym: Symbol,
         sir: AnnotatedSIR,
         env: Env,
@@ -3021,12 +2856,24 @@ final class SIRCompiler(
                 var bindingIsChanged = false
                 val newBinding = binding.map { b =>
                     val (newBody, changed) =
-                        specializeSIR(parentSym, b.value, env, possibleOverrides, thisClassNames)
+                        applyStaticInheritanceInSIR(
+                          parentSym,
+                          b.value,
+                          env,
+                          possibleOverrides,
+                          thisClassNames
+                        )
                     if changed then bindingIsChanged = true
                     Binding(b.name, b.tp, newBody)
                 }
                 val (newBody, bodyChanged) =
-                    specializeSIR(parentSym, body, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInSIR(
+                      parentSym,
+                      body,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 SIR.Let(
                   rec,
                   newBinding,
@@ -3035,49 +2882,121 @@ final class SIRCompiler(
                 ) -> (bindingIsChanged || bodyChanged)
             case SIR.LamAbs(param, term, typeParams, anns) =>
                 val (newTerm, termChanged) =
-                    specializeSIR(parentSym, term, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInSIR(
+                      parentSym,
+                      term,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val newSIR = SIR.LamAbs(param, newTerm, typeParams, anns)
                 (newSIR, termChanged)
             case SIR.Apply(f, arg, tp, anns) =>
                 val (newF, fChanged) =
-                    specializeAnnotatedSIR(parentSym, f, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      f,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val (newArg, argChanged) =
-                    specializeAnnotatedSIR(parentSym, arg, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      arg,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val newSIR = SIR.Apply(newF, newArg, tp, anns)
                 (newSIR, fChanged || argChanged)
             case SIR.Select(obj, name, tp, anns) =>
                 val (newObj, objChanged) =
-                    specializeSIR(parentSym, obj, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInSIR(
+                      parentSym,
+                      obj,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val newSIR = SIR.Select(newObj, name, tp, anns)
                 (newSIR, objChanged)
             case SIR.Const(_, _, _) =>
                 sir -> false
             case SIR.And(x, y, anns) =>
                 val (newX, xChanged) =
-                    specializeAnnotatedSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      x,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val (newY, yChanged) =
-                    specializeAnnotatedSIR(parentSym, y, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      y,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val newSIR = SIR.And(newX, newY, anns)
                 (newSIR, xChanged || yChanged)
             case SIR.Or(x, y, anns) =>
                 val (newX, xChanged) =
-                    specializeAnnotatedSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      x,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val (newY, yChanged) =
-                    specializeAnnotatedSIR(parentSym, y, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      y,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val newSIR = SIR.Or(newX, newY, anns)
                 (newSIR, xChanged || yChanged)
             case SIR.Not(x, anns) =>
                 val (newX, xChanged) =
-                    specializeAnnotatedSIR(parentSym, x, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      x,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val newSIR = SIR.Not(newX, anns)
                 (newSIR, xChanged)
             case SIR.IfThenElse(cond, t, f, tp, anns) =>
                 val (newCond, condChanged) =
-                    specializeAnnotatedSIR(parentSym, cond, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      cond,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val (newT, tChanged) =
-                    specializeAnnotatedSIR(parentSym, t, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      t,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val (newF, fChanged) =
-                    specializeAnnotatedSIR(parentSym, f, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      f,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val newSIR = SIR.IfThenElse(newCond, newT, newF, tp, anns)
                 (newSIR, condChanged || tChanged || fChanged)
             case SIR.Builtin(name, tp, anns) =>
@@ -3088,7 +3007,13 @@ final class SIRCompiler(
                 var argsAreChanged = false
                 val newArgs = args.map { arg =>
                     val (newArg, changed) =
-                        specializeSIR(parentSym, arg, env, possibleOverrides, thisClassNames)
+                        applyStaticInheritanceInSIR(
+                          parentSym,
+                          arg,
+                          env,
+                          possibleOverrides,
+                          thisClassNames
+                        )
                     if changed then argsAreChanged = true
                     newArg
                 }
@@ -3098,12 +3023,18 @@ final class SIRCompiler(
                 var casesAreChanged = false
                 val newCases = cases.map { c =>
                     val (newCaseBody, changed) =
-                        specializeSIR(parentSym, c.body, env, possibleOverrides, thisClassNames)
+                        applyStaticInheritanceInSIR(
+                          parentSym,
+                          c.body,
+                          env,
+                          possibleOverrides,
+                          thisClassNames
+                        )
                     if changed then casesAreChanged = true
                     SIR.Case(c.pattern, newCaseBody, c.anns)
                 }
                 val (newScrutinee, scrutineeChanged) =
-                    specializeAnnotatedSIR(
+                    applyStaticInheritanceInAnnotatedSIR(
                       parentSym,
                       scrutinee,
                       env,
@@ -3114,7 +3045,13 @@ final class SIRCompiler(
                 (newSIR, scrutineeChanged || casesAreChanged)
             case SIR.Cast(expr, tp, anns) =>
                 val (newExpr, exprChanged) =
-                    specializeAnnotatedSIR(parentSym, expr, env, possibleOverrides, thisClassNames)
+                    applyStaticInheritanceInAnnotatedSIR(
+                      parentSym,
+                      expr,
+                      env,
+                      possibleOverrides,
+                      thisClassNames
+                    )
                 val newSIR = SIR.Cast(newExpr, tp, anns)
                 (newSIR, exprChanged)
     }
@@ -3125,7 +3062,7 @@ final class SIRCompiler(
         else LocalBindingFlags.None
     }
 
-    private def gatherExternalModules(
+    def gatherExternalModules(
         myModuleName: String,
         module: Module,
         acc: Map[String, SIR.ExternalVar]
@@ -3135,7 +3072,7 @@ final class SIRCompiler(
         }
     }
 
-    private def gatherExternalModulesFromSir(
+    def gatherExternalModulesFromSir(
         myModuleName: String,
         sir: SIR,
         acc: Map[String, SIR.ExternalVar]
@@ -3203,6 +3140,68 @@ final class SIRCompiler(
 
     }
 
+    def buildDepsTree(dependencies: Map[String, SIR.ExternalVar], srcPos: SrcPos): Tree = {
+        val moduleWithDepsRefs = dependencies.map { case (name, externalVar) =>
+            name -> {
+                val cName = name.replace("$", "")
+                val moduleSym = Symbols.requiredModule(cName)
+                val moduleRef = tpd.ref(moduleSym).withSpan(srcPos.span)
+                // println(s"moduleRef: ${moduleRef.show}")
+                // println(s"flags: ${moduleSym.flags.flagsString}")
+                val decls = moduleSym.info.decls.filter(x => true)
+                // println(s"methods: ${decls.map(_.show).mkString(", ")}")
+                if moduleSym.info
+                        .findDecl(
+                          Plugin.SIR_MODULE_VAL_NAME.toTermName,
+                          EmptyFlags
+                        )
+                        == SymDenotations.NoDenotation
+                then {
+                    report.error(
+                      s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} is not found",
+                      srcPos
+                    )
+                    // write empty module instean.
+                    val module = Module(SIRVersion, s"notfound:${cName}", List.empty)
+                    val moduleToExprSym = Symbols.requiredModule("scalus.sir.ModuleToExpr")
+                    val moduleTree = {
+                        convertFlatToTree(
+                          module,
+                          ModuleHashSetReprFlat,
+                          moduleToExprSym,
+                          srcPos.span,
+                          false
+                        )
+                    }
+                    val depsTree = tpd.ref(defn.NilModule).withSpan(srcPos.span)
+                    val moduleWithDeps =
+                        tpd.ref(sirModuleWithDepsModule)
+                            .select(sirModuleWithDepsModule.requiredMethod("apply"))
+                            .appliedToArgs(List(moduleTree, depsTree))
+                            .withSpan(srcPos.span)
+                    moduleWithDeps
+                } else
+                    val valSirModuleSym = moduleSym.requiredMethod(Plugin.SIR_MODULE_VAL_NAME)
+                    val sirTree =
+                        moduleRef.select(valSirModuleSym).withSpan(srcPos.span)
+                    val valSirDepsSym = moduleSym.requiredMethod(Plugin.SIR_DEPS_VAL_NAME)
+                    val depsTree =
+                        moduleRef.select(valSirDepsSym).withSpan(srcPos.span)
+                    val moduleWithDeps = tpd
+                        .ref(sirModuleWithDepsModule)
+                        .select(sirModuleWithDepsModule.requiredMethod("apply"))
+                        .appliedToArgs(List(sirTree, depsTree))
+                    moduleWithDeps
+            }
+        }
+        val listDeps = moduleWithDepsRefs.values.toList
+        val listDepsExpr =
+            ref(sirModuleWithDepsModule)
+                .select(sirModuleWithDepsModule.requiredMethod("list"))
+                .appliedTo(SeqLiteral(listDeps, TypeTree(sirModuleWithDepsType)))
+        listDepsExpr
+    }
+
 }
 
 object SIRCompiler {
@@ -3213,8 +3212,7 @@ object SIRCompiler {
         debug: Boolean = false,
         level: Int = 0,
         resolvedClasses: Map[Symbol, SIRType] = Map.empty,
-        thisTypeSymbol: Symbol = Symbols.NoSymbol,
-        mode: ScalusCompilationMode = ScalusCompilationMode.AllDefs
+        thisTypeSymbol: Symbol = Symbols.NoSymbol
     ) {
 
         def ++(bindings: Iterable[(String, SIRType)]): Env =
