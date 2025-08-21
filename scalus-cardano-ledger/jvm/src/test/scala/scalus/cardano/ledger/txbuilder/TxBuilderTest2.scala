@@ -75,10 +75,11 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
           Set(ResolvedTxInput.Script(txInputs.head, script, Data.unit)),
           dummyResolver,
           evaluator
-        ).assemble().build(
-          FeePayerStrategy.subtractFromAddress(myAddress),
-          ChangeReturnStrategy.toAddress(myAddress)
-        )
+        ).assemble()
+            .build(
+              FeePayerStrategy.subtractFromAddress(myAddress),
+              ChangeReturnStrategy.toAddress(myAddress)
+            )
 
     }
 }
