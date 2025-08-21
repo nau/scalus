@@ -5,7 +5,7 @@ import scala.collection.View
 import scala.util.boundary
 import scala.util.boundary.break
 
-object AllNeededScriptHashes {
+object AllNeededScripts {
     def allNeededScriptHashes(
         transaction: Transaction,
         utxo: UTxO
@@ -26,6 +26,41 @@ object AllNeededScriptHashes {
             allNeededCertificatesScriptHashesView(transaction)
     }
 
+    def allNeededScriptHashesWithIndexAndTag(
+        transaction: Transaction,
+        utxo: UTxO
+    ): Either[TransactionException.BadInputsUTxOException, Set[(ScriptHash, Int, RedeemerTag)]] = {
+        allNeededScriptHashesWithIndexAndTagView(transaction, utxo).map(_.toSet)
+    }
+
+    def allNeededScriptHashesWithIndexAndTagView(
+        transaction: Transaction,
+        utxo: UTxO
+    ): Either[TransactionException.BadInputsUTxOException, View[(ScriptHash, Int, RedeemerTag)]] = {
+        for allNeededInputsScriptHashesWithIndex <- allNeededInputsScriptHashesWithIndex(
+              transaction,
+              utxo
+            )
+        yield allNeededInputsScriptHashesWithIndex.view.map(data =>
+            (data._1, data._2, RedeemerTag.Spend)
+        ) ++
+            allNeededMintScriptHashesWithIndex(transaction).view.map(data =>
+                (data._1, data._2, RedeemerTag.Mint)
+            ) ++
+            allNeededVotingProceduresScriptHashesWithIndexView(transaction).map(data =>
+                (data._1, data._2, RedeemerTag.Voting)
+            ) ++
+            allNeededWithdrawalsScriptHashesWithIndexView(transaction).map(data =>
+                (data._1, data._2, RedeemerTag.Reward)
+            ) ++
+            allNeededProposalProceduresScriptHashesWithIndexView(transaction).map(data =>
+                (data._1, data._2, RedeemerTag.Proposing)
+            ) ++
+            allNeededCertificatesScriptHashesWithIndexView(transaction).map(data =>
+                (data._1, data._2, RedeemerTag.Cert)
+            )
+    }
+
     def allNeededInputsScriptHashes(
         transaction: Transaction,
         utxo: UTxO
@@ -43,9 +78,30 @@ object AllNeededScriptHashes {
         Right(result)
     }
 
+    def allNeededInputsScriptHashesWithIndex(
+        transaction: Transaction,
+        utxo: UTxO
+    ): Either[TransactionException.BadInputsUTxOException, Set[(ScriptHash, Int)]] = boundary {
+        val transactionId = transaction.id
+        val inputsWithIndex = transaction.body.value.inputs.toArray.sorted.view.zipWithIndex
+
+        val result = for
+            (input, index) <- inputsWithIndex
+            scriptHash <- utxo.get(input) match
+                case Some(output) => output.address.scriptHash
+                // This check allows to be an order independent in the sequence of validation rules
+                case None => break(Left(TransactionException.BadInputsUTxOException(transactionId)))
+        yield (scriptHash, index)
+        Right(result.toSet)
+    }
+
     def allNeededMintScriptHashes(
         transaction: Transaction
     ): Set[PolicyId] = transaction.body.value.mint.getOrElse(MultiAsset.empty).assets.keySet
+
+    def allNeededMintScriptHashesWithIndex(
+        transaction: Transaction
+    ): Set[(PolicyId, Int)] = allNeededMintScriptHashes(transaction).zipWithIndex
 
     def allNeededVotingProceduresScriptHashes(
         transaction: Transaction
@@ -56,18 +112,37 @@ object AllNeededScriptHashes {
     def allNeededVotingProceduresScriptHashesView(
         transaction: Transaction
     ): View[ScriptHash] = {
-        val votingProcedures =
-            transaction.body.value.votingProcedures.map(_.procedures).getOrElse(Map.empty)
+        allNeededVotingProceduresScriptHashesWithIndexView(transaction).map(_._1)
+    }
+
+    def allNeededVotingProceduresScriptHashesWithIndex(
+        transaction: Transaction
+    ): Set[(ScriptHash, Int)] = {
+        allNeededVotingProceduresScriptHashesWithIndexView(transaction).toSet
+    }
+
+    def allNeededVotingProceduresScriptHashesWithIndexView(
+        transaction: Transaction
+    ): View[(ScriptHash, Int)] = {
+        // FIXME: consider using SortedMap
+        val votersWithIndex = transaction.body.value.votingProcedures
+            .map(_.procedures)
+            .getOrElse(Map.empty)
+            .keySet
+            .toArray
+            .sorted
+            .view
+            .zipWithIndex
 
         for
-            voter <- votingProcedures.keySet.view
+            (voter, index) <- votersWithIndex
             scriptHash <- voter match
                 case _: Voter.ConstitutionalCommitteeHotKey             => None
                 case _: Voter.StakingPoolKey                            => None
                 case _: Voter.DRepKey                                   => None
                 case Voter.ConstitutionalCommitteeHotScript(scriptHash) => Some(scriptHash)
                 case Voter.DRepScript(scriptHash)                       => Some(scriptHash)
-        yield scriptHash
+        yield (scriptHash, index)
     }
 
     def allNeededWithdrawalsScriptHashes(
@@ -79,12 +154,31 @@ object AllNeededScriptHashes {
     def allNeededWithdrawalsScriptHashesView(
         transaction: Transaction
     ): View[ScriptHash] = {
-        val withdrawals = transaction.body.value.withdrawals.map(_.withdrawals).getOrElse(Map.empty)
+        allNeededWithdrawalsScriptHashesWithIndexView(transaction).map(_._1)
+    }
+
+    def allNeededWithdrawalsScriptHashesWithIndex(
+        transaction: Transaction
+    ): Set[(ScriptHash, Int)] = {
+        allNeededWithdrawalsScriptHashesWithIndexView(transaction).toSet
+    }
+
+    def allNeededWithdrawalsScriptHashesWithIndexView(
+        transaction: Transaction
+    ): View[(ScriptHash, Int)] = {
+        val rewardAccountsWithIndex = transaction.body.value.withdrawals
+            .map(_.withdrawals)
+            .getOrElse(Map.empty)
+            .keySet
+            .toArray
+//            .sorted
+            .view
+            .zipWithIndex
 
         for
-            rewardAccount <- withdrawals.keySet.view
+            (rewardAccount, index) <- rewardAccountsWithIndex
             scriptHash <- rewardAccount.address.scriptHash
-        yield scriptHash
+        yield (scriptHash, index)
     }
 
     def allNeededProposalProceduresScriptHashes(
@@ -96,11 +190,27 @@ object AllNeededScriptHashes {
     def allNeededProposalProceduresScriptHashesView(
         transaction: Transaction
     ): View[ScriptHash] = {
-        val proposalProcedures = transaction.body.value.proposalProcedures
+        allNeededProposalProceduresScriptHashesWithIndexView(transaction).map(_._1)
+    }
+
+    def allNeededProposalProceduresScriptHashesWithIndex(
+        transaction: Transaction
+    ): Set[(ScriptHash, Int)] = {
+        allNeededProposalProceduresScriptHashesWithIndexView(transaction).toSet
+    }
+
+    def allNeededProposalProceduresScriptHashesWithIndexView(
+        transaction: Transaction
+    ): View[(ScriptHash, Int)] = {
+        val govActionsWithIndex = transaction.body.value.proposalProcedures.toArray
+//            .sortBy(_.rewardAccount)
+            .view
+            .map(_.govAction)
+            .zipWithIndex
 
         for
-            proposalProcedure <- proposalProcedures.view
-            scriptHash <- proposalProcedure.govAction match
+            (govAction, index) <- govActionsWithIndex
+            scriptHash <- govAction match
                 case parameterChange: GovAction.ParameterChange => parameterChange.policyHash
                 case treasuryWithdrawals: GovAction.TreasuryWithdrawals =>
                     treasuryWithdrawals.policyHash
@@ -109,7 +219,7 @@ object AllNeededScriptHashes {
                 case _: GovAction.UpdateCommittee    => None
                 case _: GovAction.NewConstitution    => None
                 case GovAction.InfoAction            => None
-        yield scriptHash
+        yield (scriptHash, index)
     }
 
     def allNeededCertificatesScriptHashes(
@@ -121,11 +231,25 @@ object AllNeededScriptHashes {
     def allNeededCertificatesScriptHashesView(
         transaction: Transaction
     ): View[ScriptHash] = {
-        val certificates = transaction.body.value.certificates
+        allNeededCertificatesScriptHashesWithIndexView(transaction).map(_._1)
+    }
+
+    def allNeededCertificatesScriptHashesWithIndex(
+        transaction: Transaction
+    ): Set[(ScriptHash, Int)] = {
+        allNeededCertificatesScriptHashesWithIndexView(transaction).toSet
+    }
+
+    def allNeededCertificatesScriptHashesWithIndexView(
+        transaction: Transaction
+    ): View[(ScriptHash, Int)] = {
+        // FIXME: should be sorted
+        val certificatesWithIndex =
+            transaction.body.value.certificates.toIndexedSeq.view.zipWithIndex
         for
-            certificate <- certificates.toIndexedSeq.view
+            (certificate, index) <- certificatesWithIndex
             scriptHash <- getNeededCertificateScriptHashOption(certificate)
-        yield scriptHash
+        yield (scriptHash, index)
     }
 
     def getNeededCertificateScriptHashOption(certificate: Certificate): Option[ScriptHash] = {

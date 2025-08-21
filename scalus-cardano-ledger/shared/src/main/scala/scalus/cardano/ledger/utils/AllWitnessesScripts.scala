@@ -4,6 +4,11 @@ package utils
 import scala.collection.View
 
 object AllWitnessesScripts {
+    def allWitnessesScriptsMap(transaction: Transaction): Map[ScriptHash, Script] =
+        allWitnessesScriptsView(
+          transaction
+        ).map(script => script.scriptHash -> script).toMap
+
     def allWitnessesScriptHashes(transaction: Transaction): Set[ScriptHash] =
         allWitnessesScriptHashesView(transaction).toSet
 
@@ -24,6 +29,36 @@ object AllWitnessesScripts {
             witnessSet.plutusV3Scripts.view
 
     }
+
+    def allWitnessesPlutusScriptsMap(
+        transaction: Transaction
+    ): Map[ScriptHash, PlutusScript] =
+        allWitnessesPlutusScriptsView(transaction).map(script => script.scriptHash -> script).toMap
+
+    def allWitnessesPlutusScriptHashes(
+        transaction: Transaction
+    ): Set[ScriptHash] = allWitnessesPlutusScriptHashesView(transaction).toSet
+
+    def allWitnessesPlutusScriptHashesView(
+        transaction: Transaction
+    ): View[ScriptHash] = allWitnessesPlutusScriptsView(transaction).map(_.scriptHash)
+
+    def allWitnessesPlutusScripts(
+        transaction: Transaction
+    ): Set[PlutusScript] = allWitnessesPlutusScriptsView(transaction).toSet
+
+    def allWitnessesPlutusScriptsView(
+        transaction: Transaction
+    ): View[PlutusScript] = {
+        val witnessSet = transaction.witnessSet
+
+        witnessSet.plutusV1Scripts.view ++
+            witnessSet.plutusV2Scripts.view ++
+            witnessSet.plutusV3Scripts.view
+    }
+
+    def allWitnessesNativeScriptsMap(transaction: Transaction): Map[ScriptHash, Script.Native] =
+        transaction.witnessSet.nativeScripts.view.map(script => script.scriptHash -> script).toMap
 
     def allWitnessesNativeScripts(transaction: Transaction): Set[Script.Native] =
         transaction.witnessSet.nativeScripts

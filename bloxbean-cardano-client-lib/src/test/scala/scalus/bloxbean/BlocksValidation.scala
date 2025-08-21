@@ -91,7 +91,9 @@ object BlocksValidation:
 
         println(s"Validating blocks of epoch $epoch...")
         for blockNum <- 11544518 to 11546100 do
-            val txs = readTransactionsFromBlockCbor(resourcesPath.resolve(s"blocks/block-$blockNum.cbor"))
+            val txs = readTransactionsFromBlockCbor(
+              resourcesPath.resolve(s"blocks/block-$blockNum.cbor")
+            )
             val txsWithScripts =
                 val r = mutable.Buffer.empty[
                   (Transaction, util.List[ByteString], String, Map[ScriptHash, Script])

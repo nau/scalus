@@ -4,7 +4,7 @@ import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, Data}
-import scalus.cardano.address.{Address, Network, ArbitraryInstances as ArbAddresses}
+import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network}
 import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, *}
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.api.Timelock.Signature
@@ -14,18 +14,13 @@ import upickle.default.read
 
 import scala.collection.immutable.SortedMap
 
-/**
- * This suite contains exemplary use cases of the transaction builder.
- *
- * Invariants are checked more thoroughly in the [[TxBuilderTest]].
- *
- * The goal is to have the following examples:
- * ADA or/and CNT transfer
- * Multiple recipients
- * Datum hash/inline
- * Mint/Burn Native Script
- * Spending Validator with 1/N params
- */
+/** This suite contains exemplary use cases of the transaction builder.
+  *
+  * Invariants are checked more thoroughly in the [[TxBuilderTest]].
+  *
+  * The goal is to have the following examples: ADA or/and CNT transfer Multiple recipients Datum
+  * hash/inline Mint/Burn Native Script Spending Validator with 1/N params
+  */
 class TxBuilderComprehensiveTest extends AnyFunSuite with ArbAddresses with ArbLedger {
 
     val params: ProtocolParams = read[ProtocolParams](

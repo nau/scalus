@@ -6,7 +6,7 @@ import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Language.*
 import scalus.cardano.ledger.LedgerToPlutusTranslation.*
-import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllWitnessesScripts}
+import scalus.cardano.ledger.utils.{AllNeededScripts, AllResolvedScripts}
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion}
@@ -36,7 +36,7 @@ class PlutusScriptEvaluationException(
   *   Map from datum hash to datum data
   */
 case class LookupTable(
-    scripts: Map[ScriptHash, Script],
+    scripts: Map[ScriptHash, PlutusScript],
     // cache of `getDatum`
     datums: Map[DataHash, Data]
 )
@@ -132,7 +132,7 @@ class PlutusScriptEvaluator(
         }.toSeq
 
         val lookupTable =
-            val scripts = getAllResolvedScripts(tx, utxos)
+            val scripts = allResolvedPlutusScripts(tx, utxos)
             LookupTable(scripts, datumsMapping.toMap)
 
         log.debug(
@@ -187,9 +187,6 @@ class PlutusScriptEvaluator(
             case (Script.PlutusV3(script), datum) =>
                 evalPlutusV3Script(tx, datums, utxos, redeemer, script, datum)
 
-            case (_: Script.Native, _) =>
-                throw new IllegalStateException("Native script evaluation not supported in Phase 2")
-
         val cost = result.budget
         log.debug(s"Evaluation result: $result")
 
@@ -226,7 +223,7 @@ class PlutusScriptEvaluator(
         redeemer: Redeemer,
         lookupTable: LookupTable,
         utxos: Map[TransactionInput, TransactionOutput]
-    ): (Script, Option[Data]) = {
+    ): (PlutusScript, Option[Data]) = {
         val index = redeemer.index
         redeemer.tag match
             case RedeemerTag.Spend =>
@@ -273,7 +270,7 @@ class PlutusScriptEvaluator(
             case RedeemerTag.Mint =>
                 tx.body.value.mint match
                     case Some(value) =>
-                        val mintingPolicies = value.assets.keys.toArray
+                        val mintingPolicies = value.assets.keySet.toArray
                         if !mintingPolicies.isDefinedAt(index) then
                             throw new IllegalArgumentException(
                               s"Minting policy not found: $index in ${mintingPolicies.mkString("[", ", ", "]")}"
@@ -296,7 +293,7 @@ class PlutusScriptEvaluator(
                       s"Certificate not found: $index in ${certs.mkString("[", ", ", "]")}"
                     )
                 val cert = certs(index)
-                val scriptHash = AllNeededScriptHashes
+                val scriptHash = AllNeededScripts
                     .getNeededCertificateScriptHashOption(cert)
                     .getOrElse(
                       throw new IllegalStateException(
@@ -535,18 +532,12 @@ class PlutusScriptEvaluator(
 
     /** Extract all scripts from transaction and UTxOs.
       */
-    private def getAllResolvedScripts(
+    private def allResolvedPlutusScripts(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput]
-    ): Map[ScriptHash, Script] =
-        val provided = AllWitnessesScripts
-            .allWitnessesScriptsView(tx)
-            .map { script => script.scriptHash -> script }
-            .toMap
-        val referenceScripts = utxos.values.flatMap { output =>
-            output.scriptRef.map { case ScriptRef(script) =>
-                script.scriptHash -> script
-            }
-        }.toMap
-        provided ++ referenceScripts
+    ): Map[ScriptHash, PlutusScript] =
+        AllResolvedScripts.allResolvedPlutusScriptsMap(tx, utxos) match
+            case Right(allResolvedPlutusScriptsMap) => allResolvedPlutusScriptsMap
+            case Left(error)                        => throw error
+
 }

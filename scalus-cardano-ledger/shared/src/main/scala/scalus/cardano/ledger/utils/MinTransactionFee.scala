@@ -15,7 +15,7 @@ object MinTransactionFee {
           TransactionException.BadReferenceInputsUTxOException,
       Coin
     ] = {
-        for scripts <- AllProvidedReferenceScripts.allProvidedReferenceScripts(transaction, utxo)
+        for scripts <- AllResolvedScripts.allProvidedReferenceScripts(transaction, utxo)
         yield
             val refScriptsFee = RefScriptsFeeCalculator(scripts, protocolParams)
             val transactionSizeFee = calculateTransactionSizeFee(transaction, protocolParams)
