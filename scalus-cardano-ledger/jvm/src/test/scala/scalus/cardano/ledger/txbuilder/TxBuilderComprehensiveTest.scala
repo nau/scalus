@@ -14,6 +14,18 @@ import upickle.default.read
 
 import scala.collection.immutable.SortedMap
 
+/**
+ * This suite contains exemplary use cases of the transaction builder.
+ *
+ * Invariants are checked more thoroughly in the [[TxBuilderTest]].
+ *
+ * The goal is to have the following examples:
+ * ADA or/and CNT transfer
+ * Multiple recipients
+ * Datum hash/inline
+ * Mint/Burn Native Script
+ * Spending Validator with 1/N params
+ */
 class TxBuilderComprehensiveTest extends AnyFunSuite with ArbAddresses with ArbLedger {
 
     val params: ProtocolParams = read[ProtocolParams](
