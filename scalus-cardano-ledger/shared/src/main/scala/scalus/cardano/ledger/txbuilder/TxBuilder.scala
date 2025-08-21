@@ -359,18 +359,11 @@ case class TxBuilder(
       */
     def build: Transaction = {
         val withDummyVkey = addDummyVkey(tx)
-        val balanced = if isPlutusScriptTx(withDummyVkey) then {
-            TxBalance.doBalancePlutusScript(withDummyVkey, context.evaluator)(
-              context.utxoProvider.utxo,
-              context.protocolParams,
-              onSurplus
-            )
-        } else
-            TxBalance.doBalance(withDummyVkey)(
-              context.utxoProvider.utxo,
-              context.protocolParams,
-              onSurplus
-            )
+        val balanced = TxBalance.doBalance(withDummyVkey)(
+          context.utxoProvider.utxo,
+          context.protocolParams,
+          onSurplus
+        )
 
         val signed = signTx(removeDummyVkey(balanced))
         context.validate(signed).toTry.get

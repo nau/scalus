@@ -1,7 +1,7 @@
 package scalus.cardano.ledger.utils
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
-import scalus.cardano.ledger.txbuilder.OnSurplus
+import scalus.cardano.ledger.txbuilder.{ChangeReturnStrategy, FeePayerStrategy, OnSurplus}
 import scalus.ledger.babbage.ProtocolParams
 
 import scala.annotation.tailrec
@@ -135,57 +135,72 @@ object TxBalance {
         go(initialTx)
     }
 
+    // a copy of doBalance with new txbuilder strategies.
+    // probably going to replace the old doBalance
+    def doBalance2(tx: Transaction)(
+        utxo: UTxO,
+        protocolParams: ProtocolParams,
+        changeReturnStrategy: ChangeReturnStrategy,
+        feePayerStrategy: FeePayerStrategy
+    ): Transaction = {
+        val consumed = TxBalance.consumed(tx, CertState.empty, utxo, protocolParams).toTry.get
+        val produced = TxBalance.produced(tx)
+        if consumed.coin < produced.coin then {
+            throw TransactionException.ValueNotConservedUTxOException(tx.id, consumed, produced)
+        }
+
+        @tailrec
+        def go(currentTx: Transaction): Transaction = {
+            val currentProduced = TxBalance.produced(currentTx)
+            val diffLong = consumed.coin.value - currentProduced.coin.value
+
+            diffLong match {
+                case d if d > 0L =>
+                    val diff = Coin(d)
+                    val tempTx = modifyBody(
+                      currentTx,
+                      _.copy(outputs =
+                          changeReturnStrategy
+                              .returnChange(diff, currentTx.body.value, utxo)
+                              .map(Sized(_))
+                      )
+                    )
+                    val correctFee = MinTransactionFee(tempTx, utxo, protocolParams).toTry.get
+                    val changeWithFee = diff + correctFee
+                    val newOuts =
+                        changeReturnStrategy.returnChange(changeWithFee, currentTx.body.value, utxo)
+                    val newTx = modifyBody(currentTx, _.copy(outputs = newOuts.map(Sized(_))))
+                    val outputsAfterAppliedFee = feePayerStrategy(correctFee, newOuts)
+                    val newTxWithFee = modifyBody(
+                      newTx,
+                      _.copy(fee = correctFee, outputs = outputsAfterAppliedFee.map(Sized(_)))
+                    )
+                    val newProduced = TxBalance.produced(newTxWithFee)
+                    if consumed.coin >= newProduced.coin then {
+                        // fee is good
+                        go(newTxWithFee)
+                    } else {
+                        // fee + change exceeds inputs, remove the change and rebalance again
+                        val txWithoutChange =
+                            modifyBody(currentTx, _.copy(fee = correctFee))
+                        go(txWithoutChange)
+                    }
+                case 0L => currentTx
+                case _ => // diff < 0, we cannot cover the tx
+                    throw TransactionException.IllegalArgumentException(
+                      "Insufficient funds to cover transaction"
+                    )
+            }
+        }
+
+        val estimatedFee = MinTransactionFee(tx, utxo, protocolParams).toTry.get
+        val initialTx = modifyBody(tx, _.copy(fee = estimatedFee))
+        go(initialTx)
+    }
+
     // need to refactor later, too many KeepRaw.apply calls
     def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody): Transaction = {
         val newBody = f(tx.body.value)
         tx.copy(body = KeepRaw(newBody))
-    }
-
-    def doBalancePlutusScript(
-        tx: Transaction,
-        scriptEvaluator: PlutusScriptEvaluator
-    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: OnSurplus): Transaction = {
-        val redeemers = scriptEvaluator.evalPlutusScripts(tx, utxo)
-        val updatedWitnessSet = if redeemers.nonEmpty then {
-            tx.witnessSet.copy(redeemers = Some(KeepRaw(Redeemers.from(redeemers))))
-        } else {
-            tx.witnessSet
-        }
-        val txWithEvaluatedScript = tx.copy(witnessSet = updatedWitnessSet)
-        val fee = MinTransactionFee(txWithEvaluatedScript, utxo, protocolParams).toTry.get
-
-        /*
-         * According to cip-40, we are required to return the excess collateral.
-         * for now, todo,
-         * and expect the caller to pass the collateral correctly
-         * 
-         * val returnCollatAdress = ???
-         * val collateralReturn = if (totalCollateralValue > requiredCollateral) {
-         *     val returnAmount = Coin(totalCollateralValue.value - requiredCollateral.value)
-         *     Some(Sized(TransactionOutput(
-         *         returnCollatAdress,
-         *         Value(returnAmount)
-         *     )))
-         * } else None
-         */
-
-        val txWithFeeAndCollateral = modifyBody(
-          txWithEvaluatedScript,
-          body =>
-              body.copy(
-                fee = fee,
-                totalCollateral =
-                    if body.collateralInputs.nonEmpty then
-                        Some(
-                          body.collateralInputs.toSeq
-                              .flatMap(utxo.get)
-                              .map(_.value.coin)
-                              .foldLeft(Coin.zero)(_ + _)
-                        )
-                    else None
-              )
-        )
-
-        doBalance(txWithFeeAndCollateral)(utxo, protocolParams, onSurplus)
     }
 }
