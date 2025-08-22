@@ -4,80 +4,89 @@ import scalus.builtin.Data
 import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
+import scalus.cardano.ledger
 import scalus.cardano.ledger.utils.TxBalance
 import scalus.ledger.babbage.ProtocolParams
 
 /*
- * Intentions are what I want to happen -- should ask as little as possible, i.e. not take too many parameters.
+ * Intention is what the user intends to happen. Should accept as few parameters as possible.
  *
- * Assemblers (currently only pay assembler) (naming tbd), assemble everything that's needed to realize an intention.
- * `assemble` is the most sideffect heavy function, running the scripts, doing the utxo querying, etc.
+ * To turn intention into a transaction usually involves performing side effects, e.g. querying utxos.
+ * These are usually executed either in the interpreter, or when assembling the interpreter.
  *
- * The builder itself is not doing much, which is probably a sign that it's either unnecessary, or should
- * actually do something (maybe run scripts?).
- *
- * The whole thing is WIP, and the entry point should be calling a function, not creating entities via constructors.
- *
- * There probably needs to be a new entity, which is going to hide Intentions and Assemblers, and also orchestrate the chaining,
- * take parameters 1 by 1, etc.
+ * TODO: an unresolved question is: whose responsibility is it to choose the inputs?
+ *       On one hand, picking the utxos from a wallet is definitely the job of the interpreter.
+ *       On the other hand, "I want to pay X ada using these utxos" is a sound intention, and it mentions inputs, so a respective
+ *       program would be `Intention.Pay(x, y, myUtxos)`.
  */
-
 enum Intention {
     case Pay(address: Address, value: Value, data: Option[DatumOption] = None)
-    case Mint
+    case Mint(
+        mintValue: ledger.Mint,
+        mintingPolicy: PlutusScript,
+        redeemer: Data,
+        targetAddress: Address
+    )
     case RegisterStake
 }
 
-def assemble(p: Intention.Pay)(
-    environmentGetter: EnvironmentGetter,
-    collateral: Set[TransactionInput],
-    inputs: Set[ResolvedTxInput],
-    resolver: TransactionResolver,
+trait Interpreter {
+    def realize(intention: Intention): Transaction
+}
+
+case class InterpreterWithProvidedData(
+    inputSelector: InputSelector,
+    utxo: UTxO,
+    environment: Environment,
+    changeReturnStrategy: ChangeReturnStrategy,
+    feePayerStrategy: FeePayerStrategy,
     evaluator: PlutusScriptEvaluator
-): PayAssembler = PayAssembler(
-  p,
-  environmentGetter,
-  collateral,
-  inputs,
-  resolver,
-  evaluator
-)
+) extends Interpreter {
 
-case class PayAssembler(
-    intention: Intention.Pay,
-    environmentGetter: EnvironmentGetter,
-    collateral: Set[TransactionInput],
-    inputs: Set[ResolvedTxInput],
-    resolver: TransactionResolver,
-    evaluator: PlutusScriptEvaluator,
-) {
+    override def realize(intention: Intention): Transaction = intention match {
+        case Intention.Pay(address, value, data) => realizePay(address, value, data)
+        case Intention.Mint(mintValue, mintingPolicy, redeemer, targetAddress) =>
+            ???
+        case Intention.RegisterStake =>
+            ???
+    }
 
-    def addPubkeyInput(in: TransactionInput, data: Option[DatumOption]) =
-        copy(inputs = inputs + resolver.resolvePubkey(in, data))
-
-    def addScriptInput(
-        in: TransactionInput,
-        script: PlutusScript,
-        redeemer: Data,
-        data: Option[DatumOption]
-    ) = copy(inputs = inputs + resolver.resolveScript(in, script, redeemer, data))
-
-    def assemble(): PayTxBuilder = {
-        val utxo = Map(inputs.toSeq.map(_.utxo)*)
+    private def realizePay(address: Address, value: Value, data: Option[DatumOption]) = {
+        val inputs = utxo.toSeq.map(_._1)
         val body = TransactionBody(
-          inputs.map(_.utxo._1),
-          IndexedSeq(Sized(TransactionOutput(intention.address, intention.value, intention.data))),
+          inputSelector.inputs.map(_.utxo._1),
+          IndexedSeq(Sized(TransactionOutput(address, value, data))),
           Coin.zero,
-          collateralInputs = collateral
+          collateralInputs = inputSelector.collateralInputs
         )
-        val ws = inputs.toSeq
+        val ws: TransactionWitnessSet = assembleWs
+        val tx = Transaction(body, ws)
+        val redeemers = evaluator.evalPlutusScripts(tx, utxo)
+        val postEvalTx = tx.copy(witnessSet =
+            tx.witnessSet.copy(redeemers = Some(KeepRaw(Redeemers.from(redeemers))))
+        )
+        TxBalance.doBalance2(tx)(
+          utxo,
+          environment.protocolParams,
+          changeReturnStrategy,
+          feePayerStrategy
+        )
+    }
+
+    private def assembleWs = {
+        inputSelector.inputs.toSeq
             .sortBy(_.utxo._1)
             .zipWithIndex
             .foldLeft(ScriptsWs()) {
                 case (
                       ws,
                       (
-                        ResolvedTxInput.Script(_, script @ Script.PlutusV1(bytes), redeemer, data),
+                        ResolvedTxInput.Script(
+                          _,
+                          script @ Script.PlutusV1(bytes),
+                          redeemer,
+                          data
+                        ),
                         index
                       )
                     ) =>
@@ -86,7 +95,12 @@ case class PayAssembler(
                 case (
                       ws,
                       (
-                        ResolvedTxInput.Script(_, script @ Script.PlutusV2(bytes), redeemer, data),
+                        ResolvedTxInput.Script(
+                          _,
+                          script @ Script.PlutusV2(bytes),
+                          redeemer,
+                          data
+                        ),
                         index
                       )
                     ) =>
@@ -95,7 +109,12 @@ case class PayAssembler(
                 case (
                       ws,
                       (
-                        ResolvedTxInput.Script(_, script @ Script.PlutusV3(bytes), redeemer, data),
+                        ResolvedTxInput.Script(
+                          _,
+                          script @ Script.PlutusV3(bytes),
+                          redeemer,
+                          data
+                        ),
                         index
                       )
                     ) =>
@@ -104,27 +123,6 @@ case class PayAssembler(
                 case (ws, _) => ws
             }
             .toWs
-        val tx = Transaction(body, ws)
-        val redeemers = evaluator.evalPlutusScripts(tx, utxo)
-        val postEvalTx = tx.copy(witnessSet =
-            tx.witnessSet.copy(redeemers = Some(KeepRaw(Redeemers.from(redeemers))))
-        )
-        PayTxBuilder(utxo, postEvalTx, environmentGetter.get)
-    }
-}
-
-case class PayTxBuilder(
-    utxo: UTxO,
-    initialTx: Transaction,
-    environment: Environment
-) {
-    def build(feePayerStrategy: FeePayerStrategy, changeReturnStrategy: ChangeReturnStrategy) = {
-        TxBalance.doBalance2(initialTx)(
-          utxo,
-          environment.protocolParams,
-          changeReturnStrategy,
-          feePayerStrategy
-        )
     }
 }
 
@@ -188,6 +186,18 @@ case class Environment(
     evaluator: PlutusScriptEvaluator,
     network: Network
 )
+
+trait InputSelector {
+    def inputs: Set[ResolvedTxInput]
+    def collateralInputs: Set[TransactionInput]
+}
+object InputSelector {
+    def apply(regularInputs: Set[ResolvedTxInput], collateral: Set[TransactionInput]) =
+        new InputSelector {
+            override def inputs: Set[ResolvedTxInput] = regularInputs
+            override def collateralInputs: Set[TransactionInput] = collateral
+        }
+}
 
 trait ChangeReturnStrategy {
     def returnChange(

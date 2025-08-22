@@ -9,7 +9,6 @@ import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
 import upickle.default.read
-import scalus.cardano.ledger.txbuilder.assemble
 
 class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
 
@@ -55,31 +54,18 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
 
         val payment = Value.lovelace(500L)
 
-        val dummyResolver = new TransactionResolver {
-            override def resolveScript(
-                input: TransactionInput,
-                script: PlutusScript,
-                redeemer: Data,
-                data: Option[DatumOption]
-            ): ResolvedTxInput.Script = ???
-
-            override def resolvePubkey(
-                input: TransactionInput,
-                data: Option[DatumOption]
-            ): ResolvedTxInput.Pubkey = ???
-        }
-        val intention: Intention.Pay = Intention.Pay(faucet, payment)
-        assemble(intention)(
-          EnvironmentGetter(env),
-          collateral.keySet,
+        val inputSelector = InputSelector(
           Set(ResolvedTxInput.Script(txInputs.head, script, Data.unit)),
-          dummyResolver,
+          collateral.keySet
+        )
+        InterpreterWithProvidedData(
+          inputSelector,
+          utxo,
+          env,
+          ChangeReturnStrategy.toAddress(myAddress),
+          FeePayerStrategy.subtractFromAddress(myAddress),
           evaluator
-        ).assemble()
-            .build(
-              FeePayerStrategy.subtractFromAddress(myAddress),
-              ChangeReturnStrategy.toAddress(myAddress)
-            )
+        ).realize(Intention.Pay(faucet, payment))
 
     }
 }
