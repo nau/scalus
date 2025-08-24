@@ -69,6 +69,51 @@ enum Certificate {
     def lookupUnRegStakeTxCert: Option[Credential] = this match
         case Certificate.UnregCert(c, _) => Some(c)
         case _                           => None
+
+    def keyHashes: Set[AddrKeyHash | PoolKeyHash] = {
+        this match
+            case cert: Certificate.StakeDelegation => cert.credential.keyHashOption.toSet
+            case cert: Certificate.PoolRegistration =>
+                cert.poolOwners.view.concat(Some(cert.operator)).toSet
+            case cert: Certificate.PoolRetirement => Set(cert.poolKeyHash)
+            case cert: Certificate.RegCert =>
+                if cert.coin.nonEmpty then cert.credential.keyHashOption.toSet else Set.empty
+            case cert: Certificate.UnregCert             => cert.credential.keyHashOption.toSet
+            case cert: Certificate.VoteDelegCert         => cert.credential.keyHashOption.toSet
+            case cert: Certificate.StakeVoteDelegCert    => cert.credential.keyHashOption.toSet
+            case cert: Certificate.StakeRegDelegCert     => cert.credential.keyHashOption.toSet
+            case cert: Certificate.VoteRegDelegCert      => cert.credential.keyHashOption.toSet
+            case cert: Certificate.StakeVoteRegDelegCert => cert.credential.keyHashOption.toSet
+            case cert: Certificate.AuthCommitteeHotCert =>
+                cert.committeeColdCredential.keyHashOption.toSet
+            case cert: Certificate.ResignCommitteeColdCert =>
+                cert.committeeColdCredential.keyHashOption.toSet
+            case cert: Certificate.RegDRepCert    => cert.drepCredential.keyHashOption.toSet
+            case cert: Certificate.UnregDRepCert  => cert.drepCredential.keyHashOption.toSet
+            case cert: Certificate.UpdateDRepCert => cert.drepCredential.keyHashOption.toSet
+    }
+
+    def scriptHashOption: Option[ScriptHash] = {
+        this match
+            case cert: Certificate.StakeDelegation => cert.credential.scriptHashOption
+            case _: Certificate.PoolRegistration   => None
+            case _: Certificate.PoolRetirement     => None
+            case cert: Certificate.RegCert =>
+                if cert.coin.nonEmpty then cert.credential.scriptHashOption else None
+            case cert: Certificate.UnregCert             => cert.credential.scriptHashOption
+            case cert: Certificate.VoteDelegCert         => cert.credential.scriptHashOption
+            case cert: Certificate.StakeVoteDelegCert    => cert.credential.scriptHashOption
+            case cert: Certificate.StakeRegDelegCert     => cert.credential.scriptHashOption
+            case cert: Certificate.VoteRegDelegCert      => cert.credential.scriptHashOption
+            case cert: Certificate.StakeVoteRegDelegCert => cert.credential.scriptHashOption
+            case cert: Certificate.AuthCommitteeHotCert =>
+                cert.committeeColdCredential.scriptHashOption
+            case cert: Certificate.ResignCommitteeColdCert =>
+                cert.committeeColdCredential.scriptHashOption
+            case cert: Certificate.RegDRepCert    => cert.drepCredential.scriptHashOption
+            case cert: Certificate.UnregDRepCert  => cert.drepCredential.scriptHashOption
+            case cert: Certificate.UpdateDRepCert => cert.drepCredential.scriptHashOption
+    }
 }
 
 object Certificate {

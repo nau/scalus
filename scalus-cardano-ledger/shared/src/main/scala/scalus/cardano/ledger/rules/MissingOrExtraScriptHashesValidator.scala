@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.ledger.utils.{AllNeededScripts, AllResolvedScripts}
+import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllResolvedScripts}
 
 // It's babbageMissingScripts in cardano-ledger
 object MissingOrExtraScriptHashesValidator extends STS.Validator {
@@ -91,7 +91,7 @@ object MissingOrExtraScriptHashesValidator extends STS.Validator {
                 allProvidedReferenceScriptHashes <- AllResolvedScripts
                     .allProvidedReferenceScriptHashes(event, utxo)
 
-                allNeededInputsScriptHashes <- AllNeededScripts.allNeededInputsScriptHashes(
+                allNeededInputsScriptHashes <- AllNeededScriptHashes.allNeededInputsScriptHashes(
                   event,
                   utxo
                 )
@@ -102,26 +102,26 @@ object MissingOrExtraScriptHashesValidator extends STS.Validator {
                   allProvidedReferenceScriptHashes
                 )
 
-                allNeededMintScriptHashesNoRefs = AllNeededScripts
+                allNeededMintScriptHashesNoRefs = AllNeededScriptHashes
                     .allNeededMintScriptHashes(event)
                     .diff(allProvidedReferenceScriptHashes)
 
-                allNeededVotingProceduresScriptHashesNoRefs = AllNeededScripts
+                allNeededVotingProceduresScriptHashesNoRefs = AllNeededScriptHashes
                     .allNeededVotingProceduresScriptHashesView(event)
                     .filterNot(allProvidedReferenceScriptHashes.contains)
                     .toSet
 
-                allNeededWithdrawalsScriptHashesNoRefs = AllNeededScripts
+                allNeededWithdrawalsScriptHashesNoRefs = AllNeededScriptHashes
                     .allNeededWithdrawalsScriptHashesView(event)
                     .filterNot(allProvidedReferenceScriptHashes.contains)
                     .toSet
 
-                allNeededProposalProceduresScriptHashesNoRefs = AllNeededScripts
+                allNeededProposalProceduresScriptHashesNoRefs = AllNeededScriptHashes
                     .allNeededProposalProceduresScriptHashesView(event)
                     .filterNot(allProvidedReferenceScriptHashes.contains)
                     .toSet
 
-                allNeededCertificatesScriptHashesNoRefs = AllNeededScripts
+                allNeededCertificatesScriptHashesNoRefs = AllNeededScriptHashes
                     .allNeededCertificatesScriptHashesView(event)
                     .filterNot(allProvidedReferenceScriptHashes.contains)
                     .toSet

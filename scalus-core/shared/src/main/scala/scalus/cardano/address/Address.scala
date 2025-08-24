@@ -326,11 +326,11 @@ case class ShelleyAddress(
 
     def encode: Try[String] = toBech32
 
-    def keyHash: Option[AddrKeyHash | StakeKeyHash] = payment match
+    def keyHashOption: Option[AddrKeyHash | StakeKeyHash] = payment match
         case ShelleyPaymentPart.Key(hash) => Some(hash)
         case _                            => None
 
-    def scriptHash: Option[ScriptHash] = payment match
+    def scriptHashOption: Option[ScriptHash] = payment match
         case ShelleyPaymentPart.Script(hash) => Some(hash)
         case _                               => None
 
@@ -386,11 +386,11 @@ case class StakeAddress(network: Network, payload: StakePayload) extends Address
 
     def encode: Try[String] = toBech32
 
-    def keyHash: Option[AddrKeyHash | StakeKeyHash] = payload match
+    def keyHashOption: Option[AddrKeyHash | StakeKeyHash] = payload match
         case StakePayload.Stake(hash) => Some(hash)
         case StakePayload.Script(_)   => None
 
-    def scriptHash: Option[ScriptHash] = payload match
+    def scriptHashOption: Option[ScriptHash] = payload match
         case StakePayload.Script(hash) => Some(hash)
         case _                         => None
 }
@@ -411,9 +411,10 @@ case class ByronAddress(bytes: ByteString) extends Address {
     def encode: Try[String] = Failure(
       new UnsupportedOperationException("Byron addresses don't use bech32")
     )
-    def keyHash: Option[AddrKeyHash | StakeKeyHash] =
+    def keyHashOption: Option[AddrKeyHash | StakeKeyHash] =
         None // Byron addresses don't have staking credentials
-    def scriptHash: Option[ScriptHash] = None // Byron addresses don't have staking credentials
+    def scriptHashOption: Option[ScriptHash] =
+        None // Byron addresses don't have staking credentials
 }
 
 /** Base trait for all Cardano addresses
@@ -444,10 +445,10 @@ sealed trait Address {
     def encode: Try[String]
 
     /** Get key hash if available */
-    def keyHash: Option[AddrKeyHash | StakeKeyHash]
+    def keyHashOption: Option[AddrKeyHash | StakeKeyHash]
 
     /** Get script hash if available */
-    def scriptHash: Option[ScriptHash]
+    def scriptHashOption: Option[ScriptHash]
 
 }
 

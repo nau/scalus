@@ -6,7 +6,7 @@ import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Language.*
 import scalus.cardano.ledger.LedgerToPlutusTranslation.*
-import scalus.cardano.ledger.utils.{AllNeededScripts, AllResolvedScripts}
+import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllResolvedScripts}
 import scalus.ledger
 import scalus.ledger.api
 import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion}
@@ -118,10 +118,7 @@ class PlutusScriptEvaluator(
     ): Seq[Redeemer] = {
         log.debug(s"Starting Phase 2 evaluation for transaction: ${tx.id}")
 
-        val redeemers = tx.witnessSet.redeemers
-            .getOrElse(throw new IllegalStateException("Transaction does not contain redeemers"))
-            .value
-            .toIndexedSeq
+        val redeemers = tx.witnessSet.redeemers.map(_.value.toMap).getOrElse(Map.empty)
 
         // Build datum lookup table with hash mapping
         // According to Babbage spec, we lookup datums only in witness set
@@ -131,9 +128,7 @@ class PlutusScriptEvaluator(
             datum.dataHash -> datum.value
         }.toSeq
 
-        val lookupTable =
-            val scripts = allResolvedPlutusScripts(tx, utxos)
-            LookupTable(scripts, datumsMapping.toMap)
+        val lookupTable = LookupTable(allResolvedPlutusScripts(tx, utxos), datumsMapping.toMap)
 
         log.debug(
           s"Built lookup table with ${lookupTable.scripts.size} scripts and ${lookupTable.datums.size} datums"
@@ -141,20 +136,87 @@ class PlutusScriptEvaluator(
 
         // Evaluate each redeemer
         var remainingBudget = initialBudget
-        val evaluatedRedeemers = for redeemer <- redeemers yield
-            val evaluatedRedeemer = evalRedeemer(tx, datumsMapping, utxos, redeemer, lookupTable)
 
-            // Log execution unit differences for debugging
-            if evaluatedRedeemer.exUnits != redeemer.exUnits then
-                log.debug(s"ExUnits changed: ${redeemer.exUnits} -> ${evaluatedRedeemer.exUnits}")
+        val scriptsData =
+            (
+              AllNeededScriptHashes.allNeededInputsScriptIndexHashesAndOutputs(tx, utxos) match
+                  case Right(inputsScriptIndexHashesAndOutputs) =>
+                      inputsScriptIndexHashesAndOutputs.view.map {
+                          case (index, scriptHash, output) =>
+                              val datum = extractDatumFromOutput(output, lookupTable)
+                              (RedeemerTag.Spend, index, scriptHash, datum)
+                      }
+                  case Left(error) => throw error
+            ) ++
+                AllNeededScriptHashes.allNeededMintScriptIndexHashesView(tx).map {
+                    case (index, scriptHash) =>
+                        (RedeemerTag.Mint, index, scriptHash, None)
+                } ++
+                AllNeededScriptHashes.allNeededVotingProceduresScriptIndexHashesView(tx).map {
+                    case (index, scriptHash) =>
+                        (RedeemerTag.Voting, index, scriptHash, None)
+                } ++
+                AllNeededScriptHashes.allNeededWithdrawalsScriptIndexHashesView(tx).map {
+                    case (index, scriptHash) =>
+                        (RedeemerTag.Reward, index, scriptHash, None)
+                } ++
+                AllNeededScriptHashes.allNeededProposalProceduresScriptIndexHashesView(tx).map {
+                    case (index, scriptHash) =>
+                        (RedeemerTag.Proposing, index, scriptHash, None)
+                } ++
+                AllNeededScriptHashes.allNeededCertificatesScriptIndexHashesView(tx).map {
+                    case (index, scriptHash) =>
+                        (RedeemerTag.Cert, index, scriptHash, None)
+                }
 
-            // Update remaining budget (safe subtraction as evaluation would fail if budget exceeded)
-            remainingBudget = ExBudget.fromCpuAndMemory(
-              remainingBudget.cpu - evaluatedRedeemer.exUnits.steps,
-              remainingBudget.memory - evaluatedRedeemer.exUnits.memory
-            )
+        val evaluatedRedeemers =
+            (for (redeemerTag, index, scriptHash, datum) <- scriptsData
+            yield {
+                val plutusScript = lookupTable.scripts.get(scriptHash) match
+                    case Some(plutusScript) => plutusScript
+                    case None => throw new IllegalStateException(s"Script not found: $scriptHash")
 
-            evaluatedRedeemer
+                if redeemerTag == RedeemerTag.Spend then {
+                    // V1 and V2 scripts require datums
+                    plutusScript match
+                        case _: Script.PlutusV1 | _: Script.PlutusV2 =>
+                            if datum.isEmpty then
+                                throw new IllegalStateException(
+                                  s"Missing required datum for plutus script: $plutusScript"
+                                )
+                        case _ => // V3 and Native scripts don't require datums in the traditional sense
+                }
+
+                val redeemer = redeemers.get((redeemerTag, index)) match
+                    case Some(data, exUnits) =>
+                        Redeemer(
+                          tag = redeemerTag,
+                          index = index,
+                          data = data,
+                          exUnits = exUnits
+                        )
+                    case None =>
+                        throw new IllegalStateException(
+                          s"Redeemer not found for tag $redeemerTag and index $index"
+                        )
+
+                val evaluatedRedeemer =
+                    evalRedeemer(tx, datumsMapping, utxos, redeemer, plutusScript, datum)
+
+                // Log execution unit differences for debugging
+                if evaluatedRedeemer.exUnits != redeemer.exUnits then
+                    log.debug(
+                      s"ExUnits changed: ${redeemer.exUnits} -> ${evaluatedRedeemer.exUnits}"
+                    )
+
+                // Update remaining budget (safe subtraction as evaluation would fail if budget exceeded)
+                remainingBudget = ExBudget.fromCpuAndMemory(
+                  remainingBudget.cpu - evaluatedRedeemer.exUnits.steps,
+                  remainingBudget.memory - evaluatedRedeemer.exUnits.memory
+                )
+
+                evaluatedRedeemer
+            }).toSeq
 
         log.debug(s"Phase 2 evaluation completed. Remaining budget: $remainingBudget")
         evaluatedRedeemers
@@ -174,17 +236,17 @@ class PlutusScriptEvaluator(
         datums: Seq[(DataHash, Data)],
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
-        lookupTable: LookupTable
+        plutusScript: PlutusScript,
+        datum: Option[Data]
     ): Redeemer = {
-        val scriptAndData = findScript(tx, redeemer, lookupTable, utxos)
-        val result = scriptAndData match
-            case (Script.PlutusV1(script), datum) =>
+        val result = plutusScript match
+            case Script.PlutusV1(script) =>
                 evalPlutusV1Script(tx, datums, utxos, redeemer, script, datum)
 
-            case (Script.PlutusV2(script), datum) =>
+            case Script.PlutusV2(script) =>
                 evalPlutusV2Script(tx, datums, utxos, redeemer, script, datum)
 
-            case (Script.PlutusV3(script), datum) =>
+            case Script.PlutusV3(script) =>
                 evalPlutusV3Script(tx, datums, utxos, redeemer, script, datum)
 
         val cost = result.budget
@@ -192,175 +254,6 @@ class PlutusScriptEvaluator(
 
         // Return redeemer with computed execution units
         redeemer.copy(exUnits = ExUnits(memory = cost.memory, steps = cost.cpu))
-    }
-
-    /** Resolve the script and datum associated with a redeemer.
-      *
-      * This method implements the core script resolution logic, mapping redeemer tags and indices
-      * to their corresponding scripts and associated data.
-      *
-      * The resolution logic varies by redeemer tag:
-      *   - Spend: Resolves to script in UTxO being spent, includes datum if script requires it
-      *   - Mint: Resolves to minting policy script
-      *   - Cert: Resolves to certificate-related script
-      *   - Reward: Resolves to staking script for withdrawal
-      *   - Proposing: Resolves to governance proposal script
-      *   - Voting: Resolves to voter credential script
-      *
-      * @param tx
-      *   The transaction containing the redeemer
-      * @param redeemer
-      *   The redeemer to resolve
-      * @param lookupTable
-      *   Script and datum lookup table
-      * @param utxos
-      *   UTxO set for script resolution
-      * @return
-      *   Tuple of (Script, Optional[Datum])
-      */
-    private def findScript(
-        tx: Transaction,
-        redeemer: Redeemer,
-        lookupTable: LookupTable,
-        utxos: Map[TransactionInput, TransactionOutput]
-    ): (PlutusScript, Option[Data]) = {
-        val index = redeemer.index
-        redeemer.tag match
-            case RedeemerTag.Spend =>
-                val inputs = tx.body.value.inputs.toArray.sorted
-
-                if !inputs.isDefinedAt(index) then
-                    throw new IllegalStateException(
-                      s"Input not found: $index in ${inputs.mkString("[", ", ", "]")}"
-                    )
-
-                val input = inputs(index)
-                val output = utxos.getOrElse(
-                  input,
-                  throw new IllegalStateException(s"UTxO not found for input: $input")
-                )
-
-                // Extract script hash from address
-                val scriptHash = output.address.scriptHash
-                    .getOrElse(
-                      throw new IllegalStateException(
-                        s"No script credential in address: ${output.address}"
-                      )
-                    )
-
-                // Resolve script
-                val script = lookupTable.scripts.getOrElse(
-                  scriptHash,
-                  throw new IllegalStateException(s"Script not found: $scriptHash")
-                )
-
-                // Extract datum if needed
-                val datum = extractDatumFromOutput(output, lookupTable)
-
-                // V1 and V2 scripts require datums
-                script match
-                    case _: Script.PlutusV1 | _: Script.PlutusV2 =>
-                        if datum.isEmpty then
-                            throw new IllegalStateException(
-                              s"Missing required datum for script: $script"
-                            )
-                    case _ => // V3 and Native scripts don't require datums in the traditional sense
-                (script, datum)
-
-            case RedeemerTag.Mint =>
-                tx.body.value.mint match
-                    case Some(value) =>
-                        val mintingPolicies = value.assets.keySet.toArray
-                        if !mintingPolicies.isDefinedAt(index) then
-                            throw new IllegalArgumentException(
-                              s"Minting policy not found: $index in ${mintingPolicies.mkString("[", ", ", "]")}"
-                            )
-                        val scriptHash = mintingPolicies(index)
-                        lookupTable.scripts.get(scriptHash) match
-                            case Some(script) => script -> None
-                            case None =>
-                                throw new IllegalStateException(
-                                  s"Script not found for minting policy: $scriptHash"
-                                )
-                    case None =>
-                        throw new IllegalArgumentException(
-                          s"Transaction does not contain minting value: $tx"
-                        )
-            case RedeemerTag.Cert =>
-                val certs = tx.body.value.certificates.toIndexedSeq // FIXME: should be sorted
-                if !certs.isDefinedAt(index) then
-                    throw new IllegalStateException(
-                      s"Certificate not found: $index in ${certs.mkString("[", ", ", "]")}"
-                    )
-                val cert = certs(index)
-                val scriptHash = AllNeededScripts
-                    .getNeededCertificateScriptHashOption(cert)
-                    .getOrElse(
-                      throw new IllegalStateException(
-                        s"Certificate does not require a script: $cert"
-                      )
-                    )
-                val script = lookupTable.scripts.getOrElse(
-                  scriptHash,
-                  throw new IllegalStateException(
-                    s"Script not found for certificate: $scriptHash"
-                  )
-                )
-                script -> None
-            case RedeemerTag.Reward =>
-                val withdrawals = tx.body.value.withdrawals.get.withdrawals.toArray.sortBy(_._1)
-                if !withdrawals.isDefinedAt(index) then
-                    throw new IllegalStateException(
-                      s"Withdrawal not found: $index in ${withdrawals.mkString("[", ", ", "]")}"
-                    )
-                val scriptHash = withdrawals(index)._1.address.scriptHash.get
-                lookupTable.scripts(scriptHash) -> None
-
-            case RedeemerTag.Voting =>
-                val votingProcedures = tx.body.value.votingProcedures.getOrElse(
-                  throw new IllegalStateException("Transaction does not contain voting procedures")
-                )
-                // FIXME: consider using SortedMap
-                val voters = votingProcedures.procedures.toArray.sortBy(_._1)
-                if !voters.isDefinedAt(index) then
-                    throw new IllegalStateException(
-                      s"Voter not found: $index in ${voters.mkString("[", ", ", "]")}"
-                    )
-                val voting = voters(index)
-                val scriptHash = voting._1 match
-                    case Voter.ConstitutionalCommitteeHotScript(scriptHash) => scriptHash
-                    case Voter.DRepScript(scriptHash)                       => scriptHash
-                    case _ =>
-                        throw new IllegalStateException(s"Voter does not require a script: $voting")
-                val script = lookupTable.scripts.getOrElse(
-                  scriptHash,
-                  throw new IllegalStateException(s"Script not found for voter: $scriptHash")
-                )
-                script -> None
-            case RedeemerTag.Proposing =>
-                val proposals =
-                    tx.body.value.proposalProcedures.toArray.sortBy(p => p.rewardAccount)
-                if !proposals.isDefinedAt(index) then
-                    throw new IllegalStateException(
-                      s"Proposal not found: $index in ${proposals.mkString("[", ", ", "]")}"
-                    )
-                val proposal = proposals(index)
-                val scriptHashOption = proposal.govAction match
-                    case GovAction.ParameterChange(_, _, policyHash)  => policyHash
-                    case GovAction.TreasuryWithdrawals(_, policyHash) => policyHash
-                    case _                                            => None
-                val scriptHash = scriptHashOption
-                    .getOrElse(
-                      throw new IllegalStateException(
-                        s"Proposal does not require a script: $proposal"
-                      )
-                    )
-                val script = lookupTable.scripts.getOrElse(
-                  scriptHash,
-                  throw new IllegalStateException(s"Script not found for proposal: $scriptHash")
-                )
-                script -> None
-
     }
 
     private def extractDatumFromOutput(
@@ -524,11 +417,6 @@ class PlutusScriptEvaluator(
           java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
         )
     }
-
-    // Placeholder methods for building script contexts and purposes
-    // These would need to be implemented based on the actual scalus.ledger.api structures
-
-    // Helper methods
 
     /** Extract all scripts from transaction and UTxOs.
       */

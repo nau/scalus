@@ -183,10 +183,12 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         )
         //        DebugUtils.dumpTxInfo(tx, utxos)
 
-        val redeemers = evaluator.evalPlutusScripts(tx, utxos)
-        for (actual, expected) <- redeemers.zip(tx.witnessSet.redeemers.get.value.toIndexedSeq) do
-            assert(actual.exUnits.memory <= expected.exUnits.memory)
-            assert(actual.exUnits.steps <= expected.exUnits.steps, actual)
+        val actualRedeemers = Redeemers.from(evaluator.evalPlutusScripts(tx, utxos)).toMap
+        val expectedRedeemers = tx.witnessSet.redeemers.get.value.toMap
+        for (key, (_, actualExUnits)) <- actualRedeemers do
+            val expectedExUnits = expectedRedeemers(key)._2
+            assert(actualExUnits.memory <= expectedExUnits.memory)
+            assert(actualExUnits.steps <= expectedExUnits.steps)
     }
 
     private def bloxbeanResolveUtxo(tx: Transaction): Map[TransactionInput, TransactionOutput] = {

@@ -4,7 +4,7 @@ package rules
 import org.scalacheck.Arbitrary
 import scalus.ledger.api.Timelock
 import scalus.builtin.platform
-import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
+import scalus.cardano.address.{Address, StakeAddress, StakePayload}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.immutable.TreeMap
@@ -61,11 +61,11 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                       Map(
                         RewardAccount(
                           Arbitrary
-                              .arbitrary[ShelleyAddress]
+                              .arbitrary[StakeAddress]
                               .sample
                               .get
                               .copy(
-                                payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
+                                payload = StakePayload.Script(nativeScript.scriptHash)
                               )
                         ) -> Arbitrary.arbitrary[Coin].sample.get
                       )
@@ -172,11 +172,11 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
           utxo = Map(
             input -> TransactionOutput.Shelley(
               Arbitrary
-                  .arbitrary[ShelleyAddress]
+                  .arbitrary[StakeAddress]
                   .sample
                   .get
                   .copy(
-                    payment = ShelleyPaymentPart.Script(nativeScript.scriptHash)
+                    payload = StakePayload.Script(nativeScript.scriptHash)
                   ),
               Value(Coin(1000000L))
             ),

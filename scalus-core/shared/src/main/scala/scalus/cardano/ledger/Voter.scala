@@ -72,6 +72,17 @@ enum Voter derives Codec.All {
       *   The key hash of the pool
       */
     @key(4) case StakingPoolKey(keyHash: AddrKeyHash)
+
+    def keyHashOption: Option[AddrKeyHash] = this match
+        case ConstitutionalCommitteeHotKey(keyHash) => Some(keyHash)
+        case DRepKey(keyHash)                       => Some(keyHash)
+        case StakingPoolKey(keyHash)                => Some(keyHash)
+        case _                                      => None
+
+    def scriptHashOption: Option[ScriptHash] = this match
+        case ConstitutionalCommitteeHotScript(scriptHash) => Some(scriptHash)
+        case DRepScript(scriptHash)                       => Some(scriptHash)
+        case _                                            => None
 }
 
 object Voter {

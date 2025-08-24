@@ -95,6 +95,12 @@ enum GovAction {
     /** An informational action. This can be used for non-binding votes or information sharing.
       */
     case InfoAction
+
+    def scriptHashOption: Option[ScriptHash] = this match
+        case parameterChange: GovAction.ParameterChange => parameterChange.policyHash
+        case treasuryWithdrawals: GovAction.TreasuryWithdrawals =>
+            treasuryWithdrawals.policyHash
+        case _ => None
 }
 
 object GovAction {

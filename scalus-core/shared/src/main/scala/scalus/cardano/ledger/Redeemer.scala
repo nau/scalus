@@ -69,9 +69,16 @@ sealed trait Redeemers:
     def toIndexedSeq: IndexedSeq[Redeemer] = this match
         case Redeemers.Array(list) => list
         case Redeemers.Map(map) =>
-            map.map { case ((tag, index), (data, exUnits)) =>
+            map.view.map { case ((tag, index), (data, exUnits)) =>
                 Redeemer(tag, index, data, exUnits)
             }.toIndexedSeq
+
+    def toMap: immutable.Map[(RedeemerTag, Int), (Data, ExUnits)] = this match
+        case Redeemers.Array(redeemers) =>
+            immutable.TreeMap.from(
+              redeemers.iterator.map(r => ((r.tag, r.index), (r.data, r.exUnits)))
+            )
+        case Redeemers.Map(redeemers) => redeemers
 
     def isEmpty: Boolean = this match
         case Redeemers.Array(redeemers) => redeemers.isEmpty

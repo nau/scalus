@@ -172,7 +172,7 @@ object FeesOkValidator extends STS.Validator {
 
     private def isCollateralConsistsOnlyVKeyAddress(
         collateralOutput: TransactionOutput
-    ): Boolean = collateralOutput.address.keyHash.nonEmpty
+    ): Boolean = collateralOutput.address.keyHashOption.nonEmpty
 
     private def isCollateralContainsOnlyADA(
         collateralOutput: TransactionOutput

@@ -80,12 +80,7 @@ object AllNeededKeyHashes {
 
         for
             voter <- votingProcedures.keySet.view
-            keyHash <- voter match
-                case Voter.ConstitutionalCommitteeHotKey(keyHash) => Some(keyHash)
-                case Voter.StakingPoolKey(keyHash)                => Some(keyHash)
-                case Voter.DRepKey(keyHash)                       => Some(keyHash)
-                case _: Voter.ConstitutionalCommitteeHotScript    => None
-                case _: Voter.DRepScript                          => None
+            keyHash <- voter.keyHashOption
         yield keyHash
     }
 
@@ -102,7 +97,7 @@ object AllNeededKeyHashes {
 
         for
             rewardAccount <- withdrawals.keySet.view
-            keyHash <- rewardAccount.address.keyHash
+            keyHash <- rewardAccount.keyHashOption
         yield keyHash
     }
 
@@ -118,27 +113,8 @@ object AllNeededKeyHashes {
         val certificates = transaction.body.value.certificates
         for
             certificate <- certificates.toIndexedSeq.view
-            keyHash: (AddrKeyHash | PoolKeyHash) <- certificate match
-                case cert: Certificate.StakeDelegation => cert.credential.keyHashOption
-                case cert: Certificate.PoolRegistration =>
-                    cert.poolOwners.view.concat(Some(cert.operator))
-                case cert: Certificate.PoolRetirement => Some(cert.poolKeyHash)
-                case cert: Certificate.RegCert =>
-                    if cert.coin.nonEmpty then cert.credential.keyHashOption else None
-                case cert: Certificate.UnregCert             => cert.credential.keyHashOption
-                case cert: Certificate.VoteDelegCert         => cert.credential.keyHashOption
-                case cert: Certificate.StakeVoteDelegCert    => cert.credential.keyHashOption
-                case cert: Certificate.StakeRegDelegCert     => cert.credential.keyHashOption
-                case cert: Certificate.VoteRegDelegCert      => cert.credential.keyHashOption
-                case cert: Certificate.StakeVoteRegDelegCert => cert.credential.keyHashOption
-                case cert: Certificate.AuthCommitteeHotCert =>
-                    cert.committeeColdCredential.keyHashOption
-                case cert: Certificate.ResignCommitteeColdCert =>
-                    cert.committeeColdCredential.keyHashOption
-                case cert: Certificate.RegDRepCert    => cert.drepCredential.keyHashOption
-                case cert: Certificate.UnregDRepCert  => cert.drepCredential.keyHashOption
-                case cert: Certificate.UpdateDRepCert => cert.drepCredential.keyHashOption
-        yield keyHash
+            keyHashes <- certificate.keyHashes
+        yield keyHashes
     }
 
     def allNeededRequiredSignersKeyHashes(
@@ -157,7 +133,7 @@ object AllNeededKeyHashes {
         val result = for
             input <- inputs
             keyHash <- utxo.get(input) match
-                case Some(output) => output.address.keyHash
+                case Some(output) => output.address.keyHashOption
                 // This check allows to be an order independent in the sequence of validation rules
                 case None => break(Left(missingUTxOException(transactionId)))
         yield keyHash

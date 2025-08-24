@@ -3,6 +3,7 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.cardano.address.{Address, StakeAddress}
+import scala.util.control.NonFatal
 
 import scala.math.Ordered.orderingToOrdered
 
@@ -15,7 +16,11 @@ import scala.math.Ordered.orderingToOrdered
   * @param address
   *   The address of the reward account
   */
-case class RewardAccount(address: Address) derives Codec
+case class RewardAccount(address: StakeAddress) {
+    def keyHashOption: Option[AddrKeyHash | StakeKeyHash] = address.keyHashOption
+    def scriptHashOption: Option[ScriptHash] = address.scriptHashOption
+}
+
 object RewardAccount {
     given Ordering[RewardAccount] with
         def compare(x: RewardAccount, y: RewardAccount): Int =
@@ -24,9 +29,17 @@ object RewardAccount {
                     n1.compare(n2) match
                         case 0 => p1.asHash.compare(p2.asHash)
                         case c => c
-                case _ => // FIXME: consider using ByteString instead of Address
-                    throw new IllegalArgumentException(
-                      s"Cannot compare RewardAccounts with different address types: $x vs $y"
-                    )
 
+    given Encoder[RewardAccount] with
+        def write(w: Writer, value: RewardAccount): Writer = {
+            w.write(value.address: Address)
+            w
+        }
+
+    /** CBOR decoder for Address */
+    given Decoder[RewardAccount] with
+        def read(r: Reader): RewardAccount = {
+            try RewardAccount(r.read[Address]().asInstanceOf[StakeAddress])
+            catch case NonFatal(exception) => r.validationFailure(exception.getMessage)
+        }
 }
