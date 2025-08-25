@@ -37,5 +37,4 @@ object SIRModuleWithDeps {
 
 }
 
-
 case class SIRBodyAnnotation(module: Module, deps: List[SIRModuleWithDeps]) extends StaticAnnotation

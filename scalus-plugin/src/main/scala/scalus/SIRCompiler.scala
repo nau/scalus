@@ -3134,12 +3134,18 @@ final class SIRCompiler(
                 // println(s"moduleRef: ${moduleRef.show}")
                 // println(s"flags: ${moduleSym.flags.flagsString}")
                 if !moduleSym.isCompleted then {
-                    report.error(
-                      s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} is not completed\n" +
-                          s"usually this means, that non-scalus object to scalus program",
-                      srcPos
-                    )
+                    try
+                        // try complete by getting info
+                        @unused val info_ = moduleSym.info
+                    catch
+                        case NonFatal(ex) =>
+                            report.error(
+                              s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} in module $currentModuleName is not completed\n" +
+                                  s"usually this means, that non-scalus object to scalus program",
+                              srcPos
+                            )
                 }
+
                 if !moduleSym.isCompleted || moduleSym.info.findDecl(
                       Plugin.SIR_MODULE_VAL_NAME.toTermName,
                       EmptyFlags
