@@ -31,7 +31,9 @@ object Data extends DataApi:
     // type FromData[A] = Data => A
     type FromData[A] = scalus.builtin.FromData[A]
 
-    inline def fromData[A](inline data: Data)(using inline ev: FromData[A]): A = ev(data)
+    inline def fromData[A](inline data: Data)(using inline ev: scalus.builtin.FromData[A]): A = ev(
+      data
+    )
 
     case class Constr(constr: Long, args: immutable.List[Data]) extends Data {
         assert(constr >= 0, s"Constructor must be non-negative, got $constr")

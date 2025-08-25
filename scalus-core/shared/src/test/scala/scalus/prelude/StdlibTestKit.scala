@@ -6,6 +6,8 @@ import scalus.uplc.eval.{PlutusVM, Result}
 import scalus.uplc.test.ArbitraryInstances
 import scalus.sir.{AnnotationsDecl, SIR, SIRType}
 import scalus.sir.SirDSL.$
+import scalus.builtin.Data
+import scalus.builtin.Data.{fromData, toData, FromData, ToData}
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -19,9 +21,10 @@ import scala.reflect.ClassTag
 class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {
     export org.scalatestplus.scalacheck.Checkers.*
     export org.scalacheck.{Arbitrary, Gen, Shrink}
-    export scalus.builtin.Data
-    export scalus.builtin.Data.{fromData, toData, FromData, ToData}
-    export scalus.prelude.{!==, ===, Eq, Ord}
+    // export scalus.builtin.Data
+    // export scalus.builtin.Data.{fromData, toData, FromData, ToData}
+    export scalus.prelude.{!==, ===}
+    // export scalus.prelude.{Eq, Ord}
     export Ord.{<=>, Order}
 
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
@@ -138,10 +141,12 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             fail(s"Expected exception of type ${summon[ClassTag[E]]}, but got success: $code")
     }
 
-    protected inline final def checkEval[A1: FromData: ToData](
+    protected inline final def checkEval[A1](
         inline f: A1 => Boolean,
         configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
     )(implicit
+        inline a1FromData: FromData[A1],
+        inline a1ToData: ToData[A1],
         config: PropertyCheckConfiguration,
         a1: Arbitrary[A1],
         s1: Shrink[A1],
@@ -149,13 +154,15 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         prettifier: Prettifier,
         pos: source.Position
     ): Assertion = {
+        import scala.compiletime.summonInline
+
         val sir = Compiler.compileInline { (data: Data) => f(fromData[A1](data)) }
         val uplc = sir.toUplc(true)
 
         def handler(payload: A1): Boolean = {
             // val applied =
             //    sir $ SIR.Const(Constant.Data(payload.toData), SIRType.Data, AnnotationsDecl.empty)
-            val applied = uplc $ Term.Const(Constant.Data(payload.toData))
+            val applied = uplc $ Term.Const(Constant.Data(toData[A1](payload)))
             val resultTerm = applied.evaluate
             Term.alphaEq(resultTerm, trueTerm) && f(payload)
         }
@@ -163,10 +170,14 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         check(handler, configParams*)
     }
 
-    protected inline final def checkEval[A1: FromData: ToData, A2: FromData: ToData](
+    protected inline final def checkEval[A1, A2](
         inline f: (A1, A2) => Boolean,
         configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
     )(implicit
+        inline a1FromData: FromData[A1],
+        inline a1ToData: ToData[A1],
+        inline a2FromData: FromData[A2],
+        inline a2ToData: ToData[A2],
         config: PropertyCheckConfiguration,
         a1: Arbitrary[A1],
         s1: Shrink[A1],
@@ -194,14 +205,16 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         check(handler, configParams*)
     }
 
-    protected inline final def checkEval[
-        A1: FromData: ToData,
-        A2: FromData: ToData,
-        A3: FromData: ToData
-    ](
+    protected inline final def checkEval[A1, A2, A3](
         inline f: (A1, A2, A3) => Boolean,
         configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
     )(implicit
+        inline a1FromData: FromData[A1],
+        inline a1ToData: ToData[A1],
+        inline a2FromData: FromData[A2],
+        inline a2ToData: ToData[A2],
+        inline a3FromData: FromData[A3],
+        inline a3ToData: ToData[A3],
         config: PropertyCheckConfiguration,
         a1: Arbitrary[A1],
         s1: Shrink[A1],
@@ -232,15 +245,18 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         check(handler, configParams*)
     }
 
-    protected inline final def checkEval[
-        A1: FromData: ToData,
-        A2: FromData: ToData,
-        A3: FromData: ToData,
-        A4: FromData: ToData
-    ](
+    protected inline final def checkEval[A1, A2, A3, A4](
         inline f: (A1, A2, A3, A4) => Boolean,
         configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
     )(implicit
+        inline a1FromData: FromData[A1],
+        inline a1ToData: ToData[A1],
+        inline a2FromData: FromData[A2],
+        inline a2ToData: ToData[A2],
+        inline a3FromData: FromData[A3],
+        inline a3ToData: ToData[A3],
+        inline a4FromData: FromData[A4],
+        inline a4ToData: ToData[A4],
         config: PropertyCheckConfiguration,
         a1: Arbitrary[A1],
         s1: Shrink[A1],
@@ -276,16 +292,20 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         check(handler, configParams*)
     }
 
-    protected inline final def checkEval[
-        A1: FromData: ToData,
-        A2: FromData: ToData,
-        A3: FromData: ToData,
-        A4: FromData: ToData,
-        A5: FromData: ToData
-    ](
+    protected inline final def checkEval[A1, A2, A3, A4, A5](
         inline f: (A1, A2, A3, A4, A5) => Boolean,
         configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
     )(implicit
+        inline a1FromData: FromData[A1],
+        inline a1ToData: ToData[A1],
+        inline a2FromData: FromData[A2],
+        inline a2ToData: ToData[A2],
+        inline a3FromData: FromData[A3],
+        inline a3ToData: ToData[A3],
+        inline a4FromData: FromData[A4],
+        inline a4ToData: ToData[A4],
+        inline a5FromData: FromData[A5],
+        inline a5ToData: ToData[A5],
         config: PropertyCheckConfiguration,
         a1: Arbitrary[A1],
         s1: Shrink[A1],
@@ -342,17 +362,22 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         check(handler, configParams*)
     }
 
-    protected inline final def checkEval[
-        A1: FromData: ToData,
-        A2: FromData: ToData,
-        A3: FromData: ToData,
-        A4: FromData: ToData,
-        A5: FromData: ToData,
-        A6: FromData: ToData
-    ](
+    protected inline final def checkEval[A1, A2, A3, A4, A5, A6](
         inline f: (A1, A2, A3, A4, A5, A6) => Boolean,
         configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*
     )(implicit
+        inline a1FromData: FromData[A1],
+        inline a1ToData: ToData[A1],
+        inline a2FromData: FromData[A2],
+        inline a2ToData: ToData[A2],
+        inline a3FromData: FromData[A3],
+        inline a3ToData: ToData[A3],
+        inline a4FromData: FromData[A4],
+        inline a4ToData: ToData[A4],
+        inline a5FromData: FromData[A5],
+        inline a5ToData: ToData[A5],
+        inline a6FromData: FromData[A6],
+        inline a6ToData: ToData[A6],
         config: PropertyCheckConfiguration,
         a1: Arbitrary[A1],
         s1: Shrink[A1],

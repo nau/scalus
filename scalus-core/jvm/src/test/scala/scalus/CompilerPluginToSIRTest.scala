@@ -359,37 +359,17 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Let(
                   NonRec,
                   immutable.List(
-                    Binding(
-                      "scalus.builtin.internal.UniversalDataConversion$.toData",
-                      SIRType
-                          .TypeLambda(immutable.List(a1Tp), SIRType.Fun(a1Tp, SIRType.TypeNothing)),
-                      LamAbs(
-                        SIR.Var("a", a1Tp, AnE),
-                        SIR.Error(
-                          "impossible to call this method at runtime, it is used only in the compiler plugin",
-                          AnE
-                        ),
-                        immutable.List(a1Tp),
-                        AnE
-                      )
-                    )
+                    Binding("a$proxy1", sirInt, Const(Constant.Integer(1), sirInt, AnE))
                   ),
-                  Let(
-                    NonRec,
-                    immutable.List(
-                      Binding("a$proxy1", sirInt, Const(Constant.Integer(1), sirInt, AnE))
-                    ),
-                    Apply(
-                      ExternalVar(
-                        "scalus.builtin.internal.UniversalDataConversion$",
-                        "scalus.builtin.internal.UniversalDataConversion$.toData",
-                        SIRType.Fun(sirInt, sirData),
-                        AnE
-                      ),
-                      Var("a$proxy1", sirInt, AnE),
-                      sirData,
+                  Apply(
+                    ExternalVar(
+                      "scalus.builtin.internal.UniversalDataConversion$",
+                      "scalus.builtin.internal.UniversalDataConversion$.toData",
+                      SIRType.Fun(sirInt, sirData),
                       AnE
                     ),
+                    Var("a$proxy1", sirInt, AnE),
+                    sirData,
                     AnE
                   ),
                   AnE
@@ -410,8 +390,8 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
                 )
         }
 
-        // println(s"compiled=${compiled.pretty.render(100)}")
-        // println(s"exprected=${expected.pretty.render(100)}")
+        println(s"compiled=${compiled.pretty.render(100)}")
+        println(s"exprected=${expected.pretty.render(100)}")
         //
         // SIRUnify.unifySIR(compiled, expected, SIRUnify.Env.empty) match
         //    case SIRUnify.UnificationSuccess(env, sir) =>

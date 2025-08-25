@@ -8,6 +8,13 @@ import scalus.ledger.api.v2.OutputDatum
 
 class TypeVarMatchingTest extends AnyFunSuite:
 
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+      debug = false
+    )
+
     test("DatumOption serialization") {
         val sir = compile {
             val d = OutputDatum.NoOutputDatum

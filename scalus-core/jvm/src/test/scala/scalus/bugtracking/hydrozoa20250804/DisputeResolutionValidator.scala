@@ -1,7 +1,5 @@
 package scalus.bugtracking.hydrozoa20250804
 
-/*
-  DISABLED,  will be enabled after the fix of the multi-module compilation.
 import cats.syntax.group.*
 //import com.bloxbean.cardano.client.address
 //import com.bloxbean.cardano.client.address.AddressProvider
@@ -32,7 +30,6 @@ import scalus.uplc.DeBruijnedProgram
 import scalus.uplc.eval.*
 
 import java.nio.file.{Files, Paths}
-
 
 @Compile
 object DisputeResolutionValidator extends Validator:
@@ -325,29 +322,29 @@ object DisputeResolutionValidator extends Validator:
                 require(voteDatum.link === voteOutputDatum.link, VoteOutputDatumAdditionalChecks)
 
             /** Tallying is done as follows:
- *
+              *
               * +-----------+        +-----------+        +-----------+        +-----------+
- * |  key = 0  |        |  key = 1  |        |  key = 2  |        |  key = 3  |
- * | link = 1  |        | link = 2  |-+      | link = 3  |        | link = 0  |-+
- * |CONTINUING |        |  REMOVED  | |      |CONTINUING |        |  REMOVED  | |
- * |                                  |                 |                       |
- * v                                  |       v                                 |
- * +-----------+                      |       +-----------+                     |
- * |  key = 0  |                      |       |  key = 2  |                     |
- * | link = 2  | <------------------- +       | link = 0  |<-------+------------+
- * |CONTINUING |                              |  REMOVED  |        |
- * |                                                               |
- * v                                                               |
- * +-----------+                                                   |
- * |  key = 0  |                                                   |
- * | link = 0  |<--------------------------------------------------+
- * |   FINAL  |
- *
+              * |  key = 0  |        |  key = 1  |        |  key = 2  |        |  key = 3  |
+              * | link = 1  |        | link = 2  |-+      | link = 3  |        | link = 0  |-+
+              * |CONTINUING |        |  REMOVED  | |      |CONTINUING |        |  REMOVED  | |
+              * |                                  |                 |                       |
+              * v                                  |       v                                 |
+              * +-----------+                      |       +-----------+                     |
+              * |  key = 0  |                      |       |  key = 2  |                     |
+              * | link = 2  | <------------------- +       | link = 0  |<-------+------------+
+              * |CONTINUING |                              |  REMOVED  |        |
+              * |                                                               |
+              * v                                                               |
+              * +-----------+                                                   |
+              * |  key = 0  |                                                   |
+              * | link = 0  |<--------------------------------------------------+
+              * |   FINAL  |
+              *
               * NB:
- * 1. `peer` is always set to None
- * 2. the higher `vote` is selected
- * 3. we start pair-wise from the beginning, but an arbitrary adjacent votes can be tallied
- */
+              * 1. `peer` is always set to None
+              * 2. the higher `vote` is selected
+              * 3. we start pair-wise from the beginning, but an arbitrary adjacent votes can be tallied
+              */
 
             case DisputeRedeemer.Tally(tallyRedeemer) =>
                 log("Tally")
@@ -533,4 +530,3 @@ def disputeResolutionValidatorRun(): Unit = {
     //    println(DisputeResolutionScript.sir.showHighlighted)
     println(DisputeResolutionScript.hash)
 }
- */

@@ -1,7 +1,7 @@
 package scalus
 
 import scalus.macros.Macros
-import scalus.sir.{SIR, SIRType}
+import scalus.sir.{SIR, SIRDefaultOptions, SIRType}
 import scalus.builtin.Data
 
 import scala.annotation.Annotation
@@ -18,16 +18,17 @@ trait CompileDerivations
 
 object Compiler:
 
-    enum TargetLoweringBackend:
-        case SimpleSirToUplcLowering
-        case SirToUplc110Lowering
-        case SirToUplcV3Lowering
+    type TargetLoweringBackend =
+        scalus.sir.TargetLoweringBackend
+    val TargetLoweringBackend = scalus.sir.TargetLoweringBackend
 
     case class Options(
-        targetLoweringBackend: TargetLoweringBackend =
-            TargetLoweringBackend.SimpleSirToUplcLowering,
-        generateErrorTraces: Boolean = true,
-        optimizeUplc: Boolean = false,
+        targetLoweringBackend: TargetLoweringBackend = SIRDefaultOptions.targetLoweringBackend,
+        generateErrorTraces: Boolean = SIRDefaultOptions.generateErrorTraces,
+        optimizeUplc: Boolean = SIRDefaultOptions.optimizeUplc,
+        runtimeLinker: Boolean = SIRDefaultOptions.runtimeLinker,
+        writeSIRToFile: Boolean = SIRDefaultOptions.writeSIRToFile,
+        debugLevel: Int = SIRDefaultOptions.debugLevel,
         debug: Boolean = false
     )
     val defaultOptions: Options = Options()
@@ -97,7 +98,9 @@ object Compiler:
       *  }
       * }}}
       */
-    inline def compileInline(inline code: Any): SIR = ${ Macros.generateCompileCall('code) }
+    inline def compileInline(inline code: Any): SIR = ${
+        Macros.generateCompileCall('code)
+    }
 
     private def throwCompilerPluginMissingException(): Nothing =
         throw new RuntimeException(

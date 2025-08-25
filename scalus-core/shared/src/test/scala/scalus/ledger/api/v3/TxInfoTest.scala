@@ -1,9 +1,9 @@
 package scalus.ledger.api.v3
 
 import scalus.prelude.StdlibTestKit
-import scalus.prelude.{List, Option, SortedMap}
+import scalus.prelude.{List, Option}
 import scalus.builtin.ByteString
-import scalus.ledger.api.v2.OutputDatum
+//import scalus.ledger.api.v2.OutputDatum
 
 class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
     test("findOwnInput") {

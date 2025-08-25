@@ -4,6 +4,7 @@ import scalus.Compiler
 import scalus.Compiler.Options
 import scalus.builtin.ByteString.hex
 import scalus.builtin.Data
+import scalus.builtin.Data.toData
 
 class ShowTest extends StdlibTestKit {
 

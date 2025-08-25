@@ -22,7 +22,7 @@ class CompilerPluginEvalTest extends AnyFunSuite {
     private given PlutusVM = PlutusVM.makePlutusV2VM()
 
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
-      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      targetLoweringBackend = scalus.sir.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,
       debug = false

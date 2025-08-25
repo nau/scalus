@@ -1,6 +1,6 @@
 package scalus.sir
 
-import scalus.uplc.Constant.Integer
+//import scalus.uplc.Constant.Integer
 import scalus.uplc.{Constant, DefaultFun}
 
 val SIRVersion: (Int, Int) = (3, 0)
@@ -34,7 +34,6 @@ case class SIRPosition(
     startColumn: Int,
     endLine: Int,
     endColumn: Int,
-    
 ) {
 
     def show: String = {
@@ -245,6 +244,10 @@ object SIR:
         if moduleName == "scalus.prelude" then
             throw new RuntimeException(
               s"ExternalVar: scalus.prelude, moduleName ${moduleName}, name=${name} at " + anns.pos.show
+            )
+        else if moduleName == "scalus.ledger.api.v1.IntervalTest._$testFun$proxy1" then
+            throw new RuntimeException(
+              s"ExternalVar: moduleName ${moduleName}, name=${name} at " + anns.pos.show
             )
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"

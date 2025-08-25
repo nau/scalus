@@ -1,6 +1,7 @@
 package scalus.prelude
 
 import scalus.cardano.onchain.RequirementError
+import scalus.builtin.Data.{fromData, toData, FromData, ToData}
 
 class SortedMapTest extends StdlibTestKit {
 

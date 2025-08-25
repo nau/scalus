@@ -13,12 +13,10 @@ import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.core.Decorators.toTermName
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
-//import scalus.ScalusCompilationMode.{AllDefs, OnlyDerivations}
 import scalus.flat.{EncoderState, Flat}
-import scalus.utils.HashConsedReprRefFlat
 import scalus.flat.FlatInstantces.ModuleHashSetReprFlat
 import scalus.flat.FlatInstantces.given
-import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRPosition, SIRType, SIRUnify, SIRVersion, TypeBinding}
+import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRDefaultOptions, SIRPosition, SIRType, SIRUnify, SIRVersion, TargetLoweringBackend, TypeBinding}
 import scalus.uplc.DefaultUni
 
 import scala.annotation.{tailrec, unused}
@@ -78,11 +76,17 @@ enum CompileDef:
     case Compiled(binding: TopLevelBinding)
 
 case class SIRCompilerOptions(
-    universalDataRepresentation: Boolean = false,
-    linkInRuntime: Boolean = false,
-    writeSirToFile: Boolean = false,
-    debugLevel: Int = 0
-)
+    backend: String = SIRDefaultOptions.targetLoweringBackend.toString,
+    // universalDataRepresentation: Boolean =
+    //    (SIRDefaultOptions.targetLoweringBackend == TargetLoweringBackend.SirToUplcV3Lowering),
+    linkInRuntime: Boolean = SIRDefaultOptions.runtimeLinker,
+    writeSirToFile: Boolean = SIRDefaultOptions.writeSIRToFile,
+    debugLevel: Int = SIRDefaultOptions.debugLevel,
+) {
+
+    def universalDataRepresentation = backend == TargetLoweringBackend.SirToUplcV3Lowering.toString
+
+}
 
 object SIRCompilerOptions {
     val default: SIRCompilerOptions = SIRCompilerOptions()
@@ -114,13 +118,8 @@ final class SIRCompiler(
     private val ToDataSymbol = requiredClass("scalus.builtin.ToData")
     private val moduleToExprSymbol = Symbols.requiredModule("scalus.sir.ModuleToExpr")
     private val sirBodyAnnotation = requiredClass("scalus.sir.SIRBodyAnnotation")
-    private val sirModuleType = requiredClassRef("scalus.sir.Module")
     private val sirModuleWithDepsType = requiredClassRef("scalus.sir.SIRModuleWithDeps")
     private val sirModuleWithDepsModule = requiredModule("scalus.sir.SIRModuleWithDeps")
-    private val listSirModuleWithDepsType = defn.ListClass.typeRef.appliedTo(sirModuleWithDepsType)
-    // private val fun0ListSirModulesWithDepsType = defn.Function0.typeRef.appliedTo(
-    //  listSirModuleWithDepsType
-    // ) // Function0[List[SIRModuleWithDeps]]
 
     private val typer = new SIRTyper
     private val pmCompiler = new PatternMatchingCompiler(this)
@@ -151,8 +150,6 @@ final class SIRCompiler(
         val None: LocalBingingFlags = 0
         val ErasedOnDataRepr: LocalBingingFlags = 1 << 0
     }
-
-    // sealed trait LocalBindingOrSubmodule
 
     case class LocalBinding(
         name: String,
@@ -204,7 +201,6 @@ final class SIRCompiler(
     private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
     private val IgnoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
-    private val CompileDerivationsMarker = Symbols.requiredClassRef("scalus.CompileDerivations")
     private val uplcIntrinsicAnnot = Symbols.requiredClass("scalus.builtin.uplcIntrinsic")
 
     private def builtinFun(s: Symbol): Option[SIR.Builtin] = {
@@ -380,12 +376,17 @@ final class SIRCompiler(
             )
 
             val externalModuleVars = gatherExternalModules(moduleName, module, Map.empty)
-            val listDepsExpr = buildDepsTree(externalModuleVars, td.srcPos)
+            val listDepsExpr = buildDepsTree(moduleName, externalModuleVars, td.srcPos)
 
             td.symbol.addAnnotation(
               Annotations.Annotation(sirBodyAnnotation, List(moduleTree, listDepsExpr), td.span)
             )
-            writeModule(module, td.symbol.fullName.toString)
+            if options.writeSirToFile || !td.symbol.flags.is(Flags.Module) then {
+                // we should write sir to fiel for builtin traits (Validator, ParameterizedValidator)
+                //  because applying of static inheritance happens in the compiler.
+                // TODO: enchanche SIR to have extends clause in modules and move static inheritance to runtime
+                writeModule(module, td.symbol.fullName.toString)
+            }
 
             if options.debugLevel > 0 then
                 report.echo(
@@ -780,7 +781,7 @@ final class SIRCompiler(
     private def compileValDef(
         env: Env,
         vd: ValDef,
-        isModuleDef: Boolean
+        @unused isModuleDef: Boolean
     ): CompileMemberDefResult = {
         val name = vd.name
         // vars are not supported
@@ -845,34 +846,15 @@ final class SIRCompiler(
                 else valSirType
 
             CompileMemberDefResult.Compiled(
-              try
-                  LocalBinding(
-                    name.show,
-                    bindingSirType,
-                    vd.symbol,
-                    Recursivity.NonRec,
-                    bodyExpr1,
-                    vd.sourcePos,
-                    calculateLocalBindingFlags(vd.tpe)
-                  )
-              catch
-                  case NonFatal(e) =>
-                      println(s"vd.rhs=${vd.rhs.show}")
-                      println(s"rhsFixed = ${rhsFixed.show}")
-                      println(s"bodyExpr = ${bodyExpr}")
-                      println(s"bodyExpr1 = ${bodyExpr1}")
-                      println(
-                        s"SIRType.isPolyFunOrFunUnit(bodyExpr.tp)=${SIRType.isPolyFunOrFunUnit(bodyExpr.tp)}"
-                      )
-                      println(
-                        s"SIRType.isPolyFunOrFun(valSirType)=${SIRType.isPolyFunOrFun(valSirType)}"
-                      )
-                      println(
-                        s"SIRType.isPolyFunOrFunUnit(valSirType)=${SIRType.isPolyFunOrFunUnit(valSirType)}"
-                      )
-                      println(s"vd.rhs.tpe.widen=${vd.rhs.tpe.widen.show}")
-                      println(s"vd.tpe.widen=${vd.tpe.widen.show}")
-                      throw e
+              LocalBinding(
+                name.show,
+                bindingSirType,
+                vd.symbol,
+                Recursivity.NonRec,
+                bodyExpr1,
+                vd.sourcePos,
+                calculateLocalBindingFlags(vd.tpe)
+              )
             )
     }
 
@@ -2612,7 +2594,6 @@ final class SIRCompiler(
         else
             member.info match
                 case _: MethodType | _: PolyType =>
-                    val mtp = sirTypeInEnv(member.info, tree.srcPos, env)
                     if member.symbol.flags.is(Flags.Method) then
                         if env.debug then
                             println(
@@ -2636,7 +2617,7 @@ final class SIRCompiler(
 
     private def compileTreeInModule(
         env: Env,
-        td: TypeDef,
+        @unused td: TypeDef,
         tree: Tree
     ): Option[LocalBinding] = {
 
@@ -3106,7 +3087,7 @@ final class SIRCompiler(
                 gatherExternalModulesFromSir(myModuleName, body, acc1)
             case SIR.LamAbs(_, term, _, _) =>
                 gatherExternalModulesFromSir(myModuleName, term, acc)
-            case SIR.Apply(f, arg, _, _) =>
+            case SIR.Apply(f, arg, tp, anns) =>
                 val acc1 = gatherExternalModulesFromSir(myModuleName, f, acc)
                 gatherExternalModulesFromSir(myModuleName, arg, acc1)
             case SIR.Select(obj, _, _, _) =>
@@ -3140,7 +3121,11 @@ final class SIRCompiler(
 
     }
 
-    def buildDepsTree(dependencies: Map[String, SIR.ExternalVar], srcPos: SrcPos): Tree = {
+    def buildDepsTree(
+        currentModuleName: String,
+        dependencies: Map[String, SIR.ExternalVar],
+        srcPos: SrcPos
+    ): Tree = {
         val moduleWithDepsRefs = dependencies.map { case (name, externalVar) =>
             name -> {
                 val cName = name.replace("$", "")
@@ -3148,21 +3133,37 @@ final class SIRCompiler(
                 val moduleRef = tpd.ref(moduleSym).withSpan(srcPos.span)
                 // println(s"moduleRef: ${moduleRef.show}")
                 // println(s"flags: ${moduleSym.flags.flagsString}")
-                val decls = moduleSym.info.decls.filter(x => true)
-                // println(s"methods: ${decls.map(_.show).mkString(", ")}")
-                if moduleSym.info
-                        .findDecl(
-                          Plugin.SIR_MODULE_VAL_NAME.toTermName,
-                          EmptyFlags
-                        )
-                        == SymDenotations.NoDenotation
-                then {
+                if !moduleSym.isCompleted then {
                     report.error(
-                      s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} is not found",
+                      s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} is not completed\n" +
+                          s"usually this means, that non-scalus object to scalus program",
                       srcPos
                     )
-                    // write empty module instean.
-                    val module = Module(SIRVersion, s"notfound:${cName}", List.empty)
+                }
+                if !moduleSym.isCompleted || moduleSym.info.findDecl(
+                      Plugin.SIR_MODULE_VAL_NAME.toTermName,
+                      EmptyFlags
+                    ) == SymDenotations.NoDenotation
+                then {
+                    val module =
+                        if externalVar.name.endsWith("derived$FromData") || externalVar.name
+                                .endsWith("derived$ToData")
+                        then
+                            // this invocation will be replaced by linker if backend use universal data representation.
+                            //   (i.e. if this is S3LoweringBackend)
+                            // we generate SIR for all backends,  so -- not produce error, this ExternalVars will be
+                            // replaced
+                            val moduleSym = Symbols.requiredModule(
+                              "scalus.builtin.internal.UniversalDataConversion"
+                            )
+                            Module(SIRVersion, moduleSym.fullName.toString, List.empty)
+                        else
+                            report.error(
+                              s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} is not found",
+                              srcPos
+                            )
+                            // write empty module instean.
+                            Module(SIRVersion, s"notfound:${cName}", List.empty)
                     val moduleToExprSym = Symbols.requiredModule("scalus.sir.ModuleToExpr")
                     val moduleTree = {
                         convertFlatToTree(

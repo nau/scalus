@@ -96,7 +96,14 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
 
     private def traverseAndLinkExpr(sir: AnnotatedSIR, pos: SIRPosition): AnnotatedSIR = sir match
         case v @ SIR.ExternalVar(moduleName, name, tp, ann) if !globalDefs.contains(name) =>
-            linkDefinition(moduleName, name, pos, tp, ann)
+            if moduleName == "scalus.builtin.internal.UniversalDataConversion$" then
+                if name != "scalus.builtin.internal.UniversalDataConversion$.fromData" &&
+                    name != "scalus.builtin.internal.UniversalDataConversion$.toData"
+                then
+                    val msg =
+                        s"Unknown external variable in universal data conversion module: ${name}"
+                    error(msg, ann.pos, v)
+            else linkDefinition(moduleName, name, pos, tp, ann)
             v
         case v @ SIR.Let(recursivity, bindings, body, anns) =>
             val nBingings =
@@ -266,7 +273,8 @@ object SIRLinker {
             println(s"Linking SIR with deps: ${deps.map(_.sirModule.name).mkString(", ")}")
         val modules = readModules(deps)
         val linker = new SIRLinker(options, modules)
-        linker.link(sir, pos)
+        val linked = linker.link(sir, pos)
+        RemoveRecursivity(linked)
     }
 
     def readModules(deps: List[SIRCompiled]): Map[String, Module] = {

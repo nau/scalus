@@ -1,5 +1,6 @@
 package scalus.prelude
 
+import scalus.builtin.Data.{fromData, toData}
 import scalus.prelude.List.{Cons, Nil}
 import scalus.prelude.Option.{None, Some}
 

@@ -7,6 +7,7 @@ import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.*
 import dotty.tools.dotc.core.DenotTransformers.IdentityDenotTransformer
 import dotty.tools.dotc.core.Symbols.*
+import dotty.tools.dotc.core.Names.Name
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.transform.{ElimByName, ExpandSAMs, Pickler, PostTyper}
 import dotty.tools.dotc.util.{Spans, SrcPos}
@@ -14,7 +15,7 @@ import dotty.tools.dotc.typer.Implicits
 import dotty.tools.io.ClassPath
 import scalus.flat.FlatInstantces
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
-import scalus.sir.{RemoveRecursivity, SIR, SIRPosition}
+import scalus.sir.{RemoveRecursivity, SIR, SIRDefaultOptions, SIRPosition}
 
 import scala.collection.immutable
 import scala.language.implicitConversions
@@ -175,8 +176,15 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                           sirResult,
                           Map.empty
                         )
-                        val depsTree = compiler.buildDepsTree(dependencyEntries, tree.srcPos)
-                        val SIRLinkerModule = requiredModule("scalus.sir.SIRLinker")
+                        val depsTree =
+                            try compiler.buildDepsTree(myModuleName, dependencyEntries, tree.srcPos)
+                            catch
+                                case scala.util.control.NonFatal(ex) =>
+                                    println(
+                                      "Error building deps tree,  myModuleName=" + myModuleName
+                                    )
+                                    throw ex;
+                        val SIRLinkerModule = requiredModule("scalus.sir.linking.SIRLinker")
                         val SIRLinkerMethod = SIRLinkerModule.requiredMethod("link")
                         val sirPos =
                             createSIRPositionTree(SIRPosition.fromSrcPos(tree.srcPos), tree.span)
@@ -257,20 +265,35 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
     )(using Context): SIRCompilerOptions = {
 
         // Default options
-        var backend: String = "SimpleSirToUplcLowering"
-        var generateErrorTraces: Boolean = true
-        var optimizeUplc: Boolean = true
+        var backend: String = SIRDefaultOptions.targetLoweringBackend.toString
+        var generateErrorTraces: Boolean = SIRDefaultOptions.generateErrorTraces
+        var optimizeUplc: Boolean = SIRDefaultOptions.optimizeUplc
         var debug: Boolean = false
         var codeDebugLevel: Int = 0
         var useUniversalDataConversion: Boolean = false
-        var runtimeLinker: Boolean = true
-        var writeSirToFile: Boolean = false
+        var runtimeLinker: Boolean = SIRDefaultOptions.runtimeLinker
+        var writeSIRToFile: Boolean = SIRDefaultOptions.writeSIRToFile
 
-        def parseTargetLoweringBackend(value: Tree): Unit = {
+        def parseTargetLoweringBackend(value: Tree, vals: List[Tree]): Unit = {
             var parsed = true
             value match {
                 case Ident(name) =>
-                    backend = name.toString
+                    if name.startsWith("$lessinit$greater$default")
+                    then
+                        // This is a default value for a parameter,
+                        backend = SIRDefaultOptions.targetLoweringBackend.toString
+                    else if name.toString.startsWith("targetLoweringBackend$")
+                    then
+                        // This is a default value for a parameter,
+                        findValdefWithName(name, vals) match
+                            case Some(vd) =>
+                                parseTargetLoweringBackend(vd.rhs, Nil)
+                            case None =>
+                                report.warning(
+                                  s"ScalusPhase: Expected a value definition for ${name}, but not found in the template",
+                                  value.srcPos
+                                )
+                    else backend = name.toString
                 case Select(_, name) =>
                     backend = name.toString
                 case _ =>
@@ -281,12 +304,20 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                     )
             }
             if backend.equals("SirToUplcV3Lowering") then useUniversalDataConversion = true
-            if parsed then
+            if parsed then {
+                // check that the backend is valid
+                if !(backend == "SimpleSirToUplcLowering" || backend == "SirToUplc110Lowering" || backend == "SirToUplcV3Lowering")
+                then
+                    report.warning(
+                      s"ScalusPhase: Unknown targetLoweringBackend: ${backend}, using default: ${SIRDefaultOptions.targetLoweringBackend}",
+                      value.srcPos
+                    )
+                    backend = SIRDefaultOptions.targetLoweringBackend.toString
                 if debugLevel > 0 || isCompilerDebug then
                     println(
                       s"parseTargetLoweringBackend: ${backend}, useUniversalDataConversion=${useUniversalDataConversion}"
                     )
-            else {
+            } else {
                 report.warning(
                   s"ScalusPhase: Failed to parse targetLoweringBackend, using default: ${backend}",
                   value.srcPos
@@ -294,13 +325,41 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             }
         }
 
-        def parseBooleanValue(value: Tree): Option[Boolean] = {
+        def parseBooleanValue(
+            paramName: String,
+            value: Tree,
+            vals: List[Tree]
+        ): Option[Boolean] = {
             value match {
                 case Literal(Constant(flag: Boolean)) => Some(flag)
                 //  tree:Select(Select(Select(Ident(scalus),Compiler),Options),$lessinit$greater$default$2)
                 case Select(_, name) if name.toString.startsWith("$lessinit$greater$default") =>
                     // This is a default value for a parameter,
                     None
+                case Ident(name) =>
+                    if name.startsWith("$lessinit$greater$default")
+                    then None
+                    else if name.toString.startsWith(paramName + "$") then {
+                        findValdefWithName(name, vals) match
+                            case Some(vd) =>
+                                parseBooleanValue(paramName, vd.rhs, Nil)
+                            case None =>
+                                report.warning(
+                                  s"ScalusPhase: Expected a value definition for ${name}, but not found in the template\n"
+                                      + (if vals.isEmpty then "vals is empty"
+                                         else "vals: " + vals.map(_.show).mkString(", ")),
+                                  value.srcPos
+                                )
+                                None
+                    } else {
+                        val expectedParam = paramName + "$1"
+                        report.warning(
+                          s"ScalusPhase: Expected a boolean literal, but found identifier: ${value.show}, name=${name}, paramName=$paramName, exp=${expectedParam}",
+                          value.srcPos
+                        )
+                        throw new RuntimeException("QQQ")
+                        None
+                    }
                 case _ =>
                     report.warning(
                       s"ScalusPhase: Expected a boolean literal, but found: ${value.show}\ntree:${value}",
@@ -310,11 +369,38 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             }
         }
 
-        def parseIntValue(value: Tree): Option[Int] = {
+        def parseIntValue(paramName: String, value: Tree, vals: List[Tree]): Option[Int] = {
             value match {
                 case Literal(Constant(num: Int)) => Some(num)
-                case Select(_, name) if name.toString.startsWith("$lessinit$greater$default") =>
+                case Select(_, name)
+                    if name.toString.startsWith("$lessinit$greater$default") ||
+                        name.toString.startsWith(paramName + "$") =>
                     None
+                case Ident(name) =>
+                    if name.startsWith("$lessinit$greater$default")
+                    then None
+                    else if name.toString.startsWith(paramName + "$") then
+                        findValdefWithName(name, vals) match
+                            case Some(vd) =>
+                                parseIntValue(paramName, vd.rhs, Nil)
+                            case None =>
+                                report.warning(
+                                  s"ScalusPhase: Expected a value definition for ${name}, but not found in the template\n"
+                                      + (if vals.isEmpty then "(empty vals)"
+                                         else
+                                             "vals: " + vals
+                                                 .map(_.show)
+                                                 .mkString(", ")),
+                                  value.srcPos
+                                )
+                                None
+                    else {
+                        report.warning(
+                          s"ScalusPhase: Expected an integer literal, but found identifier: ${value.show}",
+                          value.srcPos
+                        )
+                        None
+                    }
                 case _ =>
                     report.warning(
                       s"ScalusPhase: Expected an integer literal, but found: ${value.show}",
@@ -327,26 +413,33 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         // Parse the arguments of the compiler options
         //  Note, that default values should be synchronized with the default value in scalus.Compiler.Options class
         //  (which is unaccessibke from here, so we should keep them in sync manually)
-        def parseArg(arg: Tree, idx: Int): Unit = {
+        def parseArg(arg: Tree, idx: Int, vals: List[Tree]): Unit = {
             arg match
                 case tpd.NamedArg(name, value) =>
                     if name.toString == "targetLoweringBackend" then
-                        parseTargetLoweringBackend(value)
+                        parseTargetLoweringBackend(value, vals)
                     else if name.toString == "generateErrorTraces" then
-                        generateErrorTraces = parseBooleanValue(value).getOrElse(true)
-                    else if name.toString == "optimizeUplc" then
-                        optimizeUplc = parseBooleanValue(value).getOrElse(false)
-                    else if name.toString == "debug" then
-                        debug = parseBooleanValue(value).getOrElse(false)
+                        generateErrorTraces = parseBooleanValue("generateErrorTraces", value, vals)
+                            .getOrElse(SIRDefaultOptions.generateErrorTraces)
+                    else if name.toString == "optimizeUplc" then {
+                        optimizeUplc = parseBooleanValue("optimizeUplc", value, vals).getOrElse(
+                          SIRDefaultOptions.optimizeUplc
+                        )
+                    } else if name.toString == "debug" then
+                        debug = parseBooleanValue("debug", value, vals).getOrElse(false)
                     else if name.toString == "debugLevel" then
-                        codeDebugLevel = parseIntValue(value).getOrElse(0)
+                        codeDebugLevel = parseIntValue("debugLevel", value, vals).getOrElse(0)
                     // else if name.toString == "useUniversalDataConversion" then {
                     //    useUniversalDataConversion = depend from the used backedm
                     //    useUniversalDataConversion = parseBooleanValue(value).getOrElse(true)
                     else if name.toString == "runtimeLinker" then
-                        runtimeLinker = parseBooleanValue(value).getOrElse(true)
-                    else if name.toString == "writeSirToFile" then
-                        writeSirToFile = parseBooleanValue(value).getOrElse(false)
+                        runtimeLinker = parseBooleanValue("runtimeLinker", value, vals).getOrElse(
+                          SIRDefaultOptions.runtimeLinker
+                        )
+                    else if name.toString == "writeSIRToFile" then
+                        writeSIRToFile = parseBooleanValue("writeSIRToFile", value, vals).getOrElse(
+                          SIRDefaultOptions.writeSIRToFile
+                        )
                     else {
                         report.warning(
                           s"ScalusPhase: Unknown compiler option: $name",
@@ -356,28 +449,58 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 case value =>
                     idx match
                         case 0 => // targetLoweringBackend
-                            parseTargetLoweringBackend(value)
+                            parseTargetLoweringBackend(value, vals)
                         case 1 => // generateErrorTraces
-                            generateErrorTraces = parseBooleanValue(value).getOrElse(true)
+                            generateErrorTraces =
+                                parseBooleanValue("generateErrorTraces", value, vals).getOrElse(
+                                  SIRDefaultOptions.generateErrorTraces
+                                )
                         case 2 => // optimizeUplc
-                            optimizeUplc = parseBooleanValue(value).getOrElse(false)
-                        case 3 => // debug
-                            debug = parseBooleanValue(value).getOrElse(false)
-                            if debug then codeDebugLevel = 10
-                        case 4 => // debugLevel
-                            codeDebugLevel = parseIntValue(value).getOrElse(0)
-                        case 5 => // useUniversalDataConversion
-                            useUniversalDataConversion =
-                                parseBooleanValue(value).getOrElse(useUniversalDataConversion)
-                        case 6 => // runtimeLinker
-                            runtimeLinker = parseBooleanValue(value).getOrElse(false)
-                        case 7 => // writeSirToFile
-                            writeSirToFile = parseBooleanValue(value).getOrElse(false)
+                            optimizeUplc = parseBooleanValue("optimizeUplc", value, vals).getOrElse(
+                              SIRDefaultOptions.optimizeUplc
+                            )
+                        case 3 => // runtimeLinker
+                            runtimeLinker =
+                                parseBooleanValue("runtimeLinker", value, vals).getOrElse(
+                                  SIRDefaultOptions.runtimeLinker
+                                )
+                        case 4 => // writeSIRToFile
+                            writeSIRToFile =
+                                parseBooleanValue("writeSIRToFile", value, vals).getOrElse(
+                                  SIRDefaultOptions.writeSIRToFile
+                                )
+                        case 5 => // debugLevel
+                            codeDebugLevel = parseIntValue("debugLevel", value, vals).getOrElse(0)
+                        case 6 => // debug
+                            debug =
+                                parseBooleanValue("debug", value, vals).getOrElse(isCompilerDebug)
+                            if debug && codeDebugLevel == 0 then codeDebugLevel = 10
                         case _ =>
                             report.warning(
                               s"ScalusPhase: too many position argiments for scalus.compiler.Options, expected max 4, but found ${idx + 1}",
                               posTree.srcPos.startPos
                             )
+        }
+
+        def parseCompilerOptionsApply(app: tpd.Apply, stats: List[Tree]): Unit = {
+            // println("compiler options apply: " + app.show)
+            if app.fun.symbol != Symbols.requiredMethod(
+                  "scalus.Compiler.Options.apply"
+                )
+            then
+                report.warning(
+                  "expected scalus.Compiler.Options.apply",
+                  posTree.srcPos
+                )
+            app.args.zipWithIndex.foreach { case (arg, idx) =>
+                parseArg(arg, idx, stats)
+            }
+        }
+
+        def findValdefWithName(name: Name, vals: List[Tree]): Option[ValDef] = {
+            vals.collectFirst {
+                case vd: ValDef if vd.symbol.name == name => vd
+            }
         }
 
         val compilerOptionType = requiredClassRef("scalus.Compiler.Options")
@@ -406,22 +529,16 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                             obj
                         case _ => defDefTree
                     underTyped match
-                        case tpd.Apply(obj, args) =>
+                        case app @ tpd.Apply(obj, args) =>
                             // report.echo(s"defDefTree.rhs.apply, args=${args}")
-                            if obj.symbol != Symbols.requiredMethod(
-                                  "scalus.Compiler.Options.apply"
-                                )
-                            then
-                                report.warning(
-                                  "expected scalus.Compiler.Options.apply",
-                                  posTree.srcPos
-                                )
-                            args.zipWithIndex.foreach { case (arg, idx) =>
-                                parseArg(arg, idx)
-                            }
+                            parseCompilerOptionsApply(app, Nil)
+                        case Block(stats, app @ tpd.Apply(obj, args)) =>
+                            // report.echo(s"defDefTree.rhs.block.apply, args=${args}")
+                            parseCompilerOptionsApply(app, stats)
                         case _ =>
                             report.warning(
-                              s"ScalusPhase: Expected a call to scalus.Compiler.Options.apply, but found: ${underTyped.show}",
+                              s"ScalusPhase: Expected a call to scalus.Compiler.Options.apply, but found: ${underTyped.show}" +
+                                  s"ntree:${underTyped}",
                               posTree.srcPos
                             )
                 else report.warning("defdef expected as compiler options", deftree.srcPos)
@@ -437,7 +554,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 }
         }
         val retval = SIRCompilerOptions(
-          universalDataRepresentation = useUniversalDataConversion,
+          backend = backend,
           debugLevel = if debugLevel == 0 then codeDebugLevel else debugLevel
         )
         if isCompilerDebug then
@@ -452,7 +569,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         pos: SrcPos
     )(using Context): tpd.Tree = {
         import tpd.*
-        val linkerOptionsModule = requiredModule("scalus.sir.linker.SIRLinkerOptions")
+        val linkerOptionsModule = requiredModule("scalus.sir.linking.SIRLinkerOptions")
         val linkerOptionsTree = ref(linkerOptionsModule).select(
           linkerOptionsModule.requiredMethod("apply")
         )

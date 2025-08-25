@@ -14,6 +14,9 @@ autoCompilerPlugins := true
 
 val scalusStableVersion = "0.10.0"
 val scalusCompatibleVersion = scalusStableVersion
+//ThisBuild / scalaVersion := "3.8.0-RC1-bin-SNAPSHOT"
+//ThisBuild / scalaVersion := "3.3.7-RC1-bin-SNAPSHOT"
+//ThisBuild / scalaVersion := "3.7.3-RC1-bin-SNAPSHOT"
 ThisBuild / scalaVersion := "3.3.6"
 ThisBuild / organization := "org.scalus"
 ThisBuild / organizationName := "Scalus"
@@ -135,6 +138,7 @@ lazy val scalusPlugin = project
             "scalus/builtin/Data.scala",
             "scalus/builtin/List.scala",
             "scalus/sir/SIR.scala",
+            "scalus/sir/SIRDefaultOptions.scala",
             "scalus/sir/SIRMacro.scala",
             "scalus/sir/SIRType.scala",
             "scalus/sir/SIRToExpr.scala",

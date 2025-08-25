@@ -4,13 +4,13 @@ import scalus.sir.*
 import scalus.sir.lowering.Lowering.tpf
 import scalus.uplc.*
 import org.typelevel.paiges.Doc
-import scalus.sir.SIRType.isSum
+//import scalus.sir.SIRType.isSum
 import scalus.sir.lowering.SumCaseClassRepresentation.SumDataList
-import scalus.sir.lowering.typegens.SirTypeUplcGenerator
+//import scalus.sir.lowering.typegens.SirTypeUplcGenerator
 
 import scala.collection.mutable.Set as MutableSet
 import scala.collection.mutable.Map as MutableMap
-import scala.util.control.NonFatal
+//import scala.util.control.NonFatal
 
 /** SEA of nodes - like representation. E.e. each value is node, which manage dependencies.
   * LoweredValue:

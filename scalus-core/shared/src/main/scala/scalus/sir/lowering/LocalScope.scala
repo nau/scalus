@@ -1,6 +1,5 @@
 package scalus.sir.lowering
 
-import scalus.sir.SIRPosition
 
 case class LocalScope(
     byId: Map[String, VariableLoweredValue],
