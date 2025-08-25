@@ -27,7 +27,7 @@ case class BuiltinRuntime(
     args: Seq[CekValue],
     costFunction: CostingFun
 ) {
-    def apply(logger: Logger) = f(logger, args)
+    def apply(logger: Logger): CekValue = f(logger, args)
 
     def calculateCost: ExBudget = costFunction.calculateCost(args*)
 }
@@ -52,7 +52,7 @@ class BuiltinsMeaning(
         BuiltinRuntime(t, f, ArraySeq.empty, costFunction)
     import TypeScheme.*
 
-    val AddInteger =
+    val AddInteger: BuiltinRuntime =
         mkMeaning(
           Integer ->: Integer ->: Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -63,7 +63,7 @@ class BuiltinsMeaning(
           builtinCostModel.addInteger
         )
 
-    val SubtractInteger =
+    val SubtractInteger: BuiltinRuntime =
         mkMeaning(
           Integer ->: Integer ->: Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -74,7 +74,7 @@ class BuiltinsMeaning(
           builtinCostModel.subtractInteger
         )
 
-    val MultiplyInteger =
+    val MultiplyInteger: BuiltinRuntime =
         mkMeaning(
           Integer ->: Integer ->: Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -85,7 +85,7 @@ class BuiltinsMeaning(
           builtinCostModel.multiplyInteger
         )
 
-    val DivideInteger =
+    val DivideInteger: BuiltinRuntime =
         mkMeaning(
           Integer ->: Integer ->: Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -96,7 +96,7 @@ class BuiltinsMeaning(
           builtinCostModel.divideInteger
         )
 
-    val QuotientInteger =
+    val QuotientInteger: BuiltinRuntime =
         mkMeaning(
           Integer ->: Integer ->: Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -107,7 +107,7 @@ class BuiltinsMeaning(
           builtinCostModel.quotientInteger
         )
 
-    val RemainderInteger =
+    val RemainderInteger: BuiltinRuntime =
         mkMeaning(
           Integer ->: Integer ->: Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -118,7 +118,7 @@ class BuiltinsMeaning(
           builtinCostModel.remainderInteger
         )
 
-    val ModInteger =
+    val ModInteger: BuiltinRuntime =
         mkMeaning(
           Integer ->: Integer ->: Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -129,7 +129,7 @@ class BuiltinsMeaning(
           builtinCostModel.modInteger
         )
 
-    val EqualsInteger =
+    val EqualsInteger: BuiltinRuntime =
         mkMeaning(
           Integer ->: Integer ->: Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -140,7 +140,7 @@ class BuiltinsMeaning(
           builtinCostModel.equalsInteger
         )
 
-    val LessThanEqualsInteger =
+    val LessThanEqualsInteger: BuiltinRuntime =
         mkMeaning(
           Integer ->: Integer ->: Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -151,7 +151,7 @@ class BuiltinsMeaning(
           builtinCostModel.lessThanEqualsInteger
         )
 
-    val LessThanInteger =
+    val LessThanInteger: BuiltinRuntime =
         mkMeaning(
           Integer ->: Integer ->: Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -162,7 +162,7 @@ class BuiltinsMeaning(
           builtinCostModel.lessThanInteger
         )
 
-    val AppendByteString =
+    val AppendByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -173,7 +173,7 @@ class BuiltinsMeaning(
           builtinCostModel.appendByteString
         )
 
-    val ConsByteString =
+    val ConsByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Integer ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -192,7 +192,7 @@ class BuiltinsMeaning(
           builtinCostModel.consByteString
         )
 
-    val SliceByteString =
+    val SliceByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Integer ->: DefaultUni.Integer ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -204,7 +204,7 @@ class BuiltinsMeaning(
           builtinCostModel.sliceByteString
         )
 
-    val IndexByteString =
+    val IndexByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -215,7 +215,7 @@ class BuiltinsMeaning(
           builtinCostModel.indexByteString
         )
 
-    val LengthOfByteString =
+    val LengthOfByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -225,7 +225,7 @@ class BuiltinsMeaning(
           builtinCostModel.lengthOfByteString
         )
 
-    val EqualsByteString =
+    val EqualsByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -236,7 +236,7 @@ class BuiltinsMeaning(
           builtinCostModel.equalsByteString
         )
 
-    val LessThanByteString =
+    val LessThanByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -247,7 +247,7 @@ class BuiltinsMeaning(
           builtinCostModel.lessThanByteString
         )
 
-    val LessThanEqualsByteString =
+    val LessThanEqualsByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -258,7 +258,7 @@ class BuiltinsMeaning(
           builtinCostModel.lessThanEqualsByteString
         )
 
-    val Sha2_256 =
+    val Sha2_256: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -268,7 +268,7 @@ class BuiltinsMeaning(
           builtinCostModel.sha2_256
         )
 
-    val Sha3_256 =
+    val Sha3_256: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -278,7 +278,7 @@ class BuiltinsMeaning(
           builtinCostModel.sha3_256
         )
 
-    val Blake2b_256 =
+    val Blake2b_256: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -288,7 +288,7 @@ class BuiltinsMeaning(
           builtinCostModel.blake2b_256
         )
 
-    val Blake2b_224 =
+    val Blake2b_224: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -298,7 +298,7 @@ class BuiltinsMeaning(
           builtinCostModel.blake2b_224
         )
 
-    val VerifyEd25519Signature =
+    val VerifyEd25519Signature: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -310,7 +310,7 @@ class BuiltinsMeaning(
           builtinCostModel.verifyEd25519Signature
         )
 
-    val VerifyEcdsaSecp256k1Signature =
+    val VerifyEcdsaSecp256k1Signature: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -322,7 +322,7 @@ class BuiltinsMeaning(
           builtinCostModel.verifyEcdsaSecp256k1Signature
         )
 
-    val VerifySchnorrSecp256k1Signature =
+    val VerifySchnorrSecp256k1Signature: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -334,7 +334,7 @@ class BuiltinsMeaning(
           builtinCostModel.verifySchnorrSecp256k1Signature
         )
 
-    val AppendString =
+    val AppendString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.String ->: DefaultUni.String ->: DefaultUni.String,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -345,7 +345,7 @@ class BuiltinsMeaning(
           builtinCostModel.appendString
         )
 
-    val EqualsString =
+    val EqualsString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.String ->: DefaultUni.String ->: Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -356,7 +356,7 @@ class BuiltinsMeaning(
           builtinCostModel.equalsString
         )
 
-    val EncodeUtf8 =
+    val EncodeUtf8: BuiltinRuntime =
         mkMeaning(
           DefaultUni.String ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -366,7 +366,7 @@ class BuiltinsMeaning(
           builtinCostModel.encodeUtf8
         )
 
-    val DecodeUtf8 =
+    val DecodeUtf8: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.String,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -376,7 +376,7 @@ class BuiltinsMeaning(
           builtinCostModel.decodeUtf8
         )
 
-    val IfThenElse =
+    val IfThenElse: BuiltinRuntime =
         mkMeaning(
           All("a", Bool ->: TVar("a") ->: TVar("a") ->: TVar("a")),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -388,7 +388,7 @@ class BuiltinsMeaning(
           builtinCostModel.ifThenElse
         )
 
-    val ChooseUnit =
+    val ChooseUnit: BuiltinRuntime =
         mkMeaning(
           All("a", DefaultUni.Unit ->: TVar("a") ->: TVar("a")),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -399,7 +399,7 @@ class BuiltinsMeaning(
           builtinCostModel.chooseUnit
         )
 
-    val Trace =
+    val Trace: BuiltinRuntime =
         mkMeaning(
           All("a", DefaultUni.String ->: TVar("a") ->: TVar("a")),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -411,7 +411,7 @@ class BuiltinsMeaning(
         )
 
     // [ forall a, forall b, pair(a, b) ] -> a
-    val FstPair =
+    val FstPair: BuiltinRuntime =
         mkMeaning(
           All("a", All("b", (DefaultUni.ProtoPair $ "a" $ "b") ->: TVar("a"))),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -422,7 +422,7 @@ class BuiltinsMeaning(
         )
 
     // [ forall a, forall b, pair(a, b) ] -> b
-    val SndPair =
+    val SndPair: BuiltinRuntime =
         mkMeaning(
           All("a", All("b", (DefaultUni.ProtoPair $ "a" $ "b") ->: TVar("b"))),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -433,7 +433,7 @@ class BuiltinsMeaning(
         )
 
     // [ forall a, forall b, list(a), b, b ] -> b
-    val ChooseList =
+    val ChooseList: BuiltinRuntime =
         mkMeaning(
           All(
             "a",
@@ -447,7 +447,7 @@ class BuiltinsMeaning(
         )
 
     // [ forall a, a, list(a) ] -> list(a)
-    val MkCons =
+    val MkCons: BuiltinRuntime =
         mkMeaning(
           All("a", TVar("a") ->: (DefaultUni.ProtoList $ "a") ->: (DefaultUni.ProtoList $ "a")),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -465,7 +465,7 @@ class BuiltinsMeaning(
         )
 
     // [ forall a, list(a) ] -> a
-    val HeadList =
+    val HeadList: BuiltinRuntime =
         mkMeaning(
           All("a", (DefaultUni.ProtoList $ "a") ->: TVar("a")),
           (logger: Logger, args: Seq[CekValue]) => VCon(args(0).asList.head),
@@ -473,7 +473,7 @@ class BuiltinsMeaning(
         )
 
     // [ forall a, list(a) ] -> list(a)
-    val TailList =
+    val TailList: BuiltinRuntime =
         mkMeaning(
           All("a", (DefaultUni.ProtoList $ "a") ->: (DefaultUni.ProtoList $ "a")),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -485,14 +485,14 @@ class BuiltinsMeaning(
         )
 
     // [ forall a, list(a) ] -> bool
-    val NullList =
+    val NullList: BuiltinRuntime =
         mkMeaning(
           All("a", (DefaultUni.ProtoList $ "a") ->: Type(Bool)),
           (logger: Logger, args: Seq[CekValue]) => VCon(asConstant(args(0).asList.isEmpty)),
           builtinCostModel.nullList
         )
 
-    val ChooseData =
+    val ChooseData: BuiltinRuntime =
         mkMeaning(
           All(
             "a",
@@ -507,7 +507,7 @@ class BuiltinsMeaning(
           builtinCostModel.chooseData
         )
 
-    val ConstrData =
+    val ConstrData: BuiltinRuntime =
         mkMeaning(
           Integer ->: DefaultUni.List(DefaultUni.Data) ->: DefaultUni.Data,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -521,7 +521,7 @@ class BuiltinsMeaning(
           builtinCostModel.constrData
         )
 
-    val MapData =
+    val MapData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data)) ->: DefaultUni.Data,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -540,7 +540,7 @@ class BuiltinsMeaning(
           builtinCostModel.mapData
         )
 
-    val ListData =
+    val ListData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.List(DefaultUni.Data) ->: DefaultUni.Data,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -553,7 +553,7 @@ class BuiltinsMeaning(
           builtinCostModel.listData
         )
 
-    val IData =
+    val IData: BuiltinRuntime =
         mkMeaning(
           Integer ->: DefaultUni.Data,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -563,7 +563,7 @@ class BuiltinsMeaning(
           builtinCostModel.iData
         )
 
-    val BData =
+    val BData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Data,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -576,7 +576,7 @@ class BuiltinsMeaning(
     /*
     unConstrData : [ data ] -> pair(integer, list(data))
      */
-    val UnConstrData =
+    val UnConstrData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.Pair(Integer, DefaultUni.List(DefaultUni.Data)),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -588,7 +588,7 @@ class BuiltinsMeaning(
           builtinCostModel.unConstrData
         )
 
-    val UnMapData =
+    val UnMapData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.List(DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data)),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -607,7 +607,7 @@ class BuiltinsMeaning(
           builtinCostModel.unMapData
         )
 
-    val UnListData =
+    val UnListData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.List(DefaultUni.Data),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -619,7 +619,7 @@ class BuiltinsMeaning(
           builtinCostModel.unListData
         )
 
-    val UnIData =
+    val UnIData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -631,7 +631,7 @@ class BuiltinsMeaning(
           builtinCostModel.unIData
         )
 
-    val UnBData =
+    val UnBData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -643,7 +643,7 @@ class BuiltinsMeaning(
           builtinCostModel.unBData
         )
 
-    val EqualsData =
+    val EqualsData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.Data ->: DefaultUni.Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -659,7 +659,7 @@ class BuiltinsMeaning(
           builtinCostModel.equalsData
         )
 
-    val SerialiseData =
+    val SerialiseData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -671,7 +671,7 @@ class BuiltinsMeaning(
           builtinCostModel.serialiseData
         )
 
-    val MkPairData =
+    val MkPairData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Data ->: DefaultUni.Data ->: DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -682,7 +682,7 @@ class BuiltinsMeaning(
           builtinCostModel.mkPairData
         )
 
-    val MkNilData =
+    val MkNilData: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Unit ->: DefaultUni.List(DefaultUni.Data),
           (logger: Logger, args: Seq[CekValue]) =>
@@ -692,7 +692,7 @@ class BuiltinsMeaning(
           builtinCostModel.mkNilData
         )
 
-    val MkNilPairData = mkMeaning(
+    val MkNilPairData: BuiltinRuntime = mkMeaning(
       DefaultUni.Unit ->: DefaultUni.Pair(DefaultUni.Data, DefaultUni.Data),
       (logger: Logger, args: Seq[CekValue]) =>
           val _ = args(0).asUnit
@@ -701,7 +701,7 @@ class BuiltinsMeaning(
       builtinCostModel.mkNilPairData
     )
 
-    val Keccak_256 =
+    val Keccak_256: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -711,7 +711,7 @@ class BuiltinsMeaning(
           builtinCostModel.keccak_256
         )
 
-    val Bls12_381_G1_add = mkMeaning(
+    val Bls12_381_G1_add: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -727,7 +727,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G1_add
     )
 
-    val Bls12_381_G1_neg = mkMeaning(
+    val Bls12_381_G1_neg: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -739,7 +739,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G1_neg
     )
 
-    val Bls12_381_G1_scalarMul = mkMeaning(
+    val Bls12_381_G1_scalarMul: BuiltinRuntime = mkMeaning(
       DefaultUni.Integer ->: DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0).asInteger
@@ -752,7 +752,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G1_scalarMul
     )
 
-    val Bls12_381_G1_equal = mkMeaning(
+    val Bls12_381_G1_equal: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G1_Element ->: DefaultUni.Bool,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -768,7 +768,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G1_equal
     )
 
-    val Bls12_381_G1_compress = mkMeaning(
+    val Bls12_381_G1_compress: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_G1_Element ->: DefaultUni.ByteString,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -780,7 +780,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G1_compress
     )
 
-    val Bls12_381_G1_uncompress = mkMeaning(
+    val Bls12_381_G1_uncompress: BuiltinRuntime = mkMeaning(
       DefaultUni.ByteString ->: DefaultUni.BLS12_381_G1_Element,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0).asByteString
@@ -789,7 +789,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G1_uncompress
     )
 
-    val Bls12_381_G1_hashToGroup = mkMeaning(
+    val Bls12_381_G1_hashToGroup: BuiltinRuntime = mkMeaning(
       DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.BLS12_381_G1_Element,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0).asByteString
@@ -799,7 +799,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G1_hashToGroup
     )
 
-    val Bls12_381_G2_add = mkMeaning(
+    val Bls12_381_G2_add: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -815,7 +815,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G2_add
     )
 
-    val Bls12_381_G2_neg = mkMeaning(
+    val Bls12_381_G2_neg: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -827,7 +827,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G2_neg
     )
 
-    val Bls12_381_G2_scalarMul = mkMeaning(
+    val Bls12_381_G2_scalarMul: BuiltinRuntime = mkMeaning(
       DefaultUni.Integer ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0).asInteger
@@ -840,7 +840,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G2_scalarMul
     )
 
-    val Bls12_381_G2_equal = mkMeaning(
+    val Bls12_381_G2_equal: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.Bool,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -856,7 +856,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G2_equal
     )
 
-    val Bls12_381_G2_compress = mkMeaning(
+    val Bls12_381_G2_compress: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_G2_Element ->: DefaultUni.ByteString,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -868,7 +868,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G2_compress
     )
 
-    val Bls12_381_G2_uncompress = mkMeaning(
+    val Bls12_381_G2_uncompress: BuiltinRuntime = mkMeaning(
       DefaultUni.ByteString ->: DefaultUni.BLS12_381_G2_Element,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0).asByteString
@@ -877,7 +877,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G2_uncompress
     )
 
-    val Bls12_381_G2_hashToGroup = mkMeaning(
+    val Bls12_381_G2_hashToGroup: BuiltinRuntime = mkMeaning(
       DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.BLS12_381_G2_Element,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0).asByteString
@@ -887,7 +887,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_G2_hashToGroup
     )
 
-    val Bls12_381_millerLoop = mkMeaning(
+    val Bls12_381_millerLoop: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_G1_Element ->: DefaultUni.BLS12_381_G2_Element ->: DefaultUni.BLS12_381_MlResult,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -903,7 +903,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_millerLoop
     )
 
-    val Bls12_381_mulMlResult = mkMeaning(
+    val Bls12_381_mulMlResult: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_MlResult ->: DefaultUni.BLS12_381_MlResult ->: DefaultUni.BLS12_381_MlResult,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -919,7 +919,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_mulMlResult
     )
 
-    val Bls12_381_finalVerify = mkMeaning(
+    val Bls12_381_finalVerify: BuiltinRuntime = mkMeaning(
       DefaultUni.BLS12_381_MlResult ->: DefaultUni.BLS12_381_MlResult ->: DefaultUni.Bool,
       (logger: Logger, args: Seq[CekValue]) =>
           val aa = args(0) match {
@@ -935,7 +935,7 @@ class BuiltinsMeaning(
       builtinCostModel.bls12_381_finalVerify
     )
 
-    val IntegerToByteString =
+    val IntegerToByteString: BuiltinRuntime =
         mkMeaning(
           Bool ->: Integer ->: Integer ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -947,7 +947,7 @@ class BuiltinsMeaning(
           builtinCostModel.integerToByteString
         )
 
-    val ByteStringToInteger =
+    val ByteStringToInteger: BuiltinRuntime =
         mkMeaning(
           Bool ->: DefaultUni.ByteString ->: Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -958,7 +958,7 @@ class BuiltinsMeaning(
           builtinCostModel.byteStringToInteger
         )
 
-    val AndByteString =
+    val AndByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Bool ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -970,7 +970,7 @@ class BuiltinsMeaning(
           builtinCostModel.andByteString
         )
 
-    val OrByteString =
+    val OrByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Bool ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -982,7 +982,7 @@ class BuiltinsMeaning(
           builtinCostModel.orByteString
         )
 
-    val XorByteString =
+    val XorByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Bool ->: DefaultUni.ByteString ->: DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -994,7 +994,7 @@ class BuiltinsMeaning(
           builtinCostModel.xorByteString
         )
 
-    val ComplementByteString =
+    val ComplementByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -1004,7 +1004,7 @@ class BuiltinsMeaning(
           builtinCostModel.complementByteString
         )
 
-    val ReadBit =
+    val ReadBit: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.Bool,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -1015,7 +1015,7 @@ class BuiltinsMeaning(
           builtinCostModel.readBit
         )
 
-    val WriteBits =
+    val WriteBits: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.List(
             DefaultUni.Integer
@@ -1032,7 +1032,7 @@ class BuiltinsMeaning(
           builtinCostModel.writeBits
         )
 
-    val ReplicateByte =
+    val ReplicateByte: BuiltinRuntime =
         mkMeaning(
           DefaultUni.Integer ->: DefaultUni.Integer ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -1043,7 +1043,7 @@ class BuiltinsMeaning(
           builtinCostModel.replicateByte
         )
 
-    val ShiftByteString =
+    val ShiftByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -1054,7 +1054,7 @@ class BuiltinsMeaning(
           builtinCostModel.shiftByteString
         )
 
-    val RotateByteString =
+    val RotateByteString: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Integer ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -1065,7 +1065,7 @@ class BuiltinsMeaning(
           builtinCostModel.rotateByteString
         )
 
-    val CountSetBits =
+    val CountSetBits: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -1075,7 +1075,7 @@ class BuiltinsMeaning(
           builtinCostModel.countSetBits
         )
 
-    val FindFirstSetBit =
+    val FindFirstSetBit: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.Integer,
           (logger: Logger, args: Seq[CekValue]) =>
@@ -1085,7 +1085,7 @@ class BuiltinsMeaning(
           builtinCostModel.findFirstSetBit
         )
 
-    val Ripemd_160 =
+    val Ripemd_160: BuiltinRuntime =
         mkMeaning(
           DefaultUni.ByteString ->: DefaultUni.ByteString,
           (logger: Logger, args: Seq[CekValue]) =>

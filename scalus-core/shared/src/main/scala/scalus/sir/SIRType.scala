@@ -11,10 +11,10 @@ sealed trait SIRType {
 
     def show: String
 
-    def ~=~(that: SIRType): Boolean =
+    infix def ~=~(that: SIRType): Boolean =
         SIRUnify.topLevelUnifyType(this, that, SIRUnify.Env.empty).isSuccess
 
-    def ->:(that: SIRType): SIRType.Fun =
+    infix def ->:(that: SIRType): SIRType.Fun =
         SIRType.Fun(that, this)
 
     inline def =>>:(that: SIRType): SIRType.TypeLambda =
@@ -164,9 +164,7 @@ object SIRType {
 
     }
 
-    /** Type lamnda (always carried).
-      * @param param
-      * @param body
+    /** Type lambda (always curried).
       */
     case class TypeLambda(params: scala.List[TypeVar], body: SIRType) extends SIRType {
 
@@ -206,7 +204,7 @@ object SIRType {
             if ref == null then 0
             else
                 // do not call ref.hashCode because it will be recursively called
-                //  TODO: actually this beeak case-class contract
+                //  TODO: actually this breaks case-class contract
                 //    (equal recursive base-classes become unequal)
                 //    (maybe pass some hashcode to the constructor)
 
