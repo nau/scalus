@@ -1104,3 +1104,22 @@ class BuiltinsMeaning(
     lazy val BuiltinMeanings: immutable.Map[DefaultFun, BuiltinRuntime] = DefaultFun.values.map {
         fun => fun -> getBuiltinRuntime(fun)
     }.toMap
+
+    /** A map of all UPLC builtins to their forced versions.
+      *
+      * In UPLC, built-in functions can have polymorphic types, which means they can operate on
+      * different types of data, like:
+      *
+      * `ifThenElse : forall a. Boolean -> a -> a -> a`
+      *
+      * During erasure, type abstractions are replaced with `delay` and type applications with
+      * `force`. So on each use of a polymorphic builtin, we need to `force` all its type arguments.
+      *
+      * This map provides the forced versions of all builtins.
+      */
+    lazy val forcedBuiltins: Map[DefaultFun, Term] =
+        def forceBuiltin(scheme: TypeScheme, term: Term): Term = scheme match
+            case TypeScheme.All(_, t) => Term.Force(forceBuiltin(t, term))
+            case _                    => term
+
+        BuiltinMeanings.map((bi, rt) => bi -> forceBuiltin(rt.typeScheme, Term.Builtin(bi)))

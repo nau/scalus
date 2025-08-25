@@ -27,15 +27,7 @@ object Lowering {
             ) $ ~Term.Error)
         else Term.Error
 
-    private lazy val builtinTerms: Map[DefaultFun, Term] = {
-        def forceBuiltin(scheme: TypeScheme, term: Term): Term = scheme match
-            case TypeScheme.All(_, t) => Term.Force(forceBuiltin(t, term))
-            case _                    => term
-
-        Meaning.allBuiltins.BuiltinMeanings.map((bi, rt) =>
-            bi -> forceBuiltin(rt.typeScheme, Term.Builtin(bi))
-        )
-    }
+    private lazy val builtinTerms: Map[DefaultFun, Term] = Meaning.allBuiltins.forcedBuiltins
 
     def lowerSIR(
         sir: SIR,

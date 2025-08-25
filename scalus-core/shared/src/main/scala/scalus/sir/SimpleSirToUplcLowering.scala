@@ -17,14 +17,7 @@ import scala.collection.mutable
   */
 class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
 
-    private val builtinTerms =
-        def forceBuiltin(scheme: TypeScheme, term: Term): Term = scheme match
-            case TypeScheme.All(_, t) => Term.Force(forceBuiltin(t, term))
-            case _                    => term
-
-        Meaning.allBuiltins.BuiltinMeanings.map((bi, rt) =>
-            bi -> forceBuiltin(rt.typeScheme, Term.Builtin(bi))
-        )
+    private def builtinTerms = Meaning.allBuiltins.forcedBuiltins
 
     private var zCombinatorNeeded: Boolean = false
     private val decls = mutable.HashMap.empty[String, DataDecl]
