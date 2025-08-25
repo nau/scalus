@@ -1,7 +1,5 @@
 package scalus
 
-import dotty.tools.dotc.core.Contexts.Context
-import dotty.tools.io.ClassPath
 import scalus.flat.DecoderState
 import scalus.flat.FlatInstantces.given
 import scalus.sir.Module
