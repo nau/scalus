@@ -16,7 +16,7 @@ class SIRFlatSerializationTest extends AnyFunSuite with ScalaCheckPropertyChecks
         val sir =
             SIR.Const(scalus.uplc.Constant.Integer(23), SIRType.Integer, AnnotationsDecl.empty)
         val binding = Binding("x", SIRType.Integer, sir)
-        val module = Module((1, 0), List(binding))
+        val module = Module((1, 0), "test-module", List(binding))
         val enc = EncoderState(fl.bitSize(module) / 8 + 1)
         flat.encode(module, enc)
         // now filler inside the encoder.

@@ -1496,7 +1496,9 @@ object FlatInstantces:
             val version = summon[Flat[(Int, Int)]].decode(decoder.decode)
             val name = summon[Flat[String]].decode(decoder.decode)
             val defs = HashConsedReprFlat.listRepr(BindingFlat).decodeHC(decoder)
-            HashConsedRef.deferred((hs, l, ps) => Module(version, name, defs.finValue(hs, l + 1, ps)))
+            HashConsedRef.deferred((hs, l, ps) =>
+                Module(version, name, defs.finValue(hs, l + 1, ps))
+            )
         }
 
     }
