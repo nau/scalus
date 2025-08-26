@@ -111,7 +111,7 @@ class ScriptDataHashGeneratorTest extends AnyFunSuite {
 
         // Create transaction body
         val txBody = TransactionBody(
-          inputs = inputs,
+          inputs = TaggedOrderedSet.from(inputs),
           outputs = IndexedSeq(Sized(output)),
           fee = Coin(2_000000), // 2 ADA in lovelace
           ttl = Some(1000)

@@ -44,7 +44,7 @@ object AllNeededScriptHashes {
       (Int, ScriptHash, TransactionOutput)
     ]] = boundary {
         val transactionId = transaction.id
-        val inputs = transaction.body.value.inputs.toArray.sorted.view
+        val inputs = transaction.body.value.inputs.toSortedSet.view
 
         val result = for
             (input, index) <- inputs.zipWithIndex

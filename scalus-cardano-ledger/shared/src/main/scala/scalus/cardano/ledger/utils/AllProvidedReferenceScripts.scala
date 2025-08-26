@@ -209,7 +209,7 @@ object AllProvidedReferenceScripts {
     ): Either[TransactionException.BadInputsUTxOException, Set[Script]] = {
         providedReferenceScripts(
           transaction.id,
-          transaction.body.value.inputs,
+          transaction.body.value.inputs.toSortedSet,
           utxo,
           TransactionException.BadInputsUTxOException(_)
         )

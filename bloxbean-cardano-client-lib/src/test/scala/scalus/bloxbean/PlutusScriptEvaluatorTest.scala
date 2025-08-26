@@ -16,6 +16,7 @@ import scalus.uplc.eval.ExBudget
 import upickle.default.read
 
 import java.nio.file.Paths
+import scala.collection.immutable.SortedSet
 
 class PlutusScriptEvaluatorTest extends AnyFunSuite {
     private val params: ProtocolParams = read[ProtocolParams](
@@ -58,7 +59,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         val redeemer = Redeemer(RedeemerTag.Spend, 0, Data.unit, ExUnits(0, 0))
         val tx = Transaction(
           TransactionBody(
-            inputs = Set(input),
+            inputs = TaggedOrderedSet(SortedSet(input)),
             outputs = Vector(
               Sized(
                 TransactionOutput(
@@ -118,7 +119,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         val redeemer = Redeemer(RedeemerTag.Spend, 0, Data.unit, ExUnits(0, 0))
         val tx = Transaction(
           TransactionBody(
-            inputs = Set(input),
+            inputs = TaggedOrderedSet(SortedSet(input)),
             outputs = Vector(
               Sized(
                 TransactionOutput(

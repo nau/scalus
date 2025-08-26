@@ -54,7 +54,7 @@ case class InterpreterWithProvidedData(
     private def realizePay(i: Intention.Pay) = {
         val inputs = utxo.toSeq.map(_._1)
         val body = TransactionBody(
-          inputSelector.inputs.map(_.utxo._1),
+          TaggedOrderedSet.from(inputSelector.inputs.view.map(_.utxo._1)),
           IndexedSeq(Sized(TransactionOutput(i.address, i.value, i.data))),
           Coin.zero,
           collateralInputs = inputSelector.collateralInputs
@@ -75,7 +75,7 @@ case class InterpreterWithProvidedData(
 
     private def realizeMint(i: Intention.Mint) = {
         val body = TransactionBody(
-          inputSelector.inputs.map(_.utxo._1),
+          TaggedOrderedSet.from(inputSelector.inputs.view.map(_.utxo._1)),
           IndexedSeq(
             Sized(
               TransactionOutput(

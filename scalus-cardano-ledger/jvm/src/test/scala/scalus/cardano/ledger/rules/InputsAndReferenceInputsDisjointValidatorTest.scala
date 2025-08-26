@@ -12,7 +12,9 @@ class InputsAndReferenceInputsDisjointValidatorTest extends AnyFunSuite, Validat
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
+                  inputs = TaggedOrderedSet.from(
+                    genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
+                  ),
                   referenceInputs = Set.empty
                 )
               )
@@ -22,7 +24,7 @@ class InputsAndReferenceInputsDisjointValidatorTest extends AnyFunSuite, Validat
         val result = InputsAndReferenceInputsDisjointValidator.validate(context, state, transaction)
         assert(result.isRight)
         assert(
-          transaction.body.value.inputs.nonEmpty && transaction.body.value.referenceInputs.isEmpty
+          transaction.body.value.inputs.toSortedSet.nonEmpty && transaction.body.value.referenceInputs.isEmpty
         )
     }
 
@@ -33,15 +35,17 @@ class InputsAndReferenceInputsDisjointValidatorTest extends AnyFunSuite, Validat
             val inputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
             val tx = randomValidTransaction
             tx.copy(
-              body = KeepRaw(tx.body.value.copy(inputs = inputs, referenceInputs = inputs))
+              body = KeepRaw(
+                tx.body.value.copy(inputs = TaggedOrderedSet.from(inputs), referenceInputs = inputs)
+              )
             )
         }
 
         val result = InputsAndReferenceInputsDisjointValidator.validate(context, state, transaction)
         assert(result.isLeft)
         assert(
-          transaction.body.value.inputs.nonEmpty && transaction.body.value.referenceInputs.nonEmpty
+          transaction.body.value.inputs.toSortedSet.nonEmpty && transaction.body.value.referenceInputs.nonEmpty
         )
-        assert(transaction.body.value.inputs == transaction.body.value.referenceInputs)
+        assert(transaction.body.value.inputs.toSortedSet == transaction.body.value.referenceInputs)
     }
 }

@@ -19,8 +19,10 @@ class TransactionTest extends AnyFunSuite {
             val tx = Transaction(
               KeepRaw(
                 TransactionBody(
-                  inputs = Set(
-                    TransactionInput(Hash(ByteString.fill(32, 0)), 0)
+                  inputs = TaggedOrderedSet.from(
+                    Set(
+                      TransactionInput(Hash(ByteString.fill(32, 0)), 0)
+                    )
                   ),
                   outputs = Vector(
                     Sized(

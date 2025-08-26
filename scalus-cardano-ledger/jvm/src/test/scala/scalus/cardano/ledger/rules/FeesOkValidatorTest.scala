@@ -25,7 +25,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set.empty,
+                  inputs = TaggedOrderedSet.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = Some(
                     Sized(
@@ -130,7 +130,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set.empty,
+                  inputs = TaggedOrderedSet.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = Some(
                     Sized(
@@ -230,7 +230,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set.empty,
+                  inputs = TaggedOrderedSet.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = None,
                   totalCollateral = None,
@@ -323,7 +323,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set.empty,
+                  inputs = TaggedOrderedSet.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = Some(
                     Sized(
@@ -431,7 +431,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set.empty,
+                  inputs = TaggedOrderedSet.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = Some(
                     Sized(
@@ -531,7 +531,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set.empty,
+                  inputs = TaggedOrderedSet.empty,
                   collateralInputs = Set(collateralInput1, collateralInput2),
                   collateralReturnOutput = Some(
                     Sized(
@@ -625,7 +625,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set.empty,
+                  inputs = TaggedOrderedSet.empty,
                   collateralInputs = Set.empty,
                   collateralReturnOutput = None,
                   totalCollateral = None,

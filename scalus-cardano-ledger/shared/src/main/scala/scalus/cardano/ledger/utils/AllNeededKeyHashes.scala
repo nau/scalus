@@ -46,7 +46,7 @@ object AllNeededKeyHashes {
     ): Either[TransactionException.BadInputsUTxOException, Set[AddrKeyHash | StakeKeyHash]] = {
         neededInputsKeyHashes(
           transaction.id,
-          transaction.body.value.inputs,
+          transaction.body.value.inputs.toSortedSet,
           utxo,
           TransactionException.BadInputsUTxOException(_)
         )

@@ -517,6 +517,10 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
       genSetOfSizeFromArbitrary(1, 3).map(TaggedSet.from)
     )
 
+    given [A: Arbitrary: Ordering]: Arbitrary[TaggedOrderedSet[A]] = Arbitrary(
+      genSetOfSizeFromArbitrary(1, 3).map(TaggedOrderedSet.from)
+    )
+
     given Arbitrary[TransactionWitnessSet] = {
         given [A: Arbitrary]: Arbitrary[immutable.Set[A]] = Arbitrary(
           genSetOfSizeFromArbitrary(1, 3)
@@ -622,7 +626,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
 
     given Arbitrary[TransactionBody] = Arbitrary {
         for
-            inputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
+            inputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4).map(TaggedOrderedSet.from)
             outputs <- genVectorOfSizeFromArbitrary[Sized[TransactionOutput]](0, 4)
             fee <- arbitrary[Coin]
             ttl <- Gen.option(Gen.choose(0L, Long.MaxValue))

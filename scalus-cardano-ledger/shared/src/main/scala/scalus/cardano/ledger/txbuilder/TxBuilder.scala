@@ -195,7 +195,7 @@ case class TxBuilder(
       *   The transaction inputs to use
       */
     def withInputs(inputs: Set[TransactionInput]): TxBuilder =
-        copy(tx = modifyBody(tx, _.copy(inputs = inputs)))
+        copy(tx = modifyBody(tx, _.copy(inputs = TaggedOrderedSet.from(inputs))))
 
     /** Selects transaction inputs using the provided selection strategy.
       *
@@ -412,12 +412,12 @@ object TxBuilder {
     }
 
     val emptyTx: Transaction = Transaction(
-      TransactionBody(Set.empty, IndexedSeq.empty, Coin.zero),
+      TransactionBody(TaggedOrderedSet.empty, IndexedSeq.empty, Coin.zero),
       TransactionWitnessSet.empty
     )
 
     def withInputsFromUtxos(utxo: UTxO) = Transaction(
-      TransactionBody(utxo.keySet, IndexedSeq.empty, Coin.zero),
+      TransactionBody(TaggedOrderedSet.from(utxo.keySet), IndexedSeq.empty, Coin.zero),
       TransactionWitnessSet.empty
     )
 }

@@ -5,6 +5,8 @@ import org.scalacheck.Arbitrary
 import scalus.cardano.address.{Address, ByronAddress}
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.collection.immutable.SortedSet
+
 class TransactionSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
     test("TransactionSizeValidator rule success") {
         val context = Context()
@@ -24,7 +26,8 @@ class TransactionSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               auxiliaryData = None,
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = Set(Arbitrary.arbitrary[TransactionInput].sample.get),
+                  inputs =
+                      TaggedOrderedSet.from(Set(Arbitrary.arbitrary[TransactionInput].sample.get)),
                   collateralInputs = Set.empty,
                   referenceInputs = Set.empty,
                   outputs = IndexedSeq(
@@ -53,7 +56,7 @@ class TransactionSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
     test("TransactionSizeValidator rule failure") {
         val context = Context()
-        val inputs = Set.fill(1000) { // Arbitrary large number of inputs
+        val inputs = SortedSet.fill(1000) { // Arbitrary large number of inputs
             Arbitrary.arbitrary[TransactionInput].sample.get
         }
 
@@ -62,7 +65,7 @@ class TransactionSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = inputs
+                  inputs = TaggedOrderedSet(inputs)
                 )
               )
             )

@@ -12,7 +12,7 @@ object AllInputsMustBeInUtxoValidator extends STS.Validator {
         val body = event.body.value
         val utxo = state.utxo
 
-        val missingInputs = body.inputs.filterNot(utxo.contains)
+        val missingInputs = body.inputs.toSortedSet.filterNot(utxo.contains)
         val missingCollateralInputs = body.collateralInputs.filterNot(utxo.contains)
         val missingReferenceInputs = body.referenceInputs.filterNot(utxo.contains)
 

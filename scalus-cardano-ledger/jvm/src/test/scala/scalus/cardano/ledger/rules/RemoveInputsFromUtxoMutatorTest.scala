@@ -14,7 +14,7 @@ class RemoveInputsFromUtxoMutatorTest extends AnyFunSuite, ValidatorRulesTestKit
             tx.copy(
               body = KeepRaw(
                 tx.body.value.copy(
-                  inputs = state.utxo.keySet
+                  inputs = TaggedOrderedSet.from(state.utxo.keySet)
                 )
               )
             )

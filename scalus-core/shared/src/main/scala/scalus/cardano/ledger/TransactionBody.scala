@@ -6,7 +6,7 @@ import scala.collection.immutable.Set
 
 case class TransactionBody(
     /** Transaction inputs to spend */
-    inputs: Set[TransactionInput],
+    inputs: TaggedOrderedSet[TransactionInput],
 
     /** Transaction outputs to create */
     outputs: IndexedSeq[Sized[TransactionOutput]],
@@ -119,7 +119,7 @@ object TransactionBody:
 
             // Inputs (key 0)
             w.writeInt(0)
-            writeSet(w, value.inputs)
+            w.write(value.inputs)
 
             // Outputs (key 1)
             w.writeInt(1)
@@ -242,7 +242,7 @@ object TransactionBody:
         def read(r: Reader): TransactionBody =
             val mapSize = r.readMapHeader()
 
-            var inputs = Set.empty[TransactionInput]
+            var inputs = TaggedOrderedSet.empty[TransactionInput]
             var outputs = IndexedSeq.empty[Sized[TransactionOutput]]
             var fee: Option[Coin] = None
             var ttl: Option[Long] = None
@@ -269,7 +269,7 @@ object TransactionBody:
 
                 key match
                     case 0 => // Inputs
-                        inputs = readSet[TransactionInput](r)
+                        inputs = r.read[TaggedOrderedSet[TransactionInput]]()
 
                     case 1 => // Outputs
                         outputs = r.read[IndexedSeq[Sized[TransactionOutput]]]()
