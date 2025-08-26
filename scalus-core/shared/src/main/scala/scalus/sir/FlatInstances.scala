@@ -1272,7 +1272,12 @@ object FlatInstantces:
                 case `tagError` =>
                     val msg = decodeHC(decoder)
                     val anns = AnnotationsDeclFlat.decodeHC(decoder)
-                    HashConsedRef.deferred((hs, l, p) => Error(msg.finValue(hs, l, p), anns.finValue(hs, l, p)))
+                    HashConsedRef.deferred((hs, l, p) =>
+                        Error(
+                          msg.finValue(hs, l, p).asInstanceOf[AnnotatedSIR],
+                          anns.finValue(hs, l, p)
+                        )
+                    )
                 case `tagConstr` =>
                     val name = summon[Flat[String]].decode(decoder.decode)
                     val data = DataDeclFlat.decodeHC(decoder)

@@ -352,7 +352,8 @@ object SIR:
 
     case class Builtin(bn: DefaultFun, tp: SIRType, anns: AnnotationsDecl) extends AnnotatedSIR
 
-    case class Error(msg: SIR, anns: AnnotationsDecl, cause: Throwable | Null = null) extends AnnotatedSIR {
+    case class Error(msg: AnnotatedSIR, anns: AnnotationsDecl, cause: Throwable | Null = null)
+        extends AnnotatedSIR {
         override def tp: SIRType = SIRType.TypeNothing
     }
 

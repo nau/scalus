@@ -269,6 +269,7 @@ object Lowering {
             case sirError @ SIR.Error(msg, anns, cause) =>
                 val term =
                     if lctx.generateErrorTraces then
+                        val msg = lowerSIR(msg, Some(SIRType.String))
                         !(DefaultFun.Trace.tpf $ Term.Const(
                           Constant.String(msg)
                         ) $ ~Term.Error)
