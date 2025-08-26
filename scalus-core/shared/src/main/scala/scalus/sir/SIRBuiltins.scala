@@ -423,13 +423,13 @@ object SIRBuiltins {
     // IntegerToByteString
     val integerToByteString: SIR.Builtin = SIR.Builtin(
       DefaultFun.IntegerToByteString,
-      SIRType.Integer ->: SIRType.ByteString,
+      SIRType.Boolean ->: SIRType.Integer ->: SIRType.Integer ->: SIRType.ByteString,
       AnnotationsDecl.empty
     )
     // ByteStringToInteger
     val byteStringToInteger: SIR.Builtin = SIR.Builtin(
       DefaultFun.ByteStringToInteger,
-      SIRType.ByteString ->: SIRType.Integer,
+      SIRType.Boolean ->: SIRType.ByteString ->: SIRType.Integer,
       AnnotationsDecl.empty
     )
 
