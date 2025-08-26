@@ -638,12 +638,16 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
             validityStartSlot <- Gen.option(Gen.choose(0L, Long.MaxValue))
             mint <- arbitrary[Option[Mint]]
             scriptDataHash <- arbitrary[Option[ScriptDataHash]]
-            collateralInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
+            collateralInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4).map(
+              TaggedOrderedSet.from
+            )
             requiredSigners <- genSetOfSizeFromArbitrary[AddrKeyHash](0, 4)
             networkId <- Gen.option(Gen.oneOf(Gen.const(0), Gen.const(1)))
             collateralReturnOutput <- arbitrary[Option[Sized[TransactionOutput]]]
             totalCollateral <- arbitrary[Option[Coin]]
-            referenceInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4)
+            referenceInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4).map(
+              TaggedOrderedSet.from
+            )
             votingProcedures <- arbitrary[Option[VotingProcedures]]
             proposalProcedures <- genSetOfSizeFromArbitrary[ProposalProcedure](0, 4)
             currentTreasuryValue <- arbitrary[Option[Coin]]

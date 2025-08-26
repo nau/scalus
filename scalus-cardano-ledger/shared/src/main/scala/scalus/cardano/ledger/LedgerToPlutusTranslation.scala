@@ -543,7 +543,7 @@ object LedgerToPlutusTranslation {
         val body = tx.body.value
 
         v1.TxInfo(
-          inputs = prelude.List.from(body.inputs.toSeq.sorted.map(getTxInInfoV1(_, utxos))),
+          inputs = prelude.List.from(body.inputs.toSortedSet.view.map(getTxInInfoV1(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV1)),
           fee = v1.Value.lovelace(body.fee.value),
           mint = getMintValue(body.mint),
@@ -578,7 +578,7 @@ object LedgerToPlutusTranslation {
             tx.witnessSet.redeemers.map(_.value.toIndexedSeq).getOrElse(IndexedSeq.empty)
 
         v2.TxInfo(
-          inputs = prelude.List.from(body.inputs.toSeq.sorted.map(getTxInInfoV2(_, utxos))),
+          inputs = prelude.List.from(body.inputs.toSortedSet.view.map(getTxInInfoV2(_, utxos))),
           referenceInputs =
               prelude.List.from(body.referenceInputs.toSeq.sorted.map(getTxInInfoV2(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
@@ -638,7 +638,7 @@ object LedgerToPlutusTranslation {
         }
 
         v3.TxInfo(
-          inputs = prelude.List.from(body.inputs.toSeq.sorted.map(getTxInInfoV3(_, utxos))),
+          inputs = prelude.List.from(body.inputs.toSortedSet.view.map(getTxInInfoV3(_, utxos))),
           referenceInputs =
               prelude.List.from(body.referenceInputs.toSeq.sorted.map(getTxInInfoV3(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
@@ -679,7 +679,7 @@ object LedgerToPlutusTranslation {
 
         redeemer.tag match
             case RedeemerTag.Spend =>
-                val inputs = body.inputs.toSeq.sorted
+                val inputs = body.inputs.toSeq
                 if inputs.isDefinedAt(index) then
                     val input = inputs(index)
                     v1.ScriptPurpose.Spending(
@@ -730,7 +730,7 @@ object LedgerToPlutusTranslation {
 
         redeemer.tag match
             case RedeemerTag.Spend =>
-                val inputs = body.inputs.toSeq.sorted
+                val inputs = body.inputs.toSeq
                 if inputs.isDefinedAt(index) then
                     val input = inputs(index)
                     v3.ScriptPurpose.Spending(

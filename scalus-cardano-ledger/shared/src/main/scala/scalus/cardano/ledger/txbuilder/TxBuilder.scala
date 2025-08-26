@@ -215,7 +215,7 @@ case class TxBuilder(
       *   The UTXOs to use as collateral
       */
     def withCollateral(collateralIn: Set[TransactionInput]): TxBuilder =
-        copy(tx = modifyBody(tx, _.copy(collateralInputs = collateralIn)))
+        copy(tx = modifyBody(tx, _.copy(collateralInputs = TaggedOrderedSet.from(collateralIn))))
 
     /** Registers a stake credential, enabling staking operations.
       *

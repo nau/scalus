@@ -57,7 +57,7 @@ case class InterpreterWithProvidedData(
           TaggedOrderedSet.from(inputSelector.inputs.view.map(_.utxo._1)),
           IndexedSeq(Sized(TransactionOutput(i.address, i.value, i.data))),
           Coin.zero,
-          collateralInputs = inputSelector.collateralInputs
+          collateralInputs = TaggedOrderedSet.from(inputSelector.collateralInputs)
         )
         val ws: TransactionWitnessSet = assembleWs
         val tx = Transaction(body, ws)
@@ -87,7 +87,7 @@ case class InterpreterWithProvidedData(
           ),
           Coin.zero,
           mint = Some(i.mintValue),
-          collateralInputs = inputSelector.collateralInputs
+          collateralInputs = TaggedOrderedSet.from(inputSelector.collateralInputs)
         )
         val ws: TransactionWitnessSet = assembleWsForMinting(i)
         val tx = Transaction(body, ws)

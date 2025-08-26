@@ -44,8 +44,8 @@ class NativeScriptsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.from(Set(input1, input2, input3, input4, input5)),
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set(referenceInput1, referenceInput2),
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.from(Set(referenceInput1, referenceInput2)),
                   validityStartSlot = Some(10),
                   ttl = Some(15)
                 )
@@ -191,8 +191,8 @@ class NativeScriptsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.from(Set(input1, input2)),
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   validityStartSlot = Some(10),
                   ttl = Some(25)
                 )

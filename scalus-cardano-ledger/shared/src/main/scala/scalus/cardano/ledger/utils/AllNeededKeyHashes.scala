@@ -60,7 +60,7 @@ object AllNeededKeyHashes {
     ]] = {
         neededInputsKeyHashes(
           transaction.id,
-          transaction.body.value.collateralInputs,
+          transaction.body.value.collateralInputs.toSortedSet,
           utxo,
           TransactionException.BadCollateralInputsUTxOException(_)
         )

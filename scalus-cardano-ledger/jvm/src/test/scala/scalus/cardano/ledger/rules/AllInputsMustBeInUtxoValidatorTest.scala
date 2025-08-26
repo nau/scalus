@@ -15,16 +15,20 @@ class AllInputsMustBeInUtxoValidatorTest extends AnyFunSuite, ValidatorRulesTest
                   inputs = TaggedOrderedSet.from(
                     genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
                   ),
-                  collateralInputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
-                  referenceInputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
+                  collateralInputs = TaggedOrderedSet.from(
+                    genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
+                  ),
+                  referenceInputs = TaggedOrderedSet.from(
+                    genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
+                  )
                 )
               )
             )
         }
         val state = State(
           utxo = transaction.body.value.inputs.toSortedSet.view
-              .concat(transaction.body.value.collateralInputs)
-              .concat(transaction.body.value.referenceInputs)
+              .concat(transaction.body.value.collateralInputs.toSortedSet)
+              .concat(transaction.body.value.referenceInputs.toSortedSet)
               .map(_ -> Arbitrary.arbitrary[TransactionOutput].sample.get)
               .toMap
         )
@@ -32,8 +36,8 @@ class AllInputsMustBeInUtxoValidatorTest extends AnyFunSuite, ValidatorRulesTest
         val result = AllInputsMustBeInUtxoValidator.validate(context, state, transaction)
         assert(result.isRight)
         assert(transaction.body.value.inputs.toSortedSet.forall(state.utxo.contains))
-        assert(transaction.body.value.collateralInputs.forall(state.utxo.contains))
-        assert(transaction.body.value.referenceInputs.forall(state.utxo.contains))
+        assert(transaction.body.value.collateralInputs.toSortedSet.forall(state.utxo.contains))
+        assert(transaction.body.value.referenceInputs.toSortedSet.forall(state.utxo.contains))
     }
 
     test("AllInputsMustBeInUtxoValidator rule failure") {
@@ -47,8 +51,12 @@ class AllInputsMustBeInUtxoValidatorTest extends AnyFunSuite, ValidatorRulesTest
                   inputs = TaggedOrderedSet.from(
                     genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
                   ),
-                  collateralInputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get,
-                  referenceInputs = genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
+                  collateralInputs = TaggedOrderedSet.from(
+                    genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
+                  ),
+                  referenceInputs = TaggedOrderedSet.from(
+                    genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
+                  )
                 )
               )
             )
@@ -57,7 +65,7 @@ class AllInputsMustBeInUtxoValidatorTest extends AnyFunSuite, ValidatorRulesTest
         val result = AllInputsMustBeInUtxoValidator.validate(context, state, transaction)
         assert(result.isLeft)
         assert(!transaction.body.value.inputs.toSortedSet.forall(state.utxo.contains))
-        assert(!transaction.body.value.collateralInputs.forall(state.utxo.contains))
-        assert(!transaction.body.value.referenceInputs.forall(state.utxo.contains))
+        assert(!transaction.body.value.collateralInputs.toSortedSet.forall(state.utxo.contains))
+        assert(!transaction.body.value.referenceInputs.toSortedSet.forall(state.utxo.contains))
     }
 }

@@ -28,8 +28,8 @@ class TransactionSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                 tx.body.value.copy(
                   inputs =
                       TaggedOrderedSet.from(Set(Arbitrary.arbitrary[TransactionInput].sample.get)),
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   outputs = IndexedSeq(
                     Sized(
                       TransactionOutput.Shelley(

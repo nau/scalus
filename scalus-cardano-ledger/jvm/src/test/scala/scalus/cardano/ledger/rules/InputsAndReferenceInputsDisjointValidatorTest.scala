@@ -15,7 +15,7 @@ class InputsAndReferenceInputsDisjointValidatorTest extends AnyFunSuite, Validat
                   inputs = TaggedOrderedSet.from(
                     genSetOfSizeFromArbitrary[TransactionInput](1, 4).sample.get
                   ),
-                  referenceInputs = Set.empty
+                  referenceInputs = TaggedOrderedSet.empty
                 )
               )
             )
@@ -24,7 +24,7 @@ class InputsAndReferenceInputsDisjointValidatorTest extends AnyFunSuite, Validat
         val result = InputsAndReferenceInputsDisjointValidator.validate(context, state, transaction)
         assert(result.isRight)
         assert(
-          transaction.body.value.inputs.toSortedSet.nonEmpty && transaction.body.value.referenceInputs.isEmpty
+          transaction.body.value.inputs.toSortedSet.nonEmpty && transaction.body.value.referenceInputs.toSortedSet.isEmpty
         )
     }
 
@@ -36,7 +36,10 @@ class InputsAndReferenceInputsDisjointValidatorTest extends AnyFunSuite, Validat
             val tx = randomValidTransaction
             tx.copy(
               body = KeepRaw(
-                tx.body.value.copy(inputs = TaggedOrderedSet.from(inputs), referenceInputs = inputs)
+                tx.body.value.copy(
+                  inputs = TaggedOrderedSet.from(inputs),
+                  referenceInputs = TaggedOrderedSet.from(inputs)
+                )
               )
             )
         }
@@ -44,8 +47,10 @@ class InputsAndReferenceInputsDisjointValidatorTest extends AnyFunSuite, Validat
         val result = InputsAndReferenceInputsDisjointValidator.validate(context, state, transaction)
         assert(result.isLeft)
         assert(
-          transaction.body.value.inputs.toSortedSet.nonEmpty && transaction.body.value.referenceInputs.nonEmpty
+          transaction.body.value.inputs.toSortedSet.nonEmpty && transaction.body.value.referenceInputs.toSortedSet.nonEmpty
         )
-        assert(transaction.body.value.inputs.toSortedSet == transaction.body.value.referenceInputs)
+        assert(
+          transaction.body.value.inputs.toSortedSet == transaction.body.value.referenceInputs.toSortedSet
+        )
     }
 }

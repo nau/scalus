@@ -485,7 +485,7 @@ object BlocksValidation:
         txb: ledger.TransactionBody
     ): TreeSet[Language] = {
         import scala.jdk.OptionConverters.RichOptional
-        val refScripts = (txb.inputs.toSortedSet.view ++ txb.referenceInputs.view)
+        val refScripts = (txb.inputs.toSortedSet.view ++ txb.referenceInputs.toSortedSet.view)
             .flatMap { refInputs =>
                 utxoSupplier
                     .getTxOutput(refInputs.transactionId.toHex, refInputs.index)

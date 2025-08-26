@@ -22,8 +22,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.from(Set(input1, input2)),
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
@@ -83,8 +83,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.from(Set(input1, input2)),
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
@@ -147,8 +147,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set(collateralInput1, collateralInput2),
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
@@ -212,8 +212,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set(collateralInput1, collateralInput2),
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
@@ -270,8 +270,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = Some(
                     VotingProcedures(
                       Map(
@@ -327,8 +327,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = Some(
                     VotingProcedures(
                       Map(
@@ -382,8 +382,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = Some(
@@ -444,8 +444,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = Some(
@@ -507,8 +507,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = None,
                   certificates = TaggedSet(
                     Certificate
@@ -601,8 +601,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = None,
                   certificates = TaggedSet(
                     Certificate
@@ -691,8 +691,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
@@ -729,8 +729,8 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,

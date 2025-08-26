@@ -26,7 +26,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = Some(
                     Sized(
                       TransactionOutput.Shelley(
@@ -37,7 +37,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
                   totalCollateral = Some(Coin(60000000L)),
                   fee = Coin(10000000L),
-                  referenceInputs = Set.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   outputs = IndexedSeq.empty,
                   mint = None,
                   votingProcedures = None,
@@ -131,7 +131,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = Some(
                     Sized(
                       TransactionOutput.Shelley(
@@ -142,7 +142,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
                   totalCollateral = Some(Coin(60000000L)),
                   fee = Coin(1L),
-                  referenceInputs = Set.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   outputs = IndexedSeq.empty,
                   mint = None,
                   votingProcedures = None,
@@ -231,11 +231,11 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = None,
                   totalCollateral = None,
                   fee = Coin(10000000L),
-                  referenceInputs = Set.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   outputs = IndexedSeq.empty,
                   mint = None,
                   votingProcedures = None,
@@ -324,7 +324,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = Some(
                     Sized(
                       TransactionOutput.Shelley(
@@ -343,7 +343,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
                   totalCollateral = Some(Coin(60000000L)),
                   fee = Coin(10000000L),
-                  referenceInputs = Set.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   outputs = IndexedSeq.empty,
                   mint = None,
                   votingProcedures = None,
@@ -432,7 +432,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = Some(
                     Sized(
                       TransactionOutput.Shelley(
@@ -443,7 +443,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
                   totalCollateral = Some(Coin(60000000L)),
                   fee = Coin(10000000L),
-                  referenceInputs = Set.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   outputs = IndexedSeq.empty,
                   mint = None,
                   votingProcedures = None,
@@ -532,7 +532,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set(collateralInput1, collateralInput2),
+                  collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = Some(
                     Sized(
                       TransactionOutput.Shelley(
@@ -543,7 +543,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
                   totalCollateral = Some(Coin(50000000L)),
                   fee = Coin(10000000L),
-                  referenceInputs = Set.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   outputs = IndexedSeq.empty,
                   mint = None,
                   votingProcedures = None,
@@ -626,11 +626,11 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.empty,
-                  collateralInputs = Set.empty,
+                  collateralInputs = TaggedOrderedSet.empty,
                   collateralReturnOutput = None,
                   totalCollateral = None,
                   fee = Coin(10000000L),
-                  referenceInputs = Set.empty,
+                  referenceInputs = TaggedOrderedSet.empty,
                   outputs = IndexedSeq.empty,
                   mint = None,
                   votingProcedures = None,

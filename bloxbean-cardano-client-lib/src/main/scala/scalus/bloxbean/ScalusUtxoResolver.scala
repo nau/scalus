@@ -51,7 +51,7 @@ private[scalus] class ScalusUtxoResolver(
         val scripts = mutable.HashMap[ScriptHash, Script]()
 
         val allInputs =
-            transaction.body.value.inputs.toSortedSet.view ++ transaction.body.value.referenceInputs.view
+            transaction.body.value.inputs.toSortedSet.view ++ transaction.body.value.referenceInputs.toSortedSet.view
         for input <- allInputs do
             if !utxos.contains(input) then
                 utxoSupplier.getTxOutput(input.transactionId.toHex, input.index).toScala match

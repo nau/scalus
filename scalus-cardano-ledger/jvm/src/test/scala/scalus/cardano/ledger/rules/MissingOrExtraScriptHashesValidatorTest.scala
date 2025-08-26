@@ -33,8 +33,8 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
               body = KeepRaw(
                 tx.body.value.copy(
                   inputs = TaggedOrderedSet.from(Set(input)),
-                  collateralInputs = Set.empty,
-                  referenceInputs = Set(referenceInput),
+                  collateralInputs = TaggedOrderedSet.empty,
+                  referenceInputs = TaggedOrderedSet.from(Set(referenceInput)),
                   mint = Some(
                     Mint(
                       MultiAsset(
