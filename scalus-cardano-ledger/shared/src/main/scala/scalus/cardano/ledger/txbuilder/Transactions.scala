@@ -7,6 +7,7 @@ import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger
 import scalus.cardano.ledger.utils.TxBalance
 import scalus.ledger.babbage.ProtocolParams
+import scalus.builtin.ByteString.given
 
 /*
  * Intention is what the user intends to happen. Should accept as few parameters as possible.
@@ -44,18 +45,17 @@ case class InterpreterWithProvidedData(
 ) extends Interpreter {
 
     override def realize(intention: Intention): Transaction = intention match {
-        case Intention.Pay(address, value, data) => realizePay(address, value, data)
-        case Intention.Mint(mintValue, mintingPolicy, redeemer, targetAddress) =>
-            ???
+        case pay: Intention.Pay   => realizePay(pay)
+        case mint: Intention.Mint => realizeMint(mint)
         case Intention.RegisterStake =>
             ???
     }
 
-    private def realizePay(address: Address, value: Value, data: Option[DatumOption]) = {
+    private def realizePay(i: Intention.Pay) = {
         val inputs = utxo.toSeq.map(_._1)
         val body = TransactionBody(
           inputSelector.inputs.map(_.utxo._1),
-          IndexedSeq(Sized(TransactionOutput(address, value, data))),
+          IndexedSeq(Sized(TransactionOutput(i.address, i.value, i.data))),
           Coin.zero,
           collateralInputs = inputSelector.collateralInputs
         )
@@ -73,6 +73,37 @@ case class InterpreterWithProvidedData(
         )
     }
 
+    private def realizeMint(i: Intention.Mint) = {
+        val body = TransactionBody(
+          inputSelector.inputs.map(_.utxo._1),
+          IndexedSeq(
+            Sized(
+              TransactionOutput(
+                i.targetAddress,
+                Value(Coin.zero, MultiAsset(i.mintValue.assets)),
+                None
+              )
+            )
+          ),
+          Coin.zero,
+          mint = Some(i.mintValue),
+          collateralInputs = inputSelector.collateralInputs
+        )
+        val ws: TransactionWitnessSet = assembleWsForMinting(i)
+        val tx = Transaction(body, ws)
+        val redeemers = evaluator.evalPlutusScripts(tx, utxo)
+        val postEvalTx = tx.copy(witnessSet =
+            tx.witnessSet.copy(redeemers = Some(KeepRaw(Redeemers.from(redeemers))))
+        )
+        TxBalance.doBalance2(postEvalTx)(
+          utxo,
+          environment.protocolParams,
+          changeReturnStrategy,
+          feePayerStrategy
+        )
+    }
+
+    // Looks up the script-protected inputs and initializes the witness set with redeemers with respective indices.
     private def assembleWs = {
         inputSelector.inputs.toSeq
             .sortBy(_.utxo._1)
@@ -123,6 +154,42 @@ case class InterpreterWithProvidedData(
                 case (ws, _) => ws
             }
             .toWs
+    }
+
+    private def assembleWsForMinting(mintIntention: Intention.Mint) = {
+        val baseWs = assembleWs
+        val policyId = mintIntention.mintingPolicy.scriptHash
+        val mintIndex = mintIntention.mintValue.assets.keySet.toArray.sorted.indexOf(policyId)
+        val wsWithMintingScript = mintIntention.mintingPolicy match {
+            case Script.PlutusV1(bytes) =>
+                ScriptsWs(
+                  v1Plutus = baseWs.plutusV1Scripts + Script.PlutusV1(bytes),
+                  v2Plutus = baseWs.plutusV2Scripts,
+                  v3Plutus = baseWs.plutusV3Scripts,
+                  redeemers = Set(
+                    Redeemer(RedeemerTag.Mint, mintIndex, mintIntention.redeemer, ExUnits.zero)
+                  )
+                )
+            case Script.PlutusV2(bytes) =>
+                ScriptsWs(
+                  v1Plutus = baseWs.plutusV1Scripts,
+                  v2Plutus = baseWs.plutusV2Scripts + Script.PlutusV2(bytes),
+                  v3Plutus = baseWs.plutusV3Scripts,
+                  redeemers = Set(
+                    Redeemer(RedeemerTag.Mint, mintIndex, mintIntention.redeemer, ExUnits.zero)
+                  )
+                )
+            case Script.PlutusV3(bytes) =>
+                ScriptsWs(
+                  v1Plutus = baseWs.plutusV1Scripts,
+                  v2Plutus = baseWs.plutusV2Scripts,
+                  v3Plutus = baseWs.plutusV3Scripts + Script.PlutusV3(bytes),
+                  redeemers = Set(
+                    Redeemer(RedeemerTag.Mint, mintIndex, mintIntention.redeemer, ExUnits.zero)
+                  )
+                )
+        }
+        wsWithMintingScript.toWs
     }
 }
 
