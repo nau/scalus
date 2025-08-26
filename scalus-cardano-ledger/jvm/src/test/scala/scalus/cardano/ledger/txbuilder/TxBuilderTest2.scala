@@ -3,8 +3,8 @@ package scalus.cardano.ledger.txbuilder
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, Data}
-import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart, ArbitraryInstances as ArbAddresses}
-import scalus.cardano.ledger.{AssetName, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value, ArbitraryInstances as ArbLedger}
+import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
+import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, AssetName, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
@@ -134,8 +134,9 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
         val myAddress = arbitrary[ShelleyAddress].sample.get
         val faucet = arbitrary[ShelleyAddress].sample.get
         val hash = arbitrary[TransactionHash].sample.get
-        
-        val failingScriptCbor = "582c0101002533573892011f616c77617973206661696c696e672076616c696461746f722063616c6c6564001601"
+
+        val failingScriptCbor =
+            "582c0101002533573892011f616c77617973206661696c696e672076616c696461746f722063616c6c6564001601"
         val script = Script.PlutusV3(ByteString.fromString(failingScriptCbor))
 
         val scriptAddress = ShelleyAddress(
