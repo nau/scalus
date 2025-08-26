@@ -29,7 +29,7 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
 
     test("pay") {
         val myAddress = arbitrary[ShelleyAddress].sample.get
-        val faucet = arbitrary[Address].sample.get
+        val faucet = arbitrary[ShelleyAddress].sample.get
         val hash = arbitrary[TransactionHash].sample.get
 
         val emptyScriptBytes = Array(69, 1, 1, 0, 36, -103).map(_.toByte)
