@@ -5,6 +5,7 @@ import org.scalacheck.Arbitrary
 import scalus.builtin.platform
 import scalus.cardano.address.{Address, StakeAddress, StakePayload}
 import org.scalatest.funsuite.AnyFunSuite
+import scala.collection.immutable.SortedMap
 
 class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
     test("MissingKeyHashesValidator Inputs rule success") {
@@ -27,7 +28,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -88,7 +89,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -152,7 +153,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -217,7 +218,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -295,7 +296,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
                   certificates = TaggedSet.empty,
                   withdrawals = None,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -352,7 +353,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
                   certificates = TaggedSet.empty,
                   withdrawals = None,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -388,7 +389,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   certificates = TaggedSet.empty,
                   withdrawals = Some(
                     Withdrawals(
-                      Map(
+                      SortedMap(
                         RewardAccount(
                           Arbitrary
                               .arbitrary[StakeAddress]
@@ -414,7 +415,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                       )
                     )
                   ),
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -450,7 +451,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   certificates = TaggedSet.empty,
                   withdrawals = Some(
                     Withdrawals(
-                      Map(
+                      SortedMap(
                         RewardAccount(
                           Arbitrary
                               .arbitrary[StakeAddress]
@@ -476,7 +477,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                       )
                     )
                   ),
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -570,7 +571,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                     )
                   ),
                   withdrawals = None,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -664,7 +665,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                     )
                   ),
                   withdrawals = None,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               witnessSet = tx.witnessSet.copy(
@@ -696,9 +697,11 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
-                  requiredSigners = Set(
-                    Hash(platform.blake2b_224(publicKey1)),
-                    Hash(platform.blake2b_224(publicKey2))
+                  requiredSigners = TaggedOrderedSet.from(
+                    Set(
+                      Hash(platform.blake2b_224(publicKey1)),
+                      Hash(platform.blake2b_224(publicKey2))
+                    )
                   )
                 )
               ),
@@ -734,9 +737,11 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   votingProcedures = None,
                   certificates = TaggedSet.empty,
                   withdrawals = None,
-                  requiredSigners = Set(
-                    Hash(platform.blake2b_224(publicKey1)),
-                    Hash(platform.blake2b_224(publicKey2))
+                  requiredSigners = TaggedOrderedSet.from(
+                    Set(
+                      Hash(platform.blake2b_224(publicKey1)),
+                      Hash(platform.blake2b_224(publicKey2))
+                    )
                   )
                 )
               ),

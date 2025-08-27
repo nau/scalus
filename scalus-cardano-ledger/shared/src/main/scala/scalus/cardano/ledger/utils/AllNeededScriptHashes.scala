@@ -151,8 +151,6 @@ object AllNeededScriptHashes {
             .map(_.withdrawals)
             .getOrElse(Map.empty)
             .keySet
-            .toArray
-            .sorted
             .view
 
         for

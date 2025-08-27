@@ -551,9 +551,7 @@ object LedgerToPlutusTranslation {
           withdrawals = getWithdrawals(body.withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
-            body.requiredSigners
-                .toArray[ByteString]
-                .sorted
+            body.requiredSigners.toSortedSet.view
                 .map(hash => v1.PubKeyHash(hash))
           ),
           data = prelude.List.from(datums.sortBy(_._1)),
@@ -580,7 +578,7 @@ object LedgerToPlutusTranslation {
         v2.TxInfo(
           inputs = prelude.List.from(body.inputs.toSortedSet.view.map(getTxInInfoV2(_, utxos))),
           referenceInputs =
-              prelude.List.from(body.referenceInputs.toSeq.sorted.map(getTxInInfoV2(_, utxos))),
+              prelude.List.from(body.referenceInputs.toSeq.view.map(getTxInInfoV2(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
           fee = v1.Value.lovelace(body.fee.value),
           mint = getMintValue(body.mint),
@@ -588,9 +586,7 @@ object LedgerToPlutusTranslation {
           withdrawals = SortedMap.fromList(getWithdrawals(body.withdrawals)),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
-            body.requiredSigners
-                .toArray[ByteString]
-                .sorted
+            body.requiredSigners.toSortedSet.view
                 .map(hash => v1.PubKeyHash(hash))
           ),
           redeemers = SortedMap.fromList(prelude.List.from(redeemers.sorted.map { redeemer =>
@@ -640,7 +636,7 @@ object LedgerToPlutusTranslation {
         v3.TxInfo(
           inputs = prelude.List.from(body.inputs.toSortedSet.view.map(getTxInInfoV3(_, utxos))),
           referenceInputs =
-              prelude.List.from(body.referenceInputs.toSeq.sorted.map(getTxInInfoV3(_, utxos))),
+              prelude.List.from(body.referenceInputs.toSeq.view.map(getTxInInfoV3(_, utxos))),
           outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
           fee = body.fee.value,
           mint = getMintValue(body.mint),
@@ -648,9 +644,7 @@ object LedgerToPlutusTranslation {
           withdrawals = SortedMap.fromList(withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
-            body.requiredSigners
-                .toArray[ByteString]
-                .sorted
+            body.requiredSigners.toSortedSet.view
                 .map(hash => v1.PubKeyHash(hash))
           ),
           redeemers = SortedMap.fromList(prelude.List.from(redeemers.sorted.map { redeemer =>

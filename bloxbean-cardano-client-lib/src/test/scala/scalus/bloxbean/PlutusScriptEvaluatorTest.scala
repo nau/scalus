@@ -69,7 +69,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
               )
             ),
             fee = Coin(0),
-            requiredSigners = Set(Hash(requiredPubKeyHash)),
+            requiredSigners = TaggedOrderedSet.from(Set(Hash(requiredPubKeyHash))),
           ),
           witnessSet = TransactionWitnessSet(
             redeemers = Some(KeepRaw(Redeemers(redeemer))),
@@ -129,7 +129,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
               )
             ),
             fee = Coin(0),
-            requiredSigners = Set(Hash(requiredPubKeyHash)),
+            requiredSigners = TaggedOrderedSet.from(Set(Hash(requiredPubKeyHash))),
           ),
           witnessSet = TransactionWitnessSet(
             redeemers = Some(KeepRaw(Redeemers(redeemer))),

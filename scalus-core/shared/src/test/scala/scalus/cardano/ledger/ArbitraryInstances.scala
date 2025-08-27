@@ -632,7 +632,9 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
             ttl <- Gen.option(Gen.choose(0L, Long.MaxValue))
             certificates <- genSetOfSizeFromArbitrary[Certificate](0, 4).map(TaggedSet.from)
             withdrawals <- Gen.option(
-              genMapOfSizeFromArbitrary[RewardAccount, Coin](1, 4).map(Withdrawals.apply)
+              genMapOfSizeFromArbitrary[RewardAccount, Coin](1, 4).map(map =>
+                  Withdrawals(SortedMap.from(map))
+              )
             )
             auxiliaryDataHash <- arbitrary[Option[AuxiliaryDataHash]]
             validityStartSlot <- Gen.option(Gen.choose(0L, Long.MaxValue))
@@ -641,7 +643,9 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
             collateralInputs <- genSetOfSizeFromArbitrary[TransactionInput](0, 4).map(
               TaggedOrderedSet.from
             )
-            requiredSigners <- genSetOfSizeFromArbitrary[AddrKeyHash](0, 4)
+            requiredSigners <- genSetOfSizeFromArbitrary[AddrKeyHash](0, 4).map(set =>
+                TaggedOrderedSet.from(set)
+            )
             networkId <- Gen.option(Gen.oneOf(Gen.const(0), Gen.const(1)))
             collateralReturnOutput <- arbitrary[Option[Sized[TransactionOutput]]]
             totalCollateral <- arbitrary[Option[Coin]]

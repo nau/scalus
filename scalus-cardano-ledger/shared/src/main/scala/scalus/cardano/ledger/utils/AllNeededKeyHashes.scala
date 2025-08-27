@@ -119,7 +119,7 @@ object AllNeededKeyHashes {
 
     def allNeededRequiredSignersKeyHashes(
         transaction: Transaction
-    ): Set[AddrKeyHash] = transaction.body.value.requiredSigners
+    ): Set[AddrKeyHash] = transaction.body.value.requiredSigners.toSortedSet
 
     private def neededInputsKeyHashes[
         ExceptionT <: TransactionException.BadInputsUTxOException |

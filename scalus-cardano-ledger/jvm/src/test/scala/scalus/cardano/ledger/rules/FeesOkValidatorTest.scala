@@ -44,7 +44,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   withdrawals = None,
                   proposalProcedures = Set.empty,
                   certificates = TaggedSet.empty,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               auxiliaryData = None,
@@ -149,7 +149,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   withdrawals = None,
                   proposalProcedures = Set.empty,
                   certificates = TaggedSet.empty,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               auxiliaryData = None,
@@ -242,7 +242,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   withdrawals = None,
                   proposalProcedures = Set.empty,
                   certificates = TaggedSet.empty,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               auxiliaryData = None,
@@ -350,7 +350,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   withdrawals = None,
                   proposalProcedures = Set.empty,
                   certificates = TaggedSet.empty,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               auxiliaryData = None,
@@ -450,7 +450,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   withdrawals = None,
                   proposalProcedures = Set.empty,
                   certificates = TaggedSet.empty,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               auxiliaryData = None,
@@ -550,7 +550,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   withdrawals = None,
                   proposalProcedures = Set.empty,
                   certificates = TaggedSet.empty,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               auxiliaryData = None,
@@ -637,7 +637,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   withdrawals = None,
                   proposalProcedures = Set.empty,
                   certificates = TaggedSet.empty,
-                  requiredSigners = Set.empty
+                  requiredSigners = TaggedOrderedSet.empty
                 )
               ),
               auxiliaryData = None,

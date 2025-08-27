@@ -4,6 +4,7 @@ import scalus.cardano.address.Address
 import scalus.cardano.ledger.txbuilder.TxBuilder.{dummyVkey, modifyBody, modifyWs}
 import scalus.cardano.ledger.utils.TxBalance
 import scalus.cardano.ledger.*
+import scala.collection.immutable.SortedMap
 
 case class TxBuilder(
     context: BuilderContext,
@@ -59,7 +60,15 @@ case class TxBuilder(
 
     /** Appends the specified address key hashes as required signers for this transaction. */
     def withRequiredSigners(signers: Set[AddrKeyHash]): TxBuilder = {
-        copy(tx = modifyBody(tx, b => b.copy(requiredSigners = b.requiredSigners ++ signers)))
+        copy(tx =
+            modifyBody(
+              tx,
+              b =>
+                  b.copy(requiredSigners =
+                      TaggedOrderedSet(b.requiredSigners.toSortedSet ++ signers)
+                  )
+            )
+        )
     }
 
     /** Attaches a Plutus script for spending UTXOs from script addresses.
@@ -329,7 +338,7 @@ case class TxBuilder(
       *   The amount to withdraw
       */
     def withdrawRewards(rewardAccount: RewardAccount, amount: Coin): TxBuilder =
-        withdrawRewards(Withdrawals(Map(rewardAccount -> amount)))
+        withdrawRewards(Withdrawals(SortedMap(rewardAccount -> amount)))
 
     private def addCertificate(certificate: Certificate): TxBuilder = {
         val updatedCertificates =

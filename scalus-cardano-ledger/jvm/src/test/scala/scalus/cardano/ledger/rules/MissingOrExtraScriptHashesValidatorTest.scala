@@ -7,7 +7,7 @@ import scalus.builtin.platform
 import scalus.cardano.address.{Address, StakeAddress, StakePayload}
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.collection.immutable.TreeMap
+import scala.collection.immutable.SortedMap
 
 class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
     test("MissingOrExtraScriptHashesValidator rule success") {
@@ -38,10 +38,10 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                   mint = Some(
                     Mint(
                       MultiAsset(
-                        TreeMap(
-                          plutusV1Script.scriptHash -> TreeMap.empty,
-                          plutusV2Script.scriptHash -> TreeMap.empty,
-                          plutusV3Script.scriptHash -> TreeMap.empty
+                        SortedMap(
+                          plutusV1Script.scriptHash -> SortedMap.empty,
+                          plutusV2Script.scriptHash -> SortedMap.empty,
+                          plutusV3Script.scriptHash -> SortedMap.empty
                         )
                       )
                     )
@@ -58,7 +58,7 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                   ),
                   withdrawals = Some(
                     Withdrawals(
-                      Map(
+                      SortedMap(
                         RewardAccount(
                           Arbitrary
                               .arbitrary[StakeAddress]

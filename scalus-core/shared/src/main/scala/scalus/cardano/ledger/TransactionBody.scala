@@ -39,7 +39,7 @@ case class TransactionBody(
     collateralInputs: TaggedOrderedSet[TransactionInput] = TaggedOrderedSet.empty,
 
     /** Required signers */
-    requiredSigners: Set[AddrKeyHash] = Set.empty,
+    requiredSigners: TaggedOrderedSet[AddrKeyHash] = TaggedOrderedSet.empty,
 
     /** Network ID */
     networkId: Option[Int] = None,
@@ -103,7 +103,7 @@ object TransactionBody:
             if value.mint.isDefined then mapSize += 1
             if value.scriptDataHash.isDefined then mapSize += 1
             if value.collateralInputs.toSortedSet.nonEmpty then mapSize += 1
-            if value.requiredSigners.nonEmpty then mapSize += 1
+            if value.requiredSigners.toSortedSet.nonEmpty then mapSize += 1
             if value.networkId.isDefined then mapSize += 1
             if value.collateralReturnOutput.isDefined then mapSize += 1
             if value.totalCollateral.isDefined then mapSize += 1
@@ -177,10 +177,10 @@ object TransactionBody:
                 w.writeInt(13)
                 w.write(value.collateralInputs)
 
-            if value.requiredSigners.nonEmpty then
+            if value.requiredSigners.toSortedSet.nonEmpty then
                 // Required signers (key 14)
                 w.writeInt(14)
-                writeSet(w, value.requiredSigners)
+                w.write(value.requiredSigners)
 
             // Network ID (key 15)
             value.networkId.foreach { id =>
@@ -253,7 +253,7 @@ object TransactionBody:
             var mint: Option[Mint] = None
             var scriptDataHash: Option[ScriptDataHash] = None
             var collateralInputs = TaggedOrderedSet.empty[TransactionInput]
-            var requiredSigners = Set.empty[AddrKeyHash]
+            var requiredSigners = TaggedOrderedSet.empty[AddrKeyHash]
             var networkId: Option[Int] = None
             var collateralReturnOutput: Option[Sized[TransactionOutput]] = None
             var totalCollateral: Option[Coin] = None
@@ -302,7 +302,7 @@ object TransactionBody:
                         collateralInputs = r.read[TaggedOrderedSet[TransactionInput]]()
 
                     case 14 => // Required signers
-                        requiredSigners = readSet(r)
+                        requiredSigners = r.read[TaggedOrderedSet[AddrKeyHash]]()
 
                     case 15 => // Network ID
                         val id = r.readInt()
