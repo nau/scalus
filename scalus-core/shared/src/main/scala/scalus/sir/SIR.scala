@@ -287,7 +287,7 @@ object SIR:
                   s"f: $f"
             )
 
-        // TODO: makr tp computable, not stored.  (implement subst at first).
+        // TODO: make tp computable, not stored.  (implement subst at first).
         /*
         def recheckTp: SIRType = f.tp match {
             case SIRType.Fun(in, out) => out

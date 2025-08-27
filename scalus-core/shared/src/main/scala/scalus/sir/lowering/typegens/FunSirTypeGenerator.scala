@@ -17,7 +17,7 @@ object FunSirTypeGenerator extends SirTypeUplcGenerator {
                     if inputTypeVars.isEmpty then input
                     else SIRType.TypeLambda(inputTypeVars, input)
                 val (outputTypeVars, _) = SIRType.partitionGround(typeVarsList, output)
-                // TODO: hanlde case when output is type-lambda
+                // TODO: handle case when output is type-lambda
                 val nOutput =
                     if outputTypeVars.isEmpty then output
                     else SIRType.TypeLambda(outputTypeVars, output)

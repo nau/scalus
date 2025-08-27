@@ -483,8 +483,8 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
             fromDataValue === value
         }
 
-        // TODO: this gragment evaluated succesfully, because UPLC compiler optimize out fromData calls.
-        //  Maybe implement somethong like annotation
+        // TODO: this fragment evaluated successfully, because UPLC compiler optimizes out fromData calls.
+        //  Maybe implement something like annotation
         // assertEvalFails[RequirementError] {
         //    given FromData[Value] = Value.valueFromDataWithValidation
         //

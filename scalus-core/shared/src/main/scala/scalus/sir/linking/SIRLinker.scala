@@ -7,7 +7,7 @@ import scala.collection.mutable
 
 case class SIRLinkerOptions(
     useUniversalDataConversion: Boolean,
-    /** If true, the linker will print errors to the console, otherwies they are accessible over
+    /** If true, the linker will print errors to the console, otherwise they are accessible over
       * errorlog
       */
     printErrors: Boolean,
@@ -34,17 +34,17 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
     private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[String, SIR]] =
         mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
-    private var erroLog: List[(String, SIRPosition)] = List.empty
+    private var errorLog: List[(String, SIRPosition)] = List.empty
 
     def retrieveErrors: List[(String, SIRPosition)] = {
-        erroLog
+        errorLog
     }
 
     // private val sirLoader = new SIRLoader(options.loaderOptions)
 
     private def error[A](message: String, pos: SIRPosition, defaultValue: A): A = {
         if options.printErrors then println(s"Error: $message at ${pos.show}")
-        else erroLog :+= (message, pos)
+        else errorLog :+= (message, pos)
         defaultValue
     }
 
@@ -177,7 +177,7 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
         for sir <- found do
             globalDefs.update(fullName, LinkingDefState.Linking)
             val nSir = traverseAndLink(sir, srcPos)
-            // TODO: reseatch.  removeing 'remove' triggre fail of  scalus.CompilerPluginTest. 'compile fieldAsData macro'
+            // TODO: research.  removing 'remove' triggers fail of  scalus.CompilerPluginTest. 'compile fieldAsData macro'
             globalDefs.remove(fullName)
             globalDefs.update(
               fullName,

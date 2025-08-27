@@ -383,7 +383,7 @@ final class SIRCompiler(
             if options.writeSirToFile || !td.symbol.flags.is(Flags.Module) then {
                 // we should write sir to fiel for builtin traits (Validator, ParameterizedValidator)
                 //  because applying of static inheritance happens in the compiler.
-                // TODO: enchanche SIR to have extends clause in modules and move static inheritance to runtime
+                // TODO: enhance SIR to have extends clause in modules and move static inheritance to runtime
                 writeModule(module, td.symbol.fullName.toString)
             }
 
@@ -554,7 +554,7 @@ final class SIRCompiler(
                     case _ => None
             }
             .getOrElse(Nil)
-        // TODO: add substoitution for parent type params
+        // TODO: add substitution for parent type params
         // scalus.sir.ConstrDecl(sym.name.show, SIRVarStorage.DEFAULT, params, typeParams, baseTypeArgs)
         val pos = SIRPosition.fromSrcPos(srcPos)
         val comment = constrSymbol.defTree match
@@ -722,7 +722,7 @@ final class SIRCompiler(
                 val origType = sirTypeInEnv(taTree.tpe.widen, e.srcPos, env)
                 val varType =
                     if isNoArgsMethod(e.symbol) then
-                        // TODO: if e have type parameters, than we should apply obe
+                        // TODO: if we have type parameters, then we should apply one
                         SIRType.Fun(SIRType.Unit, origType)
                     else origType
                 (

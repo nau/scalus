@@ -145,7 +145,7 @@ object SIRType {
       * @param id
       * @param isBuiltin - if true, then this type variable is a type variable of a builtin uplc function, if false, then
       *                  this is Scala type variable, which can be represented in uplc in a special form.
-      *                   Note, that buildin type variables can come only from Builtin Functions.
+      *                   Note, that builtin type variables can come only from Builtin Functions.
       */
     case class TypeVar(name: String, optId: Option[Long] = None, isBuiltin: Boolean)
         extends SIRType {

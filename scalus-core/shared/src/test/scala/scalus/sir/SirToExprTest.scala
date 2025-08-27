@@ -38,7 +38,7 @@ class SirToExprTest extends AnyFunSuite {
         assert(tp ~=~ decoded)
     }
 
-    test("list type of buildin fun is serialized without unfilled proxies") {
+    test("list type of builtin fun is serialized without unfilled proxies") {
         val fun = SIRBuiltins.tailList
         val tp = fun.tp
         val bitSize = ToExprHSSIRTypeFlat.bitSize(tp)
@@ -49,7 +49,7 @@ class SirToExprTest extends AnyFunSuite {
         assert(tp ~=~ decoded)
     }
 
-    test("type of buildin fun application is serialized without unfilled proxies") {
+    test("type of builtin fun application is serialized without unfilled proxies") {
         val fun = SIRBuiltins.tailList
         val arg: AnnotatedSIR = SIR.Const(
           scalus.uplc.Constant
@@ -72,7 +72,7 @@ class SirToExprTest extends AnyFunSuite {
         assert(tp ~=~ decoded)
     }
 
-    test("buildin fun application is serialized without unfilled proxies") {
+    test("builtin fun application is serialized without unfilled proxies") {
         val fun0 = SIRBuiltins.tailList
         val arg: AnnotatedSIR = SIR.Const(
           scalus.uplc.Constant

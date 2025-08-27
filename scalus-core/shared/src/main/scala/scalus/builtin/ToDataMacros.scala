@@ -163,7 +163,7 @@ object ToDataMacros {
                     // }
                     val params = constr.paramSymss.flatten
 
-                    // println(s"constr = ${constr}, typePrams=${typeParams}, parans = ${params}")
+                    // println(s"constr = ${constr}, typeParams=${typeParams}, params = ${params}")
                     val paramsNameType = params.map { p =>
                         // p.name -> p.info
                         p.name -> p.typeRef

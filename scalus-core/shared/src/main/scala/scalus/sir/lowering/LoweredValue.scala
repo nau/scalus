@@ -16,7 +16,7 @@ import scala.collection.mutable.Map as MutableMap
   * LoweredValue:
   *   - represents a value in lowered SIR, which is
   *   - a generator of a block of code with generate specific SIRType in specific representation. --
-  *     (representation is LoweredValueRepresentation, which can be term or data in specoific
+  *     (representation is LoweredValueRepresentation, which can be term or data in specific
   *     encoding)
   *   - some lowered values can be named (see IdentifiableLoweredValue and maintain a set of
   *     dependencies) The idea of SEA of nodes -- than we can generate code 'by need' based on
@@ -106,7 +106,7 @@ trait LoweredValue {
 
     def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue]
 
-    /** Uplevel variables, that shoule be generated before generation of term
+    /** Uplevel variables, that should be generated before generation of term
       */
     def dominatingUplevelVars: Set[IdentifiableLoweredValue]
 
@@ -254,7 +254,7 @@ sealed trait IdentifiableLoweredValue extends LoweredValue {
 }
 
 class VariableLoweredValue(
-    val id: String, // unqiue id for variable, to avoid clushes with shallowed names
+    val id: String, // unique id for variable, to avoid clashes with shadowed names
     val name: String,
     val sir: SIR.Var,
     val representation: LoweredValueRepresentation,

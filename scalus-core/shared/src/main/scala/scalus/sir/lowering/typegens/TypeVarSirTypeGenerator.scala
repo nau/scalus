@@ -69,7 +69,7 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
                     representation match
                         case TypeVarRepresentation(isBuiltin) =>
                             if isBuiltin then input
-                            else // TODO: think about converinv between built-in and non-built-in
+                            else // TODO: think about conversion between built-in and non-built-in
                                 new RepresentationProxyLoweredValue(input, representation, pos)
                         case sumRepr: SumCaseClassRepresentation =>
                             sumRepr match {
@@ -234,7 +234,7 @@ object TypeVarSirTypeGenerator extends SirTypeUplcGenerator {
             .map(input => lctx.typeGenerator(input.sirType).genSelect(sel, input))
             .getOrElse(
               throw LoweringException(
-                s"Can't select on unresoilved type variable ${loweredScrutinee.sirType.show}",
+                s"Can't select on unresolved type variable ${loweredScrutinee.sirType.show}",
                 sel.anns.pos
               )
             )

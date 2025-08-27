@@ -239,8 +239,8 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                       pos
                     )
                 else
-                    // and here is error:  we should noot change representation during upcast
-                    //  (becasue changing representation calls apply, apply call upcast...
+                    // and here is error:  we should not change representation during upcast
+                    //  (because changing representation calls apply, apply call upcast...
                     //
                     // val alignedInput =
                     //    try

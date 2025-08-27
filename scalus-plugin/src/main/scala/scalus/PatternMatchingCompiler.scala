@@ -259,7 +259,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 else if unapplyResType =:= defn.BooleanType then (List.empty, envIn)
                 else
                     // constructor patterns have no special forms
-                    // TODO: get resuslt
+                    // TODO: get result
                     throw TypingException(
                       unapplyResType,
                       srcPos,

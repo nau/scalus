@@ -127,7 +127,7 @@ class SIRUplcV3LoweringRandomSpec extends AnyFunSuite {
         }
     }
 
-    test("lowering unmapping to buildin list") {
+    test("lowering unmapping to builtin list") {
         val sir = compile {
             import scalus.prelude.*
             import scalus.builtin.Data.toData

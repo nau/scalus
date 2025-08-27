@@ -89,7 +89,7 @@ object Lowering {
                                           anns.pos
                                         )
                                     case None =>
-                                        // TODO!!!: find, hiow this can be possible and insert cheks there
+                                        // TODO!!!: find, how this can be possible and insert checks there
                                         //  [throw]
                                         val gen = lctx.typeGenerator(tp)
                                         val repr =

@@ -146,7 +146,7 @@ object SirTypeUplcGenerator {
             case SIRType.BLS12_381_MlResult =>
                 BLS12_381_MLResultSirTypeGenerator
             case _ =>
-                // TODO: imnplement
+                // TODO: implement
                 ???
         if debug then println(s"SirTypeUplcGenerator: ${tp} ->${retval.getClass.getSimpleName}")
         retval

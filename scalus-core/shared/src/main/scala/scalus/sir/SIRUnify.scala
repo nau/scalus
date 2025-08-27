@@ -664,7 +664,7 @@ object SIRUnify {
                 UnificationSuccess(env, left)
             case (leftProxy: SIRType.TypeProxy, right) =>
                 if leftProxy.ref == null then
-                    // TODO: more appropriate erro class
+                    // TODO: more appropriate error class
                     throw new RuntimeException("TypeProxy should be resolved before unification")
                 else
                     env.parentTypes.get(leftProxy.ref) match
@@ -877,7 +877,7 @@ object SIRUnify {
                         case UnificationFailure(_, _, _) =>
                             subtypeSeq(leftProxy.ref, right, env.withoutUpcasting)
             case (leftLambda: SIRType.TypeLambda, right: SIRType) =>
-                // TODO: for now typeparametes can be unresolved.
+                // TODO: for now type parameters can be unresolved.
                 val nFilledTypes = leftLambda.params.foldLeft(env.filledTypes) { case (acc, v) =>
                     acc.get(v) match {
                         case Some(tp) => acc

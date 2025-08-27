@@ -161,7 +161,7 @@ class SIRLinker(options: SIRLinkerOptions, sirLoader: SIRLoader)(using ctx: Cont
         for sir <- found do
             globalDefs.update(fullName, CompileDef.Compiling)
             val nSir = traverseAndLink(sir, srcPos)
-            // TODO: reseatch.  removeing 'remove' triggre fail of  scalus.CompilerPluginTest. 'compile fieldAsData macro'
+            // TODO: research.  removing 'remove' triggers fail of  scalus.CompilerPluginTest. 'compile fieldAsData macro'
             globalDefs.remove(fullName)
             globalDefs.update(
               fullName,

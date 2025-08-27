@@ -38,7 +38,7 @@ class Plugin extends StandardPlugin {
 
 object Plugin {
 
-    // TODO: check that we have no variabl with such name in the source code
+    // TODO: check that we have no variable with such name in the source code
     val SIR_MODULE_VAL_NAME = "sirModule"
     val SIR_DEPS_VAL_NAME = "sirDeps"
 
