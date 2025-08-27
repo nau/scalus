@@ -116,8 +116,6 @@ object AllNeededScriptHashes {
             .map(_.procedures)
             .getOrElse(Map.empty)
             .keySet
-            .toArray
-            .sorted
             .view
 
         for
@@ -180,9 +178,7 @@ object AllNeededScriptHashes {
     def allNeededProposalProceduresScriptIndexHashesView(
         transaction: Transaction
     ): View[(Int, ScriptHash)] = {
-        val govActions = transaction.body.value.proposalProcedures.toArray
-            .sortBy(_.rewardAccount)
-            .view
+        val govActions = transaction.body.value.proposalProcedures.toSortedSet.view
             .map(_.govAction)
 
         for

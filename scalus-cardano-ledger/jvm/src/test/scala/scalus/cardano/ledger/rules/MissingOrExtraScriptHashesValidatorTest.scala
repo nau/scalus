@@ -48,11 +48,11 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                   ),
                   votingProcedures = Some(
                     VotingProcedures(
-                      Map(
+                      SortedMap(
                         Voter.ConstitutionalCommitteeHotScript(
                           nativeScript.scriptHash
-                        ) -> Map.empty,
-                        Voter.DRepScript(nativeScript.scriptHash) -> Map.empty
+                        ) -> SortedMap.empty,
+                        Voter.DRepScript(nativeScript.scriptHash) -> SortedMap.empty
                       )
                     )
                   ),
@@ -71,28 +71,30 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                       )
                     )
                   ),
-                  proposalProcedures = Set(
-                    Arbitrary
-                        .arbitrary[ProposalProcedure]
-                        .sample
-                        .get
-                        .copy(govAction =
-                            GovAction.ParameterChange(
-                              None,
-                              Arbitrary.arbitrary[ProtocolParamUpdate].sample.get,
-                              Some(nativeScript.scriptHash)
-                            )
-                        ),
-                    Arbitrary
-                        .arbitrary[ProposalProcedure]
-                        .sample
-                        .get
-                        .copy(govAction =
-                            GovAction.TreasuryWithdrawals(
-                              Map.empty,
-                              Some(nativeScript.scriptHash)
-                            )
-                        )
+                  proposalProcedures = TaggedOrderedSet.from(
+                    Set(
+                      Arbitrary
+                          .arbitrary[ProposalProcedure]
+                          .sample
+                          .get
+                          .copy(govAction =
+                              GovAction.ParameterChange(
+                                None,
+                                Arbitrary.arbitrary[ProtocolParamUpdate].sample.get,
+                                Some(nativeScript.scriptHash)
+                              )
+                          ),
+                      Arbitrary
+                          .arbitrary[ProposalProcedure]
+                          .sample
+                          .get
+                          .copy(govAction =
+                              GovAction.TreasuryWithdrawals(
+                                Map.empty,
+                                Some(nativeScript.scriptHash)
+                              )
+                          )
+                    )
                   ),
                   certificates = TaggedSet(
                     Certificate

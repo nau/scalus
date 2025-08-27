@@ -554,12 +554,17 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
     given Arbitrary[VotingProcedure] = autoDerived
 
     given Arbitrary[VotingProcedures] = {
-        given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
-          genMapOfSizeFromArbitrary(1, 4)
-        )
+        given Arbitrary[SortedMap[GovActionId, VotingProcedure]] = Arbitrary {
+            genMapOfSizeFromArbitrary[GovActionId, VotingProcedure](1, 4).map(map =>
+                SortedMap.from(map)
+            )
+        }
 
-        val result: Arbitrary[VotingProcedures] = autoDerived
-        result
+        Arbitrary {
+            genMapOfSizeFromArbitrary[Voter, SortedMap[GovActionId, VotingProcedure]](1, 4).map(
+              map => VotingProcedures(SortedMap.from(map))
+            )
+        }
     }
 
     given Arbitrary[PoolVotingThresholds] = autoDerived
@@ -615,13 +620,10 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
         result
     }
 
-    given Arbitrary[Withdrawals] = {
-        given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
-          genMapOfSizeFromArbitrary(1, 8)
+    given Arbitrary[Withdrawals] = Arbitrary {
+        genMapOfSizeFromArbitrary[RewardAccount, Coin](1, 4).map(map =>
+            Withdrawals(SortedMap.from(map))
         )
-
-        val result: Arbitrary[Withdrawals] = autoDerived
-        result
     }
 
     given Arbitrary[TransactionBody] = Arbitrary {
@@ -631,11 +633,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
             fee <- arbitrary[Coin]
             ttl <- Gen.option(Gen.choose(0L, Long.MaxValue))
             certificates <- genSetOfSizeFromArbitrary[Certificate](0, 4).map(TaggedSet.from)
-            withdrawals <- Gen.option(
-              genMapOfSizeFromArbitrary[RewardAccount, Coin](1, 4).map(map =>
-                  Withdrawals(SortedMap.from(map))
-              )
-            )
+            withdrawals <- arbitrary[Option[Withdrawals]]
             auxiliaryDataHash <- arbitrary[Option[AuxiliaryDataHash]]
             validityStartSlot <- Gen.option(Gen.choose(0L, Long.MaxValue))
             mint <- arbitrary[Option[Mint]]
@@ -653,7 +651,9 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
               TaggedOrderedSet.from
             )
             votingProcedures <- arbitrary[Option[VotingProcedures]]
-            proposalProcedures <- genSetOfSizeFromArbitrary[ProposalProcedure](0, 4)
+            proposalProcedures <- genSetOfSizeFromArbitrary[ProposalProcedure](0, 4).map(
+              TaggedOrderedSet.from
+            )
             currentTreasuryValue <- arbitrary[Option[Coin]]
             donation <-
                 if currentTreasuryValue.isDefined then

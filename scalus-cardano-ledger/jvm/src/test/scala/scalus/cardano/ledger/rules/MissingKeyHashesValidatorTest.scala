@@ -275,22 +275,22 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = Some(
                     VotingProcedures(
-                      Map(
+                      SortedMap(
                         Voter.ConstitutionalCommitteeHotKey(
                           Hash(platform.blake2b_224(publicKey1))
-                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        ) -> SortedMap.from(genMapOfSizeFromArbitrary(0, 4).sample.get),
                         Voter.StakingPoolKey(
                           Hash(platform.blake2b_224(publicKey2))
-                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        ) -> SortedMap.from(genMapOfSizeFromArbitrary(0, 4).sample.get),
                         Voter.DRepKey(
                           Hash(platform.blake2b_224(publicKey3))
-                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        ) -> SortedMap.from(genMapOfSizeFromArbitrary(0, 4).sample.get),
                         Voter.ConstitutionalCommitteeHotScript(
                           Arbitrary.arbitrary[ScriptHash].sample.get
-                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        ) -> SortedMap.from(genMapOfSizeFromArbitrary(0, 4).sample.get),
                         Voter.DRepScript(
                           Arbitrary.arbitrary[ScriptHash].sample.get
-                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get
+                        ) -> SortedMap.from(genMapOfSizeFromArbitrary(0, 4).sample.get)
                       )
                     )
                   ),
@@ -332,22 +332,22 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   referenceInputs = TaggedOrderedSet.empty,
                   votingProcedures = Some(
                     VotingProcedures(
-                      Map(
+                      SortedMap(
                         Voter.ConstitutionalCommitteeHotKey(
                           Hash(platform.blake2b_224(publicKey1))
-                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        ) -> SortedMap.from(genMapOfSizeFromArbitrary(0, 4).sample.get),
                         Voter.StakingPoolKey(
                           Hash(platform.blake2b_224(publicKey2))
-                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        ) -> SortedMap.from(genMapOfSizeFromArbitrary(0, 4).sample.get),
                         Voter.DRepKey(
                           Hash(platform.blake2b_224(publicKey3))
-                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        ) -> SortedMap.from(genMapOfSizeFromArbitrary(0, 4).sample.get),
                         Voter.ConstitutionalCommitteeHotScript(
                           Arbitrary.arbitrary[ScriptHash].sample.get
-                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get,
+                        ) -> SortedMap.from(genMapOfSizeFromArbitrary(0, 4).sample.get),
                         Voter.DRepScript(
                           Arbitrary.arbitrary[ScriptHash].sample.get
-                        ) -> genMapOfSizeFromArbitrary(0, 4).sample.get
+                        ) -> SortedMap.from(genMapOfSizeFromArbitrary(0, 4).sample.get)
                       )
                     )
                   ),

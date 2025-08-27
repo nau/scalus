@@ -23,3 +23,10 @@ case class ProposalProcedure(
     govAction: GovAction,
     anchor: Anchor
 ) derives Codec
+
+object ProposalProcedure {
+    given Ordering[ProposalProcedure] with
+        def compare(x: ProposalProcedure, y: ProposalProcedure): Int = {
+            Ordering[RewardAccount].compare(x.rewardAccount, y.rewardAccount)
+        }
+}

@@ -42,7 +42,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   mint = None,
                   votingProcedures = None,
                   withdrawals = None,
-                  proposalProcedures = Set.empty,
+                  proposalProcedures = TaggedOrderedSet.empty,
                   certificates = TaggedSet.empty,
                   requiredSigners = TaggedOrderedSet.empty
                 )
@@ -147,7 +147,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   mint = None,
                   votingProcedures = None,
                   withdrawals = None,
-                  proposalProcedures = Set.empty,
+                  proposalProcedures = TaggedOrderedSet.empty,
                   certificates = TaggedSet.empty,
                   requiredSigners = TaggedOrderedSet.empty
                 )
@@ -240,7 +240,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   mint = None,
                   votingProcedures = None,
                   withdrawals = None,
-                  proposalProcedures = Set.empty,
+                  proposalProcedures = TaggedOrderedSet.empty,
                   certificates = TaggedSet.empty,
                   requiredSigners = TaggedOrderedSet.empty
                 )
@@ -348,7 +348,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   mint = None,
                   votingProcedures = None,
                   withdrawals = None,
-                  proposalProcedures = Set.empty,
+                  proposalProcedures = TaggedOrderedSet.empty,
                   certificates = TaggedSet.empty,
                   requiredSigners = TaggedOrderedSet.empty
                 )
@@ -448,7 +448,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   mint = None,
                   votingProcedures = None,
                   withdrawals = None,
-                  proposalProcedures = Set.empty,
+                  proposalProcedures = TaggedOrderedSet.empty,
                   certificates = TaggedSet.empty,
                   requiredSigners = TaggedOrderedSet.empty
                 )
@@ -548,7 +548,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   mint = None,
                   votingProcedures = None,
                   withdrawals = None,
-                  proposalProcedures = Set.empty,
+                  proposalProcedures = TaggedOrderedSet.empty,
                   certificates = TaggedSet.empty,
                   requiredSigners = TaggedOrderedSet.empty
                 )
@@ -635,7 +635,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   mint = None,
                   votingProcedures = None,
                   withdrawals = None,
-                  proposalProcedures = Set.empty,
+                  proposalProcedures = TaggedOrderedSet.empty,
                   certificates = TaggedSet.empty,
                   requiredSigners = TaggedOrderedSet.empty
                 )

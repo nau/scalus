@@ -654,8 +654,9 @@ object LedgerToPlutusTranslation {
           data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
           id = v3.TxId(tx.id),
           votes = getVotingProcedures(body.votingProcedures),
-          proposalProcedures =
-              prelude.List.from(body.proposalProcedures.toSeq.map(getProposalProcedureV3)),
+          proposalProcedures = prelude.List.from(
+            body.proposalProcedures.toSortedSet.view.map(getProposalProcedureV3)
+          ),
           currentTreasuryAmount = body.currentTreasuryValue
               .map(coin => prelude.Option.Some(BigInt(coin.value)))
               .getOrElse(prelude.Option.None),

@@ -2,8 +2,6 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.*
 
-import scala.collection.immutable.Set
-
 case class TransactionBody(
     /** Transaction inputs to spend */
     inputs: TaggedOrderedSet[TransactionInput],
@@ -57,7 +55,7 @@ case class TransactionBody(
     votingProcedures: Option[VotingProcedures] = None,
 
     /** Proposal procedures */
-    proposalProcedures: Set[ProposalProcedure] = Set.empty,
+    proposalProcedures: TaggedOrderedSet[ProposalProcedure] = TaggedOrderedSet.empty,
 
     /** Transaction deposit */
     currentTreasuryValue: Option[Coin] = None,
@@ -109,7 +107,7 @@ object TransactionBody:
             if value.totalCollateral.isDefined then mapSize += 1
             if value.referenceInputs.toSortedSet.nonEmpty then mapSize += 1
             if value.votingProcedures.isDefined then mapSize += 1
-            if value.proposalProcedures.nonEmpty then mapSize += 1
+            if value.proposalProcedures.toSortedSet.nonEmpty then mapSize += 1
             if value.currentTreasuryValue.isDefined then mapSize += 1
             if value.donation.isDefined then mapSize += 1
 
@@ -212,9 +210,9 @@ object TransactionBody:
             }
 
             // Proposal procedures (key 20)
-            if value.proposalProcedures.nonEmpty then
+            if value.proposalProcedures.toSortedSet.nonEmpty then
                 w.writeInt(20)
-                writeSet(w, value.proposalProcedures)
+                w.write(value.proposalProcedures)
 
             // Deposit (key 21)
             value.currentTreasuryValue.foreach { coin =>
@@ -229,13 +227,6 @@ object TransactionBody:
             }
 
             w
-
-    /** Helper to write a Set as CBOR */
-    private def writeSet[A](w: Writer, set: Set[A])(using encoder: Encoder[A]): Writer =
-        w.writeTag(Tag.Other(258))
-        w.writeArrayHeader(set.size)
-        set.foreach(encoder.write(w, _))
-        w
 
     /** CBOR decoder for TransactionBody */
     given (using OriginalCborByteArray): Decoder[TransactionBody] with
@@ -259,7 +250,7 @@ object TransactionBody:
             var totalCollateral: Option[Coin] = None
             var referenceInputs = TaggedOrderedSet.empty[TransactionInput]
             var votingProcedures: Option[VotingProcedures] = None
-            var proposalProcedures = Set.empty[ProposalProcedure]
+            var proposalProcedures = TaggedOrderedSet.empty[ProposalProcedure]
             var currentTreasuryValue: Option[Coin] = None
             var donation: Option[Coin] = None
 
@@ -323,7 +314,7 @@ object TransactionBody:
                         votingProcedures = Some(r.read[VotingProcedures]())
 
                     case 20 => // Proposal procedures
-                        proposalProcedures = readSet[ProposalProcedure](r)
+                        proposalProcedures = r.read[TaggedOrderedSet[ProposalProcedure]]()
                     case 21 => // Deposit
                         currentTreasuryValue = Some(r.read[Coin]())
 
@@ -356,13 +347,3 @@ object TransactionBody:
               currentTreasuryValue = currentTreasuryValue,
               donation = donation
             )
-
-    /** Helper to read a Set from CBOR */
-    private def readSet[A](r: Reader)(using decoder: Decoder[A]): Set[A] =
-        // Check for indefinite array tag (258)
-        if r.dataItem() == DataItem.Tag then
-            val tag = r.readTag()
-            if tag.code != 258 then
-                r.validationFailure(s"Expected tag 258 for definite Set, got $tag")
-            r.read[Set[A]]()
-        else r.read[Set[A]]()
