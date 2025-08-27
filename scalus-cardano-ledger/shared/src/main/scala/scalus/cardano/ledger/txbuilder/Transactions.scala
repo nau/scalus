@@ -30,7 +30,7 @@ enum Intention {
         redeemer: Data,
         targetAddress: Address
     )
-    case WithdrawRewards(withdrawals: Map[RewardAccount, Coin])
+    case WithdrawRewards(withdrawals: SortedMap[RewardAccount, Coin])
 }
 
 trait Interpreter {

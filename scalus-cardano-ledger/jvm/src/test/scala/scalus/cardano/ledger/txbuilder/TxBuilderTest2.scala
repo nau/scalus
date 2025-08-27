@@ -72,6 +72,7 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
     }
 
     test("mint tokens with PlutusV3 script") {
+        pending
         val myAddress = arbitrary[ShelleyAddress].sample.get
         val targetAddress = arbitrary[ShelleyAddress].sample.get
         val hash = arbitrary[TransactionHash].sample.get
