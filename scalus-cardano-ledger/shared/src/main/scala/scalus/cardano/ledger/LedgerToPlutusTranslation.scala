@@ -544,10 +544,10 @@ object LedgerToPlutusTranslation {
 
         v1.TxInfo(
           inputs = prelude.List.from(body.inputs.toSortedSet.view.map(getTxInInfoV1(_, utxos))),
-          outputs = prelude.List.from(body.outputs.map(getTxOutV1)),
+          outputs = prelude.List.from(body.outputs.view.map(getTxOutV1)),
           fee = v1.Value.lovelace(body.fee.value),
           mint = getMintValue(body.mint),
-          dcert = prelude.List.from(body.certificates.toIndexedSeq.map(getDCert)),
+          dcert = prelude.List.from(body.certificates.toIndexedSeq.view.map(getDCert)),
           withdrawals = getWithdrawals(body.withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
@@ -578,11 +578,11 @@ object LedgerToPlutusTranslation {
         v2.TxInfo(
           inputs = prelude.List.from(body.inputs.toSortedSet.view.map(getTxInInfoV2(_, utxos))),
           referenceInputs =
-              prelude.List.from(body.referenceInputs.toSeq.view.map(getTxInInfoV2(_, utxos))),
-          outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
+              prelude.List.from(body.referenceInputs.toSortedSet.view.map(getTxInInfoV2(_, utxos))),
+          outputs = prelude.List.from(body.outputs.view.map(getTxOutV2)),
           fee = v1.Value.lovelace(body.fee.value),
           mint = getMintValue(body.mint),
-          dcert = prelude.List.from(body.certificates.toIndexedSeq.map(getDCert)),
+          dcert = prelude.List.from(body.certificates.toIndexedSeq.view.map(getDCert)),
           withdrawals = SortedMap.fromList(getWithdrawals(body.withdrawals)),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(
@@ -636,11 +636,11 @@ object LedgerToPlutusTranslation {
         v3.TxInfo(
           inputs = prelude.List.from(body.inputs.toSortedSet.view.map(getTxInInfoV3(_, utxos))),
           referenceInputs =
-              prelude.List.from(body.referenceInputs.toSeq.view.map(getTxInInfoV3(_, utxos))),
-          outputs = prelude.List.from(body.outputs.map(getTxOutV2)),
+              prelude.List.from(body.referenceInputs.toSortedSet.view.map(getTxInInfoV3(_, utxos))),
+          outputs = prelude.List.from(body.outputs.view.map(getTxOutV2)),
           fee = body.fee.value,
           mint = getMintValue(body.mint),
-          certificates = prelude.List.from(body.certificates.toIndexedSeq.map(getTxCertV3)),
+          certificates = prelude.List.from(body.certificates.toIndexedSeq.view.map(getTxCertV3)),
           withdrawals = SortedMap.fromList(withdrawals),
           validRange = getInterval(body.validityStartSlot, body.ttl, slotConfig, protocolVersion),
           signatories = prelude.List.from(

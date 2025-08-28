@@ -36,7 +36,7 @@ class PlutusScriptEvaluationException(
   *   Map from datum hash to datum data
   */
 case class LookupTable(
-    scripts: Map[ScriptHash, PlutusScript],
+    scripts: Map[ScriptHash, Script],
     // cache of `getDatum`
     datums: Map[DataHash, Data]
 )
@@ -128,7 +128,7 @@ class PlutusScriptEvaluator(
             datum.dataHash -> datum.value
         }.toSeq
 
-        val lookupTable = LookupTable(allResolvedPlutusScripts(tx, utxos), datumsMapping.toMap)
+        val lookupTable = LookupTable(allResolvedScripts(tx, utxos), datumsMapping.toMap)
 
         log.debug(
           s"Built lookup table with ${lookupTable.scripts.size} scripts and ${lookupTable.datums.size} datums"
@@ -137,7 +137,7 @@ class PlutusScriptEvaluator(
         // Evaluate each redeemer
         var remainingBudget = initialBudget
 
-        val scriptsData =
+        val neededScriptsData =
             (
               AllNeededScriptHashes.allNeededInputsScriptIndexHashesAndOutputs(tx, utxos) match
                   case Right(inputsScriptIndexHashesAndOutputs) =>
@@ -170,12 +170,15 @@ class PlutusScriptEvaluator(
                 }
 
         val evaluatedRedeemers =
-            (for (redeemerTag, index, scriptHash, datum) <- scriptsData
+            (for
+                (redeemerTag, index, scriptHash, datum) <- neededScriptsData
+                plutusScript <- lookupTable.scripts.get(scriptHash) match {
+                    case Some(plutusScript: PlutusScript) => Some(plutusScript)
+                    case Some(other)                      => None
+                    case None =>
+                        throw new IllegalStateException(s"Script not found: $scriptHash")
+                }
             yield {
-                val plutusScript = lookupTable.scripts.get(scriptHash) match
-                    case Some(plutusScript) => plutusScript
-                    case None => throw new IllegalStateException(s"Script not found: $scriptHash")
-
                 if redeemerTag == RedeemerTag.Spend then {
                     // V1 and V2 scripts require datums
                     plutusScript match
@@ -420,12 +423,12 @@ class PlutusScriptEvaluator(
 
     /** Extract all scripts from transaction and UTxOs.
       */
-    private def allResolvedPlutusScripts(
+    private def allResolvedScripts(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput]
-    ): Map[ScriptHash, PlutusScript] =
-        AllResolvedScripts.allResolvedPlutusScriptsMap(tx, utxos) match
-            case Right(allResolvedPlutusScriptsMap) => allResolvedPlutusScriptsMap
-            case Left(error)                        => throw error
+    ): Map[ScriptHash, Script] =
+        AllResolvedScripts.allResolvedScriptsMap(tx, utxos) match
+            case Right(allResolvedScriptsMap) => allResolvedScriptsMap
+            case Left(error)                  => throw error
 
 }

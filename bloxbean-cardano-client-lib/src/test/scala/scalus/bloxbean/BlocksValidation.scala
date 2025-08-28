@@ -18,7 +18,7 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, OriginalCborByteArray, PlutusScriptEvaluator, Script, ScriptDataHashGenerator}
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, OriginalCborByteArray, PlutusScriptEvaluator, Redeemers, Script, ScriptDataHashGenerator}
 import scalus.ledger.api.{MajorProtocolVersion, ValidityInterval}
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
@@ -199,14 +199,15 @@ object BlocksValidation:
                 try
                     val utxos = utxoResolver.resolveUtxos(tx)
                     if tx.isValid && tx.witnessSet.redeemers.nonEmpty then {
-                        val redeemers = evaluator.evalPlutusScripts(tx, utxos)
-                        redeemers.zip(tx.witnessSet.redeemers.get.value.toIndexedSeq).foreach {
-                            case (res, redeemer) =>
-                                if res.exUnits > redeemer.exUnits then
-                                    println(
-                                      s"\n${Console.RED}AAAA!!!! block $path, tx ${tx.id} ${redeemer.tag} budget: ${res.exUnits} > ${redeemer.exUnits} ${Console.RESET}"
-                                    )
-                        }
+                        val actualRedeemers =
+                            Redeemers.from(evaluator.evalPlutusScripts(tx, utxos)).toMap
+                        val expectedRedeemers = tx.witnessSet.redeemers.get.value.toMap
+                        for (key, (_, actualExUnits)) <- actualRedeemers do
+                            val expectedExUnits = expectedRedeemers(key)._2
+                            if actualExUnits > expectedExUnits then
+                                println(
+                                  s"\n${Console.RED}AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits ${Console.RESET}"
+                                )
                     }
                 catch
                     case e: Exception =>
