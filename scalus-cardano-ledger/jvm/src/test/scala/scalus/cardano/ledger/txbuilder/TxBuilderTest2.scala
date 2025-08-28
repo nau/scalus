@@ -4,7 +4,8 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.{ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
-import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, AssetName, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
+import scalus.cardano.ledger.rules.{CardanoMutator, Context, State, UtxoEnv}
+import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, AssetName, CertState, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
@@ -58,7 +59,7 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
 
         val inputSelector = InputSelector(
           Set(ResolvedTxInput.Script(txInputs.head, script, Data.unit)),
-          collateral.keySet
+          Set(ResolvedTxInput.Pubkey(collateral.head))
         )
         InterpreterWithProvidedData(
           inputSelector,
@@ -72,7 +73,6 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
     }
 
     test("mint tokens with PlutusV3 script") {
-        pending
         val myAddress = arbitrary[ShelleyAddress].sample.get
         val targetAddress = arbitrary[ShelleyAddress].sample.get
         val hash = arbitrary[TransactionHash].sample.get
@@ -99,7 +99,7 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
 
         val inputSelector = InputSelector(
           Set(ResolvedTxInput.Script(txInputs.head, mintingScript, Data.unit)),
-          collateral.keySet
+          Set(ResolvedTxInput.Pubkey(collateral.head))
         )
 
         val interpreter = InterpreterWithProvidedData(
@@ -162,7 +162,7 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
 
         val inputSelector = InputSelector(
           Set(ResolvedTxInput.Script(txInputs.head, script, Data.unit)),
-          collateral.keySet
+          Set(ResolvedTxInput.Pubkey(collateral.head))
         )
 
         assertThrows[Exception] {
@@ -175,5 +175,55 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
               evaluator
             ).realize(Intention.Pay(faucet, payment))
         }
+    }
+
+    test("validate against ledger rules") {
+        // Should implement signing such that the mutator can run fully. Otherwise, everything looks alright.
+        pending
+        val myAddress = arbitrary[ShelleyAddress].sample.get
+        val targetAddress = arbitrary[ShelleyAddress].sample.get
+        val hash = arbitrary[TransactionHash].sample.get
+
+        val scriptBytes = ByteString.unsafeFromArray(Array(69, 3, 1, 0, 36, -103).map(_.toByte))
+        val mintingScript = Script.PlutusV3(scriptBytes)
+        val policyId = mintingScript.scriptHash
+
+        val assetName = AssetName(ByteString.fromString("co2"))
+        val mintAmount = 1000L
+        val mintValue = Mint(MultiAsset(SortedMap(policyId -> SortedMap(assetName -> mintAmount))))
+
+        val availableLovelace = Value.lovelace(100_000_000L)
+        val txInputs = Map(
+          TransactionInput(hash, 0) -> TransactionOutput(myAddress, availableLovelace)
+        )
+        val collateral = Map(
+          TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
+            myAddress,
+            Value.lovelace(100_000_000L)
+          )
+        )
+        val utxo: UTxO = txInputs ++ collateral
+
+        val inputSelector = InputSelector(
+          Set(ResolvedTxInput.Script(txInputs.head, mintingScript, Data.unit)),
+          Set(ResolvedTxInput.Pubkey(collateral.head))
+        )
+
+        val interpreter = InterpreterWithProvidedData(
+          inputSelector,
+          utxo,
+          env,
+          ChangeReturnStrategy.toAddress(myAddress),
+          FeePayerStrategy.subtractFromAddress(myAddress),
+          evaluator
+        )
+        val tx = interpreter.realize(
+          Intention.Mint(mintValue, mintingScript, Data.unit, targetAddress)
+        )
+        val result = CardanoMutator(
+          Context(tx.body.value.fee, UtxoEnv(0L, env.protocolParams, CertState.empty)),
+          State(utxo, CertState.empty),
+          tx
+        )
     }
 }

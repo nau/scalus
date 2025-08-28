@@ -1,16 +1,18 @@
 package scalus.cardano.ledger.txbuilder
 
-import scalus.builtin.Data
+import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.utils.TxBalance
+import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, TxBalance}
 import scalus.ledger.babbage.ProtocolParams
 import scalus.builtin.ByteString.given
 import scalus.cardano.ledger.txbuilder.Intention.Stake
+import scalus.cardano.ledger.utils.TxBalance.modifyBody
 
 import scala.collection.immutable.SortedMap
+import scala.util.Random
 
 /*
  * Intention is what the user intends to happen. Should accept as few parameters as possible.
@@ -54,7 +56,8 @@ case class InterpreterWithProvidedData(
           inputs = TaggedOrderedSet.from(inputSelector.inputs.view.map(_.utxo._1)),
           outputs = IndexedSeq.empty,
           fee = Coin.zero,
-          collateralInputs = TaggedOrderedSet.from(inputSelector.collateralInputs)
+          collateralInputs =
+              TaggedOrderedSet.from(inputSelector.collateralInputs.view.map(_.utxo._1))
         )
         val body = i match {
             case Intention.Pay(address, value, data) =>
@@ -62,16 +65,21 @@ case class InterpreterWithProvidedData(
                   outputs = IndexedSeq(Sized(TransactionOutput(address, value, data)))
                 )
             case Intention.Mint(mintValue, mintingPolicy, redeemer, targetAddress) =>
+                val tempOutput = TransactionOutput(
+                  targetAddress,
+                  Value(Coin(1), MultiAsset(mintValue.assets)),
+                  None
+                )
+                val sizedTempOutput = Sized(tempOutput)
+                val minCoin =
+                    MinCoinSizedTransactionOutput(sizedTempOutput, environment.protocolParams)
+                val correctedOutput = TransactionOutput(
+                  targetAddress,
+                  Value(minCoin, MultiAsset(mintValue.assets)),
+                  None
+                )
                 initialBody.copy(
-                  outputs = IndexedSeq(
-                    Sized(
-                      TransactionOutput(
-                        targetAddress,
-                        Value(Coin.zero, MultiAsset(mintValue.assets)),
-                        None
-                      )
-                    )
-                  ),
+                  outputs = IndexedSeq(Sized(correctedOutput)),
                   mint = Some(mintValue),
                 )
             case Intention.WithdrawRewards(withdrawals) =>
@@ -94,7 +102,8 @@ case class InterpreterWithProvidedData(
         val postEvalTx = tx.copy(witnessSet =
             tx.witnessSet.copy(redeemers = Some(KeepRaw(Redeemers.from(redeemers))))
         )
-        TxBalance.doBalance2(postEvalTx)(
+        val withMinsCeiled = ceilOuts(postEvalTx, environment.protocolParams)
+        TxBalance.doBalance2(withMinsCeiled)(
           utxo,
           environment.protocolParams,
           changeReturnStrategy,
@@ -103,8 +112,8 @@ case class InterpreterWithProvidedData(
 
     }
 
-    private def makeWs(intention: Intention, body: TransactionBody) =
-        intention match {
+    private def makeWs(intention: Intention, body: TransactionBody) = {
+        val ws = intention match {
             case Intention.Pay(address, value, data) =>
                 assembleWsForPayments
             case mint: Intention.Mint =>
@@ -114,6 +123,13 @@ case class InterpreterWithProvidedData(
             case stake: Intention.Stake =>
                 assembleWsForStaking(stake, body)
         }
+        val inputSignees = inputSelector.inputs.map(_.output.address)
+        val collateralInputSignees = inputSelector.collateralInputs.map(_.output.address)
+        val inputSigneesCount = (inputSignees ++ collateralInputSignees).size
+        val requiredSigneesCount = body.requiredSigners.toSeq.size
+        val dummyVkeysNeeded = inputSigneesCount + requiredSigneesCount
+        addNDummyVKeys(n = dummyVkeysNeeded, ws)
+    }
 
     // Looks up the script-protected inputs and initializes the witness set with redeemers with respective indices.
     private def assembleWsForPayments = {
@@ -313,6 +329,33 @@ case class InterpreterWithProvidedData(
             }
             .toWs
     }
+
+    private def addNDummyVKeys(n: Int, ws: TransactionWitnessSet): TransactionWitnessSet = {
+        def mkDummyWitness = {
+            val key = Random().alphanumeric.take(32).mkString
+            val signature = Random().alphanumeric.take(64).mkString
+            VKeyWitness(ByteString.fromString(key), ByteString.fromString(signature))
+        }
+        ws.copy(vkeyWitnesses = Set.fill(n)(mkDummyWitness))
+    }
+
+    def ceilOuts(tx: Transaction, protocolParams: ProtocolParams): Transaction = {
+        def ceilOut(sizedOut: Sized[TransactionOutput]): Sized[TransactionOutput] = {
+            val out = sizedOut.value
+            val min = MinCoinSizedTransactionOutput(sizedOut, protocolParams)
+            if out.value.coin < min then {
+                out match {
+                    case shelley @ TransactionOutput.Shelley(_, value, _) =>
+                        Sized(shelley.copy(value = value.copy(coin = min)))
+                    case babbage @ TransactionOutput.Babbage(_, value, _, _) =>
+                        Sized(babbage.copy(value = value.copy(coin = min)))
+                }
+            } else Sized(out)
+        }
+
+        modifyBody(tx, b => b.copy(outputs = b.outputs.map(ceilOut)))
+    }
+
 }
 
 case class ScriptsWs(
@@ -355,7 +398,7 @@ object EnvironmentGetter {
 }
 
 enum ResolvedTxInput {
-    case Pubkey(utxo: (TransactionInput, TransactionOutput), data: Option[DatumOption])
+    case Pubkey(utxo: (TransactionInput, TransactionOutput), data: Option[DatumOption] = None)
     case Script(
         utxo: (TransactionInput, TransactionOutput),
         script: PlutusScript,
@@ -368,6 +411,16 @@ extension (r: ResolvedTxInput) {
         case ResolvedTxInput.Pubkey(utxo, _)       => utxo
         case ResolvedTxInput.Script(utxo, _, _, _) => utxo
     }
+
+    def input: TransactionInput = r match {
+        case ResolvedTxInput.Pubkey(utxo, data)                   => utxo._1
+        case ResolvedTxInput.Script(utxo, script, redeemer, data) => utxo._1
+    }
+
+    def output: TransactionOutput = r match {
+        case ResolvedTxInput.Pubkey(utxo, data)                   => utxo._2
+        case ResolvedTxInput.Script(utxo, script, redeemer, data) => utxo._2
+    }
 }
 
 case class Environment(
@@ -378,16 +431,16 @@ case class Environment(
 
 trait InputSelector {
     def inputs: Set[ResolvedTxInput]
-    def collateralInputs: Set[TransactionInput]
+    def collateralInputs: Set[ResolvedTxInput]
 }
 object InputSelector {
     def apply(
         regularInputs: Set[ResolvedTxInput],
-        collateral: Set[TransactionInput]
+        collateral: Set[ResolvedTxInput]
     ): InputSelector =
         new InputSelector {
             override def inputs: Set[ResolvedTxInput] = regularInputs
-            override def collateralInputs: Set[TransactionInput] = collateral
+            override def collateralInputs: Set[ResolvedTxInput] = collateral
         }
 }
 
