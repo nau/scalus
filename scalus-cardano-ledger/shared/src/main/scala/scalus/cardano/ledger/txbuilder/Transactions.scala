@@ -8,6 +8,7 @@ import scalus.cardano.ledger
 import scalus.cardano.ledger.utils.TxBalance
 import scalus.ledger.babbage.ProtocolParams
 import scalus.builtin.ByteString.given
+import scalus.cardano.ledger.txbuilder.Intention.Stake
 
 import scala.collection.immutable.SortedMap
 
@@ -31,6 +32,8 @@ enum Intention {
         targetAddress: Address
     )
     case WithdrawRewards(withdrawals: SortedMap[RewardAccount, Coin])
+
+    case Stake(credential: Credential, poolKeyHash: PoolKeyHash)
 }
 
 trait Interpreter {
@@ -75,8 +78,17 @@ case class InterpreterWithProvidedData(
                 initialBody.copy(
                   withdrawals = Some(Withdrawals(withdrawals))
                 )
+            case Intention.Stake(credential, poolKeyHash) =>
+                val stakeRegDelegCert = Certificate.StakeRegDelegCert(
+                  credential = credential,
+                  poolKeyHash = poolKeyHash,
+                  coin = Coin(environment.protocolParams.stakeAddressDeposit)
+                )
+                initialBody.copy(
+                  certificates = TaggedSet(stakeRegDelegCert)
+                )
         }
-        val ws = makeWs(i)
+        val ws = makeWs(i, body)
         val tx = Transaction(body, ws)
         val redeemers = evaluator.evalPlutusScripts(tx, utxo)
         val postEvalTx = tx.copy(witnessSet =
@@ -91,7 +103,7 @@ case class InterpreterWithProvidedData(
 
     }
 
-    private def makeWs(intention: Intention) =
+    private def makeWs(intention: Intention, body: TransactionBody) =
         intention match {
             case Intention.Pay(address, value, data) =>
                 assembleWsForPayments
@@ -99,6 +111,8 @@ case class InterpreterWithProvidedData(
                 assembleWsForMinting(mint)
             case withdraw: Intention.WithdrawRewards =>
                 assembleWsForWithdrawal(withdraw)
+            case stake: Intention.Stake =>
+                assembleWsForStaking(stake, body)
         }
 
     // Looks up the script-protected inputs and initializes the witness set with redeemers with respective indices.
@@ -235,6 +249,57 @@ case class InterpreterWithProvidedData(
                                                 .addRedeemer(
                                                   Redeemer(
                                                     RedeemerTag.Reward,
+                                                    index,
+                                                    redeemer,
+                                                    ExUnits.zero
+                                                  )
+                                                )
+                                    }
+                            }
+                            .getOrElse(ws)
+                    case None => ws
+                }
+            }
+            .toWs
+    }
+
+    private def assembleWsForStaking(stake: Intention.Stake, body: TransactionBody) = {
+        val certificates = body.certificates.toIndexedSeq // .sorted when certs are sorted
+
+        certificates.view.zipWithIndex
+            .foldLeft(ScriptsWs()) { case (ws, (certificate, index)) =>
+                certificate.scriptHashOption match {
+                    case Some(scriptHash) =>
+                        inputSelector.inputs
+                            .collectFirst {
+                                case ResolvedTxInput.Script(_, script, redeemer, _)
+                                    if script.scriptHash == scriptHash =>
+                                    script match {
+                                        case v1: PlutusV1 =>
+                                            ws.addV1(v1)
+                                                .addRedeemer(
+                                                  Redeemer(
+                                                    RedeemerTag.Cert,
+                                                    index,
+                                                    redeemer,
+                                                    ExUnits.zero
+                                                  )
+                                                )
+                                        case v2: PlutusV2 =>
+                                            ws.addV2(v2)
+                                                .addRedeemer(
+                                                  Redeemer(
+                                                    RedeemerTag.Cert,
+                                                    index,
+                                                    redeemer,
+                                                    ExUnits.zero
+                                                  )
+                                                )
+                                        case v3: PlutusV3 =>
+                                            ws.addV3(v3)
+                                                .addRedeemer(
+                                                  Redeemer(
+                                                    RedeemerTag.Cert,
                                                     index,
                                                     redeemer,
                                                     ExUnits.zero
