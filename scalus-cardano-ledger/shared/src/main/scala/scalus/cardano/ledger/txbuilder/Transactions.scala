@@ -1,7 +1,7 @@
 package scalus.cardano.ledger.txbuilder
 
-import scalus.builtin.{ByteString, Data}
-import scalus.cardano.address.{Address, Network}
+import scalus.builtin.{platform, ByteString, Data}
+import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
 import scalus.cardano.ledger
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
@@ -124,8 +124,12 @@ case class InterpreterWithProvidedData(
             case stake: Intention.Stake =>
                 assembleWsForStaking(stake, body)
         }
-        val inputSignees = inputSelector.inputs.map(_.output.address)
-        val collateralInputSignees = inputSelector.collateralInputs.map(_.output.address)
+        val inputSignees = inputSelector.inputs.collect { case pubkey: ResolvedTxInput.Pubkey =>
+            pubkey.output.address
+        }
+        val collateralInputSignees = inputSelector.collateralInputs.collect {
+            case pubkey: ResolvedTxInput.Pubkey => pubkey.output.address
+        }
         val inputSigneesCount = (inputSignees ++ collateralInputSignees).size
         val requiredSigneesCount = body.requiredSigners.toSeq.size
         val dummyVkeysNeeded = inputSigneesCount + requiredSigneesCount
@@ -400,6 +404,28 @@ case class ScriptsWs(
     def addV3(v3: PlutusV3): ScriptsWs = copy(v3Plutus = v3Plutus + v3)
     def addRedeemer(redeemer: Redeemer): ScriptsWs = copy(redeemers = redeemers + redeemer)
 
+}
+
+trait TxSigner {
+    def signTx(unsigned: Transaction): Transaction
+}
+object TxSigner {
+    def usingKeyPairs(keyPairs: (ByteString, ByteString)*): TxSigner = new TxSigner {
+
+        // public -> private
+        private val keys = Map(keyPairs*)
+
+        override def signTx(unsigned: Transaction): Transaction = {
+            val signatures = keys.map { (publicKey, privateKey) =>
+                val signature = platform.signEd25519(privateKey, unsigned.id)
+                VKeyWitness(publicKey, signature)
+            }.toSet
+
+            // override the dummies
+            val ws = unsigned.witnessSet.copy(vkeyWitnesses = signatures)
+            unsigned.copy(witnessSet = ws)
+        }
+    }
 }
 
 trait TransactionResolver {

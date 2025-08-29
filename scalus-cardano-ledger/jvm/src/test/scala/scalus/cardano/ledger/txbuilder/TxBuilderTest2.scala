@@ -2,10 +2,11 @@ package scalus.cardano.ledger.txbuilder
 
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{ByteString, Data}
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.{ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
-import scalus.cardano.ledger.rules.{CardanoMutator, Context, State, UtxoEnv}
-import scalus.cardano.ledger.{ArbitraryInstances as ArbLedger, AssetName, CertState, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
+import scalus.cardano.ledger.rules.{CardanoMutator, Context, State, UtxoEnv, ValidatorRulesTestKit}
+import scalus.cardano.ledger.{AddrKeyHash, ArbitraryInstances as ArbLedger, AssetName, CertState, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
+import scalus.cardano.ledger.txbuilder.TxSigner
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
@@ -13,7 +14,11 @@ import upickle.default.read
 
 import scala.collection.immutable.SortedMap
 
-class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
+class TxBuilderTest2
+    extends AnyFunSuite
+    with ArbAddresses
+    with ArbLedger
+    with ValidatorRulesTestKit {
 
     val params: ProtocolParams = read[ProtocolParams](
       this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
@@ -186,9 +191,15 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
     }
 
     test("validate against ledger rules") {
-        // Should implement signing such that the mutator can run fully. Otherwise, everything looks alright.
-        pending
-        val myAddress = arbitrary[ShelleyAddress].sample.get
+        val keyPair @ (privateKey, publicKey) = generateKeyPair()
+
+        val keyHash = AddrKeyHash(platform.blake2b_224(publicKey))
+        val myAddress = ShelleyAddress(
+          Network.Testnet,
+          ShelleyPaymentPart.Key(keyHash),
+          ShelleyDelegationPart.Null
+        )
+
         val targetAddress = arbitrary[ShelleyAddress].sample.get
         val hash = arbitrary[TransactionHash].sample.get
 
@@ -234,13 +245,18 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
           FeePayerStrategy.subtractFromAddress(myAddress),
           evaluator
         )
-        val tx = interpreter.realize(
+        val unsignedTx = interpreter.realize(
           Intention.Mint(mintValue, mintingScript, Data.unit, targetAddress)
         )
+        val signed = TxSigner
+            .usingKeyPairs(keyPair.swap)
+            .signTx(unsignedTx) // mind the swap, public goes first. should it?
+
         val result = CardanoMutator(
-          Context(tx.body.value.fee, UtxoEnv(0L, env.protocolParams, CertState.empty)),
+          Context(signed.body.value.fee, UtxoEnv(0L, env.protocolParams, CertState.empty)),
           State(utxo, CertState.empty),
-          tx
+          signed
         )
+        assert(result.isRight)
     }
 }
