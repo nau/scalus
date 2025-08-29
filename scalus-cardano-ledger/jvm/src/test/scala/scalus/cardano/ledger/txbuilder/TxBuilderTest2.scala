@@ -71,9 +71,7 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
         ).realize(Intention.Pay(faucet, payment))
 
     }
-
     test("mint tokens with PlutusV3 script") {
-        pending
         val myAddress = arbitrary[ShelleyAddress].sample.get
         val targetAddress = arbitrary[ShelleyAddress].sample.get
         val hash = arbitrary[TransactionHash].sample.get
@@ -82,13 +80,22 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
         val mintingScript = Script.PlutusV3(scriptBytes)
         val policyId = mintingScript.scriptHash
 
+        val inputScriptBytes =
+            ByteString.unsafeFromArray(Array(69, 1, 1, 0, 36, -103).map(_.toByte))
+        val inputScript = Script.PlutusV3(inputScriptBytes)
+        val inputScriptAddress = ShelleyAddress(
+          Network.Mainnet,
+          ShelleyPaymentPart.Script(inputScript.scriptHash),
+          ShelleyDelegationPart.Null
+        )
+
         val assetName = AssetName(ByteString.fromString("co2"))
         val mintAmount = 1000L
         val mintValue = Mint(MultiAsset(SortedMap(policyId -> SortedMap(assetName -> mintAmount))))
 
         val availableLovelace = Value.lovelace(10_000_000L)
         val txInputs = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(myAddress, availableLovelace)
+          TransactionInput(hash, 0) -> TransactionOutput(inputScriptAddress, availableLovelace)
         )
         val collateral = Map(
           TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
@@ -99,7 +106,7 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
         val utxo: UTxO = txInputs ++ collateral
 
         val inputSelector = InputSelector(
-          Set(ResolvedTxInput.Script(txInputs.head, mintingScript, Data.unit)),
+          Set(ResolvedTxInput.Script(txInputs.head, inputScript, Data.unit)),
           Set(ResolvedTxInput.Pubkey(collateral.head))
         )
 
@@ -189,13 +196,22 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
         val mintingScript = Script.PlutusV3(scriptBytes)
         val policyId = mintingScript.scriptHash
 
+        val inputScriptBytes =
+            ByteString.unsafeFromArray(Array(69, 1, 1, 0, 36, -103).map(_.toByte))
+        val inputScript = Script.PlutusV3(inputScriptBytes)
+        val inputScriptAddress = ShelleyAddress(
+          Network.Mainnet,
+          ShelleyPaymentPart.Script(inputScript.scriptHash),
+          ShelleyDelegationPart.Null
+        )
+
         val assetName = AssetName(ByteString.fromString("co2"))
         val mintAmount = 1000L
         val mintValue = Mint(MultiAsset(SortedMap(policyId -> SortedMap(assetName -> mintAmount))))
 
         val availableLovelace = Value.lovelace(100_000_000L)
         val txInputs = Map(
-          TransactionInput(hash, 0) -> TransactionOutput(myAddress, availableLovelace)
+          TransactionInput(hash, 0) -> TransactionOutput(inputScriptAddress, availableLovelace)
         )
         val collateral = Map(
           TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
@@ -206,7 +222,7 @@ class TxBuilderTest2 extends AnyFunSuite with ArbAddresses with ArbLedger {
         val utxo: UTxO = txInputs ++ collateral
 
         val inputSelector = InputSelector(
-          Set(ResolvedTxInput.Script(txInputs.head, mintingScript, Data.unit)),
+          Set(ResolvedTxInput.Script(txInputs.head, inputScript, Data.unit)),
           Set(ResolvedTxInput.Pubkey(collateral.head))
         )
 

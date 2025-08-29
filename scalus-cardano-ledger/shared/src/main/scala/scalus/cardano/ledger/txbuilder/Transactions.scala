@@ -2,14 +2,13 @@ package scalus.cardano.ledger.txbuilder
 
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.{Address, Network}
+import scalus.cardano.ledger
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
-import scalus.cardano.ledger
-import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, TxBalance}
-import scalus.ledger.babbage.ProtocolParams
-import scalus.builtin.ByteString.given
 import scalus.cardano.ledger.txbuilder.Intention.Stake
 import scalus.cardano.ledger.utils.TxBalance.modifyBody
+import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, TxBalance}
+import scalus.ledger.babbage.ProtocolParams
 
 import scala.collection.immutable.SortedMap
 import scala.util.Random
@@ -117,7 +116,9 @@ case class InterpreterWithProvidedData(
             case Intention.Pay(address, value, data) =>
                 assembleWsForPayments
             case mint: Intention.Mint =>
-                assembleWsForMinting(mint)
+                val spendingWs = assembleWsForPayments
+                val mintingWs = assembleWsForMinting(mint)
+                combineWitnessSets(spendingWs, mintingWs)
             case withdraw: Intention.WithdrawRewards =>
                 assembleWsForWithdrawal(withdraw)
             case stake: Intention.Stake =>
@@ -354,6 +355,29 @@ case class InterpreterWithProvidedData(
         }
 
         modifyBody(tx, b => b.copy(outputs = b.outputs.map(ceilOut)))
+    }
+
+    private def combineWitnessSets(
+        ws1: TransactionWitnessSet,
+        ws2: TransactionWitnessSet
+    ): TransactionWitnessSet = {
+        TransactionWitnessSet(
+          vkeyWitnesses = ws1.vkeyWitnesses ++ ws2.vkeyWitnesses,
+          plutusV1Scripts = ws1.plutusV1Scripts ++ ws2.plutusV1Scripts,
+          plutusV2Scripts = ws1.plutusV2Scripts ++ ws2.plutusV2Scripts,
+          plutusV3Scripts = ws1.plutusV3Scripts ++ ws2.plutusV3Scripts,
+          plutusData = KeepRaw(
+            TaggedSet.from(ws1.plutusData.value.toIndexedSeq ++ ws2.plutusData.value.toIndexedSeq)
+          ),
+          redeemers = (ws1.redeemers, ws2.redeemers) match {
+              case (Some(red1), Some(red2)) =>
+                  Some(KeepRaw(Redeemers.from(red1.value.toSeq ++ red2.value.toSeq)))
+              case (Some(red1), None) => Some(red1)
+              case (None, Some(red2)) => Some(red2)
+              case (None, None)       => None
+          },
+          nativeScripts = ws1.nativeScripts ++ ws2.nativeScripts
+        )
     }
 
 }
