@@ -300,11 +300,40 @@ case class ExUnitPrices(
   */
 case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
 
+    /** This encoder is used to generate the language view encoding for script integrity hash
+      * computation.
+      *
+      * The encoding follows the same logic as Cardano's getLanguageView function. For PlutusV1,
+      * double-bagged encoding is used for backward compatibility. For PlutusV2/V3, standard
+      * encoding is used.
+      *
+      * The most important part is that the languages must be sorted by their language ID in
+      * ascending order.
+      *
+      * The most stupid part is that the languages map is sorted by its keys, and the Plutus V1 key
+      * is double-encoded to a bytestring instead of an UInt. So it's always `bigger` than Plutus V2
+      * and V3, and thus always comes last in the map, even though its language ID is 0.
+      *
+      * Plutus V1 encoded key is: 41 00 # bytes(1), 00
+      *
+      * Plutus V2 encoded key is: 01 # uint(1)
+      */
     private given LanguageViewEncoder: Encoder[CostModels] with
+
+        private val languageIdOrdering = new Ordering[Int] {
+            def compare(a: Int, b: Int): Int = {
+                if a == 0 then
+                    if b == 0 then 0 else 1 // PlutusV1 is "greater" than any other language
+                else if b == 0 then -1
+                else a.compareTo(b) // both are non-zero, compare normally
+            }
+        }
+
         def write(w: Writer, costModels: CostModels): Writer = {
             val size = costModels.models.size
             w.writeMapHeader(size)
-            for (langId, costModel) <- costModels.models.toArray.sortWith(_._1 < _._1) do
+            val sortedModels = costModels.models.toArray.sortBy(_._1)(using languageIdOrdering)
+            for (langId, costModel) <- sortedModels do
                 langId match
                     case 0 =>
                         // For PlutusV1 (language id 0), the language view is the following:
