@@ -275,12 +275,15 @@ object Lowering {
                         )
                     val loweredMsg = lowerSIR(msg, Some(SIRType.String))
                     val errorTerm = StaticLoweredValue(sirError, ~Term.Error, ErrorRepresentation)
-                    lvBuiltinApply2(
-                      SIRBuiltins.trace,
-                      loweredMsg,
-                      errorTerm,
-                      sirError.tp,
-                      ErrorRepresentation,
+                    lvForce(
+                      lvBuiltinApply2(
+                        SIRBuiltins.trace,
+                        loweredMsg,
+                        errorTerm,
+                        sirError.tp,
+                        ErrorRepresentation,
+                        anns.pos
+                      ),
                       anns.pos
                     )
                 else StaticLoweredValue(sirError, Term.Error, ErrorRepresentation)
