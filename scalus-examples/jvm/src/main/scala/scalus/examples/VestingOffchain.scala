@@ -44,7 +44,9 @@ object VestingOffChain:
 
     private val script = PlutusV3Script
         .builder()
-        .cborHex(VestingScript.doubleCborHex)
+        .cborHex(
+          VestingContract.cborHex(VestingContract.compiled.toUplc(true).plutusV3.doubleCborHex)
+        )
         .build()
 
     private val scriptAddress = AddressProvider.getEntAddress(script, network)
