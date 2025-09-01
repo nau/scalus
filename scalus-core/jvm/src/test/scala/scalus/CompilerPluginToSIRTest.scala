@@ -345,7 +345,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         //
         val expected = Let(
           NonRec,
-          List(Binding("msg", Const(Constant.String("test"), SIRType.String, AnE))),
+          List(Binding("msg", SIRType.String, Const(Constant.String("test"), SIRType.String, AnE))),
           Error(Var("msg", SIRType.String, AnE), null),
           AnE
         )
