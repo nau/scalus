@@ -45,7 +45,7 @@ object VestingOffChain:
     private val script = PlutusV3Script
         .builder()
         .cborHex(
-          VestingContract.cborHex(VestingContract.compiled.toUplc(true).plutusV3.doubleCborHex)
+          VestingContract.compiled.toUplc(true).plutusV3.doubleCborHex
         )
         .build()
 
