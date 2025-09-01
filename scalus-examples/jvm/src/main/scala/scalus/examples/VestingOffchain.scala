@@ -1,4 +1,4 @@
-package validator
+package scalus.examples
 
 import scalus.bloxbean.SlotConfig
 import com.bloxbean.cardano.client.account.Account
