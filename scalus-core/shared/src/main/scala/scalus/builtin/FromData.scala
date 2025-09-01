@@ -13,12 +13,16 @@ import scala.quoted.*
 trait FromData[+A] extends Function1[Data, A] with CompileDerivations {
 
     override def apply(v: Data): A
+    
 }
 
 /** FromData[A] derivation
   */
 @scalus.Compile
 object FromData {
+
+    class IllegalFromDataArgument(message: String, cause: Throwable = null)
+        extends IllegalArgumentException(message, cause)
 
     inline def derived[A]: FromData[A] = ${
         FromDataMacros.fromDataImpl[A]
