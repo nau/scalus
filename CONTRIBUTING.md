@@ -124,3 +124,29 @@ Update the version in `scalus-core/js/src/main/npm/package.json` and publish it 
 ```bash
 npm publish --access public
 ```
+
+## Notes on issues
+
+### BLS12-381 signature library
+
+If you stumbled upon such failure during `sbt precommit`:
+
+```
+# A fatal error has been detected by the Java Runtime Environment:
+...
+# Problematic frame:
+# C  [libblst.so+0x2daa1]  sqrx_mont_384+0x41
+```
+
+you can resolve it if you will locally build Java binding of `blst` native library from:
+
+[https://github.com/supranational/blst/tree/master/bindings/java](https://github.com/supranational/blst/tree/master/bindings/java)
+
+and place resulted JAR into Coursier's cache at
+
+```
+~/.cache/coursier/v1/https/repo1.maven.org/maven2/foundation/icon/blst-java/0.3.2/blst-java-0.3.2.jar 
+```
+
+Note please that for this you will need have installed [SWIG](https://swig.org/) toolchain.
+
