@@ -353,9 +353,9 @@ object SIRType {
 
     }
 
-    object Pair {
+    object BuiltinPair {
 
-        val name = "scalus.builtin.Pair"
+        val name = "scalus.builtin.BuiltinPair"
 
         val constrDecl = {
             val A = TypeVar("A", None, true)
@@ -438,10 +438,10 @@ object SIRType {
     }
 
     object BuiltinList {
-        val name = "scalus.builtin.List"
+        val name = "scalus.builtin.BuiltinList"
 
         object Nil {
-            val name = "scalus.builtin.List$.Nil"
+            val name = "scalus.builtin.BuiltinList$.Nil"
             lazy val constrDecl: ConstrDecl = {
                 ConstrDecl(
                   name,
@@ -456,7 +456,7 @@ object SIRType {
         }
 
         object Cons {
-            val name = "scalus.builtin.List$.Cons"
+            val name = "scalus.builtin.BuiltinList$.Cons"
 
             def buildConstrDecl(tv: TypeVar, listType: SIRType) = {
                 ConstrDecl(
@@ -833,16 +833,16 @@ object SIRType {
             case DefaultUni.ProtoPair =>
                 val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()), true)
                 val b = TypeVar("B", Some(DefaultUni.ProtoPair.hashCode() + 1), true)
-                TypeLambda(scala.List(a, b), Pair(a, b))
+                TypeLambda(scala.List(a, b), BuiltinPair(a, b))
             case DefaultUni.Apply(f, arg) =>
                 f match
                     case DefaultUni.ProtoList =>
                         BuiltinList(fromDefaultUni(arg))
                     case DefaultUni.Apply(DefaultUni.ProtoPair, a) =>
-                        Pair(fromDefaultUni(a), fromDefaultUni(arg))
+                        BuiltinPair(fromDefaultUni(a), fromDefaultUni(arg))
                     case DefaultUni.ProtoPair =>
                         val a = TypeVar("A", Some(DefaultUni.ProtoPair.hashCode()), true)
-                        TypeLambda(scala.List(a), Pair(a, fromDefaultUni(arg)))
+                        TypeLambda(scala.List(a), BuiltinPair(a, fromDefaultUni(arg)))
                     case _ =>
                         SIRType.Fun(fromDefaultUni(f), fromDefaultUni(arg))
     }

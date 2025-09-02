@@ -91,7 +91,7 @@ object SirTypeUplcGenerator {
                         then SumPairDataListSirTypeGenerator
                         else SumDataListSirTypeGenerator
                     } else SumCaseUplcOnlySirTypeGenerator
-                else if decl.name == "scalus.builtin.List" then
+                else if decl.name == SIRType.BuiltinList.name then
                     if isPairOrTuple2(typeArgs.head) then SumPairDataListSirTypeGenerator
                     else SumDataListSirTypeGenerator
                 else if !containsFun(tp, trace) then SumCaseSirTypeGenerator
@@ -114,18 +114,16 @@ object SirTypeUplcGenerator {
                     ProductCaseOneElementSirTypeGenerator(paramTypeGen)
                 } else
                     val hasFun = containsFun(constrDecl, new IdentityHashMap[SIRType, SIRType]())
-                    if constrDecl.name == "scalus.prelude.List$.Nil" || constrDecl.name == "scalus.prelude.List$.Cons"
-                        || constrDecl.name == "scalus.builtin.List$.Nil" || constrDecl.name == "scalus.builtin.List$.Cons"
+                    if constrDecl.name == SIRType.List.NilConstr.name || constrDecl.name == SIRType.List.Cons.name
+                        || constrDecl.name == SIRType.BuiltinList.Nil.name || constrDecl.name == SIRType.BuiltinList.Cons.name
                     then {
                         if hasFun then SumCaseUplcOnlySirTypeGenerator
-                        else if (constrDecl.name == "scalus.prelude.List$.Cons" || constrDecl.name == "scalus.builtin.List$.Cons") && isPairOrTuple2(
+                        else if (constrDecl.name == SIRType.List.Cons.name || constrDecl.name == SIRType.BuiltinList.Cons.name) && isPairOrTuple2(
                               typeArgs.head
                             )
                         then SumPairDataListSirTypeGenerator
                         else SumDataListSirTypeGenerator
-                    } else if hasFun then
-                        println(s"hasFun for: ${constrDecl}")
-                        ProductCaseUplcOnlySirTypeGenerator
+                    } else if hasFun then ProductCaseUplcOnlySirTypeGenerator
                     else ProductCaseSirTypeGenerator
             case SIRType.TypeLambda(_, body) =>
                 SirTypeUplcGenerator(body, debug)
@@ -157,7 +155,7 @@ object SirTypeUplcGenerator {
 
     def isPair(tp: SIRType): Boolean =
         SIRType.retrieveConstrDecl(tp) match {
-            case Right(constrDecl) => constrDecl.name == SIRType.Pair.name
+            case Right(constrDecl) => constrDecl.name == SIRType.BuiltinPair.name
             case Left(_)           => false
         }
 

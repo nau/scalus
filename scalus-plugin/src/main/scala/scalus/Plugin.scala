@@ -9,8 +9,8 @@ import dotty.tools.dotc.core.DenotTransformers.IdentityDenotTransformer
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Names.Name
 import dotty.tools.dotc.plugins.*
-import dotty.tools.dotc.transform.{ElimByName, ExpandSAMs, Pickler, PostTyper}
-import dotty.tools.dotc.util.{Spans, SrcPos}
+import dotty.tools.dotc.transform.{ElimByName, Pickler, PostTyper}
+import dotty.tools.dotc.util.SrcPos
 import dotty.tools.dotc.typer.Implicits
 import dotty.tools.io.ClassPath
 import scalus.flat.FlatInstantces

@@ -5,9 +5,9 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.*
 import scalus.builtin.ByteString.hex
-import scalus.builtin.Data.toData
 import scalus.ledger.api.v3.*
 import scalus.ledger.api.v3.ScriptInfo.SpendingScript
+import scalus.prelude.{fromData, toData}
 import scalus.sir.*
 import scalus.uplc.*
 import scalus.uplc.eval.PlutusVM

@@ -35,7 +35,7 @@ import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.Data.ToData
 import scalus.builtin.Data.toData
-import scalus.builtin.Pair
+import scalus.builtin.BuiltinPair
 import scalus.cardano.ledger.Script
 import scalus.ledger
 import scalus.ledger.api
@@ -110,18 +110,18 @@ object Interop {
 
     given ToData[ProtocolParamUpdate] =
         given ToData[Rational] = (x: Rational) =>
-            listData(builtin.List(x.getNumerator.toData, x.getDenominator.toData))
+            listData(builtin.BuiltinList(x.getNumerator.toData, x.getDenominator.toData))
         given ToData[UnitInterval] = (x: UnitInterval) =>
-            listData(builtin.List(x.getNumerator.toData, x.getDenominator.toData))
+            listData(builtin.BuiltinList(x.getNumerator.toData, x.getDenominator.toData))
         given ToData[ExUnitPrices] = (x: ExUnitPrices) =>
-            listData(builtin.List(x.getMemPrice.toData, x.getStepPrice.toData))
+            listData(builtin.BuiltinList(x.getMemPrice.toData, x.getStepPrice.toData))
         given ToData[ExUnits] = (x: ExUnits) =>
-            listData(builtin.List(x.getMem.toData, x.getSteps.toData))
+            listData(builtin.BuiltinList(x.getMem.toData, x.getSteps.toData))
 
         (x: ProtocolParamUpdate) => {
-            val params = mutable.ArrayBuffer.empty[Pair[Data, Data]]
+            val params = mutable.ArrayBuffer.empty[BuiltinPair[Data, Data]]
             def add[A: ToData](idx: Int, value: A): Unit =
-                if value != null then params.append(Pair(iData(idx), value.toData))
+                if value != null then params.append(BuiltinPair(iData(idx), value.toData))
 
             add(0, x.getMinFeeA)
             add(1, x.getMinFeeB)
@@ -145,7 +145,7 @@ object Interop {
             add(23, x.getCollateralPercent)
             add(24, x.getMaxCollateralInputs)
             // FIXME: add missing fields when they are implemented in the client lib
-            mapData(builtin.List.from(params))
+            mapData(builtin.BuiltinList.from(params))
         }
 
     /// Helper for null check

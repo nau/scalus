@@ -180,7 +180,7 @@ object ProductCaseClassRepresentation {
         def isPairOrTuple2(tp: SIRType): Boolean =
             tp match
                 case SIRType.CaseClass(decl, typeArgs, _) =>
-                    decl.name == "scalus.builtin.Pair"
+                    decl.name == "scalus.builtin.BuiltinPair"
                     ||
                     decl.name == "scala.Tuple2"
                 case SIRType.TypeLambda(params, body) =>

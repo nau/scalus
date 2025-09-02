@@ -4,7 +4,7 @@ import scalus.sir.*
 import scalus.sir.lowering.*
 import scalus.sir.lowering.LoweredValue.Builder.*
 
-/** List(Pair(List,List))
+/** List(BuiltinPair(List,List))
   */
 object SumPairDataListSirTypeGenerator extends SumListCommonSirTypeGenerator {
 
@@ -41,7 +41,7 @@ object SumPairDataListSirTypeGenerator extends SumListCommonSirTypeGenerator {
                 pos
               )
             )
-        if constrDecl.name == "scalus.builtin.Pair" || constrDecl.name == "scala.Tuple2" then
+        if constrDecl.name == "scalus.builtin.BuiltinPair" || constrDecl.name == "scala.Tuple2" then
             ProductCaseClassRepresentation.PairData
         else
             throw LoweringException(

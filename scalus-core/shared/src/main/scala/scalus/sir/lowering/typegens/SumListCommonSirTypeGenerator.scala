@@ -8,7 +8,7 @@ import scalus.sir.lowering.*
 import scalus.sir.lowering.Lowering.tpf
 import scalus.uplc.{DefaultFun, Term}
 
-/** handle next cases: scalus.prelude.List[A] scalus.builtin.List[A]
+/** handle next cases: scalus.prelude.List[A] scalus.builtin.BuiltinList[A]
   */
 trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
 
@@ -67,7 +67,7 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                       )
                     )
                 val fun =
-                    if elemConstrDecl.name == "scalus.builtin.Pair" then {
+                    if elemConstrDecl.name == SIRType.BuiltinPair.name then {
                         val retval = ScalusRuntime.dataListToPairsList
                         ScalusRuntime.dataListToPairsList
                     } else if elemConstrDecl.name == "scala.Tuple2" then
@@ -165,7 +165,7 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                       )
                     )
                 val fun =
-                    if constrDecl.name == "scalus.builtin.Pair" then {
+                    if constrDecl.name == SIRType.BuiltinPair.name then {
                         ScalusRuntime.pairsListToDataList
                     } else if constrDecl.name == "scala.Tuple2" then {
                         ScalusRuntime.tuplesListToDataList
@@ -282,7 +282,7 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
 
     override def genConstr(constr: SIR.Constr)(using lctx: LoweringContext): LoweredValue = {
         constr.name match
-            case "scalus.prelude.List$.Nil" | "scalus.builtin.List$.Nil" =>
+            case "scalus.prelude.List$.Nil" | "scalus.builtin.BuiltinList$.Nil" =>
                 genNil(constr.tp, constr.anns.pos)
                 // lvBuiltinApply0(
                 //  SIRBuiltins.mkNilData,
