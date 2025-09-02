@@ -105,8 +105,8 @@ final class SIRCompiler(
     private val BigIntClassSymbol = requiredClass("scala.math.BigInt")
     private val ByteStringClassSymbol = requiredClass("scalus.builtin.ByteString")
     private val DataClassSymbol = requiredClass("scalus.builtin.Data")
-    private val PairSymbol = requiredClass("scalus.builtin.Pair")
-    private val ScalusBuiltinListClassSymbol = requiredClass("scalus.builtin.List")
+    private val PairSymbol = requiredClass("scalus.builtin.BuiltinPair")
+    private val ScalusBuiltinListClassSymbol = requiredClass("scalus.builtin.BuiltinList")
     private val StringContextSymbol = requiredModule("scala.StringContext")
     private val StringContextApplySymbol = StringContextSymbol.requiredMethod("apply")
     private val Tuple2Symbol = requiredClass("scala.Tuple2")
@@ -1628,7 +1628,7 @@ final class SIRCompiler(
             case "fst" =>
                 val expr = compileExpr(env, pair)
                 expr.tp match
-                    case SIRType.Pair(t1, t2) =>
+                    case SIRType.BuiltinPair(t1, t2) =>
                         SIR.Apply(
                           SIRBuiltins.fstPair,
                           expr,
@@ -1636,10 +1636,12 @@ final class SIRCompiler(
                           AnnotationsDecl.fromSourcePosition(tree.sourcePos)
                         )
                     case other =>
+                        println(s"before type Mismatch error: exp.tp==${expr.tp.show}")
+                        println(s"it is not BuiltinPair")
                         error(
                           TypeMismatch(
                             fun.toString,
-                            SIRType.Pair(
+                            SIRType.BuiltinPair(
                               SIRType.TypeVar("A", None, true),
                               SIRType.TypeVar("B", None, true)
                             ),
@@ -1654,7 +1656,7 @@ final class SIRCompiler(
             case "snd" =>
                 val expr = compileExpr(env, pair)
                 expr.tp match
-                    case SIRType.Pair(t1, t2) =>
+                    case SIRType.BuiltinPair(t1, t2) =>
                         SIR.Apply(
                           SIRBuiltins.sndPair,
                           expr,
@@ -1665,7 +1667,7 @@ final class SIRCompiler(
                         error(
                           TypeMismatch(
                             fun.toString,
-                            SIRType.Pair(
+                            SIRType.BuiltinPair(
                               SIRType.TypeVar("A", None, true),
                               SIRType.TypeVar("B", None, true)
                             ),
@@ -1697,7 +1699,10 @@ final class SIRCompiler(
         if a.isLiteral && b.isLiteral then
             SIR.Const(
               scalus.uplc.Constant.Pair(compileConstant(a), compileConstant(b)),
-              SIRType.Pair(sirTypeInEnv(a.tpe, a.srcPos, env), sirTypeInEnv(b.tpe, b.srcPos, env)),
+              SIRType.BuiltinPair(
+                sirTypeInEnv(a.tpe, a.srcPos, env),
+                sirTypeInEnv(b.tpe, b.srcPos, env)
+              ),
               AnnotationsDecl.fromSrcPos(tree.srcPos)
             )
         else if a.isData && b.isData then
@@ -1708,11 +1713,11 @@ final class SIRCompiler(
               SIR.Apply(
                 SIRBuiltins.mkPairData,
                 exprA,
-                SIRType.Fun(exprB.tp, SIRType.Pair(exprA.tp, exprB.tp)),
+                SIRType.Fun(exprB.tp, SIRType.BuiltinPair(exprA.tp, exprB.tp)),
                 AnnotationsDecl.fromSrcPos(a.srcPos)
               ),
               exprB,
-              SIRType.Pair(exprA.tp, exprB.tp),
+              SIRType.BuiltinPair(exprA.tp, exprB.tp),
               AnnotationsDecl.fromSrcPos(tree.srcPos)
             )
         else
@@ -2232,7 +2237,7 @@ final class SIRCompiler(
                 compileBuiltinListMethods(env, lst, fun, Nil, tree)
             case tree @ TypeApply(Select(list, name), immutable.List(tpe))
                 if name == termName("empty") && list.tpe =:= requiredModule(
-                  "scalus.builtin.List"
+                  "scalus.builtin.BuiltinList"
                 ).typeRef =>
                 val tpeE = typeReprToDefaultUni(tpe.tpe, tree)
                 SIR.Const(
@@ -2260,7 +2265,7 @@ final class SIRCompiler(
             case tree @ Apply(
                   TypeApply(Select(list, nme.apply), immutable.List(ltpe)),
                   immutable.List(ex)
-                ) if list.tpe =:= requiredModule("scalus.builtin.List").typeRef =>
+                ) if list.tpe =:= requiredModule("scalus.builtin.BuiltinList").typeRef =>
                 compileBuiltinListConstructor(env, ex, list, ltpe, tree)
             // Pair BUILTINS
             // PAIR
@@ -2269,7 +2274,7 @@ final class SIRCompiler(
             case Apply(
                   TypeApply(Select(pair, nme.apply), immutable.List(tpe1, tpe2)),
                   immutable.List(a, b)
-                ) if pair.tpe =:= requiredModule("scalus.builtin.Pair").typeRef =>
+                ) if pair.tpe =:= requiredModule("scalus.builtin.BuiltinPair").typeRef =>
                 compileBuiltinPairConstructor(env, a, b, tpe1, tpe2, tree)
             // new Constr(args)
             case Apply(TypeApply(con @ Select(f, nme.CONSTRUCTOR), targs), args) =>

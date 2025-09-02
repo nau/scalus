@@ -290,7 +290,7 @@ class SIRTyper(using Context) {
         env: SIRTypeEnv
     ): Option[SIRType] = {
         if symbol == Symbols.requiredClass("scalus.builtin.Data") then Some(SIRType.Data)
-        else if symbol == Symbols.requiredClass("scalus.builtin.List") then
+        else if symbol == Symbols.requiredClass("scalus.builtin.BuiltinList") then
             tpArgs match
                 case List(elemType) => Some(SIRType.BuiltinList(elemType))
                 case _ =>
@@ -299,9 +299,9 @@ class SIRTyper(using Context) {
                       env.pos,
                       s"List type should have one type argument, found ${tpArgs.length}"
                     )
-        else if symbol == Symbols.requiredClass("scalus.builtin.Pair") then
+        else if symbol == Symbols.requiredClass("scalus.builtin.BuiltinPair") then
             tpArgs match
-                case List(a1, a2) => Some(SIRType.Pair(a1, a2))
+                case List(a1, a2) => Some(SIRType.BuiltinPair(a1, a2))
                 case _ =>
                     throw TypingException(
                       symbol.info,

@@ -31,9 +31,9 @@ val constants = compile {
     val byteStringUtf8 = ByteString.fromString("hello") // utf8 encoded
     val byteString2 = hex"deadbeef"
     val string = "Scalus Rocks!"
-    val emptyList = builtin.List.empty[BigInt]
-    val list = builtin.List[BigInt](1, 2, 3)
-    val pair = builtin.Pair(true, ())
+    val emptyList = builtin.BuiltinList.empty[BigInt]
+    val list = builtin.BuiltinList[BigInt](1, 2, 3)
+    val pair = builtin.BuiltinPair(true, ())
 }
 
 val builtinFunctions = compile {

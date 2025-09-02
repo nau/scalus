@@ -19,7 +19,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
     ): LoweredValueRepresentation = {
         SIRType.collectProd(tp) match {
             case Some(_, constrDecl, _) =>
-                if constrDecl.name == SIRType.Pair.name
+                if constrDecl.name == SIRType.BuiltinPair.name
                 then {
                     // don't change: builtin functions rely on this
                     ProductCaseClassRepresentation.PairData
@@ -153,7 +153,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 val pairIntDataList = lvBuiltinApply(
                   SIRBuiltins.unConstrData,
                   input,
-                  SIRType.Pair(SIRType.Integer, SIRType.Data),
+                  SIRType.BuiltinPair(SIRType.Integer, SIRType.Data),
                   ProductCaseClassRepresentation.PairIntDataList,
                   pos
                 )
@@ -174,7 +174,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 lvBuiltinApply(
                   SIRBuiltins.unConstrData,
                   input,
-                  SIRType.Pair(SIRType.Integer, SIRType.Data),
+                  SIRType.BuiltinPair(SIRType.Integer, SIRType.Data),
                   ProductCaseClassRepresentation.PairIntDataList,
                   pos
                 )

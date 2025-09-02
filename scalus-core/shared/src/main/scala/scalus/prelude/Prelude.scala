@@ -2,7 +2,7 @@ package scalus.prelude
 
 import scalus.{Compile, CompileDerivations, Ignore}
 import scalus.builtin.Builtins.*
-import scalus.builtin.{ByteString, Data, FromData, Pair, ToData}
+import scalus.builtin.{BuiltinPair, ByteString, Data, FromData, ToData}
 import scalus.macros.Macros
 import Ord.{<=>, Order}
 
@@ -72,7 +72,7 @@ object Show {
 
     given Show[Data] = (x: Data) => {
         import scalus.builtin
-        def showBuiltinList(xs: builtin.List[Data]): String = {
+        def showBuiltinList(xs: builtin.BuiltinList[Data]): String = {
             if xs.isEmpty then ""
             else
                 val head = xs.head.show
@@ -89,12 +89,12 @@ object Show {
         val showMap = () => {
             import scalus.builtin
             val lst = unMapData(x)
-            def showDataPair(x: Pair[Data, Data]): String = {
+            def showDataPair(x: BuiltinPair[Data, Data]): String = {
                 val fstShow = x.fst.show
                 val sndShow = x.snd.show
                 appendString(appendString(fstShow, ": "), sndShow)
             }
-            def go(xs: builtin.List[Pair[Data, Data]]): String = {
+            def go(xs: builtin.BuiltinList[BuiltinPair[Data, Data]]): String = {
                 if xs.isEmpty then ""
                 else
                     val head = showDataPair(xs.head)
@@ -256,7 +256,10 @@ object Ord:
         import scalus.builtin
         import Ord.Order.*
 
-        def compareBuiltinList(xs: builtin.List[Data], ys: builtin.List[Data]): Order = {
+        def compareBuiltinList(
+            xs: builtin.BuiltinList[Data],
+            ys: builtin.BuiltinList[Data]
+        ): Order = {
             if xs.isEmpty && ys.isEmpty then Equal
             else if xs.isEmpty then Less
             else if ys.isEmpty then Greater
@@ -278,12 +281,15 @@ object Ord:
                     case Data.Map(_) =>
                         val lstx = unMapData(x)
                         val lsty = unMapData(y)
-                        def compareDataPair(px: Pair[Data, Data], py: Pair[Data, Data]): Order =
+                        def compareDataPair(
+                            px: BuiltinPair[Data, Data],
+                            py: BuiltinPair[Data, Data]
+                        ): Order =
                             (px.fst <=> py.fst) ifEqualThen (px.snd <=> py.snd)
 
                         def go(
-                            xs: builtin.List[Pair[Data, Data]],
-                            ys: builtin.List[Pair[Data, Data]]
+                            xs: builtin.BuiltinList[BuiltinPair[Data, Data]],
+                            ys: builtin.BuiltinList[BuiltinPair[Data, Data]]
                         ): Order = {
                             if xs.isEmpty && ys.isEmpty then Equal
                             else if xs.isEmpty then Less

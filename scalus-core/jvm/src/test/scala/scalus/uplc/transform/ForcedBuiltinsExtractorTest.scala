@@ -15,7 +15,7 @@ import scala.language.implicitConversions
 class ForcedBuiltinsExtractorTest extends AnyFunSuite {
 
     test("extract (force (builtin headList))") {
-        val sir = compile(headList(builtin.List.empty[Boolean]))
+        val sir = compile(headList(builtin.BuiltinList.empty[Boolean]))
         val uplc = sir.toUplc()
         val (optimized, logs) = ForcedBuiltinsExtractor.extractPass(uplc)
         assert(logs == Seq("Replacing Forced builtin with Var: __builtin_HeadList"))
@@ -27,7 +27,7 @@ class ForcedBuiltinsExtractorTest extends AnyFunSuite {
     }
 
     test("extract (force (force (builtin fstPair)))") {
-        val sir = compile(fstPair(builtin.Pair(true, false)))
+        val sir = compile(fstPair(builtin.BuiltinPair(true, false)))
         val uplc = sir.toUplc()
         val optimized = ForcedBuiltinsExtractor(uplc)
         assert(

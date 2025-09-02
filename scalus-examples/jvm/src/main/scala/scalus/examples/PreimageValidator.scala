@@ -53,7 +53,7 @@ object OptimizedPreimageValidator {
         val pkh = pair.tail.head
         // get the preimage
         inline def preimage = redeemer.toByteString
-        def checkSignatories(sigs: builtin.List[Data]): Unit =
+        def checkSignatories(sigs: builtin.BuiltinList[Data]): Unit =
             if trace("sig.head")(sigs.head) == pkh then trace("signed")(())
             else checkSignatories(sigs.tail)
         // get the signatories of the transaction

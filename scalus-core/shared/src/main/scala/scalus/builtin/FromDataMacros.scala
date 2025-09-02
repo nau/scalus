@@ -8,7 +8,7 @@ object FromDataMacros {
 
     def deriveConstructorMacro[T: Type](using
         Quotes
-    ): Expr[scalus.builtin.List[Data] => T] =
+    ): Expr[scalus.builtin.BuiltinList[Data] => T] =
         import quotes.reflect.*
 
         val classSym = TypeTree.of[T].symbol
@@ -26,7 +26,9 @@ object FromDataMacros {
                         case Some(value) => value
         }
 
-        def genGetter(init: Expr[scalus.builtin.List[Data]], idx: Int)(using Quotes): Expr[Data] =
+        def genGetter(init: Expr[scalus.builtin.BuiltinList[Data]], idx: Int)(using
+            Quotes
+        ): Expr[Data] =
             var expr = init
             var i = 0
             while i < idx do
@@ -36,7 +38,7 @@ object FromDataMacros {
             '{ $expr.head }
 
         def genConstructorCall(
-            a: Expr[scalus.builtin.List[scalus.builtin.Data]]
+            a: Expr[scalus.builtin.BuiltinList[scalus.builtin.Data]]
         )(using Quotes): Expr[T] = {
             val args = fromDataOfArgs.zipWithIndex.map { case (appl, idx) =>
                 val arg = genGetter(a, idx)
@@ -46,7 +48,9 @@ object FromDataMacros {
             New(TypeTree.of[T]).select(constr).appliedToArgs(args).asExprOf[T]
         }
 
-        '{ (args: scalus.builtin.List[scalus.builtin.Data]) => ${ genConstructorCall('{ args }) } }
+        '{ (args: scalus.builtin.BuiltinList[scalus.builtin.Data]) =>
+            ${ genConstructorCall('{ args }) }
+        }
 
     def deriveCaseClassMacro[T: Type](using Quotes): Expr[FromData[T]] =
         '{ (d: Data) =>
@@ -59,7 +63,7 @@ object FromDataMacros {
         }
 
     def deriveEnumMacro[T: Type](
-        conf: Expr[PartialFunction[Int, scalus.builtin.List[Data] => T]]
+        conf: Expr[PartialFunction[Int, scalus.builtin.BuiltinList[Data] => T]]
     )(using
         Quotes
     ): Expr[FromData[T]] =
@@ -69,7 +73,7 @@ object FromDataMacros {
         val mapping = conf.asTerm match
             case Inlined(_, _, Block(List(DefDef(_, _, _, Some(Match(_, cases)))), _)) =>
                 cases.map { case CaseDef(Literal(IntConstant(tag)), _, code) =>
-                    (tag, code.asExprOf[scalus.builtin.List[Data] => T])
+                    (tag, code.asExprOf[scalus.builtin.BuiltinList[Data] => T])
                 }
         // stage programming is cool, but it's hard to comprehend what's going on
         '{ (d: Data) =>
@@ -103,13 +107,13 @@ object FromDataMacros {
                     case '[t] =>
                         // println(s"child: ${child}, ${child.flags.show} ${child.caseFields}")
                         if child.caseFields.isEmpty then
-                            '{ (_: scalus.builtin.List[Data]) =>
+                            '{ (_: scalus.builtin.BuiltinList[Data]) =>
                                 ${ Ident(child.termRef).asExprOf[t] }
                             }
                         else deriveConstructorMacro[t]
             }
             .zipWithIndex
-            .asInstanceOf[List[(Expr[scalus.builtin.List[Data] => T], Int)]]
+            .asInstanceOf[List[(Expr[scalus.builtin.BuiltinList[Data] => T], Int)]]
 
         // stage programming is cool, but it's hard to comprehend what's going on
         '{ (d: Data) =>
@@ -169,7 +173,7 @@ object FromDataMacros {
 
     private[scalus] def deriveFromDataCaseClassConstructor[T: Type](using
         Quotes
-    ): Expr[scalus.builtin.List[Data] => T] = {
+    ): Expr[scalus.builtin.BuiltinList[Data] => T] = {
         import quotes.reflect.*
         val classSym = TypeTree.of[T].symbol
         val constr = classSym.primaryConstructor
@@ -186,7 +190,9 @@ object FromDataMacros {
                         case Some(value) => value
         }
 
-        def genGetter(init: Expr[scalus.builtin.List[Data]], idx: Int)(using Quotes): Expr[Data] =
+        def genGetter(init: Expr[scalus.builtin.BuiltinList[Data]], idx: Int)(using
+            Quotes
+        ): Expr[Data] =
             var expr = init
             var i = 0
             while i < idx do
@@ -196,7 +202,7 @@ object FromDataMacros {
             '{ $expr.head }
 
         def genConstructorCall(
-            a: Expr[scalus.builtin.List[scalus.builtin.Data]]
+            a: Expr[scalus.builtin.BuiltinList[scalus.builtin.Data]]
         )(using Quotes): Expr[T] = {
             val args = fromDataOfArgs.zipWithIndex.map { case (appl, idx) =>
                 val arg = genGetter(a, idx)
@@ -206,7 +212,9 @@ object FromDataMacros {
             New(TypeTree.of[T]).select(constr).appliedToArgs(args).asExprOf[T]
         }
 
-        '{ (args: scalus.builtin.List[scalus.builtin.Data]) => ${ genConstructorCall('{ args }) } }
+        '{ (args: scalus.builtin.BuiltinList[scalus.builtin.Data]) =>
+            ${ genConstructorCall('{ args }) }
+        }
 
     }
 
@@ -218,18 +226,18 @@ object FromDataMacros {
               s"derived can only be used with enums or sealed hierarchy of type classes ${typeSymbol.fullName}"
             )
 
-        val mappingRhs: scala.List[Expr[scalus.builtin.List[Data] => A]] =
+        val mappingRhs: scala.List[Expr[scalus.builtin.BuiltinList[Data] => A]] =
             typeSymbol.children.map { child =>
                 child.typeRef.asType match
                     case '[t] =>
                         // println(s"child: ${child}, ${child.flags.show} ${child.caseFields}")
                         if child.caseFields.isEmpty then
-                            '{ (_: scalus.builtin.List[Data]) =>
+                            '{ (_: scalus.builtin.BuiltinList[Data]) =>
                                 ${ Ident(child.termRef).asExprOf[t] }
-                            }.asExprOf[scalus.builtin.List[Data] => A]
+                            }.asExprOf[scalus.builtin.BuiltinList[Data] => A]
                         else {
                             deriveFromDataCaseClassConstructor[t]
-                                .asExprOf[scalus.builtin.List[Data] => A]
+                                .asExprOf[scalus.builtin.BuiltinList[Data] => A]
                         }
                     case _ =>
                         report.errorAndAbort(
@@ -237,7 +245,7 @@ object FromDataMacros {
                         )
 
             }
-        // .asInstanceOf[scala.List[(Expr[scalus.builtin.List[Data] => A], Int)]]
+        // .asInstanceOf[scala.List[(Expr[scalus.builtin.BuiltinList[Data] => A], Int)]]
 
         // stage programming is cool, but it's hard to comprehend what's going on
         val typeA: String = Type.show[A]

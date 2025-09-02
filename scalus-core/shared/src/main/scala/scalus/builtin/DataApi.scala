@@ -229,9 +229,10 @@ private trait DataApi {
 
     extension (inline data: Data)
         inline def field[A](inline expr: A => Any): Data = Compiler.fieldAsData(expr)(data)
-        inline def toConstr: Pair[BigInt, scalus.builtin.List[Data]] = Builtins.unConstrData(data)
-        inline def toMap: List[Pair[Data, Data]] = Builtins.unMapData(data)
-        inline def toList: List[Data] = Builtins.unListData(data)
+        inline def toConstr: BuiltinPair[BigInt, scalus.builtin.BuiltinList[Data]] =
+            Builtins.unConstrData(data)
+        inline def toMap: BuiltinList[BuiltinPair[Data, Data]] = Builtins.unMapData(data)
+        inline def toList: BuiltinList[Data] = Builtins.unListData(data)
         inline def toI: BigInt = Builtins.unIData(data)
         inline def toBigInt: BigInt = Builtins.unIData(data)
         inline def toB: ByteString = Builtins.unBData(data)

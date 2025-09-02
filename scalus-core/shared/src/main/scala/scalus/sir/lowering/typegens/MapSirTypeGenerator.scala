@@ -205,7 +205,7 @@ object MapSirTypeGenerator extends SirTypeUplcGenerator {
                                   s"Expected that AssocMap have two arguments, we have ${tp.show}",
                                   SIRPosition.empty
                                 )
-                        val pairType = SIRType.Pair(ta, tb)
+                        val pairType = SIRType.BuiltinPair(ta, tb)
                         SIRType.List(pairType)
                     case _ =>
                         throw LoweringException(

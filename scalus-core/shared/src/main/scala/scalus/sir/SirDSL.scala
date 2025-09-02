@@ -73,7 +73,10 @@ object SirDSL:
                 case Constant.Pair(a, b) =>
                     SIR.Const(
                       c,
-                      SIRType.Pair(SIRType.fromDefaultUni(a.tpe), SIRType.fromDefaultUni(b.tpe)),
+                      SIRType.BuiltinPair(
+                        SIRType.fromDefaultUni(a.tpe),
+                        SIRType.fromDefaultUni(b.tpe)
+                      ),
                       AnnotationsDecl.empty
                     )
                 case Constant.BLS12_381_G1_Element(value) =>

@@ -97,8 +97,8 @@ Here's a table showing correspondence between Plutus, Scalus, and Aiken types:
 | `bytestring`           | `ByteString`           | `ByteArray`        |
 | `string`               | `String`               | `String`           |
 | `data`                 | `Data`                 | `Data`             |
-| `list`                 | `List`                 | `List`             |
-| `pair`                 | `Pair`                 | `Pairs`            |
+| `list`                 | `BuiltinList`          | `List`             |
+| `pair`                 | `BuiltinPair`          | `Pairs`            |
 | `BLS12_381_G1_Element` | `BLS12_381_G1_Element` | `G1Element`        |
 | `BLS12_381_G2_Element` | `BLS12_381_G2_Element` | `G12Element`       |
 | `BLS12_381_MlResult`   | `BLS12_381_MlResult`   | `MillerLoopResult` |
@@ -112,6 +112,7 @@ import scalus.Compiler.compile
 import scalus.*
 import scalus.builtin.*
 import scalus.builtin.ByteString.*
+import scalus.prelude.*
 
 val constants = compile {
     val unit = () // unit type
@@ -126,7 +127,7 @@ val constants = compile {
     val string = "Scalus Rocks!" // string type
     val emptyList = List.empty[BigInt] // empty list
     val list = List[BigInt](1, 2, 3) // list of integers
-    val pair = Pair(true, ()) // pair of boolean and unit
+    val pair = BuiltinPair(true, ()) // pair of boolean and unit
 }
 ```
 

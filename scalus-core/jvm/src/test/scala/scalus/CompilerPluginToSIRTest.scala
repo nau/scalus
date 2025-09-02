@@ -41,7 +41,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     val sirVoid = SIRType.Unit
     def sirList(tpe: SIRType) = SIRType.List(tpe)
     def sirBuiltinList(tpe: SIRType) = SIRType.BuiltinList(tpe)
-    def sirPair(t1: SIRType, t2: SIRType) = SIRType.Pair(t1, t2)
+    def sirPair(t1: SIRType, t2: SIRType) = SIRType.BuiltinPair(t1, t2)
 
     def sirConst(x: Int) = Const(Constant.Integer(x), SIRType.Integer, AnnotationsDecl.empty)
     def sirConst(x: BigInt) = Const(Constant.Integer(x), SIRType.Integer, AnnotationsDecl.empty)
@@ -232,7 +232,10 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile lambda with args with type parameters") {
         // tail has a MethodType, check if it compiles
         val sir = compile {
-            (tail: [A] => builtin.List[A] => builtin.List[A], ctx: builtin.List[Data]) =>
+            (
+                tail: [A] => builtin.BuiltinList[A] => builtin.BuiltinList[A],
+                ctx: builtin.BuiltinList[Data]
+            ) =>
                 tail[Data](ctx)
         }
 
@@ -411,7 +414,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         assert(
           compile(
-            Builtins.chooseList(builtin.List[BigInt](1, 2, 3), true, false)
+            Builtins.chooseList(builtin.BuiltinList[BigInt](1, 2, 3), true, false)
           ) ~=~ (DefaultFun.ChooseList $ List(1, 2, 3) $ true $ false)
         )
     }
@@ -419,7 +422,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile mkCons builtins") {
         assert(
           compile(
-            Builtins.mkCons(BigInt(4), builtin.List[BigInt](1, 2, 3))
+            Builtins.mkCons(BigInt(4), builtin.BuiltinList[BigInt](1, 2, 3))
           ) ~=~ (DefaultFun.MkCons $ 4 $ List(1, 2, 3))
         )
     }
@@ -427,7 +430,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile headList builtins") {
         assert(
           compile(
-            Builtins.headList(builtin.List[BigInt](1, 2, 3))
+            Builtins.headList(builtin.BuiltinList[BigInt](1, 2, 3))
           ) ~=~ (DefaultFun.HeadList $ List(1, 2, 3))
         )
     }
@@ -435,7 +438,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile tailList builtins") {
         assert(
           compile(
-            Builtins.tailList(builtin.List[BigInt](1, 2, 3))
+            Builtins.tailList(builtin.BuiltinList[BigInt](1, 2, 3))
           ) ~=~ (DefaultFun.TailList $ List(1, 2, 3))
         )
     }
@@ -443,7 +446,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile nullList builtins") {
         assert(
           compile(
-            Builtins.nullList(builtin.List[BigInt](1, 2, 3))
+            Builtins.nullList(builtin.BuiltinList[BigInt](1, 2, 3))
           ) ~=~ (DefaultFun.NullList $ List(1, 2, 3))
         )
     }
@@ -451,7 +454,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile empty List") {
         assert(
           compile {
-              builtin.List.empty[BigInt]
+              builtin.BuiltinList.empty[BigInt]
           } ~=~ Const(
             Constant.List(DefaultUni.Integer, List()),
             SIRType.List(SIRType.Integer),
@@ -463,7 +466,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile List literal") {
         assert(
           compile {
-              builtin.List[BigInt](1, 2, 3)
+              builtin.BuiltinList[BigInt](1, 2, 3)
           } ~=~ Const(
             Constant.List(
               DefaultUni.Integer,
@@ -479,7 +482,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         val compiled = compile {
             val a = "foo"
-            "bar" :: builtin.List(a)
+            "bar" :: builtin.BuiltinList(a)
         }
 
         val expected = Let(
@@ -516,7 +519,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile head function") {
         assert(
-          compile { (l: builtin.List[BigInt]) => l.head }
+          compile { (l: builtin.BuiltinList[BigInt]) => l.head }
               ~=~ LamAbs(
                 Var("l", sirBuiltinList(sirInt), AnE),
                 Apply(SIRBuiltins.headList, Var("l", sirBuiltinList(sirInt), AnE), sirInt, AnE),
@@ -528,7 +531,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile tail function") {
         assert(
-          compile { (l: builtin.List[BigInt]) => l.tail }
+          compile { (l: builtin.BuiltinList[BigInt]) => l.tail }
               ~=~ LamAbs(
                 Var("l", sirBuiltinList(sirInt), AnE),
                 Apply(
@@ -545,7 +548,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile isEmpty function") {
         assert(
-          compile { (l: builtin.List[BigInt]) => l.isEmpty }
+          compile { (l: builtin.BuiltinList[BigInt]) => l.isEmpty }
               ~=~ LamAbs(
                 Var("l", sirBuiltinList(sirInt), AnE),
                 Apply(SIRBuiltins.nullList, Var("l", sirBuiltinList(sirInt), AnE), sirBool, AnE),
@@ -576,7 +579,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
                   (Apply(
                     SIRBuiltins.mkNilPairData,
                     Const(Constant.Unit, sirVoid, AnE),
-                    SIRType.BuiltinList(SIRType.Pair(sirData, sirData)),
+                    SIRType.BuiltinList(SIRType.BuiltinPair(sirData, sirData)),
                     AnE
                   ))
         )
@@ -589,7 +592,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
           compile(
             Builtins.constrData(
               1,
-              builtin.List(Builtins.iData(2))
+              builtin.BuiltinList(Builtins.iData(2))
             )
           ) ~=~ Apply(
             Apply(SIRBuiltins.constrData, sirConst(1), Fun(sirBuiltinList(sirData), sirData), AnE),
@@ -615,7 +618,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             Const(Constant.List(DefaultUni.Data, immutable.Nil), SIRType.BuiltinList(sirData), AnE)
         assert(
           compile(
-            Builtins.listData(builtin.List(Builtins.iData(1)))
+            Builtins.listData(builtin.BuiltinList(Builtins.iData(1)))
           )
               ~=~
                   Apply(
@@ -639,7 +642,8 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
     test("compile mkPairData builtins") {
 
-        val compiled = compile(builtin.Pair(Builtins.bData(hex"deadbeef"), Builtins.iData(1)))
+        val compiled =
+            compile(builtin.BuiltinPair(Builtins.bData(hex"deadbeef"), Builtins.iData(1)))
 
         val expected =
             Apply(
@@ -665,8 +669,8 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compile(
             Builtins.mapData(
-              builtin.List(
-                builtin.Pair(Builtins.bData(hex"deadbeef"), Builtins.iData(1))
+              builtin.BuiltinList(
+                builtin.BuiltinPair(Builtins.bData(hex"deadbeef"), Builtins.iData(1))
               )
             )
           ) ~=~ Apply(
@@ -1323,7 +1327,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
     test("compile Pair builtins") {
         val fst = Var("fst", sirData, AnE)
         val snd = Var("snd", sirData, AnE)
-        val pv = Var("p", SIRType.Pair(sirData, sirData), AnE)
+        val pv = Var("p", SIRType.BuiltinPair(sirData, sirData), AnE)
 
         assert(
           compile(Builtins.mkPairData) ~=~ LamAbs(
@@ -1334,11 +1338,11 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
                 Apply(
                   SIRBuiltins.mkPairData,
                   fst,
-                  Fun(sirData, SIRType.Pair(sirData, sirData)),
+                  Fun(sirData, SIRType.BuiltinPair(sirData, sirData)),
                   AnE
                 ),
                 snd,
-                SIRType.Pair(sirData, sirData),
+                SIRType.BuiltinPair(sirData, sirData),
                 AnE
               ),
               List.empty,
@@ -1350,8 +1354,8 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
 
         assert(
-          compile { (p: builtin.Pair[Data, Data]) =>
-              builtin.Pair(Builtins.sndPair(p), Builtins.fstPair(p))
+          compile { (p: builtin.BuiltinPair[Data, Data]) =>
+              builtin.BuiltinPair(Builtins.sndPair(p), Builtins.fstPair(p))
           } ~=~
               LamAbs(
                 pv,
@@ -1362,27 +1366,27 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         )
 
         assert(
-          compile { builtin.Pair(BigInt(1), hex"deadbeef") }
+          compile { builtin.BuiltinPair(BigInt(1), hex"deadbeef") }
               ~=~ Const(
                 Constant.Pair(Constant.Integer(1), deadbeef),
-                SIRType.Pair(sirInt, sirByteString),
+                SIRType.BuiltinPair(sirInt, sirByteString),
                 AnE
               )
         )
 
         assert(
-          compile { (p: builtin.Pair[Data, Data]) => builtin.Pair(p.snd, p.fst) }
+          compile { (p: builtin.BuiltinPair[Data, Data]) => builtin.BuiltinPair(p.snd, p.fst) }
               ~=~ LamAbs(
                 pv,
                 Apply(
                   Apply(
                     SIRBuiltins.mkPairData,
                     Apply(SIRBuiltins.sndPair, pv, sirData, AnE),
-                    Fun(sirData, SIRType.Pair(sirData, sirData)),
+                    Fun(sirData, SIRType.BuiltinPair(sirData, sirData)),
                     AnE
                   ),
                   Apply(SIRBuiltins.fstPair, pv, sirData, AnE),
-                  SIRType.Pair(sirData, sirData),
+                  SIRType.BuiltinPair(sirData, sirData),
                   AnE
                 ),
                 List.empty,

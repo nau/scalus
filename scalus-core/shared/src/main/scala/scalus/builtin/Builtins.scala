@@ -156,16 +156,16 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
         a
 
     // Pairs
-    def fstPair[A, B](p: Pair[A, B]): A = p.fst
-    def sndPair[A, B](p: Pair[A, B]): B = p.snd
+    def fstPair[A, B](p: BuiltinPair[A, B]): A = p.fst
+    def sndPair[A, B](p: BuiltinPair[A, B]): B = p.snd
 
     // Lists
-    def chooseList[A, B](l: List[A], e: B, ne: B): B =
+    def chooseList[A, B](l: BuiltinList[A], e: B, ne: B): B =
         if l.isEmpty then e else ne
-    def mkCons[A](a: A, l: List[A]): List[A] = a :: l
-    def headList[A](l: List[A]): A = l.head
-    def tailList[A](l: List[A]): List[A] = l.tail
-    def nullList[A](l: List[A]): Boolean = l.isEmpty
+    def mkCons[A](a: A, l: BuiltinList[A]): BuiltinList[A] = a :: l
+    def headList[A](l: BuiltinList[A]): A = l.head
+    def tailList[A](l: BuiltinList[A]): BuiltinList[A] = l.tail
+    def nullList[A](l: BuiltinList[A]): Boolean = l.isEmpty
 
     // Data
     def chooseData[A](d: Data, constrCase: A, mapCase: A, listCase: A, iCase: A, bCase: A): A =
@@ -176,21 +176,22 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
             case Data.I(_)         => iCase
             case Data.B(_)         => bCase
 
-    def constrData(ctor: BigInt, args: List[Data]): Data = Data.Constr(ctor.toLong, args.toList)
-    def mapData(values: List[Pair[Data, Data]]): Data =
+    def constrData(ctor: BigInt, args: BuiltinList[Data]): Data =
+        Data.Constr(ctor.toLong, args.toList)
+    def mapData(values: BuiltinList[BuiltinPair[Data, Data]]): Data =
         Data.Map(values.toList.map(p => (p.fst, p.snd)))
-    def listData(values: List[Data]): Data = Data.List(values.toList)
+    def listData(values: BuiltinList[Data]): Data = Data.List(values.toList)
     def iData(value: BigInt): Data = Data.I(value)
     def bData(value: ByteString): Data = Data.B(value)
-    def unConstrData(d: Data): Pair[BigInt, List[Data]] = d match
-        case Data.Constr(constr, args) => Pair(constr: BigInt, List(args*))
+    def unConstrData(d: Data): BuiltinPair[BigInt, BuiltinList[Data]] = d match
+        case Data.Constr(constr, args) => BuiltinPair(constr: BigInt, BuiltinList(args*))
         case _                         => throw new Exception(s"not a constructor but $d")
-    def unListData(d: Data): List[Data] = d match
-        case Data.List(values) => List(values*)
+    def unListData(d: Data): BuiltinList[Data] = d match
+        case Data.List(values) => BuiltinList(values*)
         case _                 => throw new Exception(s"not a list but $d")
 
-    def unMapData(d: Data): List[Pair[Data, Data]] = d match
-        case Data.Map(values) => List(values.map(Pair.apply)*)
+    def unMapData(d: Data): BuiltinList[BuiltinPair[Data, Data]] = d match
+        case Data.Map(values) => BuiltinList(values.map(BuiltinPair.apply)*)
         case _                => throw new Exception(s"not a list but $d")
     def unIData(d: Data): BigInt = d match
         case Data.I(value) => value
@@ -208,9 +209,9 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
     // We could simply replace those with constants, but we use built-in functions for consistency
     // with monomorphic built-in types. Polymorphic built-in constructors are generally problematic,
     // See note [Representable built-in functions over polymorphic built-in types].
-    def mkPairData(fst: Data, snd: Data): Pair[Data, Data] = Pair(fst, snd)
-    def mkNilData(): List[Data] = List.empty
-    def mkNilPairData(): List[Pair[Data, Data]] = List.empty
+    def mkPairData(fst: Data, snd: Data): BuiltinPair[Data, Data] = BuiltinPair(fst, snd)
+    def mkNilData(): BuiltinList[Data] = BuiltinList.empty
+    def mkNilPairData(): BuiltinList[BuiltinPair[Data, Data]] = BuiltinList.empty
 
     /** Conversion from [[BigInt]] to [[ByteString]], as per
       * [CIP-121](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0121).

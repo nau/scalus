@@ -21,7 +21,7 @@ class SirDSLTypingTest extends AnyFunSuite:
     }
 
     test("pair type is created without unfilled proxies") {
-        val stp = SIRType.Pair(SIRType.Integer, SIRType.Boolean)
+        val stp = SIRType.BuiltinPair(SIRType.Integer, SIRType.Boolean)
         assert(SIRType.checkAllProxiesFilled(stp))
     }
 
