@@ -7,8 +7,7 @@ import scalus.sir.SIR
 import scalus.uplc.{BuiltinRuntime, BuiltinsMeaning, DefaultFun, Expr as Exp, ExprBuilder, Term as Trm}
 import scalus.uplc.ExprBuilder.*
 
-import java.nio.file.Files
-import java.nio.file.Paths
+import java.nio.file.*
 import scala.collection.immutable
 import scala.quoted.*
 import scala.annotation.nowarn
@@ -308,8 +307,13 @@ object Macros {
     def inlineBuiltinCostModelJsonImpl(using Quotes)(name: Expr[String]): Expr[String] = {
         import scala.quoted.*
         val string =
-            Files.readString(Paths.get("scalus-core/shared/src/main/resources", name.value.get))
+            Files.readString(sourcesRoot.resolve("resources").resolve(name.value.get))
         Expr(string)
+    }
+
+    transparent inline def sourcesRoot(using Quotes): Path = {
+        val path = quotes.reflect.SourceFile.current.path
+        Paths.get(path.substring(0, path.lastIndexOf("/src/main/")), "/src/main/")
     }
 
     def questionMark(using Quotes)(x: Expr[Boolean]): Expr[Boolean] = {
