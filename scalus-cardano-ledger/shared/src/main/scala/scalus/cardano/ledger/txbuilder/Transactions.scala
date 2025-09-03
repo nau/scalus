@@ -98,9 +98,10 @@ case class InterpreterWithProvidedData(
         val ws = makeWs(i, body)
         val tx = Transaction(body, ws)
         val redeemers = evaluator.evalPlutusScripts(tx, utxo)
-        val postEvalTx = tx.copy(witnessSet =
-            tx.witnessSet.copy(redeemers = Some(KeepRaw(Redeemers.from(redeemers))))
-        )
+        val postEvalTx =
+            tx.copy(witnessSet = tx.witnessSet.copy(redeemers = if redeemers.isEmpty then {
+                None
+            } else Some(KeepRaw(Redeemers.from(redeemers)))))
         val withMinsCeiled = ceilOuts(postEvalTx, environment.protocolParams)
         TxBalance.doBalance2(withMinsCeiled)(
           utxo,
@@ -396,7 +397,8 @@ case class ScriptsWs(
       plutusV1Scripts = v1Plutus,
       plutusV2Scripts = v2Plutus,
       plutusV3Scripts = v3Plutus,
-      redeemers = Some(KeepRaw(Redeemers.from(redeemers)))
+      redeemers = if redeemers.isEmpty then { None }
+      else Some(KeepRaw(Redeemers.from(redeemers)))
     )
 
     def addV1(v1: PlutusV1): ScriptsWs = copy(v1Plutus = v1Plutus + v1)
@@ -417,7 +419,8 @@ object TxSigner {
 
         override def signTx(unsigned: Transaction): Transaction = {
             val signatures = keys.map { (publicKey, privateKey) =>
-                val signature = platform.signEd25519(privateKey, unsigned.id)
+                val txHash = unsigned.id
+                val signature = platform.signEd25519(privateKey, txHash)
                 VKeyWitness(publicKey, signature)
             }.toSet
 
