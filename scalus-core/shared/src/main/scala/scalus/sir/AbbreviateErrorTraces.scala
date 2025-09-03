@@ -1,6 +1,7 @@
 package scalus.sir
 
 import scalus.sir.SIR.Case
+import scalus.uplc.Constant
 
 import scala.collection.mutable
 
@@ -111,7 +112,13 @@ class AbbreviateErrorTraces {
       *   The transformed SIR
       */
     def transformAnnotatedSIR(sir: AnnotatedSIR): AnnotatedSIR = sir match {
-        case SIR.Error(msg, ann, cause) => SIR.Error(createAbbreviation(msg), ann, cause)
+        case SIR.Error(SIR.Const(Constant.String(msg), SIRType.String, msgAnn), ann, cause) =>
+            SIR.Error(
+              SIR.Const(Constant.String(createAbbreviation(msg)), SIRType.String, msgAnn),
+              ann,
+              cause
+            )
+        case SIR.Error(msg, ann, cause) => SIR.Error(transformAnnotatedSIR(msg), ann, cause)
         case SIR.Let(recursivity, bindings, body, ann) =>
             SIR.Let(recursivity, bindings.map(transformBinding), transformSIR(body), ann)
         case SIR.LamAbs(name, term, tp, ann) =>

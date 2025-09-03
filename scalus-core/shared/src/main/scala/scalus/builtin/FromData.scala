@@ -13,6 +13,7 @@ import scala.quoted.*
 trait FromData[+A] extends Function1[Data, A] with CompileDerivations {
 
     override def apply(v: Data): A
+
 }
 
 /** FromData[A] derivation
@@ -51,7 +52,7 @@ object FromData {
     @deprecated
     @Ignore
     inline def deriveEnum[T](
-        inline conf: PartialFunction[Int, scalus.builtin.List[Data] => T]
+        inline conf: PartialFunction[Int, scalus.builtin.BuiltinList[Data] => T]
     ): FromData[T] = ${ FromDataMacros.deriveEnumMacro[T]('{ conf }) }
 
     /** Derive FromData for an enum type
@@ -75,7 +76,7 @@ object FromData {
 
     @deprecated
     @Ignore
-    inline def deriveConstructor[T]: scalus.builtin.List[Data] => T = ${
+    inline def deriveConstructor[T]: scalus.builtin.BuiltinList[Data] => T = ${
         FromDataMacros.deriveConstructorMacro[T]
     }
 

@@ -306,9 +306,6 @@ class SirToUplc110Lowering(sir: SIR, generateErrorTraces: Boolean = false):
             case SIR.Builtin(bn, _, _) => builtinTerms(bn)
             case SIR.Error(msg, _, _) =>
                 if generateErrorTraces
-                then
-                    !(builtinTerms(DefaultFun.Trace) $ Term.Const(
-                      Constant.String(msg)
-                    ) $ ~Term.Error)
+                then !(builtinTerms(DefaultFun.Trace) $ lowerInner(msg) $ ~Term.Error)
                 else Term.Error
             case SIR.Cast(term, tp, anns) => lowerInner(term)

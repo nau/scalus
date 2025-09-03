@@ -246,7 +246,7 @@ object PrettyPrinter:
                       4
                     )).grouped).aligned
             case Builtin(bn, _, _) => pretty(bn).styled(Fg.colorCode(176))
-            case Error(msg, _, _)  => text(s"ERROR '$msg'").styled(Fg.colorCode(124))
+            case Error(msg, _, _) => (text(s"ERROR") & pretty(msg, style)).styled(Fg.colorCode(124))
             case Cast(expr, tp, anns) =>
                 (kw("cast") & (lineOrSpace + inParens(pretty(expr, style))).nested(4) + char(
                   ':'

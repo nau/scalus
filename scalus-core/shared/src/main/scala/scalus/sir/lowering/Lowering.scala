@@ -267,17 +267,26 @@ object Lowering {
                   SirTypeUplcGenerator(tp).defaultRepresentation(tp)
                 )
             case sirError @ SIR.Error(msg, anns, cause) =>
-                val term =
-                    if lctx.generateErrorTraces then
-                        !(DefaultFun.Trace.tpf $ Term.Const(
-                          Constant.String(msg)
-                        ) $ ~Term.Error)
-                    else Term.Error
-                StaticLoweredValue(
-                  sirError,
-                  term,
-                  ErrorRepresentation
-                )
+                if lctx.generateErrorTraces then
+                    if msg.tp != SIRType.String then
+                        throw LoweringException(
+                          s"Error message should be String, but got ${msg.tp.show}",
+                          msg.anns.pos
+                        )
+                    val loweredMsg = lowerSIR(msg, Some(SIRType.String))
+                    val errorTerm = StaticLoweredValue(sirError, ~Term.Error, ErrorRepresentation)
+                    lvForce(
+                      lvBuiltinApply2(
+                        SIRBuiltins.trace,
+                        loweredMsg,
+                        errorTerm,
+                        sirError.tp,
+                        ErrorRepresentation,
+                        anns.pos
+                      ),
+                      anns.pos
+                    )
+                else StaticLoweredValue(sirError, Term.Error, ErrorRepresentation)
         lctx.nestingLevel -= 1
         retval
     }

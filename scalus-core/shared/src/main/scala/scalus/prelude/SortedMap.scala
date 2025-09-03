@@ -280,7 +280,7 @@ object SortedMap {
     given sortedMapFromData[A: FromData, B: FromData]: FromData[SortedMap[A, B]] =
         (d: Data) =>
             def loop(
-                ls: scalus.builtin.List[scalus.builtin.Pair[Data, Data]]
+                ls: scalus.builtin.BuiltinList[scalus.builtin.BuiltinPair[Data, Data]]
             ): scalus.prelude.List[(A, B)] =
                 if ls.isEmpty then Nil
                 else
@@ -301,7 +301,7 @@ object SortedMap {
     def sortedMapFromDataWithValidation[A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
         (d: Data) =>
             def loop(
-                ls: scalus.builtin.List[scalus.builtin.Pair[Data, Data]]
+                ls: scalus.builtin.BuiltinList[scalus.builtin.BuiltinPair[Data, Data]]
             ): scalus.prelude.List[(A, B)] =
                 if ls.isEmpty then Nil
                 else
@@ -317,14 +317,17 @@ object SortedMap {
       */
     given sortedMapToData[A: ToData, B: ToData]: ToData[SortedMap[A, B]] =
         (a: SortedMap[A, B]) => {
-            def go(a: List[(A, B)]): scalus.builtin.List[scalus.builtin.Pair[Data, Data]] =
+            def go(
+                a: List[(A, B)]
+            ): scalus.builtin.BuiltinList[scalus.builtin.BuiltinPair[Data, Data]] =
                 a match {
                     case Nil => mkNilPairData()
                     case Cons(tuple, tail) =>
                         tuple match {
                             case (a, b) =>
                                 mkCons(
-                                  scalus.builtin.Pair(summon[ToData[A]](a), summon[ToData[B]](b)),
+                                  scalus.builtin
+                                      .BuiltinPair(summon[ToData[A]](a), summon[ToData[B]](b)),
                                   go(tail)
                                 )
                         }

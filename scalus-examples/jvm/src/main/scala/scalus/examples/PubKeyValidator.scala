@@ -14,7 +14,7 @@ object PubKeyValidator {
         val txinfo = unConstrData(unConstrData(ctx).snd.head).snd
         val signatories = unListData(txinfo.tail.tail.tail.tail.tail.tail.tail.head)
 
-        def findSignatureOrFail(sigs: builtin.List[Data]): Unit =
+        def findSignatureOrFail(sigs: builtin.BuiltinList[Data]): Unit =
             if signatories.isEmpty then throw new RuntimeException("Signature not found")
             else if unBData(signatories.head) == hex"deadbeef"
             then ()
@@ -28,7 +28,7 @@ object PubKeyValidator {
         val signatories = ctx.field[ScriptContext](_.txInfo.signatories).toList
         log("got signatories")
 
-        def findSignatureOrFail(sigs: builtin.List[Data]): Unit =
+        def findSignatureOrFail(sigs: builtin.BuiltinList[Data]): Unit =
             log("check sigs")
             if signatories.isEmpty then throw new RuntimeException("Signature not found")
             else if signatories.head.toByteString == pubKey
@@ -43,7 +43,7 @@ object PubKeyValidator {
         val signatories = ctx.field[ScriptContext](_.txInfo.signatories).toList
         log("got signatories")
 
-        def findSignatureOrFail(sigs: builtin.List[Data]): Unit =
+        def findSignatureOrFail(sigs: builtin.BuiltinList[Data]): Unit =
             log("check sigs")
             if signatories.isEmpty then throw new RuntimeException("Signature not found")
             else if signatories.head.toByteString == pubKey
