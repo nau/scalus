@@ -309,8 +309,7 @@ object Macros {
         Expr(string)
     }
 
-    inline def readResource(using Quotes)(name: String,
-                                          resPath: String = "resources"): String =
+    inline def readResource(using Quotes)(name: String, resPath: String = "resources"): String =
         Files.readString(sourcesRoot().resolve(resPath).resolve(name))
 
     inline def sourcesRoot(using Quotes)(srcRoot: String = "/src/main/"): Path = {
