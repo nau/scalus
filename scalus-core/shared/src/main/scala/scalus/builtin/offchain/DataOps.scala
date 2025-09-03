@@ -1,4 +1,4 @@
-package scalus.prelude.offchain
+package scalus.builtin.offchain
 
 import scalus.builtin.{Data, FromData, ToData}
 
