@@ -307,13 +307,13 @@ object Macros {
     def inlineBuiltinCostModelJsonImpl(using Quotes)(name: Expr[String]): Expr[String] = {
         import scala.quoted.*
         val string =
-            Files.readString(sourcesRoot.resolve("resources").resolve(name.value.get))
+            Files.readString(sourcesRoot().resolve("resources").resolve(name.value.get))
         Expr(string)
     }
 
-    transparent inline def sourcesRoot(using Quotes): Path = {
+    inline def sourcesRoot(using Quotes)(srcRoot: String = "/src/main/"): Path = {
         val path = quotes.reflect.SourceFile.current.path
-        Paths.get(path.substring(0, path.lastIndexOf("/src/main/")), "/src/main/")
+        Paths.get(path.substring(0, path.lastIndexOf(srcRoot)), srcRoot)
     }
 
     def questionMark(using Quotes)(x: Expr[Boolean]): Expr[Boolean] = {
