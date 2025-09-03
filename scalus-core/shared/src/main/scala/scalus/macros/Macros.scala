@@ -305,11 +305,13 @@ object Macros {
     }
 
     def inlineBuiltinCostModelJsonImpl(using Quotes)(name: Expr[String]): Expr[String] = {
-        import scala.quoted.*
-        val string =
-            Files.readString(sourcesRoot().resolve("resources").resolve(name.value.get))
+        val string = readResource(name.value.get)
         Expr(string)
     }
+
+    inline def readResource(using Quotes)(name: String,
+                                          resPath: String = "resources"): String =
+        Files.readString(sourcesRoot().resolve(resPath).resolve(name))
 
     inline def sourcesRoot(using Quotes)(srcRoot: String = "/src/main/"): Path = {
         val path = quotes.reflect.SourceFile.current.path
