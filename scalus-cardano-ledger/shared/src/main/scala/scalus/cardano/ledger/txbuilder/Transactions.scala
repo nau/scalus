@@ -4,7 +4,7 @@ import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
 import scalus.cardano.ledger
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.Script.{PlutusV1, PlutusV2, PlutusV3}
+import scalus.cardano.ledger.Script.{Native, PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger.txbuilder.Intention.Stake
 import scalus.cardano.ledger.utils.TxBalance.modifyBody
 import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, TxBalance}
@@ -28,7 +28,7 @@ enum Intention {
     case Pay(address: Address, value: Value, data: Option[DatumOption] = None)
     case Mint(
         mintValue: ledger.Mint,
-        mintingPolicy: PlutusScript,
+        mintingPolicy: Script,
         redeemer: Data,
         targetAddress: Address
     )
@@ -196,6 +196,8 @@ case class InterpreterWithProvidedData(
             .collectFirst {
                 case (policyId, index) if policyId == mintingPolicyId =>
                     mintIntention.mintingPolicy match {
+                        case native: Native =>
+                            ScriptsWs().addNative(native)
                         case v1: PlutusV1 =>
                             ScriptsWs()
                                 .addV1(v1)
@@ -388,12 +390,14 @@ case class InterpreterWithProvidedData(
 }
 
 case class ScriptsWs(
+    native: Set[Native] = Set.empty,
     v1Plutus: Set[PlutusV1] = Set.empty,
     v2Plutus: Set[PlutusV2] = Set.empty,
     v3Plutus: Set[PlutusV3] = Set.empty,
     redeemers: Set[Redeemer] = Set.empty
 ) {
     def toWs: TransactionWitnessSet = TransactionWitnessSet(
+      nativeScripts = native,
       plutusV1Scripts = v1Plutus,
       plutusV2Scripts = v2Plutus,
       plutusV3Scripts = v3Plutus,
@@ -401,6 +405,7 @@ case class ScriptsWs(
       else Some(KeepRaw(Redeemers.from(redeemers)))
     )
 
+    def addNative(n: Native): ScriptsWs = copy(native = native + n)
     def addV1(v1: PlutusV1): ScriptsWs = copy(v1Plutus = v1Plutus + v1)
     def addV2(v2: PlutusV2): ScriptsWs = copy(v2Plutus = v2Plutus + v2)
     def addV3(v3: PlutusV3): ScriptsWs = copy(v3Plutus = v3Plutus + v3)

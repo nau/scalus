@@ -4,10 +4,9 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.{ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
-import scalus.cardano.ledger.rules.{CardanoMutator, Context, State, UtxoEnv, ValidatorRulesTestKit}
+import scalus.cardano.ledger.rules.*
 import scalus.cardano.ledger.{AddrKeyHash, ArbitraryInstances as ArbLedger, AssetName, CertState, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
-import scalus.cardano.ledger.txbuilder.TxSigner
-import scalus.ledger.api.MajorProtocolVersion
+import scalus.ledger.api.{MajorProtocolVersion, Timelock}
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
 import upickle.default.read
@@ -76,7 +75,7 @@ class TxBuilderTest2
         ).realize(Intention.Pay(faucet, payment))
 
     }
-    test("mint tokens with PlutusV3 script") {
+    test("mint tokens with a PlutusV3 script") {
         val myAddress = arbitrary[ShelleyAddress].sample.get
         val targetAddress = arbitrary[ShelleyAddress].sample.get
         val hash = arbitrary[TransactionHash].sample.get
@@ -142,6 +141,65 @@ class TxBuilderTest2
 
         assert(tx.witnessSet.plutusV3Scripts.contains(mintingScript))
         assert(tx.witnessSet.redeemers.isDefined)
+    }
+
+    test("mint tokens with a native script") {
+        val myAddress = arbitrary[ShelleyAddress].sample.get
+        val targetAddress = arbitrary[ShelleyAddress].sample.get
+        val hash = arbitrary[TransactionHash].sample.get
+
+        val keyHash = arbitrary[AddrKeyHash].sample.get
+        val nativeScript = Script.Native(Timelock.Signature(keyHash))
+        val policyId = nativeScript.scriptHash
+
+        val assetName = AssetName(ByteString.fromString("co2"))
+        val mintAmount = 500L
+        val mintValue = Mint(MultiAsset(SortedMap(policyId -> SortedMap(assetName -> mintAmount))))
+
+        val availableLovelace = Value.lovelace(10_000_000L)
+        val txInputs = Map(
+          TransactionInput(hash, 0) -> TransactionOutput(myAddress, availableLovelace)
+        )
+        val collateral = Map(
+          TransactionInput(arbitrary[TransactionHash].sample.get, 0) -> TransactionOutput(
+            myAddress,
+            Value.lovelace(100_000_000L)
+          )
+        )
+        val utxo: UTxO = txInputs ++ collateral
+
+        val inputSelector = InputSelector(
+          Set(ResolvedTxInput.Pubkey(txInputs.head)),
+          Set(ResolvedTxInput.Pubkey(collateral.head))
+        )
+
+        val interpreter = InterpreterWithProvidedData(
+          inputSelector,
+          utxo,
+          env,
+          ChangeReturnStrategy.toAddress(myAddress),
+          FeePayerStrategy.subtractFromAddress(myAddress),
+          evaluator
+        )
+
+        val tx = interpreter.realize(
+          Intention.Mint(mintValue, nativeScript, Data.unit, targetAddress)
+        )
+
+        assert(tx.body.value.mint.isDefined)
+        val mint = tx.body.value.mint.get
+        assert(mint.assets.contains(policyId))
+        assert(mint.assets(policyId).contains(assetName))
+        assert(mint.assets(policyId)(assetName) == mintAmount)
+
+        val targetOutput = tx.body.value.outputs.find(_.value.address == targetAddress)
+        assert(targetOutput.isDefined)
+        assert(targetOutput.get.value.value.assets.assets.contains(policyId))
+        assert(targetOutput.get.value.value.assets.assets(policyId).contains(assetName))
+        assert(targetOutput.get.value.value.assets.assets(policyId)(assetName) == mintAmount)
+
+        assert(tx.witnessSet.nativeScripts.contains(nativeScript))
+        assert(tx.witnessSet.redeemers.isEmpty)
     }
 
     test("fail if the validator script throws an error") {
