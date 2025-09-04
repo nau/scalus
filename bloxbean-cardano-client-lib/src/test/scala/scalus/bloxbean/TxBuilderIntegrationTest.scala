@@ -2,9 +2,10 @@ package scalus.bloxbean
 
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
-import com.bloxbean.cardano.client.crypto.bip32.HdKeyPair
 import com.bloxbean.cardano.client.crypto.cip1852.DerivationPath
 import com.bloxbean.cardano.client.crypto.cip1852.DerivationPath.createExternalAddressDerivationPath
+import net.i2p.crypto.eddsa.spec.{EdDSANamedCurveTable, EdDSAPrivateKeySpec}
+import net.i2p.crypto.eddsa.{EdDSAEngine, EdDSAPrivateKey}
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.ByteString
 import scalus.cardano.address.*
@@ -21,10 +22,18 @@ def resolvedTransaction(txHash: String, address: Address) = {
     TransactionInput(
       TransactionHash.fromHex(txHash),
       0
-    ) -> TransactionOutput(address, Value.lovelace(1_000_000_000_000L))
+    ) -> TransactionOutput(address, Value.lovelace(10_000_000_000L))
 }
 
-class YaciDevkitIntegrationTest extends AnyFunSuite {
+/*
+ * Expects yaci dev kit (with store) to exist. Relies on values that ` yaci-devkit up --enable-yaci-store` has on chain by default.
+ * Heavy WIP, but tx passes.
+ *
+ * Todo:
+ *  get rid of bloxbean related signature code
+ *  refactor
+ */
+class TxBuilderIntegrationTest extends AnyFunSuite {
 
     private val EXISTING_UTXO = "6d36c0e2f304a5c27b85b3f04e95fc015566d35aef5f061c17c70e3e8b9ee508"
     private val SPENDER_ADDRESS =
@@ -64,6 +73,8 @@ class YaciDevkitIntegrationTest extends AnyFunSuite {
         val result = backendService.getTransactionService.submitTransaction(cborBytes)
         if !result.isSuccessful then {
             throw new RuntimeException(result.getResponse)
+        } else {
+            println(result)
         }
     }
 
@@ -113,14 +124,7 @@ class YaciDevkitIntegrationTest extends AnyFunSuite {
 
         val tx = interpreter.realize(paymentIntention)
 
-        // Compare with our derived public key hash
-        val (privateKeyBytes, publicKeyBytes) = keyPairUsingDerivation
-        val privateKey: ByteString = ByteString.fromArray(privateKeyBytes)
-        val publicKey: ByteString = ByteString.fromArray(publicKeyBytes)
-
-        val signed = TxSigner
-            .usingKeyPairs(publicKey -> privateKey)
-            .signTx(tx)
+        val signed = keyPairUsingBloxbean(tx)
 
         val cborBytes = signed.toCbor
         val ourLedgerRulesVerificationResult = CardanoMutator(
@@ -128,42 +132,31 @@ class YaciDevkitIntegrationTest extends AnyFunSuite {
           State(utxo, CertState.empty),
           signed
         )
-        println(ourLedgerRulesVerificationResult)
-
         submitTransactionToCardano(cborBytes)
     }
 
-    def keyPairUsingDerivation: (Array[Byte], Array[Byte]) = {
-        // Take the first 32 bytes of XPrv → call this seed
-        val xprv: Array[Byte] = keyPairUsingBloxbean.getPrivateKey.getKeyData
-        val seed = xprv.take(32)
-
-        // Compute the expanded private key: Hash seed with SHA-512 → 64 bytes
-        val sha512 = MessageDigest.getInstance("SHA-512")
-        val expandedKey = sha512.digest(seed)
-
-        // Clamp the first 32 bytes to get the private scalar
-        val privateScalar = expandedKey.take(32)
-
-        // Ed25519 clamping operations:
-        // Clear the lowest 3 bits of byte 0
-        privateScalar(0) = (privateScalar(0) & 248).toByte // 0b11111000
-
-        // Clear the highest 2 bits of byte 31
-        privateScalar(31) = (privateScalar(31) & 63).toByte // 0b00111111
-
-        // Set the second highest bit of byte 31
-        privateScalar(31) = (privateScalar(31) | 64).toByte // 0b01000000
-
-        val publicKey = xprv.slice(32, 64)
-
-        (privateScalar, publicKey)
-    }
-
-    def keyPairUsingBloxbean: HdKeyPair = {
+    def keyPairUsingBloxbean(tx: Transaction) = {
         import com.bloxbean.cardano.client.common.model.Network as Nw
         val derivationPath = createExternalAddressDerivationPath
         val acc = Account(new Nw(0, 42), MNEMONIC, derivationPath)
-        acc.hdKeyPair()
+        val pair = acc.hdKeyPair()
+
+        val spec = EdDSANamedCurveTable.getByName(EdDSANamedCurveTable.ED_25519)
+        val signature = new EdDSAEngine(MessageDigest.getInstance(spec.getHashAlgorithm))
+        signature.initSign(
+          new EdDSAPrivateKey(new EdDSAPrivateKeySpec(spec, pair.getPrivateKey.getKeyData))
+        )
+        signature.setParameter(EdDSAEngine.ONE_SHOT_MODE)
+        signature.update(tx.id.bytes)
+        val signatureBytes = signature.sign()
+        val ws = tx.witnessSet.copy(vkeyWitnesses =
+            Set(
+              VKeyWitness(
+                ByteString.fromArray(pair.getPublicKey.getKeyData),
+                ByteString.fromArray(signatureBytes)
+              )
+            )
+        )
+        tx.copy(witnessSet = ws)
     }
 }
