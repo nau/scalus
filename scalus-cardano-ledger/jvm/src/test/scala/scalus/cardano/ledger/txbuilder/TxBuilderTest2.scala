@@ -2,10 +2,11 @@ package scalus.cardano.ledger.txbuilder
 
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{ByteString, Data, platform}
-import scalus.cardano.address.{ByronAddress, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart, ArbitraryInstances as ArbAddresses}
+import scalus.builtin.{platform, ByteString, Data}
+import scalus.cardano.address.{ArbitraryInstances as ArbAddresses, ByronAddress, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 import scalus.cardano.ledger.rules.*
-import scalus.cardano.ledger.{AddrKeyHash, AssetName, CertState, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value, ArbitraryInstances as ArbLedger}
+import scalus.cardano.ledger.txbuilder.MintIntention.UsingPlutus
+import scalus.cardano.ledger.{AddrKeyHash, ArbitraryInstances as ArbLedger, AssetName, CertState, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
 import scalus.ledger.api.{MajorProtocolVersion, Timelock}
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
@@ -124,7 +125,7 @@ class TxBuilderTest2
         )
 
         val tx = interpreter.realize(
-          Intention.Mint(mintValue, mintingScript, Data.unit, targetAddress)
+          Intention.Mint(mintValue, UsingPlutus(mintingScript, Data.unit), targetAddress)
         )
 
         assert(tx.body.value.mint.isDefined)
@@ -183,7 +184,7 @@ class TxBuilderTest2
         )
 
         val tx = interpreter.realize(
-          Intention.Mint(mintValue, nativeScript, Data.unit, targetAddress)
+          Intention.Mint(mintValue, MintIntention.UsingNative(nativeScript), targetAddress)
         )
 
         assert(tx.body.value.mint.isDefined)
@@ -304,7 +305,11 @@ class TxBuilderTest2
           evaluator
         )
         val unsignedTx = interpreter.realize(
-          Intention.Mint(mintValue, mintingScript, Data.unit, targetAddress)
+          Intention.Mint(
+            mintValue,
+            MintIntention.UsingPlutus(mintingScript, Data.unit),
+            targetAddress
+          )
         )
         val signed = TxSigner
             .usingKeyPairs(keyPair.swap)

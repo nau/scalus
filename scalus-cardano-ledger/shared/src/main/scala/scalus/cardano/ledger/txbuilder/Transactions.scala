@@ -1,7 +1,7 @@
 package scalus.cardano.ledger.txbuilder
 
 import scalus.builtin.{platform, ByteString, Data}
-import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
+import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{Native, PlutusV1, PlutusV2, PlutusV3}
@@ -26,15 +26,15 @@ import scala.util.Random
  */
 enum Intention {
     case Pay(address: Address, value: Value, data: Option[DatumOption] = None)
-    case Mint(
-        mintValue: ledger.Mint,
-        mintingPolicy: Script,
-        redeemer: Data,
-        targetAddress: Address
-    )
+    case Mint(value: ledger.Mint, scriptInfo: MintIntention, targetAddress: Address)
     case WithdrawRewards(withdrawals: SortedMap[RewardAccount, Coin])
 
     case Stake(credential: Credential, poolKeyHash: PoolKeyHash)
+}
+
+enum MintIntention {
+    case UsingNative(nativeScript: Native)
+    case UsingPlutus(plutusScript: PlutusScript, redeemer: Data)
 }
 
 trait Interpreter {
@@ -63,7 +63,7 @@ case class InterpreterWithProvidedData(
                 initialBody.copy(
                   outputs = IndexedSeq(Sized(TransactionOutput(address, value, data)))
                 )
-            case Intention.Mint(mintValue, mintingPolicy, redeemer, targetAddress) =>
+            case Intention.Mint(mintValue, scriptInfo, targetAddress) =>
                 val tempOutput = TransactionOutput(
                   targetAddress,
                   Value(Coin(1), MultiAsset(mintValue.assets)),
@@ -191,50 +191,39 @@ case class InterpreterWithProvidedData(
     }
 
     private def assembleWsForMinting(mintIntention: Intention.Mint) = {
-        val mintingPolicyId = mintIntention.mintingPolicy.scriptHash
-        mintIntention.mintValue.assets.keySet.view.zipWithIndex
-            .collectFirst {
-                case (policyId, index) if policyId == mintingPolicyId =>
-                    mintIntention.mintingPolicy match {
-                        case native: Native =>
-                            ScriptsWs().addNative(native)
-                        case v1: PlutusV1 =>
-                            ScriptsWs()
-                                .addV1(v1)
-                                .addRedeemer(
-                                  Redeemer(
-                                    RedeemerTag.Mint,
-                                    index,
-                                    mintIntention.redeemer,
-                                    ExUnits.zero
-                                  )
-                                )
-                        case v2: PlutusV2 =>
-                            ScriptsWs()
-                                .addV2(v2)
-                                .addRedeemer(
-                                  Redeemer(
-                                    RedeemerTag.Mint,
-                                    index,
-                                    mintIntention.redeemer,
-                                    ExUnits.zero
-                                  )
-                                )
-                        case v3: PlutusV3 =>
-                            ScriptsWs()
-                                .addV3(v3)
-                                .addRedeemer(
-                                  Redeemer(
-                                    RedeemerTag.Mint,
-                                    index,
-                                    mintIntention.redeemer,
-                                    ExUnits.zero
-                                  )
-                                )
+        mintIntention.scriptInfo match {
+            case MintIntention.UsingNative(nativeScript) =>
+                ScriptsWs().addNative(nativeScript).toWs
+            case MintIntention.UsingPlutus(plutusScript, redeemer) =>
+                val mintingPolicyId = plutusScript.scriptHash
+                mintIntention.value.assets.keySet.view.zipWithIndex
+                    .collectFirst {
+                        case (policyId, index) if policyId == mintingPolicyId =>
+                            plutusScript match {
+                                case v1: PlutusV1 =>
+                                    ScriptsWs()
+                                        .addV1(v1)
+                                        .addRedeemer(
+                                          Redeemer(RedeemerTag.Mint, index, redeemer, ExUnits.zero)
+                                        )
+                                case v2: PlutusV2 =>
+                                    ScriptsWs()
+                                        .addV2(v2)
+                                        .addRedeemer(
+                                          Redeemer(RedeemerTag.Mint, index, redeemer, ExUnits.zero)
+                                        )
+                                case v3: PlutusV3 =>
+                                    ScriptsWs()
+                                        .addV3(v3)
+                                        .addRedeemer(
+                                          Redeemer(RedeemerTag.Mint, index, redeemer, ExUnits.zero)
+                                        )
+                            }
                     }
-            }
-            .getOrElse(ScriptsWs())
-            .toWs
+                    .getOrElse(ScriptsWs())
+                    .toWs
+        }
+
     }
 
     private def assembleWsForWithdrawal(withdrawIntention: Intention.WithdrawRewards) = {
