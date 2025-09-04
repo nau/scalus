@@ -2,10 +2,10 @@ package scalus.cardano.ledger.txbuilder
 
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{platform, ByteString, Data}
-import scalus.cardano.address.{ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
+import scalus.builtin.{ByteString, Data, platform}
+import scalus.cardano.address.{ByronAddress, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart, ArbitraryInstances as ArbAddresses}
 import scalus.cardano.ledger.rules.*
-import scalus.cardano.ledger.{AddrKeyHash, ArbitraryInstances as ArbLedger, AssetName, CertState, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value}
+import scalus.cardano.ledger.{AddrKeyHash, AssetName, CertState, CostModels, Mint, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, TransactionHash, TransactionInput, TransactionOutput, UTxO, Value, ArbitraryInstances as ArbLedger}
 import scalus.ledger.api.{MajorProtocolVersion, Timelock}
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
@@ -144,7 +144,7 @@ class TxBuilderTest2
     }
 
     test("mint tokens with a native script") {
-        val myAddress = arbitrary[ShelleyAddress].sample.get
+        val myAddress = arbitrary[ByronAddress].sample.get
         val targetAddress = arbitrary[ShelleyAddress].sample.get
         val hash = arbitrary[TransactionHash].sample.get
 
