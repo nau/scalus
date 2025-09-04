@@ -4,6 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{Builtins, ByteString, JVMPlatformSpecific}
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.common.model.Networks
+import com.bloxbean.cardano.client.crypto.cip1852.DerivationPath
 import org.bouncycastle.crypto.Digest
 import org.bouncycastle.crypto.digests.SHA512Digest
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
@@ -60,7 +61,8 @@ class Ed25591KeyCompabilityTest extends AnyFunSuite {
         val mnemonic =
             "test test test test test test test test test test test test test test test test test test test test test test test sauce"
         val derivation = "m/1852'/1815'/0'/0/0"
-        val account = new Account(Networks.testnet, mnemonic)
+        val derivationPath = DerivationPath.createExternalAddressDerivationPath()
+        val account = new Account(Networks.testnet, mnemonic, derivationPath)
         val keyPair = account.hdKeyPair()
         val publicKeyData = keyPair.getPublicKey().getKeyData()
 
