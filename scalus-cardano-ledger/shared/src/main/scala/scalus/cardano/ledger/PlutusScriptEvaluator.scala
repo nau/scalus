@@ -401,6 +401,7 @@ class PlutusScriptEvaluator(
                 println(s"Script ${vm.language} ${redeemer.tag} evaluation failed: ${e.getMessage}")
 //                println(e.env.view.reverse.take(20).mkString("\n"))
                 throw new PlutusScriptEvaluationException(e.getMessage, e, logger.getLogs)
+            case e: InvalidReturnValue => throw e
             case e: Exception =>
                 throw new PlutusScriptEvaluationException(e.getMessage, e, logger.getLogs)
     }

@@ -14,6 +14,11 @@ class Context(
 case class State(
     utxo: UTxO = Map.empty,
     certState: CertState = CertState.empty,
+    deposited: Coin = Coin.zero, // Lazy field used only for assertions
+    fees: Coin = Coin.zero, // Accumulated transaction fees
+    govState: GovState = (), // Governance state
+    stakeDistribution: StakeMap = Map.empty, // Stake distribution
+    donation: Coin = Coin.zero // Donation amount
 )
 
 case class UtxoEnv(slot: SlotNo, params: ProtocolParams, certState: CertState)

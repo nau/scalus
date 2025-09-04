@@ -1,0 +1,104 @@
+package scalus.cardano.ledger
+package rules
+
+import scalus.ledger.api.MajorProtocolVersion
+import scalus.uplc.eval.{ExBudget, InvalidReturnValue}
+
+import scala.util.boundary
+import scala.util.boundary.break
+import scala.util.control.NonFatal
+
+// It's conwayEvalScriptsTxValid in cardano-ledger
+object PlutusScriptsTransactionMutator extends STS.Mutator {
+    override final type Error = TransactionException.BadInputsUTxOException |
+        TransactionException.BadReferenceInputsUTxOException |
+        TransactionException.BadCollateralInputsUTxOException |
+        TransactionException.IllegalArgumentException
+
+    override def transit(context: Context, state: State, event: Event): Result = boundary {
+        val body = event.body.value
+        val slotConfig = context.slotConfig
+        val protocolParameters = context.env.params
+        val protocolVersion = protocolParameters.protocolVersion
+        val costModels = protocolParameters.costModels
+        val utxo = state.utxo
+
+        try {
+            PlutusScriptEvaluator(
+              slotConfig = slotConfig,
+              initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
+              protocolMajorVersion = MajorProtocolVersion(protocolVersion.major),
+              costModels = CostModels.fromProtocolParams(protocolParameters),
+              mode = EvaluatorMode.Validate,
+              debugDumpFilesForTesting = false
+            ).evalPlutusScripts(event, utxo)
+
+            if event.isValid then
+                val addedUtxo: UTxO = event.body.value.outputs.view.zipWithIndex.map {
+                    case (Sized(output, _), index) =>
+                        TransactionInput(event.id, index) -> output
+                }.toMap
+
+                // TODO full transition
+                success(
+                  state.copy(
+                    utxo = state.utxo -- event.body.value.inputs.toSortedSet ++ addedUtxo,
+                    fees = state.fees + event.body.value.fee,
+                    donation = state.donation + event.body.value.donation.getOrElse(Coin.zero)
+                  )
+                )
+            else
+                throw IllegalStateException(
+                  s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
+                )
+        } catch {
+            case e: InvalidReturnValue =>
+                if event.isValid then
+                    throw IllegalStateException(
+                      s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
+                    )
+                else
+                    val addedUtxo = event.body.value.collateralReturnOutput
+                        .map(v =>
+                            TransactionInput(event.id, event.body.value.outputs.size) -> v.value
+                        )
+                        .toMap
+
+                    val collateralReturnCoins = event.body.value.collateralReturnOutput
+                        .map(v => v.value.value.coin)
+                        .getOrElse(Coin.zero)
+
+                    val collateralCoins = event.body.value.collateralInputs.toSortedSet.view
+                        .map { input =>
+                            utxo.get(input) match {
+                                case Some(output) => output.value.coin
+                                case None =>
+                                    break(
+                                      Left(
+                                        TransactionException.BadCollateralInputsUTxOException(
+                                          event.id
+                                        )
+                                      )
+                                    )
+                            }
+                        }
+                        .foldLeft(Coin.zero)(_ + _)
+
+                    // TODO full transition
+                    success(
+                      state.copy(
+                        utxo =
+                            state.utxo -- event.body.value.collateralInputs.toSortedSet ++ addedUtxo,
+                        fees = state.fees + (collateralCoins - collateralReturnCoins)
+                      )
+                    )
+            // TODO: refine exception handling
+            case NonFatal(exception) =>
+                failure(
+                  TransactionException.IllegalArgumentException(
+                    s"Error during Plutus script evaluation: ${exception.getMessage}"
+                  )
+                )
+        }
+    }
+}
