@@ -1,13 +1,7 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
-import com.bloxbean.cardano.client.crypto.cip1852.DerivationPath
-import com.bloxbean.cardano.client.crypto.cip1852.DerivationPath.createExternalAddressDerivationPath
-import net.i2p.crypto.eddsa.spec.{EdDSANamedCurveTable, EdDSAPrivateKeySpec}
-import net.i2p.crypto.eddsa.{EdDSAEngine, EdDSAPrivateKey}
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.ByteString
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.rules.{CardanoMutator, Context, State, UtxoEnv}
@@ -15,8 +9,6 @@ import scalus.cardano.ledger.txbuilder.*
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
-
-import java.security.MessageDigest
 
 def resolvedTransaction(txHash: String, address: Address) = {
     TransactionInput(
@@ -30,8 +22,7 @@ def resolvedTransaction(txHash: String, address: Address) = {
  * Heavy WIP, but tx passes.
  *
  * Todo:
- *  get rid of bloxbean related signature code
- *  refactor
+ *  make prettier
  */
 class TxBuilderIntegrationTest extends AnyFunSuite {
 
@@ -44,6 +35,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
         "addr_test1qpqy3lufef8c3en9nrnzp2svwy5vy9zangvp46dy4qw23clgfxhn3pqv243d6wptud7fuaj5tjqer7wc7m036gx0emsqaqa8te"
     private val MNEMONIC =
         "test test test test test test test test test test test test test test test test test test test test test test test sauce"
+    private val DERIVATION = "m/1852'/1815'/0'/0/0"
 
     def fetchProtocolParams(): ProtocolParams = {
         import upickle.default.*
@@ -71,11 +63,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
         val backendService = new BFBackendService("http://localhost:10000/local-cluster/api/", "")
 
         val result = backendService.getTransactionService.submitTransaction(cborBytes)
-        if !result.isSuccessful then {
-            throw new RuntimeException(result.getResponse)
-        } else {
-            println(result)
-        }
+        assert(result.isSuccessful)
     }
 
     test("build and submit transaction") {
@@ -123,40 +111,16 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
         )
 
         val tx = interpreter.realize(paymentIntention)
-
-        val signed = keyPairUsingBloxbean(tx)
+        val signed = makeSignerFrom(DERIVATION, MNEMONIC)
+            .signTx(tx)
 
         val cborBytes = signed.toCbor
-        val ourLedgerRulesVerificationResult = CardanoMutator(
+        val scalusLedgerRulesVerificationResult = CardanoMutator(
           Context(signed.body.value.fee, UtxoEnv(0L, params, CertState.empty)),
           State(utxo, CertState.empty),
           signed
         )
+        assert(scalusLedgerRulesVerificationResult.isRight)
         submitTransactionToCardano(cborBytes)
-    }
-
-    def keyPairUsingBloxbean(tx: Transaction) = {
-        import com.bloxbean.cardano.client.common.model.Network as Nw
-        val derivationPath = createExternalAddressDerivationPath
-        val acc = Account(new Nw(0, 42), MNEMONIC, derivationPath)
-        val pair = acc.hdKeyPair()
-
-        val spec = EdDSANamedCurveTable.getByName(EdDSANamedCurveTable.ED_25519)
-        val signature = new EdDSAEngine(MessageDigest.getInstance(spec.getHashAlgorithm))
-        signature.initSign(
-          new EdDSAPrivateKey(new EdDSAPrivateKeySpec(spec, pair.getPrivateKey.getKeyData))
-        )
-        signature.setParameter(EdDSAEngine.ONE_SHOT_MODE)
-        signature.update(tx.id.bytes)
-        val signatureBytes = signature.sign()
-        val ws = tx.witnessSet.copy(vkeyWitnesses =
-            Set(
-              VKeyWitness(
-                ByteString.fromArray(pair.getPublicKey.getKeyData),
-                ByteString.fromArray(signatureBytes)
-              )
-            )
-        )
-        tx.copy(witnessSet = ws)
     }
 }
