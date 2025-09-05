@@ -313,12 +313,17 @@ object Macros {
         Expr(string)
     }
 
-    inline def readResource(using Quotes)(name: String, resPath: String = "resources"): String =
-        Files.readString(sourcesRoot().resolve(resPath).resolve(name))
+    inline def readResource(using Quotes)(name: String, resPath: String = "resources"): String = {
+        val path = sourcesRoot().resolve(resPath).resolve(name)
+        require(Files.exists(path), s"Resource $name is not found on path $path")
+        Files.readString(path)
+    }
 
     inline def sourcesRoot(using Quotes)(srcRoot: String = "/src/main/"): Path = {
         val path = quotes.reflect.SourceFile.current.path
-        Paths.get(path.substring(0, path.lastIndexOf(srcRoot)), srcRoot)
+        val pos = path.lastIndexOf(srcRoot)
+        require(pos > 0, s"Not found source root '$srcRoot' in path '$path'")
+        Paths.get(path.substring(0, pos), srcRoot)
     }
 
     def questionMark(using Quotes)(x: Expr[Boolean]): Expr[Boolean] = {
