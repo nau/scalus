@@ -306,7 +306,7 @@ object Macros {
 
     @deprecated("use inlineResource")
     def inlineBuiltinCostModelJsonImpl(using Quotes)(name: Expr[String]): Expr[String] =
-      inlineResource(name)
+        inlineResource(name)
 
     def inlineResource(using Quotes)(name: Expr[String]): Expr[String] = {
         val string = readResource(name.value.get)
