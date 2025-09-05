@@ -221,18 +221,15 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                     tree.rhs match
                         case template: tpd.Template =>
                             // Add a variable for SIR in the template
-                            val newBody = template.body.map { e =>
-                                e match {
-                                    case vd: ValDef
-                                        if vd.symbol.name.toString == Plugin.SIR_MODULE_VAL_NAME =>
-                                        cpy.ValDef(vd)(rhs = moduleSIR)
-                                    case vd: ValDef
-                                        if vd.symbol.name.toString == Plugin.SIR_DEPS_VAL_NAME =>
-                                        // If the variable already exists, we can skip it
-                                        cpy.ValDef(vd)(rhs = depsMap)
-                                    case _ =>
-                                        e
-                                }
+                            val newBody = template.body.map {
+                                case vd: ValDef
+                                    if vd.symbol.name.toString == Plugin.SIR_MODULE_VAL_NAME =>
+                                    cpy.ValDef(vd)(rhs = moduleSIR)
+                                case vd: ValDef
+                                    if vd.symbol.name.toString == Plugin.SIR_DEPS_VAL_NAME =>
+                                    // If the variable already exists, we can skip it
+                                    cpy.ValDef(vd)(rhs = depsMap)
+                                case e => e
                             }
                             val newTemplate = cpy.Template(template)(body = newBody)
                             cpy.TypeDef(tree)(rhs = newTemplate)

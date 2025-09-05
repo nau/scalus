@@ -13,7 +13,7 @@ import scalus.prelude.Prelude.*
 @Compile
 object HelloCardano extends Validator {
     override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit = {
-        val Some(ownerData) = datum: @unchecked
+        val ownerData = datum.getOrFail("Datum not found")
         val owner = ownerData.to[PubKeyHash]
         val signed = tx.signatories.contains(owner)
         require(signed, "Must be signed")
