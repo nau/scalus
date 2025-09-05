@@ -630,6 +630,9 @@ object Address {
 
     given FromData[Address] = FromData.derived
 
+    def fromScript(script: Hash): Address =
+        Address(Credential.ScriptCredential(script), Option.None)
+
 }
 
 case class TxOut(address: Address, value: Value, datumHash: Option[DatumHash]) {
