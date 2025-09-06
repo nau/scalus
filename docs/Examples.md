@@ -288,3 +288,9 @@ object BondContract {
 ## Minting Policy
 
 [MintingPolicy](https://github.com/nau/scalus/blob/612b4bd581c55cb6c68339247cfecfbe22e4e61d/shared/src/main/scala/scalus/examples/MintingPolicy.scala)
+
+## Betting
+
+[Specification](https://github.com/blockchain-unica/rosetta-smart-contracts/tree/main/contracts/bet)
+
+[Betting](https://github.com/nau/scalus/blob/master/scalus-examples/jvm/src/main/scala/scalus/examples/Betting.scala)
