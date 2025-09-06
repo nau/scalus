@@ -790,15 +790,6 @@ object Interop {
                   s"Unsupported redeemer tag: ${redeemer.getTag} in PlutusV1/V2"
                 )
 
-    @deprecated("Use getScriptPurposeV1 or getScriptPurposeV2", "0.8.0")
-    def getScriptPurpose(
-        redeemer: Redeemer,
-        inputs: util.List[TransactionInput],
-        mint: util.List[MultiAsset],
-        certificates: util.List[Certificate],
-        withdrawals: util.List[Withdrawal]
-    ): v1.ScriptPurpose = getScriptPurposeV1(redeemer, inputs, mint, certificates, withdrawals)
-
     def getScriptPurposeV2(
         redeemer: Redeemer,
         inputs: util.List[TransactionInput],

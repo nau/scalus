@@ -69,8 +69,6 @@ object SlotConfig {
       zeroSlot = 86400,
       slotLength = 1000
     )
-    @deprecated("Use Mainnet", "0.8.0")
-    val default: SlotConfig = Mainnet
 }
 
 class TxEvaluationException(

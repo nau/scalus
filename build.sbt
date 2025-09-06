@@ -2,8 +2,7 @@ import org.scalajs.linker.interface.OutputPatterns
 import sbtwelcome.*
 
 import scala.scalanative.build.*
-import com.typesafe.tools.mima.core.ProblemFilters
-import com.typesafe.tools.mima.core.IncompatibleResultTypeProblem
+import com.typesafe.tools.mima.core.{DirectMissingMethodProblem, IncompatibleResultTypeProblem, ProblemFilters}
 import com.typesafe.tools.mima.core.ProblemFilters.*
 import sbt.internal.util.ManagedLogger
 
@@ -401,7 +400,10 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
             .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getMintValue"),
         ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getValue"),
         ProblemFilters
-            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getVotingProcedures")
+            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getVotingProcedures"),
+        ProblemFilters
+            .exclude[DirectMissingMethodProblem]("scalus.bloxbean.Interop.getScriptPurpose"),
+        ProblemFilters.exclude[DirectMissingMethodProblem]("scalus.bloxbean.SlotConfig.default")
       ),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
