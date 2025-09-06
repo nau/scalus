@@ -23,3 +23,8 @@ jobs:
       - uses: DeterminateSystems/flake-checker-action@main
       - name: Build and test in Nix devshell
         run: nix develop .#ci --command bash -c "sbt ci"
+      - name: Report test results
+        uses: sarisia/actions-status-discord@v1
+        if: always()
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
