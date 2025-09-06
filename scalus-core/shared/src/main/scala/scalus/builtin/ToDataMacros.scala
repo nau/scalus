@@ -89,7 +89,7 @@ object ToDataMacros {
                                   Expr.summon[ToData[t]] match
                                       case None =>
                                           report.errorAndAbort(
-                                            s"Could not find given ToData[${tpe.widen.show}] within ${TypeRepr.of[A].show} wheb generate product"
+                                            s"Could not find given ToData[${tpe.widen.show}] within ${TypeRepr.of[A].show} when generate product"
                                           )
                                       case Some(toData) =>
                                           val arg = Ident(binding.termRef).asExprOf[t]

@@ -22,14 +22,6 @@ object TermDSL:
     @deprecated("Use Term.vr instead", "0.9.0")
     def vr(name: String): Term = Term.Var(NamedDeBruijn(name))
 
-    // extension (term: Term)
-    // @deprecated("Use Term.$ instead", "0.9.0")
-    // infix def $(rhs: Term): Term = Term.Apply(term, rhs)
-    // @deprecated("Use Term.asTerm instead", "0.9.0")
-    // def unary_! : Term = Term.Force(term)
-    // @deprecated("Use Term.asTerm instead", "0.9.0")
-    // def unary_~ : Term = Term.Delay(term)
-
     extension (sc: StringContext)
         @deprecated("Use Term.vr instead", "0.9.0")
         def vr(args: Any*): Term = Term.Var(NamedDeBruijn(sc.parts.head))

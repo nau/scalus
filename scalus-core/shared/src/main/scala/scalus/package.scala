@@ -18,10 +18,6 @@ package object scalus {
         def prettyXTerm: Doc = PrettyPrinter.pretty(sir, Style.XTerm)
         def show: String = pretty.render(80)
         def showHighlighted: String = sir.prettyXTerm.render(80)
-        @deprecated("Use toUplc().plutusV* instead", "0.8.4")
-        def doubleCborHex(version: (Int, Int, Int), generateErrorTraces: Boolean = false): String =
-            val term = sir.toUplc(generateErrorTraces)
-            Program(version, term).doubleCborHex
 
         def toUplc(using
             options: Compiler.Options = Compiler.Options()
@@ -98,14 +94,6 @@ package object scalus {
                 else uplc
             retval
         }
-
-        @deprecated("Use toUplc().plutusV* instead", "0.8.4")
-        def toPlutusProgram(
-            version: (Int, Int, Int),
-            generateErrorTraces: Boolean = false
-        ): Program =
-            val term = sir.toUplc(generateErrorTraces)
-            Program(version, term)
 
     extension (p: Program)
         def pretty: Doc = PrettyPrinter.pretty(p, Style.Normal)

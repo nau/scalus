@@ -42,14 +42,6 @@ export scalus.ledger.api.v1.Value
 import scalus.prelude.Ord.{<=>, ifEqualThen, given}
 import scalus.builtin.Builtins
 
-@Compile
-@deprecated("Not need anymore, use companion objects instead")
-object FromDataInstances
-
-@Compile
-@deprecated("Not need anymore, use companion objects instead")
-object ToDataInstances
-
 case class TxId(hash: ByteString)
 
 @Compile
@@ -829,31 +821,6 @@ object ScriptInfo:
 
 end ScriptInfo
 
-@deprecated("Use ScriptInfo instead")
-case class SpendingScriptInfo(txOutRef: TxOutRef, datum: Option[Datum])
-
-@Compile
-@deprecated("Use ScriptInfo instead")
-object SpendingScriptInfo:
-
-    @deprecated("Use ScriptInfo instead")
-    given FromData[SpendingScriptInfo] = (d: Data) =>
-        val pair = d.toConstr
-        if pair.fst == BigInt(1) then
-            val args = pair.snd
-            SpendingScriptInfo(args.head.to[TxOutRef], args.tail.head.to[Option[Datum]])
-        else throw new Exception("Invalid SpendingScriptInfo")
-
-    given ToData[SpendingScriptInfo] = ToData.derived
-
-end SpendingScriptInfo
-
-@deprecated("Use ScriptInfo instead")
-case class MintingScriptInfo(currencySymbol: CurrencySymbol)
-
-@deprecated("Use ScriptInfo instead")
-case class RewardingScriptInfo(credential: Credential)
-
 case class TxInInfo(
     outRef: TxOutRef,
     resolved: v2.TxOut
@@ -1019,22 +986,6 @@ object ScriptContext {
 
     given FromData[ScriptContext] = FromData.derived
     given ToData[ScriptContext] = ToData.derived
-
-}
-
-@deprecated("Use ScriptContext instead")
-case class SpendingScriptContext(
-    txInfo: TxInfo,
-    redeemer: Redeemer,
-    scriptInfo: SpendingScriptInfo
-)
-
-@Compile
-@deprecated("Use ScriptContext instead")
-object SpendingScriptContext {
-
-    given FromData[SpendingScriptContext] = FromData.derived
-    given ToData[SpendingScriptContext] = ToData.derived
 
 }
 

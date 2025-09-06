@@ -11,11 +11,9 @@ import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.ProtocolVersion
 import scalus.ledger.babbage.*
-import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
-import scala.annotation.varargs
 import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
@@ -173,15 +171,6 @@ object MachineParams {
 
     lazy val defaultPlutusV3Params: MachineParams =
         defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
-
-    /** The default machine parameters. Uses [[BuiltinSemanticsVariant.B]]
-      * @note
-      *   The default machine parameters use machine costs and builtin cost model that may be
-      *   outdated, making budget calculation not precise. Please use
-      *   `fromCardanoCliProtocolParamsJson` etc to create machine parameters with the latest costs.
-      */
-    @deprecated("Use defaultPlutusV2PostConwayParams or defaultParamsFor", "0.8.0")
-    lazy val defaultParams: MachineParams = defaultPlutusV2PostConwayParams
 
     /** Creates default machine parameters for a given Plutus version and protocol version.
       *
@@ -410,154 +399,6 @@ enum CekValue {
     }
 }
 
-/** Plutus VM facade.
-  *
-  * @param platformSpecific
-  *   The platform specific implementation of certain functions used by VM builtins
-  */
-@deprecated("Use PlutusVM instead", "0.8.0")
-open class PlutusVMBase(platformSpecific: PlatformSpecific) {
-    type ScriptForEvaluation = Array[Byte]
-
-    /** Evaluates a script, returning the minimum budget that the script would need to evaluate.
-      * This will take as long as the script takes.
-      *
-      * @param params
-      *   The machine parameters
-      * @param script
-      *   Flat encoded script to evaluate
-      * @param args
-      *   The arguments to the script
-      * @return
-      *   [[CekResult]] with the resulting term and the execution budget
-      * @throws MachineError
-      */
-    @varargs
-    def evaluateScriptCounting(
-        params: MachineParams,
-        script: ScriptForEvaluation,
-        args: Data*
-    ): CekResult = {
-        val program = ProgramFlatCodec.decodeFlat(script)
-        val applied = args.foldLeft(program.term) { (acc, arg) =>
-            Apply(acc, Const(asConstant(arg)))
-        }
-        val spender = CountingBudgetSpender()
-        val logger = Log()
-        val cek = new CekMachine(params, spender, logger, platformSpecific)
-        val resultTerm = cek.evaluateTerm(applied)
-        CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
-    }
-
-    /** Evaluates a script, returning the execution budget and logs.
-      *
-      * @param params
-      *   The machine parameters
-      * @param budget
-      *   The budget to restrict the evaluation
-      * @param script
-      *   Flat encoded script to evaluate
-      * @param args
-      *   The arguments to the script
-      * @return
-      *   [[CekResult]] with the resulting term and the execution budget
-      * @throws MachineError
-      */
-    @varargs
-    def evaluateScriptRestricting(
-        params: MachineParams,
-        budget: ExBudget,
-        script: ScriptForEvaluation,
-        args: Data*
-    ): CekResult = {
-        val program = ProgramFlatCodec.decodeFlat(script)
-        val applied = args.foldLeft(program.term) { (acc, arg) =>
-            Apply(acc, Const(asConstant(arg)))
-        }
-        val spender = RestrictingBudgetSpender(budget)
-        val logger = Log()
-        val cek = new CekMachine(params, spender, logger, platformSpecific)
-        val resultTerm = cek.evaluateTerm(applied)
-        CekResult(resultTerm, spender.getSpentBudget, logger.getLogs)
-    }
-
-    /** Evaluates a UPLC [[Term]] using default [[MachinePrameter]]s and no budget calculation.
-      *
-      * Useful for testing and debugging.
-      *
-      * @param term
-      *   The debruijned term to evaluate
-      * @param params
-      *   The machine parameters
-      * @return
-      *   The resulting term
-      * @throws StackTraceMachineError
-      *   subtypes if the evaluation fails
-      *
-      * @note
-      *   This method doesn't follow the [CIP-117](https://cips.cardano.org/cip/CIP-0117/), so it
-      *   can't be used to correctly evaluate Cardano validators.
-      */
-    def evaluateTerm(
-        term: Term,
-        params: MachineParams = MachineParams.defaultPlutusV2PostConwayParams
-    ): Term = {
-        val cek = new CekMachine(params, NoBudgetSpender, NoLogger, platformSpecific)
-        val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-        cek.evaluateTerm(debruijnedTerm)
-    }
-
-    /** Evaluates a UPLC term, capturing the execution budget, evaluation logs and costs.
-      *
-      * @param term
-      * @param params
-      * @return
-      *   [[Result]] with the resulting term, the execution budget, evaluation logs and costs, and
-      *   an exception if the evaluation failed
-      *
-      * @note
-      *   This method doesn't follow the [CIP-117](https://cips.cardano.org/cip/CIP-0117/), so it
-      *   can't be used to correctly evaluate Cardano validators.
-      */
-    def evaluateDebug(
-        term: Term,
-        params: MachineParams = MachineParams.defaultPlutusV2PostConwayParams
-    ): Result = {
-        val spenderLogger = TallyingBudgetSpenderLogger(CountingBudgetSpender())
-        val cekMachine = CekMachine(params, spenderLogger, spenderLogger, platformSpecific)
-        val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-        try
-            Result.Success(
-              DeBruijn.fromDeBruijnTerm(cekMachine.evaluateTerm(debruijnedTerm)),
-              spenderLogger.getSpentBudget,
-              spenderLogger.costs.toMap,
-              spenderLogger.getLogsWithBudget
-            )
-        catch
-            case e: Exception =>
-                Result.Failure(
-                  e,
-                  spenderLogger.getSpentBudget,
-                  spenderLogger.costs.toMap,
-                  spenderLogger.getLogsWithBudget
-                )
-    }
-
-    /** Evaluates a UPLC Program using default CEK machine parameters and no budget calculation.
-      *
-      * Useful for testing and debugging.
-      *
-      * @note
-      *   This method doesn't follow the [CIP-117](https://cips.cardano.org/cip/CIP-0117/), so it
-      *   can't be used to correctly evaluate Cardano validators.
-      */
-    def evaluateProgram(
-        p: Program,
-        params: MachineParams = MachineParams.defaultPlutusV2PostConwayParams
-    ): Term = evaluateTerm(p.term, params)
-
-}
-
 enum Result:
     val budget: ExBudget
     val logs: Seq[String]
@@ -619,12 +460,6 @@ enum Result:
               | budget: ${budget.showJson}
               | costs:\n${showCosts}
               | logs: ${logs.mkString("\n")}""".stripMargin
-
-@deprecated("Use Result instead", "0.8.4")
-class CekResult(t: Term, val budget: ExBudget, val logs: Array[String]) {
-    lazy val term = DeBruijn.fromDeBruijnTerm(t)
-    override def toString: String = s"CekResult($term, $budget, ${logs.mkString(", ")})"
-}
 
 type ArgStack = Seq[CekValue]
 
