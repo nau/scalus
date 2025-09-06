@@ -386,34 +386,21 @@ object LedgerToPlutusTranslation {
         }
 
         val wdwls = mutable.TreeMap.empty[v1.StakingCredential.StakingHash, BigInt]
-        withdrawals match
-            case None =>
-            case Some(w) =>
-                for (rewardAccount, coin) <- w.withdrawals do
-                    rewardAccount.address match
-                        case stakeAddr: StakeAddress =>
-                            stakeAddr.payload match
-                                case StakePayload.Stake(hash) =>
-                                    val cred =
-                                        v1.Credential.PubKeyCredential(v1.PubKeyHash(hash))
-                                    wdwls.put(
-                                      v1.StakingCredential.StakingHash(cred),
-                                      BigInt(coin.value)
-                                    )
-                                case StakePayload.Script(hash) =>
-                                    val cred = v1.Credential.ScriptCredential(hash)
-                                    wdwls.put(
-                                      v1.StakingCredential.StakingHash(cred),
-                                      BigInt(coin.value)
-                                    )
-                                case _ =>
-                                    throw new IllegalStateException(
-                                      s"Invalid delegation part in reward account: $rewardAccount"
-                                    )
-                        case _ =>
-                            throw new IllegalStateException(
-                              s"Invalid reward account address: $rewardAccount"
-                            )
+        for w <- withdrawals do
+            for (rewardAccount, coin) <- w.withdrawals do
+                rewardAccount.address.payload match
+                    case StakePayload.Stake(hash) =>
+                        val cred = v1.Credential.PubKeyCredential(v1.PubKeyHash(hash))
+                        wdwls.put(
+                          v1.StakingCredential.StakingHash(cred),
+                          BigInt(coin.value)
+                        )
+                    case StakePayload.Script(hash) =>
+                        val cred = v1.Credential.ScriptCredential(hash)
+                        wdwls.put(
+                          v1.StakingCredential.StakingHash(cred),
+                          BigInt(coin.value)
+                        )
         wdwls
     }
 

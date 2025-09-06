@@ -5,7 +5,6 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.{compile, fieldAsData}
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific}
-import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.v1.*
 import scalus.sir.SIRType
 import scalus.prelude.List.{Cons, Nil}

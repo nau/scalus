@@ -5,7 +5,6 @@ import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.ast.tpd.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Decorators.*
-import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
@@ -14,19 +13,19 @@ import dotty.tools.dotc.core.Types.*
 import scalus.sir.{Module as SIRModule, *}
 import scalus.flat.FlatInstantces.ModuleHashSetReprFlat
 
-/** Preprocess SIR - run before the Pickiing and sbt.ExtreactApi phases and add toSIR-compiled
+/** Preprocess SIR - run before the Pickling and sbt.ExtreactApi phases and add toSIR-compiled
   * modules fields, which later set in Scalus phase and used during linking.
   *
   * from
-  * ```
+  * {{{
   * @Compile
   * object Mybjs {
   *   ....
   * }
-  * ```
+  * }}}
   * to
   *
-  * ```
+  * {{{
   * @Compile
   * object Mybjs {
   *   ...
@@ -34,19 +33,16 @@ import scalus.flat.FlatInstantces.ModuleHashSetReprFlat
   *   val sirModule: scalus.sir.Module = [NOT-SET]
   *   val sirDeps: List[SIRCompiled] = [NOT-SETT]
   * }
-  * ```
+  * }}}
   * sir_ and dpes_ wi
   */
 class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx: Context) {
 
-    val compileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
-    val ignoreAnnotRef = requiredClassRef("scalus.Ignore")
-    val ignoreAnnot = ignoreAnnotRef.symbol.asClass
-    // val sirType = requiredClassRef("scalus.sir.SIR")
-    val sirModuleType = requiredClassRef("scalus.sir.Module")
-    val sirModuleWithDepsType = requiredClassRef("scalus.sir.SIRModuleWithDeps")
-    val sirModuleWithDepsModule = requiredModule("scalus.sir.SIRModuleWithDeps")
-    val listSirModuleWithDepsType = defn.ListClass.typeRef.appliedTo(sirModuleWithDepsType)
+    private val ignoreAnnotRef = requiredClassRef("scalus.Ignore")
+    private val ignoreAnnot = ignoreAnnotRef.symbol.asClass
+    private val sirModuleType = requiredClassRef("scalus.sir.Module")
+    private val sirModuleWithDepsType = requiredClassRef("scalus.sir.SIRModuleWithDeps")
+    private val listSirModuleWithDepsType = defn.ListClass.typeRef.appliedTo(sirModuleWithDepsType)
 
     def transformTypeDef(tree: tpd.TypeDef)(using Context): tpd.Tree = {
         // If the template has a compile annotation, we need to add a variable for SIR

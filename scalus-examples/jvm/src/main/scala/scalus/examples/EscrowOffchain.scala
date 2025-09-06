@@ -18,14 +18,11 @@ import scalus.bloxbean.ScalusTransactionEvaluator
 import scalus.builtin.{ByteString, Data}
 import com.bloxbean.cardano.client.plutus.spec.PlutusV3Script
 import scalus.builtin.Data.*
-import scalus.builtin.ToData.*
-import scalus.builtin.ToData.toData
 import scalus.ledger.api.v1.PubKeyHash
 
 import java.util.Optional
 import scala.util.control.Breaks.*
 import java.math.BigInteger
-import com.bloxbean.cardano.client.function.TxBuilder
 
 object EscrowOffChain:
     private val blockfrostApiKey = sys.env("BLOCKFROST_API_KEY")

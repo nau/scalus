@@ -4,13 +4,10 @@ import scalus.{show as _, *}
 import scalus.prelude.Show.*
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
-import scalus.prelude.log
 import scalus.prelude.Option.*
-import scalus.ledger.api.v1.IntervalBoundType.*
-import scalus.prelude.Eq
 import scalus.ledger.api.v2.OutputDatum
 import scalus.builtin.Data
-import scalus.builtin.Data.{fromData, toData, FromData, ToData}
+import scalus.builtin.Data.{FromData, ToData}
 import scalus.ledger.api.v1.Value.getLovelace
 import scalus.Compiler.compile
 import scalus.builtin.Builtins.trace
@@ -109,9 +106,9 @@ object Escrow extends Validator:
             case EscrowAction.Deposit =>
                 handleDeposit(escrowDatum, txInfo, contractAddress, contractBalance, receivedData)
             case EscrowAction.Pay =>
-                handlePay(escrowDatum, txInfo, contractAddress, contractBalance)
+                handlePay(escrowDatum, txInfo, contractBalance)
             case EscrowAction.Refund =>
-                handleRefund(escrowDatum, txInfo, contractAddress, contractBalance)
+                handleRefund(escrowDatum, txInfo, contractBalance)
         }
     }
 
@@ -162,7 +159,6 @@ object Escrow extends Validator:
     private def handlePay(
         escrowDatum: EscrowDatum,
         txInfo: TxInfo,
-        contractAddress: Address,
         contractBalance: Lovelace
     ): Unit = {
         log("Handling pay action")
@@ -201,7 +197,6 @@ object Escrow extends Validator:
     private def handleRefund(
         escrowDatum: EscrowDatum,
         txInfo: TxInfo,
-        contractAddress: Address,
         contractBalance: Lovelace
     ): Unit = {
         log("Handling refund action")

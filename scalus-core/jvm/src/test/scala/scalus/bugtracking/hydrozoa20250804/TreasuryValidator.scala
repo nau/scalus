@@ -8,7 +8,6 @@ import DisputeResolutionValidator.VoteDatum
 import DisputeResolutionValidator.VoteStatus.{NoVote, Vote}
 import TreasuryValidator.TreasuryDatum.{Resolved, Unresolved}
 import TreasuryValidator.TreasuryRedeemer.{Deinit, Resolve, Withdraw}
-import TreasuryValidator.TreasuryDatum
 import ByteStringExtensions.take
 import TxOutExtensions.inlineDatumOfType
 import ValueExtensions.{containsExactlyOneAsset, unary_-}
@@ -24,7 +23,7 @@ import scalus.prelude.List.Nil
 import scalus.prelude.Option.{None, Some}
 import scalus.prelude.crypto.bls12_381.G1
 import scalus.prelude.crypto.bls12_381.G1.scale
-import scalus.prelude.{*, given}
+import scalus.prelude.*
 
 type L2ConsensusParamsH32 = ByteString
 

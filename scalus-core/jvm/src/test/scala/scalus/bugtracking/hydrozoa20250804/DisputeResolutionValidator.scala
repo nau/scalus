@@ -6,7 +6,6 @@ import cats.syntax.group.*
 //import com.bloxbean.cardano.client.plutus.spec.PlutusV3Script
 //import hydrozoa.infra.{encodeHex, toBB}
 import DisputeResolutionValidator.TallyRedeemer.{Continuing, Removed}
-import DisputeResolutionValidator.{VoteDatum, VoteDetails, VoteStatus}
 import TreasuryValidator.TreasuryDatum.Unresolved
 import TreasuryValidator.{cip67BeaconTokenPrefix, TreasuryDatum}
 //import TreasuryValidatorScript.plutusScript
@@ -16,8 +15,7 @@ import ValueExtensions.{containsCurrencySymbol, containsExactlyOneAsset, onlyNon
 //import hydrozoa.l2.block.BlockTypeL2
 //import hydrozoa.{PosixTime, *}
 import scalus.*
-import scalus.cardano.ledger.MultiAsset
-import scalus.builtin.Builtins.{blake2b_224, serialiseData, verifyEd25519Signature}
+import scalus.builtin.Builtins.{serialiseData, verifyEd25519Signature}
 import scalus.builtin.ByteString.hex
 import scalus.builtin.ToData.toData
 import scalus.builtin.{ByteString, Data, FromData, ToData}
@@ -25,11 +23,7 @@ import scalus.ledger.api.v1.IntervalBoundType.Finite
 import scalus.ledger.api.v1.Value.+
 import scalus.ledger.api.v3.*
 import scalus.prelude.Option.{None, Some}
-import scalus.prelude.{!==, ===, fail, log, require, AssocMap, Eq, List, Option, SortedMap, Validator, given}
-import scalus.uplc.DeBruijnedProgram
-import scalus.uplc.eval.*
-
-import java.nio.file.{Files, Paths}
+import scalus.prelude.{!==, ===, fail, log, require, Eq, List, Option, SortedMap, Validator}
 
 @Compile
 object DisputeResolutionValidator extends Validator:

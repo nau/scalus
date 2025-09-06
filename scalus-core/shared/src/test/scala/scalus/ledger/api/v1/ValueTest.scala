@@ -1,12 +1,10 @@
 package scalus.ledger.api.v1
 
-import scalus.cardano.onchain.RequirementError
 import scalus.prelude.{List, Option, SortedMap}
 import scalus.builtin.{ByteString, FromData, ToData}
 import scalus.builtin.Data
 import scalus.builtin.Data.{fromData, toData}
 import scalus.prelude.{Eq, Ord, StdlibTestKit}
-import scalus.uplc.eval.Result.{Failure, Success}
 
 class ValueTest extends StdlibTestKit with ArbitraryInstances {
     given [T: Arbitrary]: Arbitrary[List[T]] = Arbitrary {

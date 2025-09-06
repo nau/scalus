@@ -7,8 +7,6 @@ import scalus.builtin.*
 import scalus.builtin.ByteString.hex
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
-// note that this import is needed, compiler warning is a false positive
-import scalus.builtin.Data.toData
 import scalus.uplc.*
 import scalus.uplc.Term.*
 import scalus.uplc.eval.{PlutusVM, Result}
@@ -121,6 +119,7 @@ class S3LoweringDataAccessTest extends AnyFunSuite {
     test("get txInfop.validRange from ScriptContext") {
         val sir =
             compile: (ctxData: Data) =>
+                import scalus.builtin.Data.toData
                 val ctx = Data.fromData[ScriptContext](ctxData)
                 ctx.txInfo.validRange.toData
 

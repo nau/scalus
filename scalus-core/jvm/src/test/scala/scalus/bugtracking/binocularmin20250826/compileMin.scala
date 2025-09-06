@@ -3,11 +3,6 @@ package scalus.bugtracking.binocularmin20250826
 import scalus.*
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString.*
-import scalus.builtin.Data.{toData, FromData, ToData}
-import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
-import scalus.ledger.api.v2.OutputDatum
-import scalus.ledger.api.v3.*
-import scalus.prelude.*
 import scalus.uplc.Program
 
 import org.scalatest.funsuite.AnyFunSuite

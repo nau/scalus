@@ -1,20 +1,13 @@
 package scalus.bloxbean
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{Builtins, ByteString, JVMPlatformSpecific}
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.common.model.Networks
 import com.bloxbean.cardano.client.crypto.cip1852.DerivationPath
-import org.bouncycastle.crypto.Digest
-import org.bouncycastle.crypto.digests.SHA512Digest
-import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
 
 class Ed25591KeyCompabilityTest extends AnyFunSuite {
-
-    import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
-    import java.lang.reflect.Field
 
     test("account shoule be generated from mnemonic ans aign bytes with Ed125591Key") {
         val mnemonic =

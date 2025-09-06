@@ -4,7 +4,7 @@ import io.bullet.borer
 import io.bullet.borer.Tag.{NegativeBigNum, Other, PositiveBigNum}
 import io.bullet.borer.{ByteAccess, Cbor, DataItem as DI, Decoder, Encoder, Reader, Tag}
 import scalus.Compiler
-import scalus.builtin.Data.{B, Constr, I, Map}
+import scalus.builtin.Data.{B, Constr, FromData, I, Map}
 import upickle.default.*
 
 import java.io.InputStream
@@ -13,6 +13,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.util.Try
 
 private trait DataApi {
     extension (self: Data)
@@ -253,4 +254,9 @@ private trait DataApi {
     /** Decode a [[Data]] value from CBOR */
     def fromCbor(bs: ByteString): Data = Cbor.decode(bs.bytes).to[Data].value
 
+    /** Tries to decode a value of type `T` from [[Data]]
+      * @return
+      *   `Success(value)` if decoding was successful, `Failure(exception)` otherwise
+      */
+    def tryFromData[T](d: Data)(using fd: FromData[T]): Try[T] = Try(fd(d))
 }

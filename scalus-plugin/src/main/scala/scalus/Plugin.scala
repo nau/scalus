@@ -15,7 +15,7 @@ import dotty.tools.dotc.typer.Implicits
 import dotty.tools.io.ClassPath
 import scalus.flat.FlatInstantces
 import scalus.flat.FlatInstantces.SIRHashConsedFlat
-import scalus.sir.{RemoveRecursivity, SIR, SIRDefaultOptions, SIRPosition}
+import scalus.sir.{RemoveRecursivity, SIRDefaultOptions, SIRPosition}
 
 import scala.collection.immutable
 import scala.language.implicitConversions

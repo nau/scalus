@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.hex
 import scalus.builtin.Data
-import scalus.builtin.Data.{fromData, toData}
+import scalus.builtin.Data.toData
 import scalus.ledger.api.v3.*
 import scalus.*
 import scalus.prelude.*
