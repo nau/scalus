@@ -220,9 +220,9 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
-      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.2.1",
-      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-core" % "2.36.5",
-      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % "2.36.5" % "compile",
+      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.3.0",
+      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-core" % "2.37.8",
+      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % "2.37.8" % "compile",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.16.1",
         "io.bullet" %%% "borer-derivation" % "1.16.1"
@@ -250,8 +250,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "provided",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.81",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
-      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.10" % "test",
-      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.10"
+      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.11" % "test",
+      libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.11"
     )
     .jsSettings(
       // Add JS-specific settings here
@@ -410,9 +410,9 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.8" % "test",
       libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1",
-      libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.0" % "test",
+      libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.3" % "test",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )
