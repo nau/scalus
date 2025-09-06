@@ -114,10 +114,6 @@ package object scalus {
         def showHighlighted: String = p.prettyXTerm.render(80)
         def writePlutusFile(path: String, plutusVersion: PlutusLedgerLanguage): Unit =
             Utils.writePlutusFile(path, p.deBruijnedProgram, plutusVersion)
-        @deprecated("Use evaluateDebug instead", "0.8.4")
-        def evalDebug: Result = VM.evaluateDebug(p.term)
-        @deprecated("Use evaluate instead", "0.8.4")
-        def eval: Term = VM.evaluateProgram(p)
 
         /** Evaluates the program using the given VM according to the Plutus specification.
           *
@@ -141,10 +137,6 @@ package object scalus {
         def showHighlighted: String = p.prettyXTerm.render(80)
         def writePlutusFile(path: String, plutusVersion: PlutusLedgerLanguage): Unit =
             Utils.writePlutusFile(path, p, plutusVersion)
-        @deprecated("Use evaluateDebug instead", "0.8.4")
-        def evalDebug: Result = VM.evaluateDebug(p.term)
-        @deprecated("Use evaluate instead", "0.8.4")
-        def eval: Term = VM.evaluateProgram(p.toProgram)
 
         /** Evaluates the program using the given VM according to the Plutus specification.
           *
@@ -167,10 +159,6 @@ package object scalus {
         def prettyXTerm: Doc = PrettyPrinter.pretty(self, Style.XTerm)
         def show: String = self.pretty.render(80)
         def showHighlighted: String = self.prettyXTerm.render(80)
-        @deprecated("Use evaluateDebug instead", "0.8.4")
-        def evalDebug: Result = VM.evaluateDebug(self)
-        @deprecated("Use evaluate instead", "0.8.4")
-        def eval: Term = VM.evaluateTerm(self)
 
         /** Evaluate the term using the given VM.
           * @note
