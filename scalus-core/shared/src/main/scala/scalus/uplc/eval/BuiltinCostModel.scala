@@ -140,7 +140,7 @@ case class BuiltinCostModel(
 object BuiltinCostModel {
 
     private inline def inlineBuiltinCostModelJson(name: String) = ${
-        Macros.inlineBuiltinCostModelJsonImpl('name)
+        Macros.inlineResource('name)
     }
 
     lazy val defaultCostModelA: BuiltinCostModel =

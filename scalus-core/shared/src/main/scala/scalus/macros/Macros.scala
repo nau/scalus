@@ -7,8 +7,7 @@ import scalus.sir.SIR
 import scalus.uplc.{BuiltinRuntime, BuiltinsMeaning, DefaultFun, Expr as Exp, ExprBuilder, Term as Trm}
 import scalus.uplc.ExprBuilder.*
 
-import java.nio.file.Files
-import java.nio.file.Paths
+import java.nio.file.*
 import scala.collection.immutable
 import scala.quoted.*
 import scala.annotation.nowarn
@@ -305,11 +304,26 @@ object Macros {
         impl
     }
 
-    def inlineBuiltinCostModelJsonImpl(using Quotes)(name: Expr[String]): Expr[String] = {
-        import scala.quoted.*
-        val string =
-            Files.readString(Paths.get("scalus-core/shared/src/main/resources", name.value.get))
+    @deprecated("use inlineResource")
+    def inlineBuiltinCostModelJsonImpl(using Quotes)(name: Expr[String]): Expr[String] =
+        inlineResource(name)
+
+    def inlineResource(using Quotes)(name: Expr[String]): Expr[String] = {
+        val string = readResource(name.value.get)
         Expr(string)
+    }
+
+    inline def readResource(using Quotes)(name: String, resPath: String = "resources"): String = {
+        val path = sourcesRoot().resolve(resPath).resolve(name)
+        require(Files.exists(path), s"Resource $name is not found on path $path")
+        Files.readString(path)
+    }
+
+    inline def sourcesRoot(using Quotes)(srcRoot: String = "/src/main/"): Path = {
+        val path = quotes.reflect.SourceFile.current.path
+        val pos = path.lastIndexOf(srcRoot)
+        require(pos > 0, s"Not found source root '$srcRoot' in path '$path'")
+        Paths.get(path.substring(0, pos), srcRoot)
     }
 
     def questionMark(using Quotes)(x: Expr[Boolean]): Expr[Boolean] = {
