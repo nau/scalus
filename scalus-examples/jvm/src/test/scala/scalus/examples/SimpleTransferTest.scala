@@ -37,8 +37,8 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
 
         val sir = compile(SimpleTransfer.validate)
 
-         val lw = sir.toLoweredValue()
-         println("lw: " + lw.show)
+        val lw = sir.toLoweredValue()
+        println("lw: " + lw.show)
 
         val result = sir.runScript(context)
         assert(result.isSuccess)

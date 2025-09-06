@@ -17,35 +17,24 @@ import scalus.prelude.Option.Some
   * // Parameterized validator for simple transfer // This validator checks if the transaction is
   * signed by the receiver's verification key hash // Others can lock funds in the contract, but
   * only the receiver can spend them. // The receiver is specified as a parameter to the validator.
- *
+  *
   * validator simpleTransfer(receiver: VerificationKeyHash) {
   *
   * spend(_datum_opt: Option<Data>, _redeemer: Data, _utxo: OutputReference, self: Transaction) {
   * key_signed(self.extra_signatories, receiver) }
   *
- * /// Check if a key is signed by any of the extra_signatories
- * /// ```aiken
- * /// let extra_signatories = ["key1", "key2", "key3"]
- * ///
- * /// let key_to_test_1 = "key2"
- * /// let this_is_true = key_signed(extra_signatories, key_to_test_1)
- * ///
- * /// let key_to_test_2 = "key4"
- * /// let this_is_false = key_signed(extra_signatories, key_to_test_2)
- * /// ```
- * pub fn key_signed(extra_signatories: List<ByteArray>, key: ByteArray) {
- * list.has(extra_signatories, key)
- * }
- *
+  * /// Check if a key is signed by any of the extra_signatories /// ```aiken /// let
+  * extra_signatories = ["key1", "key2", "key3"] /// /// let key_to_test_1 = "key2" /// let
+  * this_is_true = key_signed(extra_signatories, key_to_test_1) /// /// let key_to_test_2 = "key4"
+  * /// let this_is_false = key_signed(extra_signatories, key_to_test_2) /// ``` pub fn
+  * key_signed(extra_signatories: List<ByteArray>, key: ByteArray) { list.has(extra_signatories,
+  * key) }
+  *
   * }
   */
 @Compile
 object SimpleTransfer extends Validator {
-    override  def spend( datum: Option[Data],
-                           redeemer: Data,
-                           tx: TxInfo,
-                           ownRef: TxOutRef
-                       ): Unit = {
+    override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit = {
         val Some(ownerData) = datum: @unchecked
         val owner = ownerData.to[PubKeyHash]
         val receiver = redeemer.to[PubKeyHash]
