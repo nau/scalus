@@ -482,11 +482,11 @@ trait InputSelector {
 }
 object InputSelector {
     def apply(
-        regularInputs: Set[ResolvedTxInput],
+        paymentInputs: Set[ResolvedTxInput],
         collateral: Set[ResolvedTxInput]
     ): InputSelector =
         new InputSelector {
-            override def inputs: Set[ResolvedTxInput] = regularInputs
+            override def inputs: Set[ResolvedTxInput] = paymentInputs
             override def collateralInputs: Set[ResolvedTxInput] = collateral
         }
 }
