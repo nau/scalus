@@ -3,6 +3,7 @@ package scalus.examples
 import scalus.Compile
 import scalus.builtin.{Data, FromData, ToData}
 import scalus.ledger.api.v1.{Credential, PubKeyHash}
+import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 
@@ -27,6 +28,14 @@ object SimpleTransfer extends Validator {
       tx.outputs.filter(_.address.credential === cred)
     )
 
+    private def outputsAda(outputs: List[TxOut]): Lovelace = {
+        outputs.map(_.value.getLovelace).foldLeft(BigInt(0))(_ + _)
+    }
+
+    private def inputsAda(inputs: List[TxInInfo]): Lovelace = {
+        inputs.map(_.resolved.value.getLovelace).foldLeft(BigInt(0))(_ + _)
+    }
+
     override def spend(
         datum: Option[Data],
         redeemer: Data,
@@ -34,19 +43,40 @@ object SimpleTransfer extends Validator {
         ownRef: TxOutRef
     ): Unit = {
         val contract = tx.inputs.find(_.outRef === ownRef).get.resolved
-        val Datum(owner, recipient) = datum.get.to[Datum]
-
+        val balance = contract.value.getLovelace
         val (contractInputs, contractOutputs) = lookupTx(tx, contract.address.credential)
+
+        val Datum(owner, recipient) = datum.get.to[Datum]
         val (recipientInputs, recipientOutputs) = lookupTx(tx, Credential.PubKeyCredential(owner))
         val (ownerInputs, ownerOutputs) = lookupTx(tx, Credential.PubKeyCredential(recipient))
 
+        require(balance === inputsAda(contractInputs), "Invalid contract balance")
+        require(!contractOutputs.isEmpty, "Contract output empty")
+
+        val outputDatum = OutputDatum.OutputDatum(datum.get)
+        require(contractOutputs.forall(_.datum === outputDatum), "Output datum changed")
+
         redeemer.to[Redeemer] match {
             case Redeemer.Deposit(deposit) =>
-                require(tx.signatories.contains(owner), "Not signed by owner")
+                require(tx.signatories.contains(owner), "Deposit must be signed by owner")
+                require(!ownerOutputs.isEmpty, "Deposit must have owner outputs")
+                require(
+                  outputsAda(contractOutputs) === balance + deposit,
+                  "Contract has received incorrect amount"
+                )
 
             case Redeemer.Withdraw(withdraw) =>
-                require(tx.signatories.contains(recipient), "Not signed by recipient")
-            // todo check amount
+                require(tx.signatories.contains(recipient), "Withdraw must be signed by recipient")
+                require(balance >= withdraw, "Withdraw exceeds balance")
+                require(!recipientOutputs.isEmpty, "Withdraw must have recipient outputs")
+                require(
+                  outputsAda(contractOutputs) === balance - withdraw,
+                  "Contract balance is incorrect"
+                )
+                require(
+                  outputsAda(recipientOutputs) === inputsAda(recipientInputs) + withdraw - tx.fee,
+                  "Recipient is receiving incorrect amount"
+                )
         }
     }
 }
