@@ -119,8 +119,8 @@ class AbbreviateErrorTraces {
               cause
             )
         case SIR.Error(msg, ann, cause) => SIR.Error(transformAnnotatedSIR(msg), ann, cause)
-        case SIR.Let(recursivity, bindings, body, ann) =>
-            SIR.Let(recursivity, bindings.map(transformBinding), transformSIR(body), ann)
+        case SIR.Let(bindings, body, flags, ann) =>
+            SIR.Let(bindings.map(transformBinding), transformSIR(body), flags, ann)
         case SIR.LamAbs(name, term, tp, ann) =>
             SIR.LamAbs(name, transformSIR(term), tp, ann)
         case SIR.Apply(f, arg, tp, ann) =>

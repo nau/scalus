@@ -4,7 +4,6 @@ import scalus.*
 import scalus.uplc.Constant
 import sir.SIR.*
 import sir.SIRType.{Boolean, Fun, Integer, Unit}
-import Recursivity.*
 
 class RemoveRecursivityTest extends AnyFunSuite:
     test("remove recursivity") {
@@ -22,7 +21,6 @@ class RemoveRecursivityTest extends AnyFunSuite:
 
         assert(
           optimized ~=~ Let(
-            NonRec,
             List(
               Binding(
                 "nonRecursive",
@@ -30,7 +28,6 @@ class RemoveRecursivityTest extends AnyFunSuite:
                 LamAbs(
                   xVar,
                   Let(
-                    Rec,
                     List(
                       Binding(
                         "recursive",
@@ -75,6 +72,7 @@ class RemoveRecursivityTest extends AnyFunSuite:
                       )
                     ),
                     Apply(recursiveVar, xVar, Integer, ae),
+                    SIR.LetFlags.Recursivity,
                     ae
                   ),
                   List.empty,
@@ -83,6 +81,7 @@ class RemoveRecursivityTest extends AnyFunSuite:
               )
             ),
             Const(Constant.Unit, Unit, ae),
+            SIR.LetFlags.None,
             ae
           )
         )

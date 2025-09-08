@@ -8,7 +8,6 @@ import scalus.builtin.{Builtins, ByteString, Data, JVMPlatformSpecific}
 import scalus.ledger.api.v1.*
 import scalus.sir.SIRType
 import scalus.prelude.List.{Cons, Nil}
-import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
 import scalus.sir.SIRType.{Boolean, Fun, TypeVar}
 import scalus.sir.SirDSL.{*, given}
@@ -150,7 +149,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               val a = true
               a
           } ~=~ Let(
-            Recursivity.NonRec,
             immutable.List(
               Binding(
                 "a",
@@ -159,6 +157,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               )
             ),
             Var("a", SIRType.Boolean, AnnotationsDecl.empty),
+            SIR.LetFlags.None,
             AnnotationsDecl.empty
           )
         )
@@ -175,7 +174,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         }
 
         val exprected = Let(
-          Recursivity.NonRec,
           immutable.List(
             Binding(
               "b",
@@ -189,7 +187,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             )
           ),
           Let(
-            Recursivity.Rec,
             immutable.List(
               Binding(
                 "c",
@@ -218,8 +215,10 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               SIRType.Boolean,
               AnE
             ),
+            LetFlags.Recursivity,
             AnE
           ),
+          LetFlags.None,
           AnE
         )
 
@@ -305,7 +304,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               val a = (x: Boolean) => x
               a(true)
           } ~=~ Let(
-            NonRec,
             List(
               Binding(
                 "a",
@@ -319,6 +317,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               sirBool,
               AnE
             ),
+            SIR.LetFlags.None,
             AnE
           )
         )
@@ -346,9 +345,9 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(compile { err("test") } ~=~ Error("test", AnE))
         //
         val expected = Let(
-          NonRec,
           List(Binding("msg", SIRType.String, Const(Constant.String("test"), SIRType.String, AnE))),
           Error(Var("msg", SIRType.String, AnE), null),
+          SIR.LetFlags.None,
           AnE
         )
         assert(compile {
@@ -371,7 +370,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
                 val a2Tp = SIRType.TypeVar("A", Some(2), false)
                 val a3Tp = SIRType.TypeVar("A", Some(3), false)
                 Let(
-                  NonRec,
                   immutable.List(
                     Binding("a$proxy1", sirInt, Const(Constant.Integer(1), sirInt, AnE))
                   ),
@@ -386,11 +384,11 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
                     sirData,
                     AnE
                   ),
+                  SIR.LetFlags.None,
                   AnE
                 )
             } else
                 Let(
-                  NonRec,
                   immutable.List(
                     Binding("a$proxy1", sirInt, Const(Constant.Integer(1), sirInt, AnE))
                   ),
@@ -400,6 +398,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
                     sirData,
                     AnE
                   ),
+                  SIR.LetFlags.None,
                   AnE
                 )
         }
@@ -497,7 +496,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         }
 
         val expected = Let(
-          NonRec,
           List(Binding("a", sirString, Const(Constant.String("foo"), sirString, AnE))),
           Apply(
             Apply(
@@ -520,6 +518,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             SIRType.BuiltinList(sirString),
             AnE
           ),
+          SIR.LetFlags.None,
           AnE
         )
 
@@ -1433,13 +1432,13 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         assert(
           compiled ~=~
               Let(
-                NonRec,
                 List(Binding("a", sirBool, Or(sirConst(true), Error("M", AnE), AnE))),
                 Or(
                   And(Not(Var("a", sirBool, AnE), AnE), sirConst(false), AnE),
                   sirConst(true),
                   AnE
                 ),
+                SIR.LetFlags.None,
                 AnE
               )
         )
@@ -1456,7 +1455,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         assert(
           eq ~=~ Let(
-            Rec,
             List(
               Binding(
                 "check",
@@ -1481,13 +1479,13 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               List.empty,
               AnE
             ),
+            SIR.LetFlags.Recursivity,
             AnE
           )
         )
 
         assert(
           ne ~=~ Let(
-            Rec,
             List(
               Binding(
                 "check",
@@ -1512,6 +1510,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               List.empty,
               AnE
             ),
+            SIR.LetFlags.Recursivity,
             AnE
           )
         )
@@ -1529,7 +1528,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val eqCompiled = compile { def check(a: ByteString, b: ByteString) = a == b; check }
 
         val eqExpected = Let(
-          Rec,
           List(
             Binding(
               "check",
@@ -1578,6 +1576,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             List.empty,
             AnE
           ),
+          SIR.LetFlags.Recursivity,
           AnE
         )
 
@@ -1591,7 +1590,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         assert(
           ne ~=~ Let(
-            Rec,
             List(
               Binding(
                 "check",
@@ -1643,6 +1641,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               List.empty,
               AnE
             ),
+            SIR.LetFlags.Recursivity,
             AnE
           )
         )
@@ -1681,7 +1680,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         assert(
           eq ~=~ Let(
-            Rec,
             List(
               Binding(
                 "check",
@@ -1725,6 +1723,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               List.empty,
               AnE
             ),
+            SIR.LetFlags.Recursivity,
             AnE
           )
         )
@@ -1734,7 +1733,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         }
 
         val neExpected = Let(
-          Rec,
           List(
             Binding(
               "check",
@@ -1781,6 +1779,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             List.empty,
             AnE
           ),
+          SIR.LetFlags.Recursivity,
           AnE
         )
 
@@ -1820,7 +1819,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val check = Var("check", Fun(sirData, Fun(sirData, sirBool)), AnE)
         assert(
           eq ~=~ Let(
-            NonRec,
             List(
               Binding(
                 "check",
@@ -1854,12 +1852,12 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               List.empty,
               AnE
             ),
+            SIR.LetFlags.None,
             AnE
           )
         )
         assert(
           ne ~=~ Let(
-            NonRec,
             List(
               Binding(
                 "check",
@@ -1896,6 +1894,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               List.empty,
               AnE
             ),
+            SIR.LetFlags.None,
             AnE
           )
         )
@@ -1964,7 +1963,6 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         val expected = Decl(
           pubKeyHashDataDecl,
           Let(
-            NonRec,
             List(
               Binding(
                 "pkh",
@@ -1984,6 +1982,7 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
               sirByteString,
               AnE
             ),
+            SIR.LetFlags.None,
             AnE
           )
         )
@@ -2244,10 +2243,18 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
         def findLetForVar(sir: SIR, name: String): Option[SIR.Let] =
             sir match
-                case SIR.Let(_, bindings, body, _) =>
+                case SIR.Let(bindings, body, flags, _) =>
                     bindings.find(_.name == name) match
-                        case Some(binding) => Some(SIR.Let(NonRec, List(binding), body, AnE))
-                        case None          => findLetForVar(body, name)
+                        case Some(binding) =>
+                            Some(
+                              SIR.Let(
+                                List(binding),
+                                body,
+                                flags,
+                                AnE
+                              )
+                            )
+                        case None => findLetForVar(body, name)
                 case _ => None
 
         val mLet = findLetForVar(retrieveLastSIRComponent(compiled), "m").get

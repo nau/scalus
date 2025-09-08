@@ -70,7 +70,6 @@ class SirToUplcSmLoweringTest
     test("lower Var in let") {
         // now we can't lower var in isolation, so should use Var in some context
         val sir = SIR.Let(
-          Recursivity.NonRec,
           List(
             Binding(
               "x",
@@ -79,6 +78,7 @@ class SirToUplcSmLoweringTest
             )
           ),
           SIR.Var("x", SIRType.ByteString, ae),
+          SIR.LetFlags.None,
           ae
         )
         val uplc = lower(sir)
@@ -139,7 +139,6 @@ class SirToUplcSmLoweringTest
        lowers to (\x -> (\y -> x + y) 2) 1
          */
         SIR.Let(
-          Recursivity.NonRec,
           Binding("x", Integer, SIR.Const(asConstant(1), Integer, ae)) :: Binding(
             "y",
             Integer,
@@ -156,6 +155,7 @@ class SirToUplcSmLoweringTest
             Integer,
             ae
           ),
+          SIR.LetFlags.None,
           ae
         ) lowersTo (lam("x")(lam("y")(AddInteger $ vr"x" $ vr"y") $ 2) $ 1)
     }
@@ -274,12 +274,12 @@ class SirToUplcSmLoweringTest
 
         def withLet(a: Boolean = true, b: Boolean = true)(f: => SIR): SIR = {
             SIR.Let(
-              Recursivity.NonRec,
               List(
                 Binding("a", SIRType.Boolean, SIR.Const(Constant.Bool(a), SIRType.Boolean, ae)),
                 Binding("b", SIRType.Boolean, SIR.Const(Constant.Bool(b), SIRType.Boolean, ae))
               ),
               f,
+              SIR.LetFlags.None,
               ae
             )
         }

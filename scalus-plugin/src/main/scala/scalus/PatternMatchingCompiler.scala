@@ -39,6 +39,15 @@ case class PatternInfo(
 
 enum SirCase:
 
+    case Case(
+        constructorSymbol: Symbol,
+        typeParams: List[SIRType],
+        bindings: List[String],
+        rhs: SIR,
+        pos: SourcePosition
+    )
+
+    /*
     case Constructor(
         optTopLevelType: Option[SIRType],
         optTopLevelName: Option[String],
@@ -49,7 +58,12 @@ enum SirCase:
         rhs: SIR,
         pos: SourcePosition
     )
-    case Wildcard(optTopLevelType: Option[SIRTye],  rhs: SIR, pos: SourcePosition)
+     */
+
+    case Wildcard(rhs: SIR, pos: SourcePosition)
+
+    // case Wildcard(optTopLevelType: Option[SIRType],  rhs: SIR, pos: SourcePosition)
+
     case Error(error: CompilationError)
 
 /*

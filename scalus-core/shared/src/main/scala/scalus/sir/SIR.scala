@@ -9,16 +9,15 @@ case class Module(version: (Int, Int), name: String, defs: List[Binding])
 
 case class Binding(name: String, tp: SIRType, value: SIR) {
 
-    override def toString: String = s"Binding(\"$name\" [${tp.show}] : $value)"
+    override def toString: String = {
+        s"Binding(\"$name\" [${tp.show}] : $value)"
+    }
 
 }
 
 case class TypeBinding(name: String, tp: SIRType) {
     override def toString: String = s"TypeBinding(\"$name\" : ${tp.show})"
 }
-
-enum Recursivity:
-    case NonRec, Rec
 
 /** SIR Position - position in Scala source code.
   * @param file
@@ -254,10 +253,30 @@ object SIR:
 
     }
 
+    opaque type LetFlags = Int
+
+    extension (flags: LetFlags) {
+        def isRec: Boolean = LetFlags.isRec(flags)
+        def isLazy: Boolean = LetFlags.isLazy(flags)
+        def |(other: LetFlags): LetFlags = flags | other
+        def &(other: LetFlags): LetFlags = flags & other
+        def remove(other: LetFlags): LetFlags = flags & ~other
+    }
+
+    object LetFlags {
+        val None: LetFlags = 0
+        val Recursivity: LetFlags = 1 << 0
+        val Lazy: LetFlags = 1 << 1
+
+        def is(flags: LetFlags): Boolean = flags != 0
+        def isRec(flags: LetFlags): Boolean = (flags & Recursivity) != 0
+        def isLazy(flags: LetFlags): Boolean = (flags & Lazy) != 0
+    }
+
     case class Let(
-        recursivity: Recursivity,
         bindings: List[Binding],
         body: SIR,
+        flags: LetFlags,
         anns: AnnotationsDecl
     ) extends AnnotatedSIR {
 
@@ -463,7 +482,7 @@ object SIRChecker {
         expr match {
             case SIR.Var(_, tp, anns)            => checkTp ++ checkAnnotations(anns, throwOnFirst)
             case SIR.ExternalVar(_, _, tp, anns) => checkTp ++ checkAnnotations(anns, throwOnFirst)
-            case SIR.Let(_, bindings, body, anns) =>
+            case SIR.Let(bindings, body, flags, anns) =>
                 val checkBindings = bindings.flatMap(b => checkExpr(b.value, throwOnFirst))
                 checkBindings ++ checkSIR(body, throwOnFirst) ++ checkTp ++ checkAnnotations(
                   anns,

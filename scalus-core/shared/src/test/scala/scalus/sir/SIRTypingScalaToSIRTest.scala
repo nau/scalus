@@ -181,7 +181,7 @@ class SIRTypingScalaToSIRTest extends AnyFunSuite {
     private def findLastLetBody(x: SIR): SIR = {
         x match {
             case SIR.Decl(data, term)   => findLastLetBody(term)
-            case SIR.Let(_, _, body, _) => findLastLetBody(body)
+            case SIR.Let(_, body, _, _) => findLastLetBody(body)
             case _                      => x
         }
     }

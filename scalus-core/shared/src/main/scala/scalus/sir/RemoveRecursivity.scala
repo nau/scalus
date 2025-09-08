@@ -1,6 +1,5 @@
 package scalus.sir
 
-import scalus.sir.Recursivity.*
 import scalus.sir.SIR.*
 
 object RemoveRecursivity:
@@ -18,16 +17,23 @@ object RemoveRecursivity:
     /** Makes a let expression non-recursive if its bindings are non-recursive */
     def removeRecursivityInExpr(sir: AnnotatedSIR): AnnotatedSIR =
         sir match
-            case Let(Rec, List(Binding(name, tp, binding)), body, anns)
-                if !isRecursive(name, binding) =>
-                removeRecursivityInExpr(Let(NonRec, List(Binding(name, tp, binding)), body, anns))
-            case Let(rec, bindings, body, anns) =>
+            case Let(List(Binding(name, tp, binding)), body, flags, anns)
+                if flags.isRec && !isRecursive(name, binding) =>
+                removeRecursivityInExpr(
+                  Let(
+                    List(Binding(name, tp, binding)),
+                    body,
+                    flags.remove(LetFlags.Recursivity),
+                    anns
+                  )
+                )
+            case Let(bindings, body, flags, anns) =>
                 Let(
-                  rec,
                   bindings.map { case Binding(name, tp, rhs) =>
                       Binding(name, tp, removeRecursivity(rhs))
                   },
                   removeRecursivity(body),
+                  flags,
                   anns
                 )
             case LamAbs(name, term, tps, anns) => LamAbs(name, removeRecursivity(term), tps, anns)
@@ -73,7 +79,7 @@ object RemoveRecursivity:
         term match
             case Var(n, tp, _)            => n == name && !env.contains(n)
             case ExternalVar(_, n, tp, _) => n == name && !env.contains(n)
-            case Let(_, bindings, body, _) =>
+            case Let(bindings, body, flags, _) =>
                 val newEnv = bindings.map(_.name) ++ env
                 bindings.exists(b => isRecursive(name, b.value, newEnv))
                 || isRecursive(name, body, newEnv)

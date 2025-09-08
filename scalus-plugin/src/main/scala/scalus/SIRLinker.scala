@@ -3,11 +3,10 @@ package scalus
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.report
 import dotty.tools.dotc.util.SrcPos
-import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, DataDecl, Module, Recursivity, SIR, SIRType}
+import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, DataDecl, Module, SIR, SIRType}
 
 import scala.annotation.unused
 import scala.collection.mutable
-
 import scalus.sir.SIRVersion
 
 case class SIRLinkerOptions(
@@ -45,8 +44,10 @@ class SIRLinker(options: SIRLinkerOptions, sirLoader: SIRLoader)(using ctx: Cont
         val processed = traverseAndLink(sir, srcPos)
         val full: SIR = globalDefs.values.foldRight(processed) {
             case (CompileDef.Compiled(b), acc) =>
+                val flags =
+                    if b.recursivity == Recursivity.Rec then SIR.LetFlags.Recursivity
+                    else SIR.LetFlags.None
                 SIR.Let(
-                  b.recursivity,
                   List(Binding(b.fullName.name, b.body.tp, b.body)),
                   acc match {
                       case annssir: AnnotatedSIR => annssir
@@ -58,6 +59,7 @@ class SIRLinker(options: SIRLinkerOptions, sirLoader: SIRLoader)(using ctx: Cont
                             SIR.Error(msg, AnnotationsDecl.fromSrcPos(srcPos))
                           )
                   },
+                  flags,
                   AnnotationsDecl.fromSrcPos(srcPos)
                 )
             case (d, acc) =>
@@ -89,11 +91,11 @@ class SIRLinker(options: SIRLinkerOptions, sirLoader: SIRLoader)(using ctx: Cont
             if !globalDefs.contains(FullName(name)) =>
             linkDefinition(moduleName, FullName(name), srcPos, tp, ann)
             v
-        case v @ SIR.Let(recursivity, bindings, body, anns) =>
+        case v @ SIR.Let(bindings, body, flags, anns) =>
             val nBingings =
                 bindings.map(b => Binding(b.name, b.tp, traverseAndLink(b.value, srcPos)))
             val nBody = traverseAndLink(body, srcPos)
-            SIR.Let(recursivity, nBingings, nBody, anns)
+            SIR.Let(nBingings, nBody, flags, anns)
         case SIR.LamAbs(param, term, typeParams, anns) =>
             SIR.LamAbs(param, traverseAndLink(term, srcPos), typeParams, anns)
         case SIR.Apply(f, arg, tp, anns) =>

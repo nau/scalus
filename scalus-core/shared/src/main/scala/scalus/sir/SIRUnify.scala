@@ -150,14 +150,12 @@ object SIRUnify {
                           env1.copy(path = "body" :: env.path)
                         ) match
                             case UnificationSuccess(env2, body) =>
-                                val recursivity =
-                                    if v1.recursivity == v2.recursivity then v1.recursivity
-                                    else
-                                        // TODO: print warning ?
-                                        Recursivity.NonRec
+                                if v1.flags != v2.flags then
+                                    println("warning: let flags are different during unification")
+                                val flags = v1.flags & v2.flags
                                 UnificationSuccess(
                                   env2,
-                                  SIR.Let(recursivity, bindings, body, v1.anns)
+                                  SIR.Let(bindings, body, flags, v1.anns)
                                 )
                             case UnificationFailure(path, bodyLeft, bodyRight) =>
                                 UnificationFailure(path, bodyLeft, bodyRight)

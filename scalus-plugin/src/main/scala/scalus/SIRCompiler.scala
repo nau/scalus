@@ -16,7 +16,7 @@ import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import scalus.flat.{EncoderState, Flat}
 import scalus.flat.FlatInstantces.ModuleHashSetReprFlat
 import scalus.flat.FlatInstantces.given
-import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, Recursivity, SIR, SIRBuiltins, SIRDefaultOptions, SIRPosition, SIRType, SIRUnify, SIRVersion, TargetLoweringBackend, TypeBinding}
+import scalus.sir.{AnnotatedSIR, AnnotationsDecl, Binding, ConstrDecl, DataDecl, Module, SIR, SIRBuiltins, SIRDefaultOptions, SIRPosition, SIRType, SIRUnify, SIRVersion, TargetLoweringBackend, TypeBinding}
 import scalus.uplc.DefaultUni
 
 import scala.annotation.{tailrec, unused}
@@ -68,6 +68,10 @@ object AdtConstructorCallInfo {
           dataInfo
         )
 }
+
+enum Recursivity:
+    case NonRec
+    case Rec
 
 case class TopLevelBinding(fullName: FullName, recursivity: Recursivity, body: SIR)
 
@@ -1297,10 +1301,13 @@ final class SIRCompiler(
             println(s"compileBlock: expr=${expr.show}")
             println(s"compileBlock: exprExprs.tp=${exprExpr.tp.show}")
         val retval = exprs.foldRight(exprExpr) { (bind, sirExpr) =>
+            val flags =
+                if bind.recursivity == Recursivity.Rec then SIR.LetFlags.Recursivity
+                else SIR.LetFlags.None
             SIR.Let(
-              bind.recursivity,
               List(Binding(bind.name, bind.tp, bind.body)),
               sirExpr,
+              flags,
               AnnotationsDecl.fromSourcePosition(expr.sourcePos)
             )
         }
@@ -2837,7 +2844,7 @@ final class SIRCompiler(
                         else sir -> false
             case SIR.Var(name, tp, anns) =>
                 sir -> false
-            case SIR.Let(rec, binding, body, anns) =>
+            case SIR.Let(binding, body, flags, anns) =>
                 var bindingIsChanged = false
                 val newBinding = binding.map { b =>
                     val (newBody, changed) =
@@ -2860,9 +2867,9 @@ final class SIRCompiler(
                       thisClassNames
                     )
                 SIR.Let(
-                  rec,
                   newBinding,
                   newBody,
+                  flags,
                   anns
                 ) -> (bindingIsChanged || bodyChanged)
             case SIR.LamAbs(param, term, typeParams, anns) =>
@@ -3083,7 +3090,7 @@ final class SIRCompiler(
                         case Some(_) => acc
                         case None =>
                             acc.updated(moduleName, v)
-            case SIR.Let(_, binding, body, _) =>
+            case SIR.Let(binding, body, _, _) =>
                 val acc1 =
                     binding.foldLeft(acc)((acc, b) =>
                         gatherExternalModulesFromSir(myModuleName, b.value, acc)
