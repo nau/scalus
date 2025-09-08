@@ -3,52 +3,74 @@ package scalus.examples
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtin.ByteString.*
+import scalus.builtin.Data
 import scalus.builtin.Data.toData
-import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.prelude.*
 import scalus.testkit.ScalusTest
-import scalus.uplc.*
-import scalus.uplc.eval.*
 
 import scala.language.implicitConversions
 
 class SimpleTransferTest extends AnyFunSuite with ScalusTest {
 
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
-      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+    inline given Compiler.Options = Compiler.Options(
+      targetLoweringBackend = Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,
-      debug = false
+      //debug = false
     )
 
-    test("Simple transfer") {
-        val owner = PubKeyHash(hex"1234567890abcdef1234567890abcdef1234567890abcdef12345678")
-        val receiver = PubKeyHash(hex"9234567890abcdef1234567890abcdef1234567890abcdef12345678")
-        val context = makeSpendingScriptContext(
-          datum = owner.toData,
-          redeemer = receiver.toData,
-          signatories = List(owner, receiver)
+    private val sir = compile(SimpleTransfer.validate)
+
+    private val pubKeyHash = genByteStringOfN(28).map(PubKeyHash(_)).label("PubKeyHash")
+    private val owner = pubKeyHash.sample.get
+    private val receiver = pubKeyHash.sample.get
+
+    private val datum = SimpleTransfer.Datum(owner, receiver)
+    private val deposit = SimpleTransfer.Redeemer.Deposit(1000)
+    private val withdraw = SimpleTransfer.Redeemer.Withdraw(500)
+
+    test("valid deposit") {
+        val res = sir.runScript(
+          makeSpendingScriptContext(
+            datum = datum.toData,
+            redeemer = deposit.toData,
+            signatories = List(owner)
+          )
         )
-
-        val compilerOptions = summon[Compiler.Options]
-        val scalusBudget = ExBudget(ExCPU(16188743), ExMemory(58816))
-
-        val sir = compile(SimpleTransfer.validate)
-
-        val lw = sir.toLoweredValue()
-        println("lw: " + lw.show)
-
-        val result = sir.runScript(context)
-        assert(result.isSuccess)
-        assert(result.budget == scalusBudget)
-
-        compareBudgetWithReferenceValue(
-          testName = "SimpleTransfer.SimpleTransfer",
-          scalusBudget = scalusBudget,
-          refBudget = ExBudget(ExCPU(9375627L), ExMemory(28554L)),
-          isPrintComparison = false
-        )
+        assert(res.isSuccess)
     }
+    test("invalid deposit") {
+        val res = sir.runScript(
+          makeSpendingScriptContext(
+            datum = datum.toData,
+            redeemer = deposit.toData,
+            signatories = List(receiver)
+          )
+        )
+        assert(!res.isSuccess)
+    }
+
+    test("valid withdraw") {
+        val res = sir.runScript(
+          makeSpendingScriptContext(
+            datum = datum.toData,
+            redeemer = withdraw.toData,
+            signatories = List(receiver)
+          )
+        )
+        assert(res.isSuccess)
+    }
+
+    test("invalid withdraw") {
+        val res = sir.runScript(
+          makeSpendingScriptContext(
+            datum = datum.toData,
+            redeemer = withdraw.toData,
+            signatories = List(owner)
+          )
+        )
+        assert(!res.isSuccess)
+    }
+
 }
