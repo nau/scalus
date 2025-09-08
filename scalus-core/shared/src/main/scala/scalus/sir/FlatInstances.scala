@@ -514,7 +514,6 @@ object FlatInstantces:
                 case a: SIRType.TypeNonCaseModule =>
                     tagWidth + SIRTypeNonCaseModuleFlat.bitSizeHC(a, hashConsed)
                 case SIRType.TypeNothing => tagWidth
-
             if !mute then
                 println(s"SIRTypeHashConsedFlat.bisSizeHC end ${a.hashCode()} $a =${retval}")
             retval

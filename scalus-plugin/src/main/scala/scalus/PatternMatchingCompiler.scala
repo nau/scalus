@@ -38,14 +38,18 @@ case class PatternInfo(
 )
 
 enum SirCase:
-    case Case(
+
+    case Constructor(
+        optTopLevelType: Option[SIRType],
+        optTopLevelName: Option[String],
         constructorSymbol: Symbol,
         typeParams: List[SIRType],
         bindings: List[String],
+        optGuard: Option[SIR] = None,
         rhs: SIR,
         pos: SourcePosition
     )
-    case Wildcard(rhs: SIR, pos: SourcePosition)
+    case Wildcard(optTopLevelType: Option[SIRTye],  rhs: SIR, pos: SourcePosition)
     case Error(error: CompilationError)
 
 /*
@@ -120,6 +124,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case Literal(_) =>
                 SirBinding.Error(LiteralPattern(pat.srcPos))
             case p =>
+                println(s"Unsupported binding expression: tree= ${p}")
+                println(s"Unsupported binding expression: tree.show= ${p.show}")
                 SirBinding.Error(UnsupportedMatchExpression(p, p.srcPos))
     }
 
@@ -371,7 +377,10 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             // no-arg constructor, it's a Val, so we use termSymbol
             SirCase.Case(pat.tpe.termSymbol, Nil, Nil, rhsE, c.srcPos.sourcePos) :: Nil
         case a =>
-            SirCase.Error(UnsupportedMatchExpression(a, a.srcPos)) :: Nil
+            println(s"Unsupported case: ${a.show}")
+            println(s"Unsupported case: tree ${a}")
+            val err = UnsupportedMatchExpression(a, a.srcPos)
+            compiler.error(err, SirCase.Error(err) :: Nil)
 
     def compileMatch(tree: Match, env: SIRCompiler.Env): AnnotatedSIR = {
         if env.debug then println(s"compileMatch: ${tree.show}")
@@ -415,7 +424,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                           rhs,
                           AnnotationsDecl.fromSourcePosition(srcPos)
                         )
-                case SirCase.Error(err) => compiler.error(err, ())
+                case SirCase.Error(err) =>
+                    compiler.error(err, ())
 
             idx += 1
         end while
