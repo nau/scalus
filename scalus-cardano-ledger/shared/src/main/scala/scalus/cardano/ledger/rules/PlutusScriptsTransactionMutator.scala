@@ -2,7 +2,7 @@ package scalus.cardano.ledger
 package rules
 
 import scalus.ledger.api.MajorProtocolVersion
-import scalus.uplc.eval.{ExBudget, InvalidReturnValue}
+import scalus.uplc.eval.ExBudget
 
 import scala.util.boundary
 import scala.util.boundary.break
@@ -19,6 +19,7 @@ object PlutusScriptsTransactionMutator extends STS.Mutator {
         val body = event.body.value
         val slotConfig = context.slotConfig
         val protocolParameters = context.env.params
+        val maxTxExecutionUnits = protocolParameters.maxTxExecutionUnits
         val protocolVersion = protocolParameters.protocolVersion
         val costModels = protocolParameters.costModels
         val utxo = state.utxo
@@ -26,7 +27,8 @@ object PlutusScriptsTransactionMutator extends STS.Mutator {
         try {
             PlutusScriptEvaluator(
               slotConfig = slotConfig,
-              initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
+              initialBudget =
+                  ExBudget.fromCpuAndMemory(maxTxExecutionUnits.steps, maxTxExecutionUnits.memory),
               protocolMajorVersion = MajorProtocolVersion(protocolVersion.major),
               costModels = CostModels.fromProtocolParams(protocolParameters),
               mode = EvaluatorMode.Validate,
@@ -52,7 +54,7 @@ object PlutusScriptsTransactionMutator extends STS.Mutator {
                   s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
                 )
         } catch {
-            case e: InvalidReturnValue =>
+            case e: PlutusScriptEvaluationException =>
                 if event.isValid then
                     throw IllegalStateException(
                       s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
