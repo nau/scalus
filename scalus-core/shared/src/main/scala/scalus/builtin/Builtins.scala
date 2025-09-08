@@ -498,7 +498,7 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
       * @return
       *   The number of set bits in the ByteString.
       */
-    def countSetBits(byteString: ByteString): Int =
+    def countSetBits(byteString: ByteString): BigInt =
         BitwiseLogicalOperations.countSetBits(byteString)
 
     /** Bitwise logical findFirstSetBit for ByteStrings.
@@ -523,7 +523,7 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
       * @return
       *   The index of the first set bit in the ByteString from the end.
       */
-    def findFirstSetBit(byteString: ByteString): Int =
+    def findFirstSetBit(byteString: ByteString): BigInt =
         BitwiseLogicalOperations.findFirstSetBit(byteString)
 
     def bls12_381_G1_equal(p1: BLS12_381_G1_Element, p2: BLS12_381_G1_Element): Boolean =
