@@ -17,7 +17,7 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
       targetLoweringBackend = Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,
-      //debug = false
+      // debug = false
     )
 
     private val sir = compile(SimpleTransfer.validate)
@@ -40,6 +40,7 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
         )
         assert(res.isSuccess)
     }
+
     test("invalid deposit") {
         val res = sir.runScript(
           makeSpendingScriptContext(
