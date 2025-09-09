@@ -47,14 +47,14 @@ object SimpleTransfer extends Validator {
         val (contractInputs, contractOutputs) = lookupTx(tx, contract.address.credential)
 
         val Datum(owner, recipient) = datum.get.to[Datum]
-        val (recipientInputs, recipientOutputs) = lookupTx(tx, Credential.PubKeyCredential(owner))
-        val (ownerInputs, ownerOutputs) = lookupTx(tx, Credential.PubKeyCredential(recipient))
+        val (recipientInputs, recipientOutputs) = lookupTx(tx, Credential.PubKeyCredential(recipient))
+        val (ownerInputs, ownerOutputs) = lookupTx(tx, Credential.PubKeyCredential(owner))
 
         require(balance === inputsAda(contractInputs), "Invalid contract balance")
         require(!contractOutputs.isEmpty, "Contract output empty")
 
         val outputDatum = OutputDatum.OutputDatum(datum.get)
-        require(contractOutputs.forall(_.datum === outputDatum), "Output datum changed")
+        require(contractOutputs.forall(_.datum === outputDatum), "Output datum invalid")
 
         redeemer.to[Redeemer] match {
             case Redeemer.Deposit(deposit) =>

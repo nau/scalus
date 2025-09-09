@@ -6,7 +6,6 @@ import scalus.Compiler.compile
 import scalus.builtin.Data
 import scalus.builtin.Data.toData
 import scalus.ledger.api.v1.PubKeyHash
-import scalus.ledger.api.v3.ScriptContext
 import scalus.prelude.*
 import scalus.testkit.ScalusTest
 
