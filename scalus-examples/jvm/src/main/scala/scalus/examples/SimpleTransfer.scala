@@ -1,11 +1,10 @@
 package scalus.examples
 
 import scalus.Compile
-import scalus.builtin.{Data, FromData, ToData}
-import scalus.ledger.api.v1.{Credential, PubKeyHash}
+import scalus.prelude.*
+import scalus.builtin.*
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
-import scalus.prelude.*
 
 /** https://github.com/blockchain-unica/rosetta-smart-contracts/tree/main/contracts/simple_transfer
   */
@@ -47,7 +46,8 @@ object SimpleTransfer extends Validator {
         val (contractInputs, contractOutputs) = lookupTx(tx, contract.address.credential)
 
         val Datum(owner, recipient) = datum.get.to[Datum]
-        val (recipientInputs, recipientOutputs) = lookupTx(tx, Credential.PubKeyCredential(recipient))
+        val (recipientInputs, recipientOutputs) =
+            lookupTx(tx, Credential.PubKeyCredential(recipient))
         val (ownerInputs, ownerOutputs) = lookupTx(tx, Credential.PubKeyCredential(owner))
 
         require(balance === inputsAda(contractInputs), "Invalid contract balance")
