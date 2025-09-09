@@ -81,7 +81,7 @@ val plutusScript = validator.doubleCborHex
 validator.writePlutusFile(path, PlutusLedgerLanguage.PlutusV3)
 ```
 
-Look at [SendTx](https://github.com/nau/scalus/blob/master/examples/src/main/scala/scalus/examples/SendTx.scala#L31)
+Look at [SendTx](https://github.com/nau/scalus/blob/master/scalus-examples/jvm/src/main/scala/scalus/examples/SendTx.scala#L25)
 example for a full example of how to create a transaction with this validator.
 
 ### Scalus for budget calculation with Cardano Client Lib
