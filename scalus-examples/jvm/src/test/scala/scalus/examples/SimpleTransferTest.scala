@@ -14,7 +14,7 @@ import scalus.testkit.ScalusTest
 import scala.language.implicitConversions
 
 class SimpleTransferTest extends AnyFunSuite with ScalusTest {
-
+    val fee = 10
     inline given Compiler.Options = Compiler.Options(
       targetLoweringBackend = Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
@@ -50,14 +50,13 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
         assert(res.isSuccess, res.logs)
     }
 
-    ignore("withdraw") {
+    test("withdraw") {
         val ctx = context(
           1000,
           withdraw(500),
           List(PubKeyHash(receiver)),
-          List(makeScriptHashInput(contract, BigInt(1000))),
-          List(
-            makePubKeyHashOutput(receiver, BigInt(500)),
+          outputs = List(
+            makePubKeyHashOutput(receiver, BigInt(500 - fee)),
             makeScriptHashOutput(contract, BigInt(500), outputDatum)
           ),
         )
@@ -87,7 +86,7 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
           txInfo = TxInfo(
             inputs = inputs.prepended(ownInput),
             outputs = outputs,
-            fee = 188021,
+            fee = fee,
             signatories = signatories,
             id = random[TxId]
           ),
