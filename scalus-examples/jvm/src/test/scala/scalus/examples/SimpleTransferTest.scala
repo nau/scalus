@@ -1,11 +1,13 @@
 package scalus.examples
 
+import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.Data
 import scalus.builtin.Data.toData
-import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v2.OutputDatum
+import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.testkit.ScalusTest
 
@@ -22,26 +24,80 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
 
     private val sir = compile(SimpleTransfer.validate)
 
-    private val pubKeyHash = genByteStringOfN(28).map(PubKeyHash(_)).label("PubKeyHash")
-    private val owner = pubKeyHash.sample.get
-    private val receiver = pubKeyHash.sample.get
+    private val hash: Gen[Hash] = genByteStringOfN(28)
+    private val contract = hash.sample.get
+    private val owner = hash.sample.get
+    private val receiver = hash.sample.get
 
-    private val datum = SimpleTransfer.Datum(owner, receiver).toData
-    private val deposit = SimpleTransfer.Redeemer.Deposit(1000).toData
-    private val withdraw = SimpleTransfer.Redeemer.Withdraw(500).toData
+    private val datum = SimpleTransfer.Datum(PubKeyHash(owner), PubKeyHash(receiver)).toData
+    private val outputDatum = OutputDatum.OutputDatum(datum)
+    private def deposit(amount: Lovelace) = SimpleTransfer.Redeemer.Deposit(amount).toData
+    private def withdraw(amount: Lovelace) = SimpleTransfer.Redeemer.Withdraw(amount).toData
 
-    ignore("valid deposit") {
-        val res = sir.runScript(context(datum, deposit, List(owner)))
+    test("deposit") {
+        val ctx =
+            context(
+              0,
+              deposit(1000),
+              List(PubKeyHash(owner)),
+              List(makePubKeyHashInput(owner, BigInt(1000))),
+              List(
+                makePubKeyHashOutput(owner, BigInt(500)),
+                makeScriptHashOutput(contract, BigInt(1000), outputDatum)
+              ),
+            )
+        val res = sir.runScript(ctx)
         assert(res.isSuccess, res.logs)
     }
 
-    ignore("valid withdraw") {
-        val res = sir.runScript(context(datum, withdraw, List(receiver)))
+    ignore("withdraw") {
+        val ctx = context(
+          1000,
+          withdraw(500),
+          List(PubKeyHash(receiver)),
+          List(makeScriptHashInput(contract, BigInt(1000))),
+          List(
+            makePubKeyHashOutput(receiver, BigInt(500)),
+            makeScriptHashOutput(contract, BigInt(500), outputDatum)
+          ),
+        )
+        val res = sir.runScript(ctx)
         assert(res.isSuccess, res.logs)
     }
 
-    private def context(datum: Data, redeemer: Data, signatories: List[PubKeyHash]) = {
-        makeSpendingScriptContext(datum, redeemer, signatories) // todo outputs
+    private def context(
+        balance: Lovelace = 500,
+        redeemer: Data,
+        signatories: List[PubKeyHash] = List.Nil,
+        inputs: List[TxInInfo] = List.Nil,
+        outputs: List[TxOut] = List.Nil,
+    ): ScriptContext = {
+        val ownInput =
+            TxInInfo(
+              outRef = random[TxOutRef],
+              resolved = TxOut(
+                address = Address(
+                  Credential.ScriptCredential(contract),
+                  Option.None
+                ),
+                value = Value.lovelace(balance)
+              )
+            )
+        ScriptContext(
+          txInfo = TxInfo(
+            inputs = inputs.prepended(ownInput),
+            outputs = outputs,
+            fee = 188021,
+            signatories = signatories,
+            id = random[TxId]
+          ),
+          redeemer = redeemer,
+          scriptInfo = ScriptInfo.SpendingScript(
+            txOutRef = ownInput.outRef,
+            datum = Option.Some(datum)
+          )
+        )
+
     }
 
 }

@@ -7,6 +7,7 @@ import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v1.Credential.{PubKeyCredential, ScriptCredential}
 import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.sir.SIR
@@ -95,17 +96,27 @@ trait ScalusTest extends ArbitraryInstances {
         )
     }
 
-    protected def makePubKeyHashOutput(pkh: Hash, value: BigInt): TxOut = {
+    protected def makePubKeyHashOutput(
+        pkh: Hash,
+        value: BigInt,
+        datum: OutputDatum = OutputDatum.NoOutputDatum
+    ): TxOut = {
         TxOut(
           address = Address(PubKeyCredential(PubKeyHash(pkh)), Option.None),
-          value = Value.lovelace(value)
+          value = Value.lovelace(value),
+          datum = datum
         )
     }
 
-    protected def makeScriptHashOutput(scriptHash: ValidatorHash, value: BigInt): TxOut = {
+    protected def makeScriptHashOutput(
+        scriptHash: ValidatorHash,
+        value: BigInt,
+        datum: OutputDatum = OutputDatum.NoOutputDatum
+    ): TxOut = {
         TxOut(
           address = Address(ScriptCredential(scriptHash), Option.None),
-          value = Value.lovelace(value)
+          value = Value.lovelace(value),
+          datum = datum
         )
     }
 
