@@ -29,10 +29,10 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
     private val owner = hash.sample.get
     private val receiver = hash.sample.get
 
-    private val datum = SimpleTransfer.Datum(PubKeyHash(owner), PubKeyHash(receiver)).toData
+    private val datum = SimpleTransfer.Config(PubKeyHash(owner), PubKeyHash(receiver)).toData
     private val outputDatum = OutputDatum.OutputDatum(datum)
-    private def deposit(amount: Lovelace) = SimpleTransfer.Redeemer.Deposit(amount).toData
-    private def withdraw(amount: Lovelace) = SimpleTransfer.Redeemer.Withdraw(amount).toData
+    private def deposit(amount: Lovelace) = SimpleTransfer.Action.Deposit(amount).toData
+    private def withdraw(amount: Lovelace) = SimpleTransfer.Action.Withdraw(amount).toData
 
     test("deposit") {
         val ctx =
