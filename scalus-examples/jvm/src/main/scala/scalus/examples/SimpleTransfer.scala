@@ -23,19 +23,11 @@ object SimpleTransfer extends Validator {
         case Withdraw(amount: Value)
     }
 
-    private def lookupTx(tx: TxInfo, cred: Credential): (List[TxInInfo], List[TxOut]) = (
-      tx.inputs.filter(_.resolved.address.credential === cred),
-      tx.outputs.filter(_.address.credential === cred)
-    )
+    private inline def getInputs(tx: TxInfo, cred: Credential): List[TxInInfo] =
+        tx.inputs.filter(_.resolved.address.credential === cred)
 
-    private def countValue[T](a: List[T])(f: T => Value): Value =
-        a.map(f).foldLeft(Value.zero)(_ + _)
-
-    private def outputsValue(outputs: List[TxOut]): Value =
-        countValue(outputs)(_.value)
-
-    private def inputsValue(inputs: List[TxInInfo]): Value =
-        countValue(inputs)(_.resolved.value)
+    private inline def getOutputs(tx: TxInfo, cred: Credential): List[TxOut] =
+        tx.outputs.filter(_.address.credential === cred)
 
     override def spend(
         datum: Option[Data],
@@ -45,16 +37,20 @@ object SimpleTransfer extends Validator {
     ): Unit = {
         val Config(owner, recipient) = datum.get.to[Config]
         val contract = tx.findOwnInput(ownRef).get.resolved
-        val (contractInputs, contractOutputs) = lookupTx(tx, contract.address.credential)
+        val contractAddress = contract.address.credential
+        val contractInputs = getInputs(tx, contractAddress)
+        val contractOutputs = getOutputs(tx, contractAddress)
         val balance = contract.value
 
-        val action = redeemer.to[Action]
-        action match
+        // eliminate double satisfaction by ensuring exactly one contract input and no more than one output
+        require(contractInputs.size == BigInt(1), "Contract input should be exactly one")
+        require(contractOutputs.size <= BigInt(1), "Contract output should be no more than one")
+
+        redeemer.to[Action] match
             case Action.Deposit(amount) =>
                 require(tx.signatories.contains(owner), "Deposit must be signed by owner")
                 // eliminate double satisfaction by ensuring exactly one contract input and one output
-                require(contractInputs.size == BigInt(1), "Contract output missing")
-                require(contractOutputs.size == BigInt(1), "Contract output missing")
+                require(contractOutputs.size == BigInt(1), "Contract output should be exactly one")
                 val contractOutput = contractOutputs.head
                 require(
                   contractOutput.value === balance + amount,
@@ -64,13 +60,15 @@ object SimpleTransfer extends Validator {
                 require(contractOutput.datum === expectedDatum, "Output datum changed")
             case Action.Withdraw(withdraw) =>
                 require(tx.signatories.contains(recipient), "Withdraw must be signed by recipient")
-                require(contractInputs.size == BigInt(1), "Contract output missing")
                 if withdraw === balance then
                     // if withdrawing all, there should be no contract output
-                    require(contractOutputs.isEmpty, "Contract output not empty")
+                    require(contractOutputs.isEmpty, "Contract output is not empty")
                 else if (balance - withdraw).isPositive then
                     // eliminate double satisfaction by ensuring exactly one contract input and one output
-                    require(contractOutputs.size == BigInt(1), "Contract output missing")
+                    require(
+                      contractOutputs.size == BigInt(1),
+                      "Contract output should be exactly one"
+                    )
                     val contractOutput = contractOutputs.head
                     require(
                       contractOutput.value === balance - withdraw,
