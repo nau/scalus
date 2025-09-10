@@ -42,7 +42,6 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
               List(PubKeyHash(owner)),
               List(makePubKeyHashInput(owner, BigInt(1000))),
               List(
-                makePubKeyHashOutput(owner, BigInt(500)),
                 makeScriptHashOutput(contract, BigInt(1000), outputDatum)
               ),
             )
