@@ -64,6 +64,32 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
         assert(res.isSuccess, res.logs)
     }
 
+    test("withdraw all") {
+        val ctx = context(
+          Value.lovelace(500),
+          withdraw(Value.lovelace(500)),
+          List(PubKeyHash(receiver)),
+          outputs = List(
+            makePubKeyHashOutput(receiver, BigInt(500 - fee))
+          ),
+        )
+        val res = sir.runScript(ctx)
+        assert(res.isSuccess, res.logs)
+    }
+
+    test("withdraw more") {
+        val ctx = context(
+          Value.lovelace(500),
+          withdraw(Value.lovelace(1500)),
+          List(PubKeyHash(receiver)),
+          outputs = List(
+            makePubKeyHashOutput(receiver, BigInt(1500 - fee))
+          ),
+        )
+        val res = sir.runScript(ctx)
+        assert(!res.isSuccess, res.logs)
+    }
+
     private def context(
         balance: Value,
         redeemer: Data,

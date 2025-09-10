@@ -68,7 +68,7 @@ object SimpleTransfer extends Validator {
                 if withdraw === balance then
                     // if withdrawing all, there should be no contract output
                     require(contractOutputs.isEmpty, "Contract output not empty")
-                else if !(balance - withdraw).isZero then
+                else if (balance - withdraw).isPositive then
                     // eliminate double satisfaction by ensuring exactly one contract input and one output
                     require(contractOutputs.size == BigInt(1), "Contract output missing")
                     require(
