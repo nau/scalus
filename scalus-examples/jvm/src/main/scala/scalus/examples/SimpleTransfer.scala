@@ -42,17 +42,17 @@ object SimpleTransfer extends Validator {
         val contractOutputs = getOutputs(tx, contractAddress)
         val balance = contract.value
 
-        // eliminate double satisfaction by ensuring exactly one contract input and no more than one output
+        // eliminate double satisfaction by ensuring exactly one contract own input and at most one own output
         require(contractInputs.size == BigInt(1), "Contract should have exactly one own input")
         require(
           contractOutputs.size <= BigInt(1),
-          "Contract should have no more than one own output"
+          "Contract should have at most one own output"
         )
 
         redeemer.to[Action] match
             case Action.Deposit(amount) =>
                 require(tx.signatories.contains(owner), "Deposit must be signed by owner")
-                // eliminate double satisfaction by ensuring exactly one contract input and one output
+                // eliminate double satisfaction by ensuring exactly one contract own input and one own output
                 require(
                   contractOutputs.size == BigInt(1),
                   "Contract should have exactly one own output"
@@ -70,7 +70,7 @@ object SimpleTransfer extends Validator {
                     // if withdrawing all, there should be no contract output
                     require(contractOutputs.isEmpty, "Contract own output is not empty")
                 else if (balance - withdraw).isPositive then
-                    // eliminate double satisfaction by ensuring exactly one contract input and one output
+                    // eliminate double satisfaction by ensuring exactly one contract own input and one own output
                     require(
                       contractOutputs.size == BigInt(1),
                       "Contract should have exactly one own output"
