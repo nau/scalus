@@ -12,7 +12,7 @@ import scalus.prelude.*
 @Compile
 object SimpleTransfer extends Validator {
 
-    case class Config(
+    case class Parties(
         owner: PubKeyHash,
         recipient: PubKeyHash
     ) derives ToData,
@@ -35,7 +35,7 @@ object SimpleTransfer extends Validator {
         tx: TxInfo,
         ownRef: TxOutRef
     ): Unit = {
-        val Config(owner, recipient) = datum.get.to[Config]
+        val Parties(owner, recipient) = datum.get.to[Parties]
         val contract = tx.findOwnInput(ownRef).get.resolved
         val contractAddress = contract.address.credential
         val contractInputs = getInputs(tx, contractAddress)
@@ -43,14 +43,20 @@ object SimpleTransfer extends Validator {
         val balance = contract.value
 
         // eliminate double satisfaction by ensuring exactly one contract input and no more than one output
-        require(contractInputs.size == BigInt(1), "Contract input should be exactly one")
-        require(contractOutputs.size <= BigInt(1), "Contract output should be no more than one")
+        require(contractInputs.size == BigInt(1), "Contract should have exactly one own input")
+        require(
+          contractOutputs.size <= BigInt(1),
+          "Contract should have no more than one own output"
+        )
 
         redeemer.to[Action] match
             case Action.Deposit(amount) =>
                 require(tx.signatories.contains(owner), "Deposit must be signed by owner")
                 // eliminate double satisfaction by ensuring exactly one contract input and one output
-                require(contractOutputs.size == BigInt(1), "Contract output should be exactly one")
+                require(
+                  contractOutputs.size == BigInt(1),
+                  "Contract should have exactly one own output"
+                )
                 val contractOutput = contractOutputs.head
                 require(
                   contractOutput.value === balance + amount,
@@ -62,12 +68,12 @@ object SimpleTransfer extends Validator {
                 require(tx.signatories.contains(recipient), "Withdraw must be signed by recipient")
                 if withdraw === balance then
                     // if withdrawing all, there should be no contract output
-                    require(contractOutputs.isEmpty, "Contract output is not empty")
+                    require(contractOutputs.isEmpty, "Contract own output is not empty")
                 else if (balance - withdraw).isPositive then
                     // eliminate double satisfaction by ensuring exactly one contract input and one output
                     require(
                       contractOutputs.size == BigInt(1),
-                      "Contract output should be exactly one"
+                      "Contract should have exactly one own output"
                     )
                     val contractOutput = contractOutputs.head
                     require(
