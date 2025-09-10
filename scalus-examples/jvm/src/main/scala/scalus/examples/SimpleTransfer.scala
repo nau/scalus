@@ -31,10 +31,10 @@ object SimpleTransfer extends Validator {
     private def countValue[T](a: List[T])(f: T => Value): Value =
         a.map(f).foldLeft(Value.zero)(_ + _)
 
-    private def outputsAda(outputs: List[TxOut]): Value =
+    private def outputsValue(outputs: List[TxOut]): Value =
         countValue(outputs)(_.value)
 
-    private def inputsAda(inputs: List[TxInInfo]): Value =
+    private def inputsValue(inputs: List[TxInInfo]): Value =
         countValue(inputs)(_.resolved.value)
 
     override def spend(
@@ -56,7 +56,7 @@ object SimpleTransfer extends Validator {
                 require(contractInputs.size == BigInt(1), "Contract output missing")
                 require(contractOutputs.size == BigInt(1), "Contract output missing")
                 require(
-                  outputsAda(contractOutputs) === balance + amount,
+                  outputsValue(contractOutputs) === balance + amount,
                   "Contract has received incorrect amount"
                 )
                 val expectedDatum = OutputDatum.OutputDatum(datum.get)
@@ -68,11 +68,11 @@ object SimpleTransfer extends Validator {
                 if withdraw === balance then
                     // if withdrawing all, there should be no contract output
                     require(contractOutputs.isEmpty, "Contract output not empty")
-                else if withdraw.getLovelace < balance.getLovelace then
+                else if !(balance - withdraw).isZero then
                     // eliminate double satisfaction by ensuring exactly one contract input and one output
                     require(contractOutputs.size == BigInt(1), "Contract output missing")
                     require(
-                      outputsAda(contractOutputs) === balance - withdraw,
+                      outputsValue(contractOutputs) === balance - withdraw,
                       "Contract balance is incorrect"
                     )
                     val expectedDatum = OutputDatum.OutputDatum(datum.get)
