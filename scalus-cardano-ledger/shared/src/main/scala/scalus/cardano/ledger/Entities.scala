@@ -208,6 +208,14 @@ object TransactionException {
           s"Too many collateral inputs for transactionId $transactionId. Expected at most: $expected, actual: $supplied"
         )
 
+    final case class InvalidScriptDataHashException(
+        transactionId: TransactionHash,
+        actual: Option[ScriptDataHash],
+        expected: Option[ScriptDataHash]
+    ) extends TransactionException(
+          s"Invalid script data hash for transactionId $transactionId. Expected: $expected, actual: $actual"
+        )
+
     // TODO: placeholder for general exception, remove after finishing development
     final case class IllegalArgumentException(message: String) extends TransactionException(message)
 }

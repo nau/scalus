@@ -10,9 +10,7 @@ import scala.util.control.NonFatal
 
 // It's conwayEvalScriptsTxValid in cardano-ledger
 object PlutusScriptsTransactionMutator extends STS.Mutator {
-    override final type Error = TransactionException.BadInputsUTxOException |
-        TransactionException.BadReferenceInputsUTxOException |
-        TransactionException.BadCollateralInputsUTxOException |
+    override final type Error = TransactionException.BadCollateralInputsUTxOException |
         TransactionException.IllegalArgumentException
 
     override def transit(context: Context, state: State, event: Event): Result = boundary {
@@ -50,14 +48,20 @@ object PlutusScriptsTransactionMutator extends STS.Mutator {
                   )
                 )
             else
-                throw IllegalStateException(
-                  s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
+                // TODO: refine exception handling
+                failure(
+                  TransactionException.IllegalArgumentException(
+                    s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
+                  )
                 )
         } catch {
             case e: PlutusScriptEvaluationException =>
                 if event.isValid then
-                    throw IllegalStateException(
-                      s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
+                    // TODO: refine exception handling
+                    failure(
+                      TransactionException.IllegalArgumentException(
+                        s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
+                      )
                     )
                 else
                     val addedUtxo = event.body.value.collateralReturnOutput
@@ -94,8 +98,8 @@ object PlutusScriptsTransactionMutator extends STS.Mutator {
                         fees = state.fees + (collateralCoins - collateralReturnCoins)
                       )
                     )
-            // TODO: refine exception handling
             case NonFatal(exception) =>
+                // TODO: refine exception handling
                 failure(
                   TransactionException.IllegalArgumentException(
                     s"Error during Plutus script evaluation: ${exception.getMessage}"
