@@ -463,7 +463,7 @@ object Address {
 
     given FromData[Address] = FromData.derived
 
-    def fromScript(script: Hash): Address =
+    def fromScriptHash(script: ScriptHash): Address =
         Address(Credential.ScriptCredential(script), Option.None)
 
 }

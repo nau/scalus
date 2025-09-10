@@ -1,11 +1,13 @@
 package scalus.examples
 
-import scalus.*
+import scalus.{show as _, *}
+import scalus.prelude.Show.*
 import scalus.ledger.api.v3.*
 import scalus.ledger.api.v1.Address
 import scalus.prelude.*
 import scalus.prelude.Option.*
 import scalus.ledger.api.v2.OutputDatum
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.Compiler.compile
@@ -14,27 +16,36 @@ import scalus.cardano.plutus.contract.blueprint.{Application, Blueprint}
 // https://github.com/cardano-foundation/cardano-template-and-ecosystem-monitoring/blob/main/bet/onchain/aiken/validators/bet.ak
 
 /** Represents the state of a two-player betting game The bet starts with player1 creating it, then
-  * player2 can join The oracle decides the winner and triggers the payout
+  * player2 can join The oracle decides the winner and triggers the payout.
+  *
+  * @param player1
+  *   The public key hash of the first player (bet creator)
+  * @param player2
+  *   The public key hash of the second player (None if no one has joined yet)
+  * @param oracle
+  *   The public key hash of the trusted oracle who will announce the winner
+  * @param expiration
+  *   The expiration time of the bet (in seconds since the epoch)
   */
 case class BetDatum(
-    /** The public key hash of the first player (bet creator) */
     player1: PubKeyHash,
-    /** The public key hash of the second player (None if no one has joined yet) */
     player2: PubKeyHash,
-    /** The public key hash of the trusted oracle who will announce the winner */
     oracle: PubKeyHash,
-    /** The expiration time of the bet (in seconds since the epoch) */
     expiration: PosixTime
 ) derives FromData,
       ToData
 
+@Compile
+object BetDatum
+
 /** Actions that can be performed on the betting contract */
+@Compile
 enum Action derives FromData, ToData:
     /** Action for player2 to join an existing bet */
-    case JOIN
+    case Join
 
     /** Action for the oracle to announce the winner and trigger payout */
-    case ANNOUNCE_WINNER(winner: PubKeyHash)
+    case AnnounceWinner(winner: PubKeyHash)
 
 /** Main betting validator */
 @Compile
@@ -45,18 +56,18 @@ object Betting extends Validator:
         txInfo: TxInfo,
         txOutRef: TxOutRef
     ): Unit =
-        ()
+        fail("You shall no pass")
 
     /** Minting policy: Controls the creation of bet tokens This ensures proper initialization of a
       * new bet
       */
     override def mint(
-        redeemer: Data,
+        @annotation.unused redeemer: Data,
         currencySymbol: CurrencySymbol,
         tx: TxInfo
     ): Unit =
         // Find all outputs going to this script's address
-        tx.outputs.filter(_.address === Address.fromScript(currencySymbol)) match
+        tx.outputs.filter(_.address === Address.fromScriptHash(currencySymbol)) match
             case List.Cons(head, tail) =>
                 tail match // ???: headOrFail or matchOrFail
                     case List.Nil =>
@@ -69,7 +80,8 @@ object Betting extends Validator:
                                   "Player1 must sign the transaction (they're creating the bet)"
                                 )
                                 require(
-                                  player2.hash.isEmpty,
+                                  player2.hash.length == BigInt(0), // ???:
+                                  // player2.hash.isEmpty: Error: Module not found during linking: scalus.builtin.ByteString
                                   "Player2 must be empty (no one has joined yet)"
                                 )
                                 require(
