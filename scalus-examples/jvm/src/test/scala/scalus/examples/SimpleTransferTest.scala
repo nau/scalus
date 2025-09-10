@@ -11,8 +11,6 @@ import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.testkit.ScalusTest
 
-import scala.language.implicitConversions
-
 class SimpleTransferTest extends AnyFunSuite with ScalusTest {
     val fee = 10
     inline given Compiler.Options = Compiler.Options(
