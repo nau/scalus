@@ -1,7 +1,6 @@
 package scalus
 package sir
 
-import scalus.sir.Recursivity.*
 import scalus.sir.SIR.Pattern
 import scalus.uplc.*
 
@@ -199,14 +198,14 @@ class SirToUplc110Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                 else Term.Case(scrutineeTerm, casesTerms)
             case SIR.Var(name, _, _)            => Term.Var(NamedDeBruijn(name))
             case SIR.ExternalVar(_, name, _, _) => Term.Var(NamedDeBruijn(name))
-            case SIR.Let(NonRec, bindings, body, anns) =>
+            case SIR.Let(bindings, body, flags, anns) if !flags.isRec =>
                 val loweredBody = lowerInner(body)
                 val letResult = bindings.foldRight(loweredBody) {
                     case (Binding(name, tp, rhs), body) =>
                         Term.Apply(Term.LamAbs(name, body), lowerInner(rhs))
                 }
                 letResult
-            case SIR.Let(Rec, Binding(name, tp, rhs) :: Nil, body, _) =>
+            case SIR.Let(Binding(name, tp, rhs) :: Nil, body, flags, _) if flags.isRec =>
                 /*  let rec f x = f (x + 1)
                     in f 0
                     (\f -> f 0) (Z (\f. \x. f (x + 1)))
@@ -218,7 +217,7 @@ class SirToUplc110Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                       Term.LamAbs(name, lowerInner(rhs))
                     )
                 Term.Apply(Term.LamAbs(name, lowerInner(body)), fixed)
-            case SIR.Let(Rec, bindings, body, _) =>
+            case SIR.Let(bindings, body, flags, _) if flags.isRec =>
                 // TODO: implement mutual recursion
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
             case SIR.LamAbs(name, term, _, _)          => Term.LamAbs(name.name, lowerInner(term))

@@ -4,7 +4,6 @@ import scala.annotation.unused
 
 import org.typelevel.paiges.Doc
 import scalus.sir.*
-import scalus.sir.Recursivity.NonRec
 import scalus.sir.lowering.typegens.SirTypeUplcGenerator
 import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.*
@@ -136,7 +135,7 @@ object Lowering {
                 //  Term.Var(NamedDeBruijn(name)),
                 //  SirTypeUplcGenerator(tp).defaultRepresentation
                 // )
-            case sirLet @ SIR.Let(recursivity, bindings, body, anns) =>
+            case sirLet @ SIR.Let(bindings, body, flags, anns) =>
                 // don;t generate FromData/ToData (now handled by Data Representation)
                 val nBindings =
                     bindings.filterNot(b => isFromDataName(b.name) || (isToDataName(b.name)))
@@ -293,9 +292,9 @@ object Lowering {
 
     private def lowerLet(sirLet: SIR.Let)(using lctx: LoweringContext): LoweredValue = {
         val retval = sirLet match
-            case SIR.Let(recursivity, bindings, body, anns) =>
+            case SIR.Let(bindings, body, flags, anns) =>
                 val prevScope = lctx.scope
-                if recursivity == NonRec then
+                if !flags.isRec then
                     val bindingValues = bindings.map { b =>
                         var prevDebug = lctx.debug
                         val rhs = lowerSIR(b.value).maybeUpcast(b.tp, anns.pos)

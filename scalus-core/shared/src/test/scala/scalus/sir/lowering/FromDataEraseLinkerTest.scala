@@ -38,7 +38,7 @@ class FromDataEraseLinkerTest extends AnyFunSuite {
                 p(sir) || containsSubterm(scrutinee)(p)
             case SIR.Var(name, tp, anns)                 => p(sir)
             case SIR.ExternalVar(module, name, tp, anns) => p(sir)
-            case SIR.Let(_, bindings, body, anns) =>
+            case SIR.Let(bindings, body, flags, anns) =>
                 p(sir) || bindings.exists { b =>
                     containsSubterm(b.value)(p)
                 } || containsSubterm(body)(p)

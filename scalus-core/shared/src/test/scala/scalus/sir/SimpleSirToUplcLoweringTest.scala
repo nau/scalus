@@ -3,7 +3,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtin.ByteString.*
-import scalus.sir.Recursivity.NonRec
 import scalus.sir.SIR.Pattern
 import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeNothing, TypeVar}
 import scalus.uplc.Constant
@@ -74,7 +73,6 @@ class SimpleSirToUplcLoweringTest
        lowers to (\x -> (\y -> x + y) 2) 1
          */
         SIR.Let(
-          NonRec,
           Binding("x", Integer, SIR.Const(asConstant(1), Integer, ae)) :: Binding(
             "y",
             Integer,
@@ -91,6 +89,7 @@ class SimpleSirToUplcLoweringTest
             Integer,
             ae
           ),
+          SIR.LetFlags.None,
           ae
         ) lowersTo (lam("x")(lam("y")(AddInteger $ vr"x" $ vr"y") $ 2) $ 1)
     }

@@ -81,7 +81,7 @@ class CompilerPluginEvalTest extends AnyFunSuite {
                           s"compile match on ADT:dataDecl, ${data.name}, constrNames=${data.constructors
                                   .map(_.name)}"
                         )
-                    case SIR.Let(_, bindings, body, _) =>
+                    case SIR.Let(bindings, body, flags, _) =>
                         println(
                           s"compile match on ADT: bindings=${bindings.mkString("\n")}"
                         )
@@ -230,5 +230,35 @@ class CompilerPluginEvalTest extends AnyFunSuite {
         assert(jvmResult == 15)
 
     }
+
+    /*
+    test("compile inner matches on enum") {
+        import scalus.prelude.*
+        val sir = compile { (x: List[Option[BigInt]]) =>
+            x match
+                case List.Cons(Option.Some(v), _) => v
+                case List.Cons(Option.None, _)    => BigInt(0)
+                case List.Nil                     => BigInt(-1)
+        }
+
+        val uplc = sir.toUplc(generateErrorTraces = true)
+        val arg1 = compile {
+            List.Cons(Option.Some(BigInt(42)), List.Nil)
+        }.toUplc()
+        val arg2 = compile {
+            List.Cons(Option.None, List.Nil)
+        }.toUplc()
+        val arg3 = compile {
+            List.Nil: List[Option[BigInt]]
+        }.toUplc()
+        val r1 = (uplc $ arg1).evaluate
+        assert(r1 == Term.Const(Constant.Integer(42)))
+        val r2 = (uplc $ arg2).evaluate
+        assert(r2 == Term.Const(Constant.Integer(0)))
+        val r3 = (uplc $ arg3).evaluate
+        assert(r3 == Term.Const(Constant.Integer(-1)))
+    }
+    
+     */
 
 }

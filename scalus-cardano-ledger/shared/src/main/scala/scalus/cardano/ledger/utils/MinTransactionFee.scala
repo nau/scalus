@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package utils
 
-import io.bullet.borer.Cbor
+import scalus.Cbor
 import scalus.ledger.babbage.ProtocolParams
 import scala.annotation.tailrec
 
@@ -82,7 +82,7 @@ object MinTransactionFee {
     ): Coin = {
         val txFeeFixed = protocolParams.txFeeFixed
         val txFeePerByte = protocolParams.txFeePerByte
-        val transactionSize = Cbor.encode(transaction).toByteArray.length
+        val transactionSize = Cbor.encode(transaction).length
 
         Coin(transactionSize * txFeePerByte + txFeeFixed)
     }

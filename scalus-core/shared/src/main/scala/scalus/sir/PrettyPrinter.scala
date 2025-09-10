@@ -163,18 +163,20 @@ object PrettyPrinter:
 
             case Var(name, tp, _)                     => text(name)
             case ExternalVar(moduleName, name, tp, _) => text(name)
-            case Let(Recursivity.NonRec, List(Binding(name, tp, body)), inExpr, anns) =>
+            case Let(List(Binding(name, tp, body)), inExpr, flags, anns) if !flags.isRec =>
+                val eqText = if flags.isLazy then text("=[lazy]") else text("=")
                 pretty(body, style).bracketBy(
-                  kw("let") & typedName(name, tp) & text("="),
+                  kw("let") & typedName(name, tp) & eqText,
                   kw("in")
                 ) / pretty(inExpr, style)
-            case Let(Recursivity.Rec, List(Binding(name, tp, body)), inExpr, anns) =>
+            case Let(List(Binding(name, tp, body)), inExpr, flags, anns) if flags.isRec =>
                 val (args, body1) = SirDSL.lamAbsToList(body)
                 val prettyArgs = inParens(intercalate(text(",") + space, args.map(text)))
+                val eqText = if flags.isLazy then text("=[lazy]") else text("=")
                 val signatureLine =
                     (kw("fun") & text(name) + (prettyArgs + char(':') & typ(
                       pretty(tp)
-                    ) & char('=')).nested(2)).grouped
+                    ) & eqText).nested(2)).grouped
                 (signatureLine + (line + pretty(body1, style))
                     .nested(4)
                     .grouped).grouped.aligned / kw(

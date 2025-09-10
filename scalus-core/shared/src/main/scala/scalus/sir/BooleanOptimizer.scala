@@ -98,9 +98,9 @@ object BooleanOptimizer:
                 Match(optScrutinee, optCases, tp, anns)
 
             // Recursive optimization for Let
-            case Let(recursivity, bindings, body, anns) =>
+            case Let(bindings, body, flags, anns) =>
                 // Optimize the body of the let expression
-                Let(recursivity, bindings, optimize(body), anns)
+                Let(bindings, optimize(body), flags, anns)
 
             // Recursive optimization for LamAbs
             case LamAbs(param, term, typeParams, anns) =>

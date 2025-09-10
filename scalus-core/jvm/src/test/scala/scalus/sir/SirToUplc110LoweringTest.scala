@@ -6,7 +6,6 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.v3.TxId
-import scalus.sir.Recursivity.NonRec
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.{Constant, DefaultFun, Term}
@@ -67,7 +66,6 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
        lowers to (\x -> (\y -> x + y) 2) 1
          */
         SIR.Let(
-          NonRec,
           Binding("x", Integer, SIR.Const(asConstant(1), Integer, ae)) :: Binding(
             "y",
             Integer,
@@ -84,6 +82,7 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
             Integer,
             ae
           ),
+          SIR.LetFlags.None,
           ae
         ) lowersTo (lam("x")(lam("y")(AddInteger $ vr"x" $ vr"y") $ 2) $ 1)
     }

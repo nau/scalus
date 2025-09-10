@@ -10,7 +10,7 @@ import scalus.sir.*
 import scalus.uplc.CommonFlatInstances.*
 import scalus.uplc.CommonFlatInstances.given
 import scalus.builtin.Data
-import scalus.sir.SIR.Pattern
+import scalus.sir.SIR.{LetFlags, Pattern}
 import scalus.uplc.DefaultFun
 import scalus.utils.*
 import scalus.utils.HashConsed.CachedTaggedRef
@@ -97,15 +97,6 @@ object FlatInstantces:
             val b = decode.bits8(1)
             if b == 0 then None
             else Some(summon[Flat[String]].decode(decode))
-
-    given Flat[Recursivity] with
-        def bitSize(a: Recursivity): Int = 1
-
-        def encode(a: Recursivity, encode: EncoderState): Unit =
-            encode.bits(1, if a == Recursivity.Rec then 1 else 0)
-
-        def decode(decode: DecoderState): Recursivity =
-            if decode.bits8(1) == 1 then Recursivity.Rec else Recursivity.NonRec
 
     object BindingFlat extends HashConsedReprFlat[Binding, HashConsedRef[Binding]]:
 
@@ -514,7 +505,6 @@ object FlatInstantces:
                 case a: SIRType.TypeNonCaseModule =>
                     tagWidth + SIRTypeNonCaseModuleFlat.bitSizeHC(a, hashConsed)
                 case SIRType.TypeNothing => tagWidth
-
             if !mute then
                 println(s"SIRTypeHashConsedFlat.bisSizeHC end ${a.hashCode()} $a =${retval}")
             retval
@@ -874,35 +864,57 @@ object FlatInstantces:
             HashConsedRef.fromData(a)
 
         def bitSizeHC(a: SIR.Let, hashConsed: HashConsed.State): Int =
-            val recSize = summon[Flat[Recursivity]].bitSize(a.recursivity)
             val bindingsSize =
                 HashConsedReprFlat.listRepr(BindingFlat).bitSizeHC(a.bindings, hashConsed)
             val bodySize = SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
+            val flagsSize = SIRLetFlagsFlat.bitSize(a.flags)
             val annsSize = AnnotationsDeclFlat.bitSizeHC(a.anns, hashConsed)
-            recSize + bindingsSize + bodySize + annsSize
+            bindingsSize + bodySize + flagsSize + annsSize
 
         def encodeHC(a: SIR.Let, encode: HashConsedEncoderState): Unit = {
-            summon[Flat[Recursivity]].encode(a.recursivity, encode.encode)
             HashConsedReprFlat.listRepr(BindingFlat).encodeHC(a.bindings, encode)
             SIRHashConsedFlat.encodeHC(a.body, encode)
+            SIRLetFlagsFlat.encode(a.flags, encode.encode)
             AnnotationsDeclFlat.encodeHC(a.anns, encode)
         }
 
         def decodeHC(decode: HashConsedDecoderState): HashConsedRef[SIR.Let] = {
-            val rec = summon[Flat[Recursivity]].decode(decode.decode)
             val bindings = HashConsedReprFlat.listRepr(BindingFlat).decodeHC(decode)
             val body = SIRHashConsedFlat.decodeHC(decode)
+            val flags = SIRLetFlagsFlat.decode(decode.decode)
             val anns = AnnotationsDeclFlat.decodeHC(decode)
             HashConsedRef.deferred((hs, l, p) =>
                 SIR.Let(
-                  rec,
                   bindings.finValue(hs, l, p),
                   body.finValue(hs, l, p),
+                  flags,
                   anns.finValue(hs, l, p)
                 )
             )
         }
     }
+
+    object SIRLetFlagsFlat extends Flat[SIR.LetFlags] {
+
+        override def bitSize(a: LetFlags): Int = {
+            2
+        }
+        override def encode(a: LetFlags, encode: EncoderState): Unit = {
+            val bits: Byte =
+                ((if a.isRec then 0x1 else 0x0) | (if a.isLazy then 0x2 else 0x0)).byteValue
+            encode.bits(2, bits)
+        }
+        override def decode(decode: DecoderState): LetFlags = {
+            val bits = decode.bits8(2)
+            val isRec = (bits & 0x1) != 0
+            val isLazy = (bits & 0x2) != 0
+            val recFlag = if isRec then LetFlags.Recursivity else LetFlags.None
+            val lazyFlag = if isLazy then LetFlags.Lazy else LetFlags.None
+            recFlag | lazyFlag
+        }
+
+    }
+    given Flat[SIR.LetFlags] = SIRLetFlagsFlat
 
     object SIRCaseHashConsedFlat extends HashConsedReprFlat[SIR.Case, HashConsedRef[SIR.Case]] {
         private val patternTagWidth = 2

@@ -2,7 +2,7 @@ package scalus.cardano.ledger
 package rules
 
 import scalus.ledger.api.MajorProtocolVersion
-import scalus.uplc.eval.{ExBudget, InvalidReturnValue}
+import scalus.uplc.eval.ExBudget
 
 import scala.util.boundary
 import scala.util.boundary.break
@@ -10,15 +10,14 @@ import scala.util.control.NonFatal
 
 // It's conwayEvalScriptsTxValid in cardano-ledger
 object PlutusScriptsTransactionMutator extends STS.Mutator {
-    override final type Error = TransactionException.BadInputsUTxOException |
-        TransactionException.BadReferenceInputsUTxOException |
-        TransactionException.BadCollateralInputsUTxOException |
+    override final type Error = TransactionException.BadCollateralInputsUTxOException |
         TransactionException.IllegalArgumentException
 
     override def transit(context: Context, state: State, event: Event): Result = boundary {
         val body = event.body.value
         val slotConfig = context.slotConfig
         val protocolParameters = context.env.params
+        val maxTxExecutionUnits = protocolParameters.maxTxExecutionUnits
         val protocolVersion = protocolParameters.protocolVersion
         val costModels = protocolParameters.costModels
         val utxo = state.utxo
@@ -26,7 +25,8 @@ object PlutusScriptsTransactionMutator extends STS.Mutator {
         try {
             PlutusScriptEvaluator(
               slotConfig = slotConfig,
-              initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
+              initialBudget =
+                  ExBudget.fromCpuAndMemory(maxTxExecutionUnits.steps, maxTxExecutionUnits.memory),
               protocolMajorVersion = MajorProtocolVersion(protocolVersion.major),
               costModels = CostModels.fromProtocolParams(protocolParameters),
               mode = EvaluatorMode.Validate,
@@ -48,14 +48,20 @@ object PlutusScriptsTransactionMutator extends STS.Mutator {
                   )
                 )
             else
-                throw IllegalStateException(
-                  s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
+                // TODO: refine exception handling
+                failure(
+                  TransactionException.IllegalArgumentException(
+                    s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
+                  )
                 )
         } catch {
-            case e: InvalidReturnValue =>
+            case e: PlutusScriptEvaluationException =>
                 if event.isValid then
-                    throw IllegalStateException(
-                      s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
+                    // TODO: refine exception handling
+                    failure(
+                      TransactionException.IllegalArgumentException(
+                        s"Transaction with invalid flag passed script validation, transactionId: ${event.id}, flag: ${event.isValid}"
+                      )
                     )
                 else
                     val addedUtxo = event.body.value.collateralReturnOutput
@@ -92,8 +98,8 @@ object PlutusScriptsTransactionMutator extends STS.Mutator {
                         fees = state.fees + (collateralCoins - collateralReturnCoins)
                       )
                     )
-            // TODO: refine exception handling
             case NonFatal(exception) =>
+                // TODO: refine exception handling
                 failure(
                   TransactionException.IllegalArgumentException(
                     s"Error during Plutus script evaluation: ${exception.getMessage}"

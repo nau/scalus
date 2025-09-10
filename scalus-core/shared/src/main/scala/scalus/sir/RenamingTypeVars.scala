@@ -103,9 +103,8 @@ object RenamingTypeVars {
                       typeParams.map(tv => newContext.renames.getOrElse(tv, tv)),
                       anns
                     )
-            case SIR.Let(name, bindings, body, anns) =>
+            case SIR.Let(bindings, body, flags, anns) =>
                 SIR.Let(
-                  name,
                   bindings.map { binding =>
                       Binding(
                         binding.name,
@@ -114,6 +113,7 @@ object RenamingTypeVars {
                       )
                   },
                   inSir(body, ctx),
+                  flags,
                   anns
                 )
             case SIR.Select(s, field, tp, anns) =>

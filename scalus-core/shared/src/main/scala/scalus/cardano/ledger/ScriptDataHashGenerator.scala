@@ -46,7 +46,7 @@ object ScriptDataHashGenerator {
         redeemers: Option[KeepRaw[Redeemers]],
         datums: KeepRaw[TaggedSet[KeepRaw[Data]]],
         costModels: CostModels
-    ): DataHash = {
+    ): ScriptDataHash = {
         require(
           era.value >= Era.Conway.value,
           s"Script data hash generation is not supported for eras before Conway, got era: $era"
@@ -67,5 +67,20 @@ object ScriptDataHashGenerator {
         val costModelsBytes = costModels.getLanguageViewEncoding
         val encodedBytes = redeemerBytes ++ plutusDataBytes ++ costModelsBytes
         Hash(platform.blake2b_256(ByteString.unsafeFromArray(encodedBytes)))
+    }
+
+    def computeScriptDataHash(
+        witnessSet: TransactionWitnessSet,
+        era: Era,
+        protocolParams: ProtocolParams,
+        refLangs: TreeSet[Language],
+        redeemers: Option[KeepRaw[Redeemers]],
+        datums: KeepRaw[TaggedSet[KeepRaw[Data]]]
+    ): Option[ScriptDataHash] = {
+        val costModels = getUsedCostModels(protocolParams, witnessSet, refLangs)
+
+        if redeemers.isEmpty && datums.value.toIndexedSeq.isEmpty && costModels.models.isEmpty then
+            None
+        else Some(computeScriptDataHash(era, redeemers, datums, costModels))
     }
 }

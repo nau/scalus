@@ -55,7 +55,6 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
             state match
                 case LinkingDefState.Linked(b) =>
                     SIR.Let(
-                      b.recursivity,
                       List(Binding(b.name, b.body.tp, b.body)),
                       acc match {
                           case annssir: AnnotatedSIR => annssir
@@ -68,6 +67,7 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
                                 SIR.Error(msg, AnnotationsDecl.empty.copy(pos = pos))
                               )
                       },
+                      b.flags,
                       AnnotationsDecl.empty.copy(pos = pos)
                     )
                 case LinkingDefState.Linking =>
@@ -105,11 +105,11 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
                     error(msg, ann.pos, v)
             else linkDefinition(moduleName, name, pos, tp, ann)
             v
-        case v @ SIR.Let(recursivity, bindings, body, anns) =>
+        case v @ SIR.Let(bindings, body, flags, anns) =>
             val nBingings =
                 bindings.map(b => Binding(b.name, b.tp, traverseAndLink(b.value, pos)))
             val nBody = traverseAndLink(body, pos)
-            SIR.Let(recursivity, nBingings, nBody, anns)
+            SIR.Let(nBingings, nBody, flags, anns)
         case SIR.LamAbs(param, term, typeParams, anns) =>
             SIR.LamAbs(param, traverseAndLink(term, pos), typeParams, anns)
         case SIR.Apply(f, arg, tp, anns) =>
@@ -181,7 +181,7 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
             globalDefs.remove(fullName)
             globalDefs.update(
               fullName,
-              LinkingDefState.Linked(SIRLinkedBinding(fullName, Recursivity.Rec, nSir))
+              LinkingDefState.Linked(SIRLinkedBinding(fullName, SIR.LetFlags.Recursivity, nSir))
             )
         found.isDefined
     }
@@ -254,7 +254,7 @@ object SIRLinker {
 
     class SIRLinkedBinding(
         val name: String,
-        val recursivity: Recursivity,
+        val flags: SIR.LetFlags,
         val body: SIR
     )
 

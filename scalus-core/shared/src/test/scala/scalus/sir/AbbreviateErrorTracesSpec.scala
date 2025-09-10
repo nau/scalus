@@ -18,7 +18,6 @@ class AbbreviateErrorTracesSpec extends AnyFunSuite {
     test("handle multiple error messages with same abbreviation base") {
         val transformer = new AbbreviateErrorTraces
         val input = SIR.Let(
-          Recursivity.NonRec,
           List(
             Binding(
               "err1",
@@ -37,6 +36,7 @@ class AbbreviateErrorTracesSpec extends AnyFunSuite {
             )
           ),
           SIR.Error("Final validation", emptyAnns),
+          SIR.LetFlags.None,
           emptyAnns
         )
 
@@ -44,7 +44,7 @@ class AbbreviateErrorTracesSpec extends AnyFunSuite {
         val abbrevMap = transformer.getAbbreviationMap
 
         transformed match
-            case SIR.Let(_, bindings, body, _) =>
+            case SIR.Let(bindings, body, _, _) =>
                 assert(bindings(0).value == SIR.Error("FV", emptyAnns))
                 assert(bindings(1).value == SIR.Error("FV1", emptyAnns))
                 assert(bindings(2).value == SIR.Error("FV2", emptyAnns))
@@ -64,7 +64,6 @@ class AbbreviateErrorTracesSpec extends AnyFunSuite {
     test("reuse same abbreviation for duplicate messages") {
         val transformer = new AbbreviateErrorTraces
         val input = SIR.Let(
-          Recursivity.NonRec,
           List(
             Binding(
               "err1",
@@ -78,13 +77,14 @@ class AbbreviateErrorTracesSpec extends AnyFunSuite {
             )
           ),
           SIR.Var("x", SIRType.Integer, emptyAnns),
+          SIR.LetFlags.None,
           emptyAnns
         )
 
         val transformed = transformer.transformSIR(input)
 
         transformed match
-            case SIR.Let(_, bindings, _, _) =>
+            case SIR.Let(bindings, _, _, _) =>
                 val err1 = bindings(0).value.asInstanceOf[SIR.Error].msg
                 val err2 = bindings(1).value.asInstanceOf[SIR.Error].msg
                 assert(err1 == err2)
@@ -98,11 +98,11 @@ class AbbreviateErrorTracesSpec extends AnyFunSuite {
         val input = SIR.IfThenElse(
           cond = SIR.Error("Failed condition", emptyAnns),
           t = SIR.Let(
-            Recursivity.NonRec,
             List(
               Binding("x", SIRType.TypeNothing, SIR.Error("First branch", emptyAnns))
             ),
             SIR.Error("First branch", emptyAnns), // Duplicate message
+            SIR.LetFlags.None,
             emptyAnns
           ),
           f = SIR.Error("Failed branch", emptyAnns),
@@ -118,7 +118,7 @@ class AbbreviateErrorTracesSpec extends AnyFunSuite {
                 assert(cond == SIR.Error("FC", emptyAnns))
 
                 t match
-                    case SIR.Let(_, bindings, body, _) =>
+                    case SIR.Let(bindings, body, _, _) =>
                         assert(bindings(0).value == SIR.Error("FB", emptyAnns))
                         assert(
                           body == SIR.Error("FB", emptyAnns)
