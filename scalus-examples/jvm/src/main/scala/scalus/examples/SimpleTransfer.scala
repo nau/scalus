@@ -27,13 +27,14 @@ object SimpleTransfer extends Validator {
       tx.outputs.filter(_.address.credential === cred)
     )
 
-    private def outputsAda(outputs: List[TxOut]): Lovelace = {
-        outputs.map(_.value.getLovelace).foldLeft(BigInt(0))(_ + _)
-    }
+    private def countAda[T](a: List[T])(f: T => Lovelace): Lovelace =
+        a.map(f).foldLeft(BigInt(0))(_ + _)
 
-    private def inputsAda(inputs: List[TxInInfo]): Lovelace = {
-        inputs.map(_.resolved.value.getLovelace).foldLeft(BigInt(0))(_ + _)
-    }
+    private def outputsAda(outputs: List[TxOut]): Lovelace =
+        countAda(outputs)(_.value.getLovelace)
+
+    private def inputsAda(inputs: List[TxInInfo]): Lovelace =
+        countAda(inputs)(_.resolved.value.getLovelace)
 
     override def spend(
         datum: Option[Data],
@@ -58,6 +59,7 @@ object SimpleTransfer extends Validator {
 
         redeemer.to[Redeemer] match {
             case Redeemer.Deposit(deposit) =>
+                require(deposit >= 0, "Negative amount")
                 require(tx.signatories.contains(owner), "Deposit must be signed by owner")
                 require(!ownerOutputs.isEmpty, "Deposit must have owner outputs")
                 require(
@@ -66,6 +68,7 @@ object SimpleTransfer extends Validator {
                 )
 
             case Redeemer.Withdraw(withdraw) =>
+                require(withdraw >= 0, "Negative amount")
                 require(tx.signatories.contains(recipient), "Withdraw must be signed by recipient")
                 require(balance >= withdraw, "Withdraw exceeds balance")
                 require(!recipientOutputs.isEmpty, "Withdraw must have recipient outputs")
