@@ -55,12 +55,12 @@ object SimpleTransfer extends Validator {
                 // eliminate double satisfaction by ensuring exactly one contract input and one output
                 require(contractInputs.size == BigInt(1), "Contract output missing")
                 require(contractOutputs.size == BigInt(1), "Contract output missing")
+                val contractOutput = contractOutputs.head
                 require(
-                  outputsValue(contractOutputs) === balance + amount,
+                  contractOutput.value === balance + amount,
                   "Contract has received incorrect amount"
                 )
                 val expectedDatum = OutputDatum.OutputDatum(datum.get)
-                val contractOutput = contractOutputs.head
                 require(contractOutput.datum === expectedDatum, "Output datum changed")
             case Action.Withdraw(withdraw) =>
                 require(tx.signatories.contains(recipient), "Withdraw must be signed by recipient")
@@ -71,12 +71,12 @@ object SimpleTransfer extends Validator {
                 else if (balance - withdraw).isPositive then
                     // eliminate double satisfaction by ensuring exactly one contract input and one output
                     require(contractOutputs.size == BigInt(1), "Contract output missing")
+                    val contractOutput = contractOutputs.head
                     require(
-                      outputsValue(contractOutputs) === balance - withdraw,
+                      contractOutput.value === balance - withdraw,
                       "Contract balance is incorrect"
                     )
                     val expectedDatum = OutputDatum.OutputDatum(datum.get)
-                    val contractOutput = contractOutputs.head
                     require(contractOutput.datum === expectedDatum, "Output datum changed")
                 else fail("Withdraw exceeds balance")
     }
