@@ -1,6 +1,6 @@
 package scalus.bloxbean
 
-import io.bullet.borer.Cbor
+import scalus.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.Data
 import scalus.utils.Hex.toHex
@@ -128,7 +128,7 @@ class ScriptDataHashGeneratorTest extends AnyFunSuite {
         )
 
         // Serialize to CBOR and convert to hex
-        Cbor.encode(transaction).toByteArray.toHex
+        Cbor.encode(transaction).toHex
     }
 
     test("Make transaction") {
