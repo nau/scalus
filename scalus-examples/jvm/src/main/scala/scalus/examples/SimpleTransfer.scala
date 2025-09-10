@@ -19,8 +19,8 @@ object SimpleTransfer extends Validator {
           FromData
 
     enum Action derives ToData, FromData {
-        case Deposit(amount: Lovelace)
-        case Withdraw(amount: Lovelace)
+        case Deposit(amount: Value)
+        case Withdraw(amount: Value)
     }
 
     private def lookupTx(tx: TxInfo, cred: Credential): (List[TxInInfo], List[TxOut]) = (
@@ -28,13 +28,14 @@ object SimpleTransfer extends Validator {
       tx.outputs.filter(_.address.credential === cred)
     )
 
-    private def outputsAda(outputs: List[TxOut]): Lovelace = {
-        outputs.map(_.value.getLovelace).foldLeft(BigInt(0))(_ + _)
-    }
+    private def countValue[T](a: List[T])(f: T => Value): Value =
+        a.map(f).foldLeft(Value.zero)(_ + _)
 
-    private def inputsAda(inputs: List[TxInInfo]): Lovelace = {
-        inputs.map(_.resolved.value.getLovelace).foldLeft(BigInt(0))(_ + _)
-    }
+    private def outputsAda(outputs: List[TxOut]): Value =
+        countValue(outputs)(_.value)
+
+    private def inputsAda(inputs: List[TxInInfo]): Value =
+        countValue(inputs)(_.resolved.value)
 
     override def spend(
         datum: Option[Data],
@@ -42,10 +43,10 @@ object SimpleTransfer extends Validator {
         tx: TxInfo,
         ownRef: TxOutRef
     ): Unit = {
-        val contract = tx.findOwnInput(ownRef).get.resolved
-        val balance = contract.value.getLovelace
-        val (contractInputs, contractOutputs) = lookupTx(tx, contract.address.credential)
         val Config(owner, recipient) = datum.get.to[Config]
+        val contract = tx.findOwnInput(ownRef).get.resolved
+        val (contractInputs, contractOutputs) = lookupTx(tx, contract.address.credential)
+        val balance = contract.value
 
         val action = redeemer.to[Action]
         action match
@@ -64,7 +65,10 @@ object SimpleTransfer extends Validator {
             case Action.Withdraw(withdraw) =>
                 require(tx.signatories.contains(recipient), "Withdraw must be signed by recipient")
                 require(contractInputs.size == BigInt(1), "Contract output missing")
-                if withdraw < balance then
+                if withdraw === balance then
+                    // if withdrawing all, there should be no contract output
+                    require(contractOutputs.isEmpty, "Contract output not empty")
+                else if withdraw.getLovelace < balance.getLovelace then
                     // eliminate double satisfaction by ensuring exactly one contract input and one output
                     require(contractOutputs.size == BigInt(1), "Contract output missing")
                     require(
@@ -74,9 +78,6 @@ object SimpleTransfer extends Validator {
                     val expectedDatum = OutputDatum.OutputDatum(datum.get)
                     val contractOutput = contractOutputs.head
                     require(contractOutput.datum === expectedDatum, "Output datum changed")
-                else if withdraw == balance then
-                    // if withdrawing all, there should be no contract output
-                    require(contractOutputs.isEmpty, "Contract output not empty")
                 else fail("Withdraw exceeds balance")
     }
 }

@@ -31,14 +31,14 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
 
     private val datum = SimpleTransfer.Config(PubKeyHash(owner), PubKeyHash(receiver)).toData
     private val outputDatum = OutputDatum.OutputDatum(datum)
-    private def deposit(amount: Lovelace) = SimpleTransfer.Action.Deposit(amount).toData
-    private def withdraw(amount: Lovelace) = SimpleTransfer.Action.Withdraw(amount).toData
+    private def deposit(amount: Value) = SimpleTransfer.Action.Deposit(amount).toData
+    private def withdraw(amount: Value) = SimpleTransfer.Action.Withdraw(amount).toData
 
     test("deposit") {
         val ctx =
             context(
-              0,
-              deposit(1000),
+              Value.lovelace(0),
+              deposit(Value.lovelace(1000)),
               List(PubKeyHash(owner)),
               List(makePubKeyHashInput(owner, BigInt(1000))),
               List(
@@ -52,8 +52,8 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
 
     test("withdraw") {
         val ctx = context(
-          1000,
-          withdraw(500),
+          Value.lovelace(1000),
+          withdraw(Value.lovelace(500)),
           List(PubKeyHash(receiver)),
           outputs = List(
             makePubKeyHashOutput(receiver, BigInt(500 - fee)),
@@ -65,7 +65,7 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
     }
 
     private def context(
-        balance: Lovelace = 500,
+        balance: Value,
         redeemer: Data,
         signatories: List[PubKeyHash] = List.Nil,
         inputs: List[TxInInfo] = List.Nil,
@@ -79,7 +79,7 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
                   Credential.ScriptCredential(contract),
                   Option.None
                 ),
-                value = Value.lovelace(balance)
+                value = balance
               )
             )
         ScriptContext(
