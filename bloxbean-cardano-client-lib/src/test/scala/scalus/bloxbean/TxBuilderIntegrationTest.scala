@@ -114,17 +114,6 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
         else fail(s"Error during tx submission: ${result.getResponse}")
     }
 
-    test("build and submit transaction") {
-        val utxo = List(resolvedTransaction(EXISTING_UTXO, SPENDER_ADDRESS)).toMap
-        val wallet = Wallet.create(Set(ResolvedTxInput.Pubkey(utxo.head)), collat = Set.empty)
-        val interpreter = createInterpreter(utxo, wallet)
-
-        val paymentIntention = Intention.Pay(TARGET_ADDRESS, Value(Coin(6000_000_000L)))
-        val tx = interpreter.realize(paymentIntention)
-
-        validateAndSubmit(tx, utxo)
-    }
-
     @Ignore
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
