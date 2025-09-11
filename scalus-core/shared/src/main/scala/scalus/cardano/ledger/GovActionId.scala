@@ -3,6 +3,8 @@ package scalus.cardano.ledger
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.*
 
+import scala.math.Ordered.orderingToOrdered
+
 /** Represents a governance action identifier in the Cardano blockchain.
   *
   * A governance action ID consists of a transaction ID and an index, which uniquely identifies a
@@ -25,10 +27,9 @@ case class GovActionId(
 }
 
 object GovActionId {
-    // fixme: this is not the best way to compare GovActionId, but it works
     given Ordering[GovActionId] with
         def compare(x: GovActionId, y: GovActionId): Int =
-            x.transactionId.toHex.compareTo(y.transactionId.toHex) match
+            x.transactionId.compareTo(y.transactionId) match
                 case 0 => x.govActionIndex.compareTo(y.govActionIndex)
                 case c => c
 }
