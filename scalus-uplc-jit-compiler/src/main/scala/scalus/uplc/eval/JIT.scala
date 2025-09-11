@@ -105,7 +105,11 @@ object JIT {
                       }
                     ).asExprOf[Any]
                     '{
-                        $budget.spendBudget(Step(StepKind.LamAbs), $params.machineCosts.varCost, Nil)
+                        $budget.spendBudget(
+                          Step(StepKind.LamAbs),
+                          $params.machineCosts.varCost,
+                          Nil
+                        )
                         $lambda
                     }
                 case Term.Apply(f, arg) =>
