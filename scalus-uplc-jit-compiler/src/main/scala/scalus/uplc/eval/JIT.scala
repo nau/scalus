@@ -1,9 +1,10 @@
 package scalus.uplc.eval
 
-import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element, Builtins, ByteString, Data}
+import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element, BLS12_381_MlResult, Builtins, ByteString, Data}
 import scalus.uplc.{Constant, DefaultFun, Term}
 import scalus.*
 import scalus.uplc.eval.ExBudgetCategory.{Startup, Step}
+
 import scala.quoted.*
 
 /** Just-In-Time compiler for UPLC (Untyped Plutus Core) terms.
@@ -60,7 +61,7 @@ object JIT {
                 '{ BLS12_381_G1_Element(${ Expr(value.toCompressedByteString) }) }
             case Constant.BLS12_381_G2_Element(value) =>
                 '{ BLS12_381_G2_Element(${ Expr(value.toCompressedByteString) }) }
-            case Constant.BLS12_381_MlResult(value) => ???
+            case Constant.BLS12_381_MlResult(value) => sys.error("MlResult cannot be a constant")
     }
 
     enum FunType:
@@ -104,7 +105,7 @@ object JIT {
                       }
                     ).asExprOf[Any]
                     '{
-                        $budget.spendBudget(Step(StepKind.Var), $params.machineCosts.varCost, Nil)
+                        $budget.spendBudget(Step(StepKind.LamAbs), $params.machineCosts.varCost, Nil)
                         $lambda
                     }
                 case Term.Apply(f, arg) =>
