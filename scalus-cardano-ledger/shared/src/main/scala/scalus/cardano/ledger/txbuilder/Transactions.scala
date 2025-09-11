@@ -8,6 +8,7 @@ import scalus.cardano.ledger.Script.{Native, PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger.txbuilder.Intention.Stake
 import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, MinTransactionFee, TxBalance}
 import scalus.ledger.babbage.ProtocolParams
+import scalus.|>
 
 import scala.annotation.tailrec
 import scala.collection.immutable.{SortedMap, SortedSet, TreeSet}
@@ -625,13 +626,13 @@ def balancingLoop(
         val a = ensurePaymentOutputExists(i)(tx)
         val b = ensureChangeOutputExists(changeReturnStrategy, w.utxo, protocolParams)(a)
         val c = ceilOuts(protocolParams)(b)
-        val d = runScripts(w.utxo, evaluator, protocolParams)(c)
+        val d = computeScriptsWitness(w.utxo, evaluator, protocolParams)(c)
         val e = setMinFee(w, protocolParams)(d)
         // 1) Set the current diff as change
         // 2) Calculate the fee, then use it to (re)-calculate the change
         // 3) check again: if we overshot, we just scratch the change, and re-do the thing
         //                 if we undershot, just re-loop, and let the next iteration handle it
-        val diff = calculateChangeValue(e, w.utxo, protocolParams)
+        val diff = calculateChangeLovelace(e, w.utxo, protocolParams)
         if diff == 0 then {
             e
         } else if diff > 0 then {
@@ -652,15 +653,61 @@ def balancingLoop(
     loop(wallet, setMinFee(wallet, protocolParams)(initial))
 }
 
-def calculateChangeValue(tx: Transaction, utxo: UTxO, params: ProtocolParams) = {
+def balanceChange(
+    initial: Transaction,
+    changeOutputIdx: Int,
+    protocolParams: ProtocolParams,
+    resolvedUtxo: UTxO,
+    evaluator: PlutusScriptEvaluator,
+): Transaction = {
+    val numOutputs = initial.body.value.outputs.size
+    require(
+      changeOutputIdx < numOutputs,
+      s"Change output index $changeOutputIdx is out of bounds for outputs of size $numOutputs"
+    )
+    var iteration = 0
+    @tailrec def loop(tx: Transaction): Transaction = {
+        if iteration > 20 then
+            throw new RuntimeException(
+              s"Failed to balance transaction after $iteration iterations"
+            )
+        iteration += 1
+        val a = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
+        val fee = MinTransactionFee(a, resolvedUtxo, protocolParams).toTry.get
+        val b = setFee(fee)(a)
+        val diff = calculateChangeLovelace(b, resolvedUtxo, protocolParams)
+        if diff == 0 then b
+        else if diff > 0 then
+            val out = b.body.value.outputs(changeOutputIdx)
+            val newValue = out.value.value + Value.lovelace(diff)
+            val changeOut = Sized(out.value.withValue(newValue))
+            val t = modifyBody(
+              b,
+              body => body.copy(outputs = body.outputs.updated(changeOutputIdx, changeOut))
+            )
+            loop(t)
+        else throw new RuntimeException(s"Transaction cannot be balanced: not enough funds: $diff")
+    }
+    loop(initial)
+}
+
+def calculateChangeLovelace(tx: Transaction, utxo: UTxO, params: ProtocolParams): Long = {
     val produced = TxBalance.produced(tx)
     val consumed = TxBalance.consumed(tx, CertState.empty, utxo, params).toTry.get
     consumed.coin.value - produced.coin.value
 }
 
-def runScripts(utxo: UTxO, evaluator: PlutusScriptEvaluator, protocolParams: ProtocolParams)(
-    tx: Transaction
-) = {
+def calculateChangeValue(tx: Transaction, utxo: UTxO, params: ProtocolParams): Value = {
+    val produced = TxBalance.produced(tx)
+    val consumed = TxBalance.consumed(tx, CertState.empty, utxo, params).toTry.get
+    consumed - produced
+}
+
+def computeScriptsWitness(
+    utxo: UTxO,
+    evaluator: PlutusScriptEvaluator,
+    protocolParams: ProtocolParams
+)(tx: Transaction): Transaction = {
     val redeemers = evaluator.evalPlutusScripts(tx, utxo)
     if redeemers.isEmpty then {
         tx
@@ -691,7 +738,7 @@ def ensureChangeOutputExists(
     utxo: UTxO,
     protocolParams: ProtocolParams
 )(tx: Transaction) = {
-    val amount = calculateChangeValue(tx, utxo, protocolParams)
+    val amount = calculateChangeLovelace(tx, utxo, protocolParams)
     val outs =
         if amount < 0 then changeReturnStrategy.minifyChange(tx.body.value, protocolParams)
         else changeReturnStrategy.returnChange(amount, tx.body.value, utxo)
@@ -745,14 +792,14 @@ def outputOfAmountOrMin(
     val output = TransactionOutput(address, Value.lovelace(lovelace), datumOption)
     val minAmount = MinCoinSizedTransactionOutput(Sized(output), protocolParams)
     if lovelace < minAmount.value then {
-        output.setValue(Value(minAmount))
+        output.withValue(Value(minAmount))
     } else {
-        output.setValue(Value.lovelace(lovelace))
+        output.withValue(Value.lovelace(lovelace))
     }
 }
 
 extension (t: TransactionOutput) {
-    def setValue(amount: Value) = t match {
+    def withValue(amount: Value): TransactionOutput = t match {
         case shelley: TransactionOutput.Shelley =>
             shelley.copy(value = amount)
         case babbage: TransactionOutput.Babbage =>
