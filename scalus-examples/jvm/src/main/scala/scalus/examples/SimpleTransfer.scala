@@ -52,6 +52,7 @@ object SimpleTransfer extends Validator {
         redeemer.to[Action] match
             case Action.Deposit(amount) =>
                 require(tx.signatories.contains(owner), "Deposit must be signed by owner")
+                require(amount.isPositive, "Negative amount")
                 // eliminate double satisfaction by ensuring exactly one contract own input and one own output
                 require(
                   contractOutputs.size == BigInt(1),
@@ -66,6 +67,7 @@ object SimpleTransfer extends Validator {
                 require(contractOutput.datum === expectedDatum, "Output datum changed")
             case Action.Withdraw(withdraw) =>
                 require(tx.signatories.contains(recipient), "Withdraw must be signed by recipient")
+                require(withdraw.isPositive, "Negative amount")
                 if withdraw === balance then
                     // if withdrawing all, there should be no contract output
                     require(contractOutputs.isEmpty, "Contract own output is not empty")
