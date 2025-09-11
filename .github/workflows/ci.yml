@@ -33,3 +33,4 @@ jobs:
           username: "GitHub Actions"
           avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
           nodetail: true
+          notimestamp: true
