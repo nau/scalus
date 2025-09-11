@@ -208,6 +208,7 @@ object TransactionException {
           s"Too many collateral inputs for transactionId $transactionId. Expected at most: $expected, actual: $supplied"
         )
 
+    // It's Alonzo.PPViewHashesDontMatch in cardano-ledger
     final case class InvalidScriptDataHashException(
         transactionId: TransactionHash,
         actual: Option[ScriptDataHash],
