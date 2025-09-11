@@ -1,7 +1,7 @@
 package scalus.cardano.ledger.txbuilder
 
 import scalus.builtin.{platform, ByteString, Data}
-import scalus.cardano.address.{Address, Network}
+import scalus.cardano.address.{Address, Network, ShelleyPaymentPart}
 import scalus.cardano.ledger
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{Native, PlutusV1, PlutusV2, PlutusV3}
@@ -9,6 +9,7 @@ import scalus.cardano.ledger.txbuilder.Intention.Stake
 import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, MinTransactionFee, TxBalance}
 import scalus.ledger.babbage.ProtocolParams
 
+import scala.annotation.tailrec
 import scala.collection.immutable.{SortedMap, SortedSet, TreeSet}
 import scala.util.Random
 
@@ -618,6 +619,7 @@ def balancingLoop(
     val i @ Intention.Pay(targetAddress, value, datum) = intention
 
     var iteration = -1
+    @tailrec
     def loop(w: Wallet, tx: Transaction): Transaction = {
         iteration += 1
         val a = ensurePaymentOutputExists(i)(tx)
@@ -761,3 +763,101 @@ def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody): Transact
     val newBody = f(tx.body.value)
     tx.copy(body = KeepRaw(newBody))
 }
+
+/*
+class TransactionRequirements {}
+
+object BlahBuilder {
+
+    def mktx(): Unit = {
+
+        case class Account(wallet: Wallet)
+        enum FeePayer {
+            case Input(idx: Int)
+            case Account
+            case Address // ??
+        }
+        enum Change {
+            case OutputIndex // simple case, create this output
+            case Output // simple case, create this output
+            case Account // merge with same account output
+        }
+
+        case class InputDesc(
+            input: TransactionInput,
+            output: TransactionOutput, // Script + Datum + Redeemer + output certain order,
+            // Native script: multisig
+            // PubkeyHash (produce signature)
+        ) {
+            def howToSpendOutput(): Unit = ???
+        }
+
+        case class PayTo(
+            party: Party,
+            assets: Value,
+            datumOption: Option[DatumOption] = None,
+            minAdaPayer: () => Party
+        )
+
+        enum Party {
+            case Address(address: Address)
+            case Script(address: ShelleyPaymentPart.Script, datum: Data)
+            case Select(strategy: () => TransactionInput) // side effect
+            case Utxo(input: TransactionInput)
+            case Wallet(address: Address)
+        }
+
+        PayTo(Alice, 100000)
+        PayTo(Bob, 200000)
+        Pay(from = Alice, to = Bob, 10000)
+        Mint(Asset, Bob)
+        WithdrawRewards(Alice, 500000, destination = Bob)
+        WithdrawRewards(Alice, 500000, destination = Change)
+
+        val inputs = ??? // intentions SpendFrom
+        val outputs = ??? // intentions of PayTo
+        val changeOutput = ??? // change
+        val utxo = resolveInputs(inputs)
+        val withdrawals = Map(RewardAccount => Party)
+        val certificates = ??? // intentions Stake
+        val mint = Map(Asset => OutputDesc)
+        while notBalanced do
+            ensureOutputsHaveMinAda(outputs, params)
+            if changeOutput.lovelace < minAda then {
+                val inputs = feePayerWallet.selectUtxosToCover(minAda - changeOutput.lovelace)
+                updateInputs(inputs)
+            }
+            val fee = calculateFee(tx, params)
+            balanceTx()
+            if scripts then
+                val exunits = evaluateScripts(tx, utxo, params)
+                // always PubKeyHash
+                collateralInputs = selectCollateralInputs(exunits, params) // Collateral Party
+                collateralReturn = ???
+
+            balanceTx()
+            addSignatures() // add dummy signatures first
+            balanceTx()
+            // allow for script redeemers to be modified
+            // for example to add input indexes to redeemers
+//            callbackScripts(tx => tx)
+            balanceTx()
+
+        signTx()
+        // assert num signatures == num dummy signatures
+    }
+
+}
+ */
+/*
+ * ## Levels
+ * ### Low Level:
+     - Transaction building helpers:
+            mkTransactionOutput(address, value, datumOption)
+ * ### High Level:
+    - Intentions
+
+    Intentions interpreter (Tx3) => TransactionRequirements
+    Semigroup[TransactionRequirements]
+    TransactionRequirements(params) => Transaction
+ */
