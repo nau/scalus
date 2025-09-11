@@ -1,14 +1,13 @@
 package scalus.cardano.ledger.txbuilder
 
 import scalus.builtin.{platform, ByteString, Data}
-import scalus.cardano.address.{Address, Network, ShelleyPaymentPart}
+import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{Native, PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger.txbuilder.Intention.Stake
 import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, MinTransactionFee, TxBalance}
 import scalus.ledger.babbage.ProtocolParams
-import scalus.|>
 
 import scala.annotation.tailrec
 import scala.collection.immutable.{SortedMap, SortedSet, TreeSet}
@@ -653,6 +652,34 @@ def balancingLoop(
     loop(wallet, setMinFee(wallet, protocolParams)(initial))
 }
 
+/** Balances a transaction by adjusting the change output to accommodate fees and script costs.
+  *
+  * This function iteratively balances a transaction by:
+  *   1. Computing script witnesses and their execution costs
+  *   2. Calculating the required minimum transaction fee
+  *   3. Determining the change value (difference between consumed and produced values)
+  *   4. Adjusting the designated change output if more funds are needed
+  *
+  * The process continues until the transaction is perfectly balanced (change value is zero) or
+  * fails if insufficient funds are available.
+  *
+  * @param initial
+  *   The initial transaction to balance
+  * @param changeOutputIdx
+  *   The index of the output that should receive any change (must be valid)
+  * @param protocolParams
+  *   Protocol parameters containing fee and execution unit pricing
+  * @param resolvedUtxo
+  *   UTxO set used to resolve input references for script execution
+  * @param evaluator
+  *   Plutus script evaluator for computing execution costs
+  * @return
+  *   The balanced transaction with updated fees and change output
+  * @throws RuntimeException
+  *   if the transaction cannot be balanced after 20 iterations or if there are insufficient funds
+  * @throws IllegalArgumentException
+  *   if changeOutputIdx is out of bounds
+  */
 def balanceChange(
     initial: Transaction,
     changeOutputIdx: Int,
@@ -675,11 +702,11 @@ def balanceChange(
         val a = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
         val fee = MinTransactionFee(a, resolvedUtxo, protocolParams).toTry.get
         val b = setFee(fee)(a)
-        val diff = calculateChangeLovelace(b, resolvedUtxo, protocolParams)
-        if diff == 0 then b
-        else if diff > 0 then
+        val diff = calculateChangeValue(b, resolvedUtxo, protocolParams)
+        if diff.isZero then b
+        else if diff.isPositive then
             val out = b.body.value.outputs(changeOutputIdx)
-            val newValue = out.value.value + Value.lovelace(diff)
+            val newValue = out.value.value + diff
             val changeOut = Sized(out.value.withValue(newValue))
             val t = modifyBody(
               b,
