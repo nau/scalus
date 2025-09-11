@@ -47,6 +47,38 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
         assert(res.isSuccess, res.logs)
     }
 
+    test("deposit wrong signed") {
+        val ctx =
+            context(
+              Value.lovelace(0),
+              deposit(Value.lovelace(1000)),
+              List(PubKeyHash(receiver)),
+              List(makePubKeyHashInput(owner, BigInt(1000))),
+              List(
+                makeScriptHashOutput(contract, BigInt(1000), outputDatum)
+              ),
+            )
+        val res = sir.runScript(ctx)
+        assert(!res.isSuccess, res.logs)
+    }
+
+    test("deposit negative") {
+        val ctx =
+            context(
+              Value.lovelace(1000),
+              deposit(Value.lovelace(-1000)),
+              List(PubKeyHash(owner)),
+              List(makePubKeyHashInput(owner, BigInt(1))),
+              List(
+                makeScriptHashOutput(contract, BigInt(1), outputDatum),
+                makePubKeyHashOutput(owner, BigInt(1000), outputDatum)
+              ),
+            )
+        val res = sir.runScript(ctx)
+        assert(!res.isSuccess, res.logs)
+        assert(res.logs.find(_.contains("Negative amount")).isDefined, res.logs)
+    }
+
     test("withdraw") {
         val ctx = context(
           Value.lovelace(1000),
@@ -59,6 +91,20 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
         )
         val res = sir.runScript(ctx)
         assert(res.isSuccess, res.logs)
+    }
+
+    test("withdraw wrong signed") {
+        val ctx = context(
+          Value.lovelace(1000),
+          withdraw(Value.lovelace(500)),
+          List(PubKeyHash(owner)),
+          outputs = List(
+            makePubKeyHashOutput(owner, BigInt(500 - fee)),
+            makeScriptHashOutput(contract, BigInt(500), outputDatum)
+          ),
+        )
+        val res = sir.runScript(ctx)
+        assert(!res.isSuccess, res.logs)
     }
 
     test("withdraw all") {
@@ -85,6 +131,22 @@ class SimpleTransferTest extends AnyFunSuite with ScalusTest {
         )
         val res = sir.runScript(ctx)
         assert(!res.isSuccess, res.logs)
+    }
+
+    test("withdraw negative") {
+        val ctx =
+            context(
+              Value.lovelace(1000),
+              withdraw(Value.lovelace(-1000)),
+              List(PubKeyHash(receiver)),
+              List(),
+              List(
+                makeScriptHashOutput(contract, BigInt(2000), outputDatum),
+              ),
+            )
+        val res = sir.runScript(ctx)
+        assert(!res.isSuccess, res.logs)
+        assert(res.logs.find(_.contains("Negative amount")).isDefined, res.logs)
     }
 
     private def context(
