@@ -6,11 +6,10 @@ import scalus.cardano.ledger
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{Native, PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger.txbuilder.Intention.Stake
-import scalus.cardano.ledger.utils.TxBalance.modifyBody
-import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, TxBalance}
+import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, MinTransactionFee, TxBalance}
 import scalus.ledger.babbage.ProtocolParams
 
-import scala.collection.immutable.SortedMap
+import scala.collection.immutable.{SortedMap, SortedSet, TreeSet}
 import scala.util.Random
 
 /*
@@ -28,7 +27,6 @@ enum Intention {
     case Pay(address: Address, value: Value, data: Option[DatumOption] = None)
     case Mint(value: ledger.Mint, scriptInfo: MintIntention, targetAddress: Address)
     case WithdrawRewards(withdrawals: SortedMap[RewardAccount, Coin])
-
     case Stake(credential: Credential, poolKeyHash: PoolKeyHash)
 }
 
@@ -42,8 +40,7 @@ trait Interpreter {
 }
 
 case class InterpreterWithProvidedData(
-    inputSelector: InputSelector,
-    utxo: UTxO,
+    wallet: Wallet,
     environment: Environment,
     changeReturnStrategy: ChangeReturnStrategy,
     feePayerStrategy: FeePayerStrategy,
@@ -52,17 +49,19 @@ case class InterpreterWithProvidedData(
 
     override def realize(i: Intention): Transaction = {
         val initialBody = TransactionBody(
-          inputs = TaggedOrderedSet.from(inputSelector.inputs.view.map(_.utxo._1)),
-          outputs = IndexedSeq.empty,
-          fee = Coin.zero,
-          collateralInputs =
-              TaggedOrderedSet.from(inputSelector.collateralInputs.view.map(_.utxo._1))
+          TaggedOrderedSet.empty,
+          IndexedSeq.empty,
+          Coin.zero,
+          collateralInputs = TaggedOrderedSet.from(wallet.collateralInputs.view.map(_.utxo._1))
         )
         val body = i match {
             case Intention.Pay(address, value, data) =>
+                val (input, newWallet) = wallet.getInput(value.coin)
                 initialBody.copy(
+                  inputs = TaggedOrderedSet(input.input),
                   outputs = IndexedSeq(Sized(TransactionOutput(address, value, data)))
                 )
+
             case Intention.Mint(mintValue, scriptInfo, targetAddress) =>
                 val tempOutput = TransactionOutput(
                   targetAddress,
@@ -97,19 +96,16 @@ case class InterpreterWithProvidedData(
         }
         val ws = makeWs(i, body)
         val tx = Transaction(body, ws)
-        val redeemers = evaluator.evalPlutusScripts(tx, utxo)
-        val postEvalTx =
-            tx.copy(witnessSet = tx.witnessSet.copy(redeemers = if redeemers.isEmpty then {
-                None
-            } else Some(KeepRaw(Redeemers.from(redeemers)))))
-        val withMinsCeiled = ceilOuts(postEvalTx, environment.protocolParams)
-        TxBalance.doBalance2(withMinsCeiled)(
-          utxo,
+        val balanced = balancingLoop(
           environment.protocolParams,
-          changeReturnStrategy,
-          feePayerStrategy
+          i,
+          tx,
+          wallet,
+          evaluator,
+          feePayerStrategy,
+          changeReturnStrategy
         )
-
+        balanced
     }
 
     private def makeWs(intention: Intention, body: TransactionBody) = {
@@ -125,10 +121,10 @@ case class InterpreterWithProvidedData(
             case stake: Intention.Stake =>
                 assembleWsForStaking(stake, body)
         }
-        val inputSignees = inputSelector.inputs.collect { case pubkey: ResolvedTxInput.Pubkey =>
+        val inputSignees = wallet.inputs.collect { case pubkey: ResolvedTxInput.Pubkey =>
             pubkey.output.address
         }
-        val collateralInputSignees = inputSelector.collateralInputs.collect {
+        val collateralInputSignees = wallet.collateralInputs.collect {
             case pubkey: ResolvedTxInput.Pubkey => pubkey.output.address
         }
         val inputSigneesCount = (inputSignees ++ collateralInputSignees).size
@@ -139,8 +135,8 @@ case class InterpreterWithProvidedData(
 
     // Looks up the script-protected inputs and initializes the witness set with redeemers with respective indices.
     private def assembleWsForPayments = {
-        inputSelector.inputs.toSeq
-            .sortBy(_.utxo._1)
+        wallet.inputs.toSeq
+            .sortBy(_.input)
             .zipWithIndex
             .foldLeft(ScriptsWs()) {
                 case (
@@ -232,7 +228,7 @@ case class InterpreterWithProvidedData(
             .foldLeft(ScriptsWs()) { case (ws, (rewardAccount, index)) =>
                 rewardAccount.scriptHashOption match {
                     case Some(scriptHash) =>
-                        inputSelector.inputs
+                        wallet.inputs
                             .collectFirst {
                                 case ResolvedTxInput.Script(_, script, redeemer, _)
                                     if script.scriptHash == scriptHash =>
@@ -283,7 +279,7 @@ case class InterpreterWithProvidedData(
             .foldLeft(ScriptsWs()) { case (ws, (certificate, index)) =>
                 certificate.scriptHashOption match {
                     case Some(scriptHash) =>
-                        inputSelector.inputs
+                        wallet.inputs
                             .collectFirst {
                                 case ResolvedTxInput.Script(_, script, redeemer, _)
                                     if script.scriptHash == scriptHash =>
@@ -473,7 +469,8 @@ extension (r: ResolvedTxInput) {
 case class Environment(
     protocolParams: ProtocolParams,
     evaluator: PlutusScriptEvaluator,
-    network: Network
+    network: Network,
+    era: Era = Era.Conway,
 )
 
 trait InputSelector {
@@ -493,24 +490,51 @@ object InputSelector {
 
 trait ChangeReturnStrategy {
     def returnChange(
-        changeAmount: Coin,
+        lovelace: Long,
         body: TransactionBody,
         utxo: UTxO
     ): IndexedSeq[TransactionOutput]
-}
 
+    def minifyChange(
+        body: TransactionBody,
+        protocolParams: ProtocolParams
+    ): IndexedSeq[TransactionOutput]
+}
 object ChangeReturnStrategy {
-    def toAddress(address: Address): ChangeReturnStrategy =
-        (changeAmount: Coin, body: TransactionBody, utxo: UTxO) =>
+    def toAddress(address: Address): ChangeReturnStrategy = new ChangeReturnStrategy {
+        override def returnChange(
+            lovelace: Long,
+            body: TransactionBody,
+            utxo: UTxO
+        ): IndexedSeq[TransactionOutput] = {
             val outputs = body.outputs.map(_.value)
             if !outputs.exists(_.address == address) then {
-                TransactionOutput(address, Value(changeAmount)) +: outputs
+                TransactionOutput(address, Value.lovelace(lovelace)) +: outputs
             } else {
                 outputs.map {
-                    case x if x.address == address => x + changeAmount
+                    case x if x.address == address => x + Coin(lovelace)
                     case x                         => x
                 }
             }
+        }
+
+        override def minifyChange(
+            body: TransactionBody,
+            protocolParams: ProtocolParams
+        ): IndexedSeq[TransactionOutput] = {
+            val outputs = body.outputs.map(_.value)
+            if !outputs.exists(_.address == address) then {
+                outputs :+ outputOfAmountOrMin(0, address, protocolParams = protocolParams)
+            } else {
+                outputs.map {
+                    case x if x.address == address =>
+                        outputOfAmountOrMin(0, address, protocolParams = protocolParams)
+                    case x => x
+                }
+            }
+        }
+    }
+
 }
 
 trait FeePayerStrategy {
@@ -519,7 +543,6 @@ trait FeePayerStrategy {
         outputs: IndexedSeq[TransactionOutput]
     ): IndexedSeq[TransactionOutput]
 }
-
 object FeePayerStrategy {
     def subtractFromFirstOutput: FeePayerStrategy =
         (feeAmount: Coin, outputs: IndexedSeq[TransactionOutput]) =>
@@ -551,4 +574,190 @@ extension (output: TransactionOutput) {
             case babbage: TransactionOutput.Babbage => babbage.copy(value = newValue)
         }
     }
+}
+
+trait Wallet {
+    def getInput(targetValue: Coin): (ResolvedTxInput, Wallet)
+    def utxo: UTxO
+    def inputs: Set[ResolvedTxInput]
+    def collateralInputs: Set[ResolvedTxInput]
+}
+object Wallet {
+    def create(paymentInputs: Set[ResolvedTxInput], collat: Set[ResolvedTxInput]): Wallet =
+        new Wallet { self =>
+            override def getInput(
+                targetValue: Coin
+            ): (ResolvedTxInput, Wallet) = {
+                val resolvedTxInput = paymentInputs.toList
+                    .sortBy(resolved => resolved.output.value.coin.value)
+                    .collectFirst {
+                        case resolved if resolved.output.value.coin >= targetValue => resolved
+                    }
+                    .get
+                (resolvedTxInput, self)
+            }
+
+            override def utxo: UTxO =
+                (paymentInputs ++ collat).groupBy(_.input).mapValues(x => x.head.output).toMap
+
+            override def inputs: Set[ResolvedTxInput] = paymentInputs
+
+            override def collateralInputs: Set[ResolvedTxInput] = collat
+        }
+}
+
+def balancingLoop(
+    protocolParams: ProtocolParams,
+    intention: Intention,
+    initial: Transaction,
+    wallet: Wallet,
+    evaluator: PlutusScriptEvaluator,
+    feePayerStrategy: FeePayerStrategy,
+    changeReturnStrategy: ChangeReturnStrategy
+) = {
+    val i @ Intention.Pay(targetAddress, value, datum) = intention
+
+    var iteration = -1
+    def loop(w: Wallet, tx: Transaction): Transaction = {
+        iteration += 1
+        val a = ensurePaymentOutputExists(i)(tx)
+        val b = ensureChangeOutputExists(changeReturnStrategy, w.utxo, protocolParams)(a)
+        val c = ceilOuts(protocolParams)(b)
+        val d = runScripts(w.utxo, evaluator, protocolParams)(c)
+        val e = setMinFee(w, protocolParams)(d)
+        // 1) Set the current diff as change
+        // 2) Calculate the fee, then use it to (re)-calculate the change
+        // 3) check again: if we overshot, we just scratch the change, and re-do the thing
+        //                 if we undershot, just re-loop, and let the next iteration handle it
+        val diff = calculateChangeValue(e, w.utxo, protocolParams)
+        if diff == 0 then {
+            e
+        } else if diff > 0 then {
+            loop(w, e)
+        } else {
+            val f = modifyBody(
+              e,
+              body =>
+                  body.copy(outputs =
+                      changeReturnStrategy
+                          .minifyChange(d.body.value, protocolParams)
+                          .map(Sized.apply)
+                  )
+            )
+            loop(w, f)
+        }
+    }
+    loop(wallet, setMinFee(wallet, protocolParams)(initial))
+}
+
+def calculateChangeValue(tx: Transaction, utxo: UTxO, params: ProtocolParams) = {
+    val produced = TxBalance.produced(tx)
+    val consumed = TxBalance.consumed(tx, CertState.empty, utxo, params).toTry.get
+    consumed.coin.value - produced.coin.value
+}
+
+def runScripts(utxo: UTxO, evaluator: PlutusScriptEvaluator, protocolParams: ProtocolParams)(
+    tx: Transaction
+) = {
+    val redeemers = evaluator.evalPlutusScripts(tx, utxo)
+    if redeemers.isEmpty then {
+        tx
+    } else {
+        val rawRedeemers = KeepRaw(Redeemers.from(redeemers))
+        val usedModels = ScriptDataHashGenerator.getUsedCostModels(
+          protocolParams,
+          tx.witnessSet,
+          TreeSet.empty[Language]
+        )
+        val scriptDataHash: Hash[Blake2b_256, HashPurpose.ScriptDataHash] =
+            ScriptDataHashGenerator.computeScriptDataHash(
+              Era.Conway,
+              Some(rawRedeemers),
+              tx.witnessSet.plutusData,
+              usedModels
+            )
+
+        tx.copy(
+          body = KeepRaw(tx.body.value.copy(scriptDataHash = Some(scriptDataHash))),
+          witnessSet = tx.witnessSet.copy(redeemers = Some(rawRedeemers)),
+        )
+    }
+}
+
+def ensureChangeOutputExists(
+    changeReturnStrategy: ChangeReturnStrategy,
+    utxo: UTxO,
+    protocolParams: ProtocolParams
+)(tx: Transaction) = {
+    val amount = calculateChangeValue(tx, utxo, protocolParams)
+    val outs =
+        if amount < 0 then changeReturnStrategy.minifyChange(tx.body.value, protocolParams)
+        else changeReturnStrategy.returnChange(amount, tx.body.value, utxo)
+    modifyBody(tx, _.copy(outputs = outs.map(Sized.apply)))
+}
+
+def ensurePaymentOutputExists(i: Intention.Pay)(tx: Transaction) = {
+    val exists = tx.body.value.outputs.exists(out =>
+        out.value.address == i.address && out.value.value == i.value
+    )
+    if exists then tx
+    else
+        modifyBody(
+          tx,
+          _.copy(outputs =
+              tx.body.value.outputs :+ Sized(TransactionOutput(i.address, i.value, i.data))
+          )
+        )
+
+}
+
+def ceilOuts(protocolParams: ProtocolParams)(tx: Transaction): Transaction = {
+    def ceilOut(sizedOut: Sized[TransactionOutput]): Sized[TransactionOutput] = {
+        val out = sizedOut.value
+        val min = MinCoinSizedTransactionOutput(sizedOut, protocolParams)
+        if out.value.coin < min then {
+            out match {
+                case shelley @ TransactionOutput.Shelley(_, value, _) =>
+                    Sized(shelley.copy(value = value.copy(coin = min)))
+                case babbage @ TransactionOutput.Babbage(_, value, _, _) =>
+                    Sized(babbage.copy(value = value.copy(coin = min)))
+            }
+        } else Sized(out)
+    }
+
+    modifyBody(tx, b => b.copy(outputs = b.outputs.map(ceilOut)))
+}
+
+def setFee(amount: Coin)(tx: Transaction) = modifyBody(tx, _.copy(fee = amount))
+def setMinFee(wallet: Wallet, protocolParams: ProtocolParams)(tx: Transaction) = {
+    val min = MinTransactionFee(tx, wallet.utxo, protocolParams).toTry.get
+    setFee(min)(tx)
+}
+
+def outputOfAmountOrMin(
+    lovelace: Long,
+    address: Address,
+    datumOption: Option[DatumOption] = None,
+    protocolParams: ProtocolParams
+) = {
+    val output = TransactionOutput(address, Value.lovelace(lovelace), datumOption)
+    val minAmount = MinCoinSizedTransactionOutput(Sized(output), protocolParams)
+    if lovelace < minAmount.value then {
+        output.setValue(Value(minAmount))
+    } else {
+        output.setValue(Value.lovelace(lovelace))
+    }
+}
+
+extension (t: TransactionOutput) {
+    def setValue(amount: Value) = t match {
+        case shelley: TransactionOutput.Shelley =>
+            shelley.copy(value = amount)
+        case babbage: TransactionOutput.Babbage =>
+            babbage.copy(value = amount)
+    }
+}
+def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody): Transaction = {
+    val newBody = f(tx.body.value)
+    tx.copy(body = KeepRaw(newBody))
 }

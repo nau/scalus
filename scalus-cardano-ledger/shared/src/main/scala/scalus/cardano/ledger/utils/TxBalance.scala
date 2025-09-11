@@ -156,19 +156,22 @@ object TxBalance {
 
             diffLong match {
                 case d if d > 0L =>
-                    val diff = Coin(d)
                     val tempTx = modifyBody(
                       currentTx,
                       _.copy(outputs =
                           changeReturnStrategy
-                              .returnChange(diff, currentTx.body.value, utxo)
+                              .returnChange(diffLong, currentTx.body.value, utxo)
                               .map(Sized(_))
                       )
                     )
                     val correctFee = MinTransactionFee(tempTx, utxo, protocolParams).toTry.get
-                    val changeWithFee = diff + correctFee
+                    val changeWithFee = Coin(diffLong) + correctFee
                     val newOuts =
-                        changeReturnStrategy.returnChange(changeWithFee, currentTx.body.value, utxo)
+                        changeReturnStrategy.returnChange(
+                          changeWithFee.value,
+                          currentTx.body.value,
+                          utxo
+                        )
                     val newTx = modifyBody(currentTx, _.copy(outputs = newOuts.map(Sized(_))))
                     val outputsAfterAppliedFee = feePayerStrategy(correctFee, newOuts)
                     val newTxWithFee = modifyBody(

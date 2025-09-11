@@ -2,37 +2,26 @@ package scalus.bloxbean
 
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.Compiler
-import scalus.builtin.{ByteString, Data, FromData}
+import scalus.Ignore
+import scalus.builtin.Data
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.rules.{CardanoMutator, Context, State, UtxoEnv}
 import scalus.cardano.ledger.txbuilder.*
+import scalus.cardano.ledger.txbuilder.Intention.Pay
 import scalus.cardano.ledger.txbuilder.ResolvedTxInput.Pubkey
-import scalus.cardano.onchain.OnchainError
-import scalus.ledger.api.v2.ScriptContext
-import scalus.ledger.api.{MajorProtocolVersion, Timelock}
+import scalus.ledger.api
+import scalus.ledger.api.MajorProtocolVersion
+import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
+import scalus.ledger.api.v3.ScriptContext
 import scalus.ledger.babbage.ProtocolParams
-import scalus.uplc.eval.ExBudget
-import scalus.toUplc
-import scalus.plutusV3
+import scalus.prelude.{orFail, SortedMap}
 import scalus.uplc.Program
-
-import scala.collection.immutable.SortedMap
-
-def resolvedTransaction(txHash: String, address: Address) = {
-    TransactionInput(
-      TransactionHash.fromHex(txHash),
-      0
-    ) -> TransactionOutput(address, Value.lovelace(10_000_000_000L))
-}
+import scalus.uplc.eval.ExBudget
 
 /*
  * Expects yaci dev kit (with store) to exist. Relies on values that ` yaci-devkit up --enable-yaci-store` has on chain by default.
  * Heavy WIP, but tx passes.
- *
- * Todo:
- *  make prettier
  */
 class TxBuilderIntegrationTest extends AnyFunSuite {
 
@@ -40,16 +29,25 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
     private val SPENDER_ADDRESS = Address.fromBech32(
       "addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex"
     )
-    private val SPENDER_PAYMENT_KEY =
-        "ed25519e_sk1sqr5ymxr5377q2tww7qzj8wdf9uwsx530p6txpfktvdsjvh2t3dk3q27c7gkel6anmfy4a2g6txy0f4mquwmj3pppvy3046006ulussa20jpu"
-    private val TARGET_ADDRESS =
-        Address.fromBech32(
-          "addr_test1qpqy3lufef8c3en9nrnzp2svwy5vy9zangvp46dy4qw23clgfxhn3pqv243d6wptud7fuaj5tjqer7wc7m036gx0emsqaqa8te"
-        )
-
+    private val TARGET_ADDRESS = Address.fromBech32(
+      "addr_test1qpqy3lufef8c3en9nrnzp2svwy5vy9zangvp46dy4qw23clgfxhn3pqv243d6wptud7fuaj5tjqer7wc7m036gx0emsqaqa8te"
+    )
     private val MNEMONIC =
         "test test test test test test test test test test test test test test test test test test test test test test test sauce"
     private val DERIVATION = "m/1852'/1815'/0'/0/0"
+
+    private lazy val params = fetchProtocolParams()
+    private lazy val environment = createEnvironment()
+
+    def resolvedTransaction(
+        txHash: String,
+        address: Address,
+        index: Int = 0,
+        lovelace: Long = 10_000_000_000L
+    ) = {
+        TransactionInput(TransactionHash.fromHex(txHash), index) ->
+            TransactionOutput(address, Value.lovelace(lovelace))
+    }
 
     def fetchProtocolParams(): ProtocolParams = {
         import upickle.default.*
@@ -70,19 +68,9 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
         } else {
             throw new Exception(response.body())
         }
-
     }
 
-    def submitTransactionToCardano(cborBytes: Array[Byte]) = {
-        val backendService = new BFBackendService("http://localhost:10000/local-cluster/api/", "")
-
-        val result = backendService.getTransactionService.submitTransaction(cborBytes)
-        assert(result.isSuccessful)
-    }
-
-    test("build and submit transaction") {
-        pending
-        val params = fetchProtocolParams()
+    def createEnvironment(): Environment = {
         val costModels = CostModels.fromProtocolParams(params)
         val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
@@ -90,76 +78,93 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
           protocolMajorVersion = MajorProtocolVersion.plominPV,
           costModels = costModels
         )
+        Environment(protocolParams = params, evaluator = evaluator, network = Network.Testnet)
+    }
 
-        val environment = Environment(
-          protocolParams = params,
-          evaluator = evaluator,
-          network = Network.Testnet
-        )
-
-        val utxo = List(resolvedTransaction(EXISTING_UTXO, SPENDER_ADDRESS)).toMap
-
-        val inputSelector = InputSelector(
-          Set(ResolvedTxInput.Pubkey(utxo.head)),
-          collateral = Set.empty
-        )
-
-        val changeReturnStrategy = ChangeReturnStrategy.toAddress(SPENDER_ADDRESS)
-        val feePayerStrategy = FeePayerStrategy.subtractFromAddress(SPENDER_ADDRESS)
-
-        val interpreter = InterpreterWithProvidedData(
-          inputSelector = inputSelector,
-          utxo = utxo,
+    def createInterpreter(
+        utxo: UTxO,
+        wallet: Wallet,
+        changeStrategy: ChangeReturnStrategy = ChangeReturnStrategy.toAddress(SPENDER_ADDRESS),
+        feeStrategy: FeePayerStrategy = FeePayerStrategy.subtractFromAddress(SPENDER_ADDRESS)
+    ): InterpreterWithProvidedData = {
+        InterpreterWithProvidedData(
+          wallet = wallet,
           environment = environment,
-          changeReturnStrategy = changeReturnStrategy,
-          feePayerStrategy = feePayerStrategy,
+          changeReturnStrategy = changeStrategy,
+          feePayerStrategy = feeStrategy,
           evaluator = environment.evaluator
         )
+    }
 
-        val paymentIntention = Intention.Pay(
-          address = TARGET_ADDRESS,
-          value = Value(Coin(2_000_000L))
-        )
-
-        val tx = interpreter.realize(paymentIntention)
-        val signed = makeSignerFrom(DERIVATION, MNEMONIC)
-            .signTx(tx)
-
-        val cborBytes = signed.toCbor
-        val scalusLedgerRulesVerificationResult = CardanoMutator(
+    def validateAndSubmit(unsigned: Transaction, utxo: UTxO): Unit = {
+        val signed = makeSignerFrom(DERIVATION, MNEMONIC).signTx(unsigned)
+        val validationResult = CardanoMutator(
           Context(signed.body.value.fee, UtxoEnv(0L, params, CertState.empty)),
           State(utxo, CertState.empty),
           signed
         )
-        assert(scalusLedgerRulesVerificationResult.isRight)
-        submitTransactionToCardano(cborBytes)
+
+        submitTransactionToCardano(signed.toCbor)
     }
 
+    def submitTransactionToCardano(cborBytes: Array[Byte]) = {
+        val backendService = new BFBackendService("http://localhost:10000/local-cluster/api/", "")
+        val result = backendService.getTransactionService.submitTransaction(cborBytes)
+        if result.isSuccessful then succeed
+        else fail(s"Error during tx submission: ${result.getResponse}")
+    }
+
+    test("build and submit transaction") {
+        val utxo = List(resolvedTransaction(EXISTING_UTXO, SPENDER_ADDRESS)).toMap
+        val wallet = Wallet.create(Set(ResolvedTxInput.Pubkey(utxo.head)), collat = Set.empty)
+        val interpreter = createInterpreter(utxo, wallet)
+
+        val paymentIntention = Intention.Pay(TARGET_ADDRESS, Value(Coin(6000_000_000L)))
+        val tx = interpreter.realize(paymentIntention)
+
+        validateAndSubmit(tx, utxo)
+    }
+
+    @Ignore
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+    )
+
+    /** Refactor: 1) Transfer change from the previous test to the script. 2) Send the outputs from
+      * the script back to the SPENDER
+      */
     test("build and submit transactions that spend script inputs") {
         pending
-        val validator: Program = Compiler
+        import scalus.*
+        val luckyPaymentsOnly: Program = Compiler
             .compile((scriptContext: Data) => {
+                def digitSum(bigInt: BigInt) = {
+                    def loop(acc: BigInt, left: BigInt): BigInt = {
+                        if left < 10 then {
+                            acc + left
+                        } else {
+                            val mod = left % 10
+                            loop(acc + mod, left / 10)
+                        }
+                    }
+                    loop(BigInt(0), bigInt)
+
+                }
                 val context = scriptContext.to[ScriptContext]
-                throw new OnchainError("haha")
+
+                val outs: SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]] =
+                    context.txInfo.outputs.last.value.toSortedMap
+                val l = outs.toList
+                val amount = outs.toList.head._2.toList.head._2
+                val isLucky = digitSum(amount) % 7 == BigInt(0)
+                isLucky.orFail("Lucky payments only.")
             })
-            .toUplc(generateErrorTraces = true, debug = true)
+            .toUplc()
             .plutusV3
 
-        val params = fetchProtocolParams()
-        val costModels = CostModels.fromProtocolParams(params)
-        val evaluator = PlutusScriptEvaluator(
-          SlotConfig.Mainnet,
-          initialBudget = ExBudget.enormous,
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
-          costModels = costModels
-        )
-        val environment = Environment(
-          protocolParams = params,
-          evaluator = evaluator,
-          network = Network.Testnet
-        )
-
-        val script = Script.PlutusV3(validator.cborByteString)
+        val script = Script.PlutusV3(luckyPaymentsOnly.cborByteString)
 
         val scriptAddress = ShelleyAddress(
           Network.Testnet,
@@ -167,48 +172,49 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
           ShelleyDelegationPart.Null
         )
 
-        val changeUtxo = TransactionInput(
-          TransactionHash.fromHex(
-            "07d181fe781e5e323dcb78c75f58d5af06f1151463a30dadb2c004bc31ba7208"
-          ),
-          0
-        ) -> TransactionOutput(SPENDER_ADDRESS, Value.lovelace(9997832739L))
-        val scriptUtxo = TransactionInput(
-          TransactionHash.fromHex(
-            "7c3e43cf506af24ec53d06f6b93dbb7a21ec84f8df465b80be66779f24e95581"
-          ),
-          0
-        ) -> TransactionOutput(scriptAddress, Value.lovelace(2000000L), None)
-
-        val interpreter = InterpreterWithProvidedData(
-          InputSelector(
-            paymentInputs = Set(ResolvedTxInput.Script(scriptUtxo, script, Data.unit)),
-            collateral = Set(Pubkey(changeUtxo))
-          ),
-          Map(scriptUtxo, changeUtxo),
-          environment,
-          ChangeReturnStrategy.toAddress(TARGET_ADDRESS),
-          FeePayerStrategy.subtractFromFirstOutput,
-          evaluator
-        )
-
-        val tx = interpreter
-            .realize(
-              Intention.Pay(
-                Address.fromBech32(
-                  "addr_test1qpqy3lufef8c3en9nrnzp2svwy5vy9zangvp46dy4qw23clgfxhn3pqv243d6wptud7fuaj5tjqer7wc7m036gx0emsqaqa8te"
-                ),
-                Value.lovelace(1000000)
-              )
+        def transferToScript = {
+            val input = resolvedTransaction(EXISTING_UTXO, SPENDER_ADDRESS)
+            val interpreter = createInterpreter(
+              Map(input),
+              Wallet.create(Set(ResolvedTxInput.Pubkey(input)), Set.empty)
+            )
+            val tx = interpreter.realize(Pay(scriptAddress, Value.lovelace(8_000_000_000L)))
+            validateAndSubmit(tx, interpreter.wallet.utxo)
+        }
+        def transferFromScriptBackToSpender = {
+            val collateral = resolvedTransaction(
+              "77184f2a29ce22f4ab2e3c813c7400213dd69143b067fefe29af497bcb44b38d",
+              SPENDER_ADDRESS,
+              index = 0,
+              1_999_832_389L
+            )
+            val input = resolvedTransaction(
+              "77184f2a29ce22f4ab2e3c813c7400213dd69143b067fefe29af497bcb44b38d",
+              scriptAddress,
+              index = 1,
+              8_000_000_000L
             )
 
-        println(
-          CardanoMutator(
-            Context(tx.body.value.fee, UtxoEnv(0L, params, CertState.empty)),
-            State(Map(scriptUtxo, changeUtxo), CertState.empty),
-            tx
-          )
-        )
+            val interpreter = createInterpreter(
+              Map(input, collateral),
+              Wallet.create(
+                paymentInputs = Set(ResolvedTxInput.Script(input, script, Data.unit)),
+                collat = Set(Pubkey(collateral))
+              ),
+              changeStrategy = ChangeReturnStrategy.toAddress(scriptAddress),
+              feeStrategy = FeePayerStrategy.subtractFromAddress(scriptAddress)
+            )
+            val tx = interpreter.realize(Pay(SPENDER_ADDRESS, Value.lovelace(5_000_000_036L)))
+
+            validateAndSubmit(tx, interpreter.wallet.utxo)
+        }
+
+        println("Transferring to script...")
+        transferToScript
+        println("Success!")
+        println("Transferring from script...")
+        transferFromScriptBackToSpender
+        println("Success!")
     }
 
 //    test("build and submit plutus script minting transaction") {
