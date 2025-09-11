@@ -15,11 +15,10 @@ class JITTest extends AnyFunSuiteLike {
             ((i: BigInt) => if i > 0 then throw new Exception("Not implemented") else i + 1)(2)
         .toUplc(true)
 
-        println(uplc.showHighlighted)
-        println(uplc.evaluateDebug)
+        assert(uplc.evaluateDebug.isFailure)
         val logger = Log()
         val r = Try(JIT.jitUplc(uplc)(logger, NoBudgetSpender, summon[PlutusVM].machineParams))
-        println(r)
-        println(logger.getLogs.mkString)
+        assert(r.isFailure)
+        assert(logger.getLogs.mkString == "Not implemented")
     }
 }

@@ -1,22 +1,26 @@
 package scalus.uplc.eval
 
-import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element, BLS12_381_MlResult, Builtins, ByteString, Data, PlatformSpecific, given}
-import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.TermDSL.given
+import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element, Builtins, ByteString, Data}
 import scalus.uplc.{Constant, DefaultFun, Term}
 import scalus.*
-import scalus.Compiler.compile
-import scalus.sir.SIR
-import scalus.uplc.Constant.toValue
 import scalus.uplc.eval.ExBudgetCategory.{Startup, Step}
-import scalus.utils.Utils.lowerFirst
-
 import scala.quoted.*
 
+/** Just-In-Time compiler for UPLC (Untyped Plutus Core) terms.
+  *
+  * This object provides functionality to compile UPLC terms into optimized JVM bytecode at runtime
+  * using Scala 3's staging capabilities. The JIT compilation can significantly improve execution
+  * performance for repeatedly evaluated UPLC programs by eliminating the interpretation overhead.
+  *
+  * The JIT compiler transforms UPLC terms into native Scala functions that can be executed directly
+  * on the JVM, while maintaining compatibility with the Plutus VM evaluation semantics including
+  * budget tracking and logging.
+  *
+  * @note
+  *   This is an experimental feature that requires scala3-staging and scala3-compiler dependencies.
+  */
 object JIT {
     private given staging.Compiler = staging.Compiler.make(getClass.getClassLoader)
-
-    private val ps: PlatformSpecific = scalus.builtin.JVMPlatformSpecific
 
     private given ByteStringToExpr: ToExpr[ByteString] with {
         def apply(x: ByteString)(using Quotes): Expr[ByteString] =
@@ -66,7 +70,7 @@ object JIT {
     private def genCodeFromTerm(
         term: Term
     )(using Quotes): Expr[(Logger, BudgetSpender, MachineParams) => Any] = {
-        import quotes.reflect.{Lambda, MethodType, Symbol, ValDef, TypeRepr, asTerm, Ref, Select, Flags}
+        import quotes.reflect.{Lambda, MethodType, Symbol, TypeRepr, asTerm}
 
         def genCode(
             term: Term,
@@ -88,14 +92,20 @@ object JIT {
                     val lambda = Lambda(
                       Symbol.spliceOwner,
                       mtpe,
-                      { case (methSym, List(arg1: quotes.reflect.Term)) =>
-                          genCode(term, (name -> arg1) :: env, logger, budget, params).asTerm
+                      { case (methSym, args) =>
+                          genCode(
+                            term,
+                            (name -> args.head.asInstanceOf[quotes.reflect.Term]) :: env,
+                            logger,
+                            budget,
+                            params
+                          ).asTerm
                               .changeOwner(methSym)
                       }
-                    ).asExprOf[Any => Any]
+                    ).asExprOf[Any]
                     '{
                         $budget.spendBudget(Step(StepKind.Var), $params.machineCosts.varCost, Nil)
-                        FunType.Lam($lambda)
+                        $lambda
                     }
                 case Term.Apply(f, arg) =>
                     val func = genCode(f, env, logger, budget, params)
@@ -106,9 +116,7 @@ object JIT {
                           $params.machineCosts.applyCost,
                           Nil
                         )
-                        ${ func }.asInstanceOf[FunType] match
-                            case FunType.Lam(f)     => f.apply($a)
-                            case FunType.Builtin(f) => f.apply($a)
+                        ${ func }.asInstanceOf[Any => Any].apply($a)
                     }
                 case Term.Force(term) =>
                     val expr = genCode(term, env, logger, budget, params)
@@ -164,6 +172,7 @@ object JIT {
                 case Term.Builtin(DefaultFun.UnListData)   => '{ Builtins.unListData }
                 case Term.Builtin(DefaultFun.UnIData)      => '{ Builtins.unIData }
                 case Term.Builtin(DefaultFun.UnBData)      => '{ Builtins.unBData }
+                case Term.Builtin(bi)                      => sys.error(s"Unsupported builtin $bi")
                 case Term.Error => '{ throw new RuntimeException("Error") }
                 case Term.Constr(tag, args) =>
                     val expr = Expr.ofTuple(
@@ -203,6 +212,35 @@ object JIT {
         }
     }
 
+    /** Compiles a UPLC term into an optimized JVM function using JIT compilation.
+      *
+      * This method takes a UPLC term and generates optimized JVM bytecode that can be executed
+      * directly without interpretation overhead. The resulting function maintains full
+      * compatibility with Plutus VM semantics including proper budget tracking, logging, and error
+      * handling.
+      *
+      * @param term
+      *   The UPLC term to compile
+      * @return
+      *   A function that takes a Logger, BudgetSpender, and MachineParams and returns the
+      *   evaluation result. The function signature is:
+      *   `(Logger, BudgetSpender, MachineParams) => Any`
+      *
+      * @example
+      *   {{{
+      * val term: Term = ... // some UPLC term
+      * val jittedFunction = JIT.jitUplc(term)
+      * val result = jittedFunction(logger, budgetSpender, machineParams)
+      *   }}}
+      *
+      * @note
+      *   The compilation happens at runtime and may take some time for complex terms. The compiled
+      *   function can then be cached and reused for better performance when evaluating the same
+      *   term multiple times.
+      *
+      * @throws RuntimeException
+      *   if the term contains unsupported constructs or if compilation fails
+      */
     def jitUplc(term: Term): (Logger, BudgetSpender, MachineParams) => Any = staging.run {
         (quotes: Quotes) ?=>
             val expr = genCodeFromTerm(term)

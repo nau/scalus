@@ -67,6 +67,7 @@ lazy val root: Project = project
       scalus.js,
       scalus.jvm,
       scalus.native,
+      scalusUplcJitCompiler,
       scalusCardanoLedger.jvm,
       scalusCardanoLedger.js,
       scalusTestkit.js,
@@ -90,6 +91,7 @@ lazy val jvm: Project = project
       scalusPlugin,
       scalus.jvm,
       scalusPluginTests,
+      scalusUplcJitCompiler,
       scalusCardanoLedger.jvm,
       scalusTestkit.jvm,
       scalusExamples.jvm,
@@ -212,7 +214,6 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalaVersion := scalaVersion.value,
       scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
-      scalacOptions += "-Xcheck-macros",
       // scalacOptions += "-Yretain-trees",
       mimaPreviousArtifacts := Set(organization.value %%% name.value % scalusCompatibleVersion),
 
@@ -248,8 +249,6 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       Test / javaOptions += "-Djava.library.path=",
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       Test / testOptions += Tests.Argument("-oF"),
-      libraryDependencies += "org.scala-lang" %% "scala3-staging" % scalaVersion.value,
-      libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value, // % "provided"
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "provided",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.81",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
@@ -284,6 +283,23 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
               .withMode(Mode.releaseFast)
               .withGC(GC.immix)
       }
+    )
+
+// Scalus UPLC JIT Compiler - experimental JIT compiler for UPLC
+lazy val scalusUplcJitCompiler = project
+    .in(file("scalus-uplc-jit-compiler"))
+    .dependsOn(scalus.jvm)
+    .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
+    .settings(
+      name := "scalus-uplc-jit-compiler",
+      scalaVersion := scalaVersion.value,
+      scalacOptions ++= commonScalacOptions,
+      Test / fork := true,
+      libraryDependencies += "org.scala-lang" %% "scala3-staging" % scalaVersion.value,
+      libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
+      libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.19" % "test",
+      inConfig(Test)(PluginDependency),
+      publish / skip := true
     )
 
 def copyFiles(files: Seq[String], baseDir: File, targetDir: File, log: ManagedLogger): Unit = {
@@ -446,7 +462,7 @@ lazy val docs = project // documentation project
 // Benchmarks for Cardano Plutus VM Evaluator
 lazy val bench = project
     .in(file("bench"))
-    .dependsOn(scalus.jvm)
+    .dependsOn(scalus.jvm, scalusUplcJitCompiler)
     .enablePlugins(JmhPlugin)
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
