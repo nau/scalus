@@ -1,6 +1,6 @@
 package scalus.uplc.eval
 
-import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element, BLS12_381_MlResult, Builtins, ByteString, Data}
+import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element, Builtins, ByteString, Data}
 import scalus.uplc.{Constant, DefaultFun, Term}
 import scalus.*
 import scalus.uplc.eval.ExBudgetCategory.{Startup, Step}
@@ -61,7 +61,8 @@ object JIT {
                 '{ BLS12_381_G1_Element(${ Expr(value.toCompressedByteString) }) }
             case Constant.BLS12_381_G2_Element(value) =>
                 '{ BLS12_381_G2_Element(${ Expr(value.toCompressedByteString) }) }
-            case Constant.BLS12_381_MlResult(value) => sys.error("MlResult cannot be a constant")
+            case Constant.BLS12_381_MlResult(value) =>
+                sys.error("BLS12_381_MlResult values cannot be serialized as constants in UPLC")
     }
 
     enum FunType:
@@ -177,8 +178,11 @@ object JIT {
                 case Term.Builtin(DefaultFun.UnListData)   => '{ Builtins.unListData }
                 case Term.Builtin(DefaultFun.UnIData)      => '{ Builtins.unIData }
                 case Term.Builtin(DefaultFun.UnBData)      => '{ Builtins.unBData }
-                case Term.Builtin(bi)                      => sys.error(s"Unsupported builtin $bi")
-                case Term.Error => '{ throw new RuntimeException("Error") }
+                case Term.Builtin(bi) =>
+                    sys.error(
+                      s"Builtin $bi is not yet supported by the JIT compiler. Please add implementation in the Builtin pattern matching section."
+                    )
+                case Term.Error => '{ throw new RuntimeException("UPLC Error term evaluated") }
                 case Term.Constr(tag, args) =>
                     val expr = Expr.ofTuple(
                       Expr(tag) -> Expr.ofList(
@@ -249,7 +253,6 @@ object JIT {
     def jitUplc(term: Term): (Logger, BudgetSpender, MachineParams) => Any = staging.run {
         (quotes: Quotes) ?=>
             val expr = genCodeFromTerm(term)
-//        println(expr.show)
             expr
     }
 }
