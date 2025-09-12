@@ -4,12 +4,15 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.rules.{Context, State, ValueNotConservedUTxOValidator}
+import scalus.cardano.ledger.txbuilder.LowLevelTxBuilder.ChangeOutputDiffHandler
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
 import upickle.default.read
 
 import scala.collection.immutable.SortedSet
+import scala.util.{Failure, Success, Try}
 
 class LowLevelTxBuilderTest extends AnyFunSuite {
 
@@ -23,12 +26,60 @@ class LowLevelTxBuilderTest extends AnyFunSuite {
       costModels = CostModels.fromProtocolParams(params)
     )
 
-    test("testBalanceFeeChange") {
-        val (utxo, tx) =
-            mkTx(in = Coin(2000_000), output = Coin(200), fee = Coin(1_000000))
+    enum Expected {
+        case Success(outputLovelace: Long, fee: Long)
+        case Failure(reason: String)
+    }
 
-        val r = LowLevelTxBuilder.balanceFeeChange(tx, 0, params, utxo, evaluator)
-        pprint.pprintln(r)
+    test("should fail when insufficient funds would require change output below minimum ADA") {
+        check(
+          in = 1_000_000,
+          output = 800_000,
+          fee = 200_000,
+          expected = Expected.Failure("min ada")
+        )
+    }
+
+    test("should add change to output when excess funds are available") {
+        check(
+          in = 1_500_000,
+          output = 1_000_000,
+          fee = 200_000,
+          expected = Expected.Success(outputLovelace = 1_300_000, fee = 200_000)
+        )
+    }
+
+    private def check(
+        in: Long,
+        output: Long,
+        fee: Long,
+        expected: Expected
+    ) = {
+        val (utxo, tx) = mkTx(Coin(in), Coin(output), Coin(fee))
+
+        val handler = ChangeOutputDiffHandler(params, 0)
+        val r = Try(
+          LowLevelTxBuilder.balanceFeeAndChange(
+            tx,
+            handler.changeOutputDiffHandler,
+            params,
+            utxo,
+            evaluator
+          )
+        )
+        (r, expected) match
+            case (Success(value), Expected.Success(expectedValue, expectedFee)) =>
+                assert(
+                  ValueNotConservedUTxOValidator.validate(Context(), State(utxo), value).isRight
+                )
+                val body = value.body.value
+                assert(body.fee.value == expectedFee)
+                assert(body.outputs(0).value.value.coin.value == expectedValue)
+            case (Failure(err), Expected.Failure(reason)) =>
+                assert(err.getMessage.contains(reason))
+            case _ =>
+                fail(s"Unexpected result: $r")
+
     }
 
     private def mkTx(in: Coin, output: Coin, fee: Coin) = {

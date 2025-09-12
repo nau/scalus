@@ -666,12 +666,7 @@ def calculateChangeValue(tx: Transaction, utxo: UTxO, params: ProtocolParams): V
     consumed - produced
 }
 
-def computeScriptsWitness(
-    utxo: UTxO,
-    evaluator: PlutusScriptEvaluator,
-    protocolParams: ProtocolParams
-)(tx: Transaction): Transaction = {
-    val redeemers = evaluator.evalPlutusScripts(tx, utxo)
+def setupRedeemers(protocolParams: ProtocolParams, tx: Transaction, redeemers: Seq[Redeemer]) = {
     if redeemers.isEmpty then {
         tx
     } else {
@@ -694,6 +689,14 @@ def computeScriptsWitness(
           witnessSet = tx.witnessSet.copy(redeemers = Some(rawRedeemers)),
         )
     }
+}
+def computeScriptsWitness(
+    utxo: UTxO,
+    evaluator: PlutusScriptEvaluator,
+    protocolParams: ProtocolParams
+)(tx: Transaction): Transaction = {
+    val redeemers = evaluator.evalPlutusScripts(tx, utxo)
+    setupRedeemers(protocolParams, tx, redeemers)
 }
 
 def ensureChangeOutputExists(
@@ -875,147 +878,92 @@ object BlahBuilder {
  */
 
 object LowLevelTxBuilder {
+    class ChangeOutputDiffHandler(protocolParams: ProtocolParams, changeOutputIdx: Int) {
+        def changeOutputDiffHandler(diffValue: Value, tx: Transaction): Transaction = {
+            val numOutputs = tx.body.value.outputs.size
+            require(
+              changeOutputIdx < numOutputs,
+              s"Change output index $changeOutputIdx is out of bounds for outputs of size $numOutputs"
+            )
+            val changeOut = tx.body.value.outputs(changeOutputIdx)
+            val changeLovelace = changeOut.value.value.coin.value
 
-    /** Balances a transaction by adjusting the change output to accommodate fees and script costs.
-      *
-      * This function iteratively balances a transaction by:
-      *   1. Computing script witnesses and their execution costs
-      *   2. Calculating the required minimum transaction fee
-      *   3. Determining the change value (difference between consumed and produced values)
-      *   4. Adjusting the designated change output if more funds are needed
-      *
-      * The process continues until the transaction is perfectly balanced (change value is zero) or
-      * fails if insufficient funds are available.
-      *
-      * @param initial
-      *   The initial transaction to balance
-      * @param changeOutputIdx
-      *   The index of the output that should receive any change (must be valid)
-      * @param protocolParams
-      *   Protocol parameters containing fee and execution unit pricing
-      * @param resolvedUtxo
-      *   UTxO set used to resolve input references for script execution
-      * @param evaluator
-      *   Plutus script evaluator for computing execution costs
-      * @return
-      *   The balanced transaction with updated fees and change output
-      * @throws RuntimeException
-      *   if the transaction cannot be balanced after 20 iterations or if there are insufficient
-      *   funds
-      * @throws IllegalArgumentException
-      *   if changeOutputIdx is out of bounds
-      */
-    def balanceChange(
-        initial: Transaction,
-        changeOutputIdx: Int,
-        protocolParams: ProtocolParams,
-        resolvedUtxo: UTxO,
-        evaluator: PlutusScriptEvaluator,
-    ): Transaction = {
-        val numOutputs = initial.body.value.outputs.size
-        require(
-          changeOutputIdx < numOutputs,
-          s"Change output index $changeOutputIdx is out of bounds for outputs of size $numOutputs"
-        )
-        var iteration = 0
-        @tailrec def loop(tx: Transaction): Transaction = {
-            if iteration > 20 then
-                throw new RuntimeException(
-                  s"Failed to balance transaction after $iteration iterations"
-                )
-            iteration += 1
-            val a = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
-            val fee = MinTransactionFee(a, resolvedUtxo, protocolParams).toTry.get
-            val b = setFee(fee)(a)
-            val diff = calculateChangeValue(b, resolvedUtxo, protocolParams)
-            if diff.isZero then b
-            else if diff.isPositive then
-                val out = b.body.value.outputs(changeOutputIdx)
-                val newValue = out.value.value.focus().modify(_ + diff)
-                val changeOut = Sized(out.value.withValue(newValue))
-                val t = b.focus(_.body.value.outputs.index(changeOutputIdx)).replace(changeOut)
-                loop(t)
+            val diff = diffValue.coin.value
+            if diff == 0 then
+                val minAda = MinCoinSizedTransactionOutput(changeOut, protocolParams)
+                if minAda.value <= changeLovelace then tx
+                else
+                    throw new RuntimeException(
+                      s"Transaction cannot be balanced: not enough funds to cover change output min ada: $diff"
+                    )
+            else if diff > 0 then
+                // extra lovelace, add to change output
+                val updatedLovelaceChange = changeLovelace + diff
+
+                val newChangeOut =
+                    val newValue =
+                        changeOut.value.value.focus(_.coin.value).replace(updatedLovelaceChange)
+                    Sized(changeOut.value.withValue(newValue))
+
+                val minAda = MinCoinSizedTransactionOutput(newChangeOut, protocolParams)
+                if updatedLovelaceChange < minAda.value then
+                    throw new RuntimeException(
+                      s"Transaction cannot be balanced: not enough funds to cover change output min ada: $diff"
+                    )
+                val t = tx
+                    .focus(_.body.value.outputs.index(changeOutputIdx))
+                    .replace(newChangeOut)
+                t
             else
-                throw new RuntimeException(
-                  s"Transaction cannot be balanced: not enough funds: $diff"
-                )
-        }
-        loop(initial)
-    }
-
-    def balanceFeeChange(
-        initial: Transaction,
-        changeOutputIdx: Int,
-        protocolParams: ProtocolParams,
-        resolvedUtxo: UTxO,
-        evaluator: PlutusScriptEvaluator,
-    ): Transaction = {
-        val numOutputs = initial.body.value.outputs.size
-        require(
-          changeOutputIdx < numOutputs,
-          s"Change output index $changeOutputIdx is out of bounds for outputs of size $numOutputs"
-        )
-        // doesn't change during balancing
-        val consumed =
-            TxBalance.consumed(initial, CertState.empty, resolvedUtxo, protocolParams).toTry.get
-
-        val out = initial.body.value.outputs(changeOutputIdx)
-        val initialChangeLovelaceAmount = out.value.value.coin.value
-        val initialFee = initial.body.value.fee.value
-
-        @tailrec def loop(
-            tx: Transaction,
-        ): Transaction = {
-            val txWithExUnits = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
-            val minFee = MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams).toTry.get
-            val fee = Coin(math.max(minFee.value, tx.body.value.fee.value))
-            val txWithFees = setFee(fee)(txWithExUnits)
-            val produced = TxBalance.produced(txWithFees)
-            val diff = consumed.coin.value - produced.coin.value
-            if diff == 0 then txWithFees // balanced
-            else
-                val changeOut = txWithFees.body.value.outputs(changeOutputIdx)
-                val changeLovelace = changeOut.value.value.coin.value
-
-                if diff > 0 then
-                    // extra lovelace, add to change output
-                    val updatedLovelaceChange = changeLovelace + diff
-
+                val minAda = MinCoinSizedTransactionOutput(changeOut, protocolParams)
+                require(minAda.value > 0, s"Min ada must be positive, got ${minAda.value}")
+                val updatedLovelaceChange = changeLovelace + diff // remove excess lovelace
+                if minAda.value <= updatedLovelaceChange // still enough lovelace to cover min ada
+                then
                     val newChangeOut =
                         val newValue =
-                            changeOut.value.value.focus(_.coin.value).replace(updatedLovelaceChange)
+                            changeOut.value.value
+                                .focus(_.coin.value)
+                                .replace(updatedLovelaceChange)
                         Sized(changeOut.value.withValue(newValue))
-
-                    val minAda = MinCoinSizedTransactionOutput(newChangeOut, protocolParams)
-                    if updatedLovelaceChange < minAda.value then
-                        throw new RuntimeException(
-                          s"Transaction cannot be balanced: not enough funds to cover change output min ada: $diff"
-                        )
-                    val t = txWithFees
+                    val t = tx
                         .focus(_.body.value.outputs.index(changeOutputIdx))
                         .replace(newChangeOut)
-                    loop(t) // recalculate fees, because min minFee might have changed
-                else // diff < 0
-                    val minAda = MinCoinSizedTransactionOutput(changeOut, protocolParams)
-                    require(minAda.value > 0, s"Min ada must be positive, got ${minAda.value}")
-                    val updatedLovelaceChange = changeLovelace + diff // remove excess lovelace
-                    if minAda.value <= updatedLovelaceChange // still enough lovelace to cover min ada
-                    then
-                        val newChangeOut =
-                            val newValue =
-                                changeOut.value.value
-                                    .focus(_.coin.value)
-                                    .replace(updatedLovelaceChange)
-                            Sized(changeOut.value.withValue(newValue))
-                        val t =
-                            txWithFees
-                                .focus(_.body.value.outputs.index(changeOutputIdx))
-                                .replace(newChangeOut)
-                        loop(t)
-                    else
-                        throw new RuntimeException(
-                          s"Transaction cannot be balanced: not enough funds: $diff"
-                        )
+                    t
+                else
+                    throw new RuntimeException(
+                      s"Transaction cannot be balanced: not enough funds: $diff"
+                    )
+        }
+    }
+
+    def balanceFeeAndChange(
+        initial: Transaction,
+        diffHandler: (Value, Transaction) => Transaction,
+        protocolParams: ProtocolParams,
+        resolvedUtxo: UTxO,
+        evaluator: PlutusScriptEvaluator,
+    ): Transaction = {
+        var iteration = 0
+        @tailrec def loop(tx: Transaction): Transaction = {
+            val txWithExUnits = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
+            val minFee = MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams).toTry.get
+            // don't go below initial fee
+            val fee = Coin(math.max(minFee.value, tx.body.value.fee.value))
+            val txWithFees = setFee(fee)(txWithExUnits)
+            // find the diff
+            val diffValue = calculateChangeValue(txWithFees, resolvedUtxo, protocolParams)
+            // try to balance it
+            val balanced = diffHandler(diffValue, txWithFees)
+            val balancedDiff = calculateChangeValue(balanced, resolvedUtxo, protocolParams)
+            iteration += 1
+            // if diff is zero, we are done
+            if balancedDiff.isZero then balanced
+            else if iteration > 20 then
+                throw new RuntimeException(
+                  s"Transaction cannot be balanced after $iteration iterations, diff: $balancedDiff"
+                )
+            else loop(tx) // try again
         }
         loop(initial)
     }
