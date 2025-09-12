@@ -1003,7 +1003,9 @@ object LowLevelTxBuilder {
                     then
                         val newChangeOut =
                             val newValue =
-                                changeOut.value.value.focus(_.coin.value).replace(updatedLovelaceChange)
+                                changeOut.value.value
+                                    .focus(_.coin.value)
+                                    .replace(updatedLovelaceChange)
                             Sized(changeOut.value.withValue(newValue))
                         val t =
                             txWithFees
