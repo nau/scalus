@@ -463,12 +463,24 @@ object Address {
 
     given FromData[Address] = FromData.derived
 
+    /** Smart-constructor for an [[scalus.ledger.api.v1.Address]] from a
+      * [[scalus.ledger.api.v1.Credential]]. The resulting address has no delegation rights
+      * whatsoever.
+      */
     inline def fromCredential(credential: Credential): Address =
         Address(credential, Option.None)
 
+    /** Smart-constructor for an [[scalus.ledger.api.v1.Address]] from a
+      * [[scalus.ledger.api.v1.Credential.ScriptHash]] hash. The resulting address has no delegation
+      * rights whatsoever.
+      */
     inline def fromScriptHash(script: ScriptHash): Address =
         fromCredential(Credential.ScriptCredential(script))
 
+    /** Smart-constructor for an [[scalus.ledger.api.v1.Address]] from a
+      * [[scalus.ledger.api.v1.Credential.PubKeyHash]] hash. The resulting address has no delegation
+      * rights whatsoever.
+      */
     inline def fromPubKeyHash(pubKey: PubKeyHash): Address =
         fromCredential(Credential.PubKeyCredential(pubKey))
 

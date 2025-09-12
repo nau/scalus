@@ -59,10 +59,10 @@ class VestingTest extends AnyFunSuite, ScalusTest {
     private val defaultFee: Lovelace = BigInt(1_000_000L)
 
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
-        targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
-        generateErrorTraces = true,
-        optimizeUplc = false,
-        debug = false
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
     )
 
     case class TestCase(
@@ -83,45 +83,45 @@ class VestingTest extends AnyFunSuite, ScalusTest {
         val fee = testCase.fee
 
         val inputs = List(
-            makeScriptHashInput(
-                contractHash,
-                vestingDatum.initialAmount
-            ),
-            makePubKeyHashInput(
-                beneficiaryPKH.hash,
-                beneficiaryInputAmount
-            )
+          makeScriptHashInput(
+            contractHash,
+            vestingDatum.initialAmount
+          ),
+          makePubKeyHashInput(
+            beneficiaryPKH.hash,
+            beneficiaryInputAmount
+          )
         )
 
         val amountToWidthdraw = redeemer.amount
         val outputs = List(
-            makePubKeyHashOutput(
-                beneficiaryPKH.hash,
-                amountToWidthdraw
-            ),
-            TxOut(
-                address = Address(ScriptCredential(contractHash), Option.None),
-                value = Value.lovelace(vestingDatum.initialAmount - amountToWidthdraw),
-                datum = OutputDatum.OutputDatum(vestingDatum.toData)
-            )
+          makePubKeyHashOutput(
+            beneficiaryPKH.hash,
+            amountToWidthdraw
+          ),
+          TxOut(
+            address = Address(ScriptCredential(contractHash), Option.None),
+            value = Value.lovelace(vestingDatum.initialAmount - amountToWidthdraw),
+            datum = OutputDatum.OutputDatum(vestingDatum.toData)
+          )
         )
 
         val txInfo = TxInfo(
-            inputs = inputs,
-            id = random[TxId],
-            signatories = signatories,
-            outputs = outputs,
-            validRange = interval,
-            fee = fee
+          inputs = inputs,
+          id = random[TxId],
+          signatories = signatories,
+          outputs = outputs,
+          validRange = interval,
+          fee = fee
         )
 
         val scriptContext = ScriptContext(
-            txInfo = txInfo,
-            redeemer = toData(redeemer),
-            scriptInfo = ScriptInfo.SpendingScript(
-                txOutRef = inputs.head.outRef,
-                datum = Some(vestingDatum.toData)
-            )
+          txInfo = txInfo,
+          redeemer = toData(redeemer),
+          scriptInfo = ScriptInfo.SpendingScript(
+            txOutRef = inputs.head.outRef,
+            datum = Some(vestingDatum.toData)
+          )
         )
 
         // debugPrint(txInfo, vestingDatum, redeemer)
@@ -132,23 +132,23 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("Successful full withdrawal at/after vesting period ends") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(beneficiaryPKH)
         val interval = Interval.after(vestingDatum.startTimestamp + vestingDatum.duration)
         val redeemer = VestingRedeemer(vestingDatum.initialAmount)
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = defaultFee // Benefitiary paid the fee
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = defaultFee // Benefitiary paid the fee
+          )
         )
 
         // println(result)
@@ -157,23 +157,23 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("Successful partial 50% widthdrawal") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(beneficiaryPKH)
         val interval = Interval.after(vestingDatum.startTimestamp + vestingDatum.duration / 2)
         val redeemer = VestingRedeemer(vestingDatum.initialAmount / 2)
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = defaultFee
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = defaultFee
+          )
         )
 
         // println(result)
@@ -182,10 +182,10 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("Successful Partial withdrawal at 25% of vesting period") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(beneficiaryPKH)
         // 25% of vesting period
@@ -194,13 +194,13 @@ class VestingTest extends AnyFunSuite, ScalusTest {
         val redeemer = VestingRedeemer(withdrawalAmount)
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = defaultFee
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = defaultFee
+          )
         )
 
         assert(result.isSuccess, "Partial withdrawal should succeed at 25% of vesting period")
@@ -208,10 +208,10 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("Successful Withdrawal right after vesting starts (should get minimal amount)") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = BigInt(31_536_000L) // This ensures at least 1 lovelace per second
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = BigInt(31_536_000L) // This ensures at least 1 lovelace per second
         )
         val signatories = List(beneficiaryPKH)
         // 1 second after
@@ -220,13 +220,13 @@ class VestingTest extends AnyFunSuite, ScalusTest {
         val redeemer = VestingRedeemer(withdrawalAmount)
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = defaultFee
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = defaultFee
+          )
         )
 
         assert(withdrawalAmount > 0, "Withdrawal amount should be greater than 0")
@@ -235,10 +235,10 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("Successful Withdrawal with very large vesting duration") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = BigInt(315360000000000L), // 10 000 years
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = BigInt(315360000000000L), // 10 000 years
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(beneficiaryPKH)
         // 1 year after start
@@ -248,40 +248,40 @@ class VestingTest extends AnyFunSuite, ScalusTest {
         val redeemer = VestingRedeemer(expectedAmount)
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = defaultFee
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = defaultFee
+          )
         )
 
         assert(
-            result.isSuccess,
-            "Partial withdrawal should succeed with very large vesting duration"
+          result.isSuccess,
+          "Partial withdrawal should succeed with very large vesting duration"
         )
     }
 
     test("Successful Withdrawal with very small vesting amount") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = BigInt(1000)
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = BigInt(1000)
         )
         val signatories = List(beneficiaryPKH)
         val interval = Interval.after(vestingDatum.startTimestamp + vestingDatum.duration)
         val redeemer = VestingRedeemer(BigInt(1000))
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = defaultFee
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = defaultFee
+          )
         )
 
         assert(result.isSuccess, "Full withdrawal should succeed with small vesting amount")
@@ -289,10 +289,10 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("Successful Multiple partial withdrawals.") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(beneficiaryPKH)
         // Set time to 75% of vesting period
@@ -313,35 +313,35 @@ class VestingTest extends AnyFunSuite, ScalusTest {
         val beneficiaryOutputAmount = availableForWithdrawal
         val beneficiaryOutput = makePubKeyHashOutput(beneficiaryPKH.hash, beneficiaryOutputAmount)
         val contractOutput = TxOut(
-            address = Address(ScriptCredential(contractHash), Option.None),
-            value = Value.lovelace(remainingInContract - availableForWithdrawal),
-            datum = OutputDatum.OutputDatum(vestingDatum.toData)
+          address = Address(ScriptCredential(contractHash), Option.None),
+          value = Value.lovelace(remainingInContract - availableForWithdrawal),
+          datum = OutputDatum.OutputDatum(vestingDatum.toData)
         )
 
         val outputs = List(beneficiaryOutput, contractOutput)
 
         val txInfo = TxInfo(
-            inputs = inputs,
-            id = random[TxId],
-            signatories = signatories,
-            outputs = outputs,
-            validRange = interval,
-            fee = defaultFee
+          inputs = inputs,
+          id = random[TxId],
+          signatories = signatories,
+          outputs = outputs,
+          validRange = interval,
+          fee = defaultFee
         )
 
         val scriptContext = ScriptContext(
-            txInfo = txInfo,
-            redeemer = toData(redeemer),
-            scriptInfo = ScriptInfo.SpendingScript(
-                txOutRef = inputs.head.outRef,
-                datum = Some(vestingDatum.toData)
-            )
+          txInfo = txInfo,
+          redeemer = toData(redeemer),
+          scriptInfo = ScriptInfo.SpendingScript(
+            txOutRef = inputs.head.outRef,
+            datum = Some(vestingDatum.toData)
+          )
         )
 
         val result = VestingContract.compiled.runScript(scriptContext)
         assert(
-            result.isSuccess,
-            "Second partial withdrawal should succeed at 75% of vesting period"
+          result.isSuccess,
+          "Second partial withdrawal should succeed at 75% of vesting period"
         )
     }
 
@@ -349,23 +349,23 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("Fail Full withdrawal before vesting period ends") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(beneficiaryPKH)
         val interval = Interval.after(vestingDatum.startTimestamp + vestingDatum.duration / 2)
         val redeemer = VestingRedeemer(vestingDatum.initialAmount)
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = defaultFee
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = defaultFee
+          )
         )
 
         // println(result)
@@ -374,10 +374,10 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("Fail 50% Withdrawal which exceeds available 25%") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(beneficiaryPKH)
         // 25% of vesting period
@@ -386,40 +386,40 @@ class VestingTest extends AnyFunSuite, ScalusTest {
         val redeemer = VestingRedeemer(excessiveAmount)
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = defaultFee
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = defaultFee
+          )
         )
 
         assert(
-            result.isFailure,
-            "Withdrawal should fail when amount exceeds available vested amount"
+          result.isFailure,
+          "Withdrawal should fail when amount exceeds available vested amount"
         )
     }
 
     test("Fail Withdrawal with no beneficiary signature") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(ownerPKH)
         val interval = Interval.after(vestingDatum.startTimestamp + vestingDatum.duration)
         val redeemer = VestingRedeemer(vestingDatum.initialAmount)
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = defaultFee
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = defaultFee
+          )
         )
 
         // println(result)
@@ -428,23 +428,23 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("Fail Withdrawal because no fee is paid") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(beneficiaryPKH)
         val interval = Interval.after(vestingDatum.startTimestamp + vestingDatum.duration)
         val redeemer = VestingRedeemer(vestingDatum.initialAmount)
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = 0
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = 0
+          )
         )
 
         // println(result)
@@ -453,23 +453,23 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("Fail: Withdrawal amount is zero") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(beneficiaryPKH)
         val interval = Interval.after(vestingDatum.startTimestamp + vestingDatum.duration)
         val redeemer = VestingRedeemer(BigInt(0))
 
         val result = checkTestCase(
-            TestCase(
-                signatories = signatories,
-                interval = interval,
-                vestingDatum = vestingDatum,
-                redeemer = redeemer,
-                beneficiaryInputAmount = defaultFee
-            )
+          TestCase(
+            signatories = signatories,
+            interval = interval,
+            vestingDatum = vestingDatum,
+            redeemer = redeemer,
+            beneficiaryInputAmount = defaultFee
+          )
         )
 
         assert(result.isFailure, "Withdrawal should fail when amount is zero")
@@ -477,10 +477,10 @@ class VestingTest extends AnyFunSuite, ScalusTest {
 
     test("2 ScriptContexts") {
         val vestingDatum = VestingDatum(
-            beneficiary = beneficiaryPKH,
-            startTimestamp = defaultStartTime,
-            duration = defaultDuration,
-            initialAmount = defaultInitialAmount
+          beneficiary = beneficiaryPKH,
+          startTimestamp = defaultStartTime,
+          duration = defaultDuration,
+          initialAmount = defaultInitialAmount
         )
         val signatories = List(beneficiaryPKH)
 
@@ -490,57 +490,57 @@ class VestingTest extends AnyFunSuite, ScalusTest {
         val redeemer = VestingRedeemer(withdrawalAmount)
 
         val inputs = List(
-            makeScriptHashInput(
-                contractHash,
-                vestingDatum.initialAmount
-            ),
-            makePubKeyHashInput(
-                beneficiaryPKH.hash,
-                defaultFee
-            )
+          makeScriptHashInput(
+            contractHash,
+            vestingDatum.initialAmount
+          ),
+          makePubKeyHashInput(
+            beneficiaryPKH.hash,
+            defaultFee
+          )
         )
 
         val outputs = List(
-            makePubKeyHashOutput(
-                beneficiaryPKH.hash,
-                withdrawalAmount
-            ),
-            makePubKeyHashOutput(
-                beneficiaryPKH.hash,
-                withdrawalAmount
-            ),
-            TxOut(
-                address = Address(ScriptCredential(contractHash), Option.None),
-                value = Value.lovelace(vestingDatum.initialAmount - withdrawalAmount),
-                datum = OutputDatum.OutputDatum(vestingDatum.toData)
-            )
+          makePubKeyHashOutput(
+            beneficiaryPKH.hash,
+            withdrawalAmount
+          ),
+          makePubKeyHashOutput(
+            beneficiaryPKH.hash,
+            withdrawalAmount
+          ),
+          TxOut(
+            address = Address(ScriptCredential(contractHash), Option.None),
+            value = Value.lovelace(vestingDatum.initialAmount - withdrawalAmount),
+            datum = OutputDatum.OutputDatum(vestingDatum.toData)
+          )
         )
 
         val txInfo = TxInfo(
-            inputs = inputs,
-            id = random[TxId],
-            signatories = signatories,
-            outputs = outputs,
-            validRange = interval,
-            fee = defaultFee
+          inputs = inputs,
+          id = random[TxId],
+          signatories = signatories,
+          outputs = outputs,
+          validRange = interval,
+          fee = defaultFee
         )
 
         val scriptContext = ScriptContext(
-            txInfo = txInfo,
-            redeemer = toData(redeemer),
-            scriptInfo = ScriptInfo.SpendingScript(
-                txOutRef = inputs.head.outRef,
-                datum = Some(vestingDatum.toData)
-            )
+          txInfo = txInfo,
+          redeemer = toData(redeemer),
+          scriptInfo = ScriptInfo.SpendingScript(
+            txOutRef = inputs.head.outRef,
+            datum = Some(vestingDatum.toData)
+          )
         )
 
         val scriptContext2 = ScriptContext(
-            txInfo = txInfo,
-            redeemer = toData(redeemer),
-            scriptInfo = ScriptInfo.SpendingScript(
-                txOutRef = inputs.tail.head.outRef,
-                datum = Some(vestingDatum.toData)
-            )
+          txInfo = txInfo,
+          redeemer = toData(redeemer),
+          scriptInfo = ScriptInfo.SpendingScript(
+            txOutRef = inputs.tail.head.outRef,
+            datum = Some(vestingDatum.toData)
+          )
         )
         // debugPrint(txInfo, vestingDatum, redeemer)
 

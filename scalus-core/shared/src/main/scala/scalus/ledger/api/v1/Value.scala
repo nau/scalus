@@ -776,6 +776,30 @@ object Value {
 
         /** A list of all currency symbols in that [[scalus.ledger.api.v1.Value]] with non-zero
           * tokens.
+          *
+          * @return
+          *   A list of sorted [[scalus.ledger.api.v1.CurrencySymbol]]
+          * @example
+          *   {{{
+          *   val value = Value.fromList(
+          *     List.Cons(
+          *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+          *       List.Cons(
+          *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
+          *         List.Nil
+          *       )
+          *     )
+          *   )
+          *
+          *   value.currencySymbols ===
+          *   List.Cons(
+          *      Value.adaCurrencySymbol,
+          *      List.Cons(
+          *        ByteString.fromString("ff"),
+          *        List.Nil
+          *      )
+          *   )
+          *   }}}
           */
         def currencySymbols: List[CurrencySymbol] = v.toSortedMap.keys
 

@@ -21,7 +21,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
       // FIXME: SirToUplcV3Lowering
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering,
       generateErrorTraces = true,
-      optimizeUplc = false,
+      optimizeUplc = true,
       debug = false
     )
 
