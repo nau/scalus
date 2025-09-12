@@ -6,6 +6,10 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    continue-on-error: true
+    strategy:
+      fail-fast: false
     permissions:
       contents: read
       id-token: write
