@@ -10,6 +10,7 @@ import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllResolvedScripts}
 
 object ScriptDataHashGenerator {
 
+    @deprecated
     def getUsedCostModels(
         pparams: ProtocolParams,
         w: TransactionWitnessSet,

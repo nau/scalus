@@ -217,6 +217,15 @@ object TransactionException {
           s"Invalid script data hash for transactionId $transactionId. Expected: $expected, actual: $actual"
         )
 
+    // It's Babbage.MalformedScriptWitnesses and Babbage.MalformedReferenceScripts in cardano-ledger
+    final case class IllFormedScriptsException(
+        transactionId: TransactionHash,
+        invalidWitnessesScripts: Set[ScriptHash],
+        InvalidScriptsFromAllOutputs: Set[ScriptHash]
+    ) extends TransactionException(
+          s"Ill-formed scripts for transactionId $transactionId, invalid witnesses scripts: $invalidWitnessesScripts, invalid scripts from all outputs: $InvalidScriptsFromAllOutputs"
+        )
+
     // TODO: placeholder for general exception, remove after finishing development
     final case class IllegalArgumentException(message: String) extends TransactionException(message)
 }
