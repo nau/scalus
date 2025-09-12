@@ -6,6 +6,8 @@ import scalus.ledger.babbage.ProtocolParams
 import scala.collection.immutable
 import scala.collection.immutable.{ListMap, TreeSet}
 
+import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllResolvedScripts}
+
 object ScriptDataHashGenerator {
 
     def getUsedCostModels(
@@ -69,5 +71,43 @@ object ScriptDataHashGenerator {
         if redeemers.isEmpty && datums.value.toIndexedSeq.isEmpty && costModels.models.isEmpty then
             None
         else Some(computeScriptDataHash(era, redeemers, datums, costModels))
+    }
+
+    def computeScriptDataHash(
+        transaction: Transaction,
+        utxo: UTxO,
+        era: Era,
+        protocolParams: ProtocolParams
+    ): Either[
+      TransactionException.BadInputsUTxOException |
+          TransactionException.BadReferenceInputsUTxOException,
+      Option[ScriptDataHash]
+    ] = {
+        val witnessSet = transaction.witnessSet
+        val redeemers = witnessSet.redeemers
+        val datums = witnessSet.plutusData
+
+        for
+            allNeededScriptHashes <- AllNeededScriptHashes.allNeededScriptHashes(transaction, utxo)
+
+            allResolvedPlutusScripts <- AllResolvedScripts.allResolvedPlutusScriptsView(
+              transaction,
+              utxo
+            )
+        yield
+            val languages = TreeSet.from(
+              allResolvedPlutusScripts
+                  .filter(plutusScript => allNeededScriptHashes.contains(plutusScript.scriptHash))
+                  .map(_.language)
+            )
+
+            computeScriptDataHash(
+              witnessSet,
+              era,
+              protocolParams,
+              languages,
+              redeemers,
+              datums
+            )
     }
 }
