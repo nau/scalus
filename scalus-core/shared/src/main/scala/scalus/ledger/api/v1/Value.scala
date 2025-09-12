@@ -774,6 +774,11 @@ object Value {
                 }
             }
 
+        /** A list of all currency symbols in that [[scalus.ledger.api.v1.Value]] with non-zero
+          * tokens.
+          */
+        def currencySymbols: List[CurrencySymbol] = v.toSortedMap.keys
+
     private def binaryOpTokens(
         a: SortedMap[TokenName, BigInt],
         b: SortedMap[TokenName, BigInt],

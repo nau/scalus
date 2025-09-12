@@ -1,19 +1,20 @@
 package scalus.examples
 
+import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
+import scalus.builtin.ByteString
+import scalus.builtin.Data
 import scalus.builtin.Data.toData
-import scalus.builtin.{ByteString, Data}
-import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v1.Address
 import scalus.ledger.api.v1.IntervalBoundType.*
+import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
-import scalus.testkit.*
 import scalus.prelude.Option.*
+import scalus.testkit.*
 
 import scala.language.implicitConversions
-import org.scalatest.funsuite.AnyFunSuite
 
 class BettingTest extends AnyFunSuite, ScalusTest:
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
