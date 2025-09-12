@@ -1,10 +1,9 @@
 package scalus.cardano.ledger
 
-import io.bullet.borer.{Decoder, Encoder}
+import io.bullet.borer.{Cbor, Decoder, Encoder}
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Cbor
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.Timelock
 
@@ -222,9 +221,9 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
         OriginalCborByteArray ?=> Decoder[A]
     ): Unit = {
         forAll: (a: A) =>
-            val encoded = Cbor.encode(a)
+            val encoded = Cbor.encode(a).toByteArray
             given OriginalCborByteArray = OriginalCborByteArray(encoded)
-            val decoded = Cbor.decode[A](encoded)
+            val decoded = Cbor.decode(encoded).to[A].value
             assert(a == decoded)
     }
 }

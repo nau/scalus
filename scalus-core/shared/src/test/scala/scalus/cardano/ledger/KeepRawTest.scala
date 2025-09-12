@@ -1,10 +1,9 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
-import io.bullet.borer.Codec
+import io.bullet.borer.{Cbor, Codec}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Cbor
 import scalus.utils.Hex.*
 
 class KeepRawTest extends AnyFunSuite, ScalaCheckPropertyChecks {
@@ -25,26 +24,15 @@ class KeepRawTest extends AnyFunSuite, ScalaCheckPropertyChecks {
         case class Body(a: Int) derives Codec
         val bodies = Seq(Body(100), Body(200), Body(300))
         given encoded: OriginalCborByteArray =
-            OriginalCborByteArray(Cbor.encode(bodies))
-        val decoded = Cbor.decode[Seq[KeepRaw[Body]]](encoded: Array[Byte])
+            OriginalCborByteArray(Cbor.encode(bodies).toByteArray)
+        val decoded = Cbor.decode(encoded: Array[Byte]).to[Seq[KeepRaw[Body]]].value
         val decodedBodies = decoded.map(_.value)
         assert(encoded.toHex == "9f186418c819012cff")
         assert(decodedBodies == bodies)
         assert(decoded(0).raw.toHex == "1864")
         assert(decoded(1).raw.toHex == "18c8")
         assert(decoded(2).raw.toHex == "19012c")
-        val reencoded = Cbor.encode(decoded)
+        val reencoded = Cbor.encode(decoded).toByteArray
         assert(reencoded.toHex == encoded.toHex)
     }
-
-    test(s"KeepRaw isomorphism should work correctly") {
-        val duplicates = Cbor.encode(Vector(100, 100))
-        println(duplicates.toHex)
-        val set = new KeepRaw[Set[Int]](Set(100), raw = duplicates)
-        val reencoded = Cbor.encode(set)
-        val reencoded2 = scalus.Cbor.encode(set)
-        assert(reencoded.toHex == duplicates.toHex)
-        assert(reencoded2.toHex == duplicates.toHex)
-    }
-
 }

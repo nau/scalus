@@ -2,7 +2,7 @@ package scalus.bloxbean
 
 import com.bloxbean.cardano.client.transaction.spec
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil.getTxHash
-import scalus.Cbor
+import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
 import scalus.cardano.address.Address
@@ -41,8 +41,8 @@ class TransactionTest extends AnyFunSuite {
             //        println(tx)
             //        println(AddressBytes.fromBech32(addr).toHex)
             //        println(Cbor.encode(tx).toByteArray.toHex)
-            val txbody = Cbor.encodeToByteString(tx.body)
-            val txhash = platform.blake2b_256(txbody)
+            val txbody = Cbor.encode(tx.body).toByteArray
+            val txhash = platform.blake2b_256(ByteString.fromArray(txbody))
             //        println(txhash)
             txhash.toHex
         }
