@@ -1,5 +1,6 @@
 package scalus.cardano.ledger.txbuilder
 
+import monocle.Lens
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger
@@ -761,6 +762,9 @@ def outputOfAmountOrMin(
 }
 
 extension (t: TransactionOutput) {
+    def valueLens: Lens[TransactionOutput, Value] =
+        Lens[TransactionOutput, Value](_.value)(v => txout => txout.withValue(v))
+
     def withValue(amount: Value): TransactionOutput = t match {
         case shelley: TransactionOutput.Shelley =>
             shelley.copy(value = amount)
@@ -769,8 +773,7 @@ extension (t: TransactionOutput) {
     }
 }
 def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody): Transaction = {
-    val newBody = f(tx.body.value)
-    tx.copy(body = KeepRaw(newBody))
+    tx.focus(_.body.value).modify(f)
 }
 
 /*
@@ -930,10 +933,7 @@ object LowLevelTxBuilder {
                 val out = b.body.value.outputs(changeOutputIdx)
                 val newValue = out.value.value.focus().modify(_ + diff)
                 val changeOut = Sized(out.value.withValue(newValue))
-                val t = modifyBody(
-                  b,
-                  body => body.copy(outputs = body.outputs.updated(changeOutputIdx, changeOut))
-                )
+                val t = b.focus(_.body.value.outputs.index(changeOutputIdx)).replace(changeOut)
                 loop(t)
             else
                 throw new RuntimeException(
@@ -943,7 +943,6 @@ object LowLevelTxBuilder {
         loop(initial)
     }
 
-    /*
     def balanceFeeChange(
         initial: Transaction,
         changeOutputIdx: Int,
@@ -956,44 +955,68 @@ object LowLevelTxBuilder {
           changeOutputIdx < numOutputs,
           s"Change output index $changeOutputIdx is out of bounds for outputs of size $numOutputs"
         )
-        var iteration = 0
-        @tailrec def loop(tx: Transaction): Transaction = {
-            if iteration > 20 then
-                throw new RuntimeException(
-                  s"Failed to balance transaction after $iteration iterations"
-                )
-            iteration += 1
-            val a = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
-            val fee = MinTransactionFee(a, resolvedUtxo, protocolParams).toTry.get
-            val b = setFee(fee)(a)
-            val diff = calculateChangeLovelace(b, resolvedUtxo, protocolParams)
-            if diff == 0 then b
-            else if diff > 0 then
-                val out = b.body.value.outputs(changeOutputIdx)
-                val newValue = out.value.value + diff
-                val changeOut = Sized(out.value.withValue(newValue))
-                val t = modifyBody(
-                  b,
-                  body => body.copy(outputs = body.outputs.updated(changeOutputIdx, changeOut))
-                )
-                loop(t)
+        // doesn't change during balancing
+        val consumed =
+            TxBalance.consumed(initial, CertState.empty, resolvedUtxo, protocolParams).toTry.get
+
+        val out = initial.body.value.outputs(changeOutputIdx)
+        val initialChangeLovelaceAmount = out.value.value.coin.value
+        val initialFee = initial.body.value.fee.value
+
+        @tailrec def loop(
+            tx: Transaction,
+        ): Transaction = {
+            val txWithExUnits = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
+            val minFee = MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams).toTry.get
+            val fee = Coin(math.max(minFee.value, tx.body.value.fee.value))
+            val txWithFees = setFee(fee)(txWithExUnits)
+            val produced = TxBalance.produced(txWithFees)
+            val diff = consumed.coin.value - produced.coin.value
+            if diff == 0 then txWithFees // balanced
             else
-                val out = b.body.value.outputs(changeOutputIdx)
-                val newValue = out.value.value.modify(_ - Coin(diff), identity)
-                if newValue.coin < Coin.zero then
-                    throw new RuntimeException(
-                      s"Transaction cannot be balanced: not enough funds: $diff"
-                    )
-                val changeOut = Sized(out.value.withValue(newValue))
-                val t = modifyBody(
-                  b,
-                  body => body.copy(outputs = body.outputs.updated(changeOutputIdx, changeOut))
-                )
-                loop(t)
+                val changeOut = txWithFees.body.value.outputs(changeOutputIdx)
+                val changeLovelace = changeOut.value.value.coin.value
+
+                if diff > 0 then
+                    // extra lovelace, add to change output
+                    val updatedLovelaceChange = changeLovelace + diff
+
+                    val newChangeOut =
+                        val newValue =
+                            changeOut.value.value.focus(_.coin.value).replace(updatedLovelaceChange)
+                        Sized(changeOut.value.withValue(newValue))
+
+                    val minAda = MinCoinSizedTransactionOutput(newChangeOut, protocolParams)
+                    if updatedLovelaceChange < minAda.value then
+                        throw new RuntimeException(
+                          s"Transaction cannot be balanced: not enough funds to cover change output min ada: $diff"
+                        )
+                    val t = txWithFees
+                        .focus(_.body.value.outputs.index(changeOutputIdx))
+                        .replace(newChangeOut)
+                    loop(t) // recalculate fees, because min minFee might have changed
+                else // diff < 0
+                    val minAda = MinCoinSizedTransactionOutput(changeOut, protocolParams)
+                    require(minAda.value > 0, s"Min ada must be positive, got ${minAda.value}")
+                    val updatedLovelaceChange = changeLovelace + diff // remove excess lovelace
+                    if minAda.value <= updatedLovelaceChange // still enough lovelace to cover min ada
+                    then
+                        val newChangeOut =
+                            val newValue =
+                                changeOut.value.value.focus(_.coin.value).replace(updatedLovelaceChange)
+                            Sized(changeOut.value.withValue(newValue))
+                        val t =
+                            txWithFees
+                                .focus(_.body.value.outputs.index(changeOutputIdx))
+                                .replace(newChangeOut)
+                        loop(t)
+                    else
+                        throw new RuntimeException(
+                          s"Transaction cannot be balanced: not enough funds: $diff"
+                        )
         }
         loop(initial)
     }
-     */
 
     /*
     
