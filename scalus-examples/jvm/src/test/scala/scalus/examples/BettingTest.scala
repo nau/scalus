@@ -172,7 +172,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
           outputs = List(
             TxOut(
               // Payout goes to player2's address
-              address = Address.fromScriptHash(policyId),
+              address = Address.fromPubKeyHash(player2),
               // Winner takes all
               value = Value.lovelace(6_000_000) + Value(
                 cs = policyId,
@@ -199,4 +199,5 @@ class BettingTest extends AnyFunSuite, ScalusTest:
             )
           )
         )
+        println(result.logs)
         assert(result.isSuccess, "Script execution should succeed for announce winner spending")
