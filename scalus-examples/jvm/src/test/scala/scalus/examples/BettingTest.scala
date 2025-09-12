@@ -28,7 +28,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
         val player1 = Mock.mockPubKeyHash(1)
         // Create test datum for a new bet
         val initialBetDatum = BetDatum(
-          player1 = player1,
+          player1,
           // No second player yet
           player2 = PubKeyHash(ByteString.empty),
           oracle = Mock.mockPubKeyHash(3),
@@ -81,7 +81,6 @@ class BettingTest extends AnyFunSuite, ScalusTest:
         // Updated state: player2 has joined
         val updatedBetDatum = BetDatum(
           player1,
-          // No second player yet
           player2,
           oracle,
           // 31th of July 2025
@@ -139,4 +138,64 @@ class BettingTest extends AnyFunSuite, ScalusTest:
         assert(result.isSuccess, "Script execution should succeed for player2 joining spending")
 
     test("Verify that the oracle can announce winner and trigger payout"):
-        assert(false)
+        val player1 = Mock.mockPubKeyHash(1)
+        val player2 = Mock.mockPubKeyHash(2)
+        val oracle = Mock.mockPubKeyHash(3)
+        // Final bet state with both players
+        val finalBetDatum = BetDatum(
+          player1,
+          player2,
+          oracle,
+          // 31th of July 2025
+          expiration = 1753939940,
+        )
+        val policyId = Mock.mockScriptHash(1)
+        val tx = Mock.mockTxOutRef(1, 0)
+        // Create test transaction where oracle announces player2 as winner
+        val testTransaction = TxInfo.placeholder.copy(
+          inputs = List(
+            TxInInfo(
+              outRef = tx,
+              resolved = TxOut(
+                address = Address.fromScriptHash(policyId),
+                // Total pot: 6 ADA
+                value = Value.lovelace(6_000_000) + Value(
+                  cs = policyId,
+                  tn = ByteString.fromString("lucky_number_slevin"),
+                  v = 1
+                ),
+                datum = OutputDatum.OutputDatum(finalBetDatum.toData)
+              )
+            )
+          ),
+          outputs = List(
+            TxOut(
+              // Payout goes to player2's address
+              address = Address.fromScriptHash(policyId),
+              // Winner takes all
+              value = Value.lovelace(6_000_000) + Value(
+                cs = policyId,
+                tn = ByteString.fromString("lucky_number_slevin"),
+                v = 1
+              )
+            )
+          ),
+          // Oracle signs to announce the winner
+          signatories = List(oracle),
+          // 1st of August 2025 - for 5 minutes
+          validRange = Interval(
+            from = IntervalBound(Finite(1754027120), true),
+            to = IntervalBound(Finite(1754027420), true),
+          )
+        )
+        val announceWinnerAction: Action = Action.AnnounceWinner(player2)
+        val result = BettingContract.compiled.runScript(
+          ScriptContext(
+            txInfo = testTransaction,
+            redeemer = announceWinnerAction.toData,
+            scriptInfo = ScriptInfo.SpendingScript(
+              txOutRef = tx
+            )
+          )
+        )
+        assert(result.isSuccess, "Script execution should succeed for announce winner spending")
