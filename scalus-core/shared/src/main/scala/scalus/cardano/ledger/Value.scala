@@ -12,6 +12,12 @@ case class Value(coin: Coin, assets: ledger.MultiAsset) {
 
     def -(rhs: Value): Value = binOp(_ - _)(rhs)
 
+    def isPositive: Boolean = coin.value > 0 && assets.isPositive
+
+    def isNegative: Boolean = coin.value < 0 && assets.isNegative
+
+    def isZero: Boolean = coin.value == 0 && assets.isEmpty
+
     /** Validate a multi-asset map according to Cardano rules */
     private def validateMultiAsset(multiAsset: ledger.MultiAsset): Unit = {
         // Validate that all policy maps are non-empty

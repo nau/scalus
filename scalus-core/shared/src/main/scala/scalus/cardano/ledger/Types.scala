@@ -64,6 +64,9 @@ object Mint {
 
 case class MultiAsset(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]) {
     def isEmpty: Boolean = assets.isEmpty
+
+    def isPositive: Boolean = assets.values.forall(_.values.forall(_ > 0))
+    def isNegative: Boolean = assets.values.forall(_.values.forall(_ < 0))
 }
 
 object MultiAsset {

@@ -11,19 +11,6 @@ object ScriptDataHashGenerator {
     def getUsedCostModels(
         pparams: ProtocolParams,
         w: TransactionWitnessSet,
-        refScripts: Set[Script]
-    ): CostModels = {
-        val refLangs: TreeSet[Language] = refScripts.view
-            .collect { case script: PlutusScript =>
-                script.language
-            }
-            .to(TreeSet)
-        getUsedCostModels(pparams, w, refLangs)
-    }
-
-    def getUsedCostModels(
-        pparams: ProtocolParams,
-        w: TransactionWitnessSet,
         refLangs: TreeSet[Language]
     ): CostModels = {
         // FIXME:  reuse code from ledger rules
