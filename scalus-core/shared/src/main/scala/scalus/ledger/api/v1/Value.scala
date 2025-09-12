@@ -663,6 +663,15 @@ object Value {
           */
         inline def nonZero: Boolean = !v.isZero
 
+        /** Checks if this `Value` is non-zero and positive, meaning it contains at least one token
+          * or currency symbol with a non-zero positive amount and all amounts are positive.
+          *
+          * @return
+          *   `true` if the `Value` is non-empty and has all positive amounts, `false` otherwise
+          */
+        inline def isPositive: Boolean =
+            nonZero && v.toSortedMap.forall(_._2.forall(_._2 > BigInt(0)))
+
         /** Gets the amount of a specific token in a currency symbol from a `Value`.
           *
           * Returns the token amount for the given currency symbol and token name pair. If either
