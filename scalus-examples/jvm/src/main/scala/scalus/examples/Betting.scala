@@ -139,11 +139,57 @@ object Betting extends Validator:
                                                           "Joining must happen before the bet expiration"
                                                         )
                                                     case _ => fail("New datum must be present")
-                                            case _ => fail("Datum must be inline")
+                                            case _ => fail("Current bet datum must be inline")
                                     case _ => fail("Continuing output must be single")
                             case _ => fail("There's must be a continuing output")
-                    case Action.AnnounceWinner(winner) => fail("You shall not pass")
-            case _ => fail("Spent input must be present")
+                    // Handle oracle announcing the winner
+                    case Action.AnnounceWinner(winner) =>
+                        input.datum match // FIME: nested pattern matching
+                            // Extract the current bet state
+                            case OutputDatum.OutputDatum(currentDatum) =>
+                                val BetDatum(player1, player2, oracle, expiration) =
+                                    currentDatum.to[BetDatum]
+                                txInfo.outputs match
+                                    case List.Cons(payoutOutput, tail) =>
+                                        tail match // ???: headOrFail or matchOrFail
+                                            // Ensure there's exactly one output (the payout to winner)
+                                            case List.Nil =>
+                                                require(
+                                                  winner === player1 || winner === player2,
+                                                  "Winner must be either player1 or player2"
+                                                )
+                                                require(
+                                                  player2.hash.length != BigInt(
+                                                    0
+                                                  ),
+                                                  "Both players must have joined (player2 is not None)"
+                                                )
+                                                require(
+                                                  datum === None,
+                                                  "No continuing datum (bet is being closed)"
+                                                )
+                                                require(
+                                                  payoutOutput.address === Address.fromPubKeyHash(
+                                                    winner
+                                                  ),
+                                                  "Payout goes to the winner's address"
+                                                )
+                                                require(
+                                                  txInfo.signatories.contains(
+                                                    oracle
+                                                  ),
+                                                  "Oracle must sign the transaction"
+                                                )
+                                                require(
+                                                  txInfo.validRange.entirelyAfter(
+                                                    expiration
+                                                  ),
+                                                  "The bet must have been expired (no future bets allowed) before announcing"
+                                                )
+                                            case _ => fail("Payout output must be single")
+                                    case _ => fail("There's must be a payout output")
+                            case _ => fail("Current bet datum must be inline")
+            case _ => fail("Initial bet spent input must be present")
 
     /** Minting policy: Controls the creation of bet tokens This ensures proper initialization of a
       * new bet
@@ -179,7 +225,7 @@ object Betting extends Validator:
                                   tx.validRange.entirelyBefore(expiration),
                                   "The bet must have a valid expiration time (after the current time)"
                                 )
-                            case _ => fail("Datum must be inline")
+                            case _ => fail("Bet datum must be inline")
                     case _ => fail("Output to the script (the bet UTXO) must be single")
             case _ => fail("There's must be an output that goes to the script (the bet UTXO)")
 
