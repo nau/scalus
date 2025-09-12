@@ -219,6 +219,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
       // enable when debug compilation of tests
       Test / scalacOptions += "-color:never",
+      // For tx builder
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6",
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",

@@ -39,15 +39,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
     private lazy val params = fetchProtocolParams()
     private lazy val environment = createEnvironment()
 
-    def resolvedTransaction(
-        txHash: String,
-        address: Address,
-        index: Int = 0,
-        lovelace: Long = 10_000_000_000L
-    ) = {
-        TransactionInput(TransactionHash.fromHex(txHash), index) ->
-            TransactionOutput(address, Value.lovelace(lovelace))
-    }
+
 
     def fetchProtocolParams(): ProtocolParams = {
         import upickle.default.*
@@ -114,6 +106,16 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
         else fail(s"Error during tx submission: ${result.getResponse}")
     }
 
+    def resolvedTransaction(
+                               txHash: String,
+                               address: Address,
+                               index: Int = 0,
+                               lovelace: Long = 10_000_000_000L
+                           ) = {
+        TransactionInput(TransactionHash.fromHex(txHash), index) ->
+            TransactionOutput(address, Value.lovelace(lovelace))
+    }
+
     @Ignore
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
@@ -125,7 +127,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
       * the script back to the SPENDER
       */
     test("build and submit transactions that spend script inputs") {
-        pending
+//        pending
         import scalus.*
         val luckyPaymentsOnly: Program = Compiler
             .compile((scriptContext: Data) => {

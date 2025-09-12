@@ -1,4 +1,7 @@
 package scalus.cardano.ledger.txbuilder
+import com.bloxbean.cardano.client.api.UtxoSupplier
+import com.bloxbean.cardano.client.backend.api.BackendService
+import com.bloxbean.cardano.client.function.TxSigner as CCLSigner
 import scalus.builtin.ByteString
 import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger.rules.{Context, State, UtxoEnv}
@@ -17,11 +20,11 @@ case class BuilderContext(
     network: Network,
     utxoProvider: UtxoProvider,
     validators: Seq[Validator] = Seq.empty,
-    signingKeys: Map[ByteString, ByteString] = Map.empty
+    backendService: BackendService = null,
 ) {
 
     /** Initializes a new transaction builder using this context. */
-    def buildNewTx: TxBuilder = TxBuilder(this)
+    def buildNewTx: TxBuilder = TxBuilder(this, backendService = backendService)
 
     def utxo: UTxO = utxoProvider.utxo
 
@@ -30,13 +33,6 @@ case class BuilderContext(
       */
     def withUtxo(utxo: UTxO): BuilderContext = copy(utxoProvider = utxoProvider.extendWith(utxo))
 
-    /** Specifies the key pair used for signing the transactions created by the txbuilder. */
-    def withSigningKey(publicKey: ByteString, privateKey: ByteString): BuilderContext =
-        copy(signingKeys = signingKeys + (publicKey -> privateKey))
-
-    /** Specifies the key pairs used for signing the transactions created by the txbuilder. */
-    def withSigningKeys(keys: Map[ByteString, ByteString]): BuilderContext =
-        copy(signingKeys = signingKeys ++ keys)
 
     /** Validates the transaction against the [[validators]] of this context. */
     def validate(tx: Transaction): Either[TransactionException, Transaction] = {

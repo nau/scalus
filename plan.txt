@@ -1,0 +1,13 @@
+Overall goal: 5 kinds of transactions built in scalus, sent to yaci, valid.
+
+How?
+
+1) Find a minimal attachment point, to get the code into ccl libraries.
+2) Assemble a transaction (doesn't need to query utxos, can probably use in-memory, should check prior work)
+3) to-cbor->from-cbor
+4) send to yaci
+
+1 --> probably for each function separately
+2 --> `ScalusUtxoResolver`
+
+SendTransaction -- how? Using CCL
