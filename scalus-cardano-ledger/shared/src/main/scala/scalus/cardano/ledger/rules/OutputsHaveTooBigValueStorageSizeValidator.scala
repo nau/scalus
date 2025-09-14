@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
-import io.bullet.borer.Cbor
+import scalus.Cbor
 
 // It's Babbage.validateOutputTooBigUTxO in cardano-ledger
 object OutputsHaveTooBigValueStorageSizeValidator extends STS.Validator {
@@ -41,7 +41,7 @@ object OutputsHaveTooBigValueStorageSizeValidator extends STS.Validator {
             Sized(output, _) <- outputs
             // TODO maybe make serialization depending on the protocol version
             // serSize = fromIntegral $ BSL.length $ serialize (pvMajor protVer) v
-            outputValueSerializationSize = Cbor.encode(output.value).toByteArray.length
+            outputValueSerializationSize = Cbor.encode(output.value).length
             if outputValueSerializationSize > maxValueSize
         yield (output, outputValueSerializationSize)
     }

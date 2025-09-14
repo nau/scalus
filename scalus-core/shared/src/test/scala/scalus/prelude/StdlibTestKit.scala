@@ -4,7 +4,7 @@ import scalus.*
 import scalus.uplc.{Constant, Term}
 import scalus.uplc.eval.{PlutusVM, Result}
 import scalus.uplc.test.ArbitraryInstances
-import scalus.sir.{AnnotationsDecl, SIR}
+import scalus.sir.SIR
 import scalus.builtin.Data
 import scalus.builtin.Data.{fromData, toData, FromData, ToData}
 import org.scalatest.Assertion

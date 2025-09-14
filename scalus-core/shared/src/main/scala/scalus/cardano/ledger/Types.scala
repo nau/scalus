@@ -3,6 +3,7 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
+import scalus.Cbor
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
 import scalus.ledger.babbage.ProtocolParams
@@ -346,7 +347,7 @@ case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
                         //     a bytestring.
                         // PlutusV1: Double-bagged encoding for cost model as well
                         // here we must use indefinite CBOR map encoding for backward compatibility
-                        val encodedModel = Cbor.encode(costModel.toList).toByteArray
+                        val encodedModel = Cbor.encode(costModel.toList)
                         w.writeBytes(Array(0.toByte))
                         w.writeBytes(encodedModel)
                     case 1 | 2 => // PlutusV2 - uses standard encoding
@@ -365,7 +366,7 @@ case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
       * encoding.
       */
     def getLanguageViewEncoding: Array[Byte] = {
-        Cbor.encode(this)(using LanguageViewEncoder).toByteArray
+        Cbor.encode(this)(using LanguageViewEncoder)
     }
 }
 
@@ -417,7 +418,7 @@ case class KeepRaw[A](value: A, raw: Array[Byte]) {
 }
 
 object KeepRaw {
-    def apply[A: Encoder](value: A): KeepRaw[A] = new KeepRaw(value, Cbor.encode(value).toByteArray)
+    def apply[A: Encoder](value: A): KeepRaw[A] = new KeepRaw(value, Cbor.encode(value))
 
     given [A: Decoder](using OriginalCborByteArray): Decoder[KeepRaw[A]] =
         Decoder { r =>
@@ -435,7 +436,9 @@ object KeepRaw {
     given [A: Encoder]: Encoder[KeepRaw[A]] = (w: Writer, value: KeepRaw[A]) => {
         // FIXME: use w.writeValueAsRawBytes instead of re-encoding when it's supported:
         // https://github.com/sirthias/borer/issues/764
-        summon[Encoder[A]].write(w, value.value)
+//        summon[Encoder[A]].write(w, value.value)
+        w.output.writeBytes(value.raw)
+        w
     }
 }
 
@@ -447,20 +450,12 @@ extension (self: KeepRaw[Data]) {
 }
 
 case class Sized[A](value: A, size: Int) {
-    override def hashCode: Int =
-        util.Arrays.hashCode(Array(value.hashCode(), size))
-
-    override def equals(obj: Any): Boolean = obj.asMatchable match {
-        case that: Sized[?] =>
-            this.value == that.value && this.size == that.size
-        case _ => false
-    }
     override def toString: String = s"Sized(value=$value, size=$size)"
 }
 
 object Sized {
     def apply[A: Encoder](value: A): Sized[A] =
-        new Sized(value, Cbor.encode(value).toByteArray.length)
+        new Sized(value, Cbor.encode(value).length)
 
     given [A: Decoder](using OriginalCborByteArray): Decoder[Sized[A]] =
         Decoder { r =>
@@ -475,8 +470,6 @@ object Sized {
         }
 
     given [A: Encoder]: Encoder[Sized[A]] = (w: Writer, value: Sized[A]) => {
-        // FIXME: use w.writeValueAsRawBytes instead of re-encoding when it's supported:
-        // https://github.com/sirthias/borer/issues/764
         summon[Encoder[A]].write(w, value.value)
     }
 }
