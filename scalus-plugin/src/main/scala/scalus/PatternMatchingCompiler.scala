@@ -1,8 +1,8 @@
 package scalus
 
 import dotty.tools.dotc.*
-import dotty.tools.dotc.ast.Trees.*
 import dotty.tools.dotc.ast.tpd
+import dotty.tools.dotc.ast.tpd.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.NameKinds.UniqueNameKind
@@ -10,13 +10,10 @@ import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
-import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
+import dotty.tools.dotc.util.{SourcePosition, SrcPos}
 import scalus.sir.*
-import scalus.sir.SIR.Pattern
-import scalus.sir.SIR.Pattern.Constr
 
-import scala.collection.mutable
-import scala.language.implicitConversions
+//import scala.language.implicitConversions
 
 enum SirBinding:
     case Name(name: String, tp: SIRType, pos: SourcePosition)
@@ -37,8 +34,30 @@ case class PatternInfo(
     pos: SourcePosition
 )
 
+class PatternMatchingContext(
+    val globalPrefix: String,
+    val env: SIRCompiler.Env,
+    // should be set after parsing.
+    var originActions: IndexedSeq[Tree] = IndexedSeq.empty
+) {
+
+    private var tmpNameCounter: Int = 1
+
+    private var actionsUsage: Map[Int, Int] = Map.empty
+
+    def freshName(optPrefix: Option[String] = None): String = {
+        val localPrefix = optPrefix.getOrElse("")
+        val name = s"${globalPrefix}${localPrefix}_$tmpNameCounter"
+        tmpNameCounter += 1
+        name
+    }
+
+}
+
+/*
 enum SirCase:
 
+    /*
     case Case(
         constructorSymbol: Symbol,
         typeParams: List[SIRType],
@@ -46,25 +65,223 @@ enum SirCase:
         rhs: SIR,
         pos: SourcePosition
     )
+    
+ */
 
-    /*
     case Constructor(
         optTopLevelType: Option[SIRType],
         optTopLevelName: Option[String],
         constructorSymbol: Symbol,
         typeParams: List[SIRType],
-        bindings: List[String],
+        bindings: IndexedSeq[String],
         optGuard: Option[SIR] = None,
         rhs: SIR,
         pos: SourcePosition
+    ) extends SirCase
+
+    // case Wildcard(rhs: SIR, pos: SourcePosition)
+
+    case Constant(const: SIR.Const, rhs: SIR, optGuard: Option[SIR], pos: SourcePosition)
+
+    case Wildcard(
+        optTopLevelType: Option[SIRType],
+        optTopLevelName: Option[String],
+        rhs: SIR,
+        optGuard: Option[SIR],
+        pos: SourcePosition
     )
-     */
-
-    case Wildcard(rhs: SIR, pos: SourcePosition)
-
-    // case Wildcard(optTopLevelType: Option[SIRType],  rhs: SIR, pos: SourcePosition)
 
     case Error(error: CompilationError)
+
+end SirCase
+ */
+
+/** representation, suitable to optimization, simular to
+  *
+  * http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf
+  */
+sealed trait SirParsedCase {
+
+    def pos: SrcPos
+
+    def withAlias(nameInfo: SirParsedCase.BindingNameInfo): SirParsedCase
+
+}
+
+object SirParsedCase:
+
+    case class PatternAction(
+        pattern: SirParsedCase.Pattern,
+        action: SirParsedCase.Action,
+        pos: SrcPos
+    ) extends SirParsedCase {
+        def withAlias(alias: BindingNameInfo): SirParsedCase =
+            this.copy(pattern = this.pattern.withAlias(alias))
+    }
+
+    case class JoinedConstructorCases(
+        constructorSymbol: Symbol,
+        tp: SIRType.CaseClass,
+        upLevelNameInfo: Option[BindingNameInfo],
+        typeParams: List[SIRType],
+        cases: IndexedSeq[(IndexedSeq[Pattern], Option[SIR], Action)],
+        pos: SrcPos
+    ) extends SirParsedCase {
+        override def withAlias(nameInfo: BindingNameInfo): SirParsedCase =
+            upLevelNameInfo match {
+                case None       => this.copy(upLevelNameInfo = Some(nameInfo))
+                case Some(info) => this.copy(upLevelNameInfo = Some(info.withAlias(nameInfo)))
+            }
+    }
+
+    sealed trait Pattern:
+
+        def pos: SrcPos
+
+        def withAlias(nameInfo: BindingNameInfo): Pattern
+
+    end Pattern
+
+    object Pattern:
+
+        case class TypeSelector(
+            tp: SIRType,
+            nameInfo: BindingNameInfo,
+            innerPattern: Pattern,
+            optGuard: Option[Tree],
+            pos: SrcPos
+        ) extends Pattern {
+            def withAlias(alias: BindingNameInfo): Pattern =
+                this.copy(nameInfo = this.nameInfo.withAlias(alias))
+        }
+
+        case class Constructor(
+            tp: SIRType.CaseClass,
+            freeTypeParams: List[SIRType.TypeVar],
+            nameInfo: BindingNameInfo,
+            // constructorSymbol: Symbol,
+            subcases: IndexedSeq[Pattern],
+            optGuard: Option[Tree],
+            pos: SrcPos
+        ) extends Pattern {
+            def withAlias(alias: BindingNameInfo): Pattern =
+                this.copy(nameInfo = this.nameInfo.withAlias(alias))
+        }
+
+        case class Wildcard(
+            tp: SIRType,
+            nameInfo: BindingNameInfo,
+            optGuard: Option[Tree],
+            pos: SrcPos
+        ) extends Pattern {
+
+            def withAlias(alias: BindingNameInfo): Pattern =
+                this.copy(nameInfo = this.nameInfo.withAlias(alias))
+
+        }
+
+        case class PrimitiveConstant(
+            value: SIR.Const,
+            optNameInfo: Option[BindingNameInfo] = None,
+            pos: SourcePosition
+        ) extends Pattern {
+            def withAlias(alias: BindingNameInfo): Pattern =
+                optNameInfo match
+                    case Some(nameInfo) => this.copy(optNameInfo = Some(nameInfo.withAlias(alias)))
+                    case None           => this.copy(optNameInfo = Some(alias))
+        }
+
+        case class OrPattern(patterns: List[Pattern], pos: SourcePosition) extends Pattern {
+            def withAlias(alias: BindingNameInfo): Pattern =
+                this.copy(patterns = this.patterns.map(_.withAlias(alias)))
+        }
+
+        case class Error(error: CompilationError) extends Pattern {
+            def pos = error.srcPos
+            def withAlias(alias: BindingNameInfo): Pattern = this
+        }
+
+    end Pattern
+
+    enum Action:
+        case Origin(i: Int)
+        case MergedConstructorCond(
+            frsPatterm: IndexedSeq[Pattern],
+            frsAction: Action,
+            sndPatterm: Pattern,
+            sndAction: Action,
+        )
+        case FailMatch
+    end Action
+
+    case class BindingNameInfo(
+        name: String,
+        scalaName: Option[String],
+        symbol: Symbol,
+        aliases: Set[BindingNameInfo] = Set.empty
+    ) {
+        def withAlias(alias: BindingNameInfo): BindingNameInfo =
+            this.copy(aliases = this.aliases + alias)
+    }
+
+end SirParsedCase
+
+case class SirParsedMatch(
+    scrutinee: Tree,
+    cases: List[SirParsedCase],
+    originActions: IndexedSeq[Tree],
+    scrutineeTp: SIRType,
+    resTp: SIRType,
+    pos: SourcePosition
+)
+
+sealed trait SirCaseDecisionTree
+
+object SirCaseDecisionTree:
+
+    case class ConstructorsChoice(
+        byConstructors: Map[Symbol, ConstructorEntry]
+    ) extends SirCaseDecisionTree
+
+    case class ConstructorBinding(
+        name: String,
+        symbol: Symbol,
+        tp: SIRType,
+        index: Int,
+        pos: SourcePosition
+    )
+
+    case class ConstructorEntry(
+        constructorSymbol: Symbol,
+        names: IndexedSeq[ConstructorBinding],
+        next: SirCaseDecisionTree,
+        pos: SourcePosition
+    )
+
+    case class RebindUpConstructor(
+        constructorSymbol: Symbol,
+        names: IndexedSeq[ConstructorBinding],
+        pos: SourcePosition,
+        next: SirCaseDecisionTree
+    ) extends SirCaseDecisionTree
+
+    case class CheckGuard(
+        guard: Tree,
+        pos: SourcePosition,
+        nextTrue: SirCaseDecisionTree,
+        nextFalse: SirCaseDecisionTree
+    ) extends SirCaseDecisionTree
+
+    case class SelectNextBind(
+        constructorSymbol: Symbol,
+        index: Int,
+        next: SirCaseDecisionTree,
+    ) extends SirCaseDecisionTree
+
+    case class Leaf(
+        action: SirParsedCase.Action,
+        pos: SourcePosition
+    ) extends SirCaseDecisionTree
 
 /*
     enum A:
@@ -143,6 +360,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 SirBinding.Error(UnsupportedMatchExpression(p, p.srcPos))
     }
 
+    /*
     private def compileBindings(
         sirBindings: List[SirBinding]
     ): Either[List[SirBinding.Error], PatternInfo] = {
@@ -395,8 +613,248 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             println(s"Unsupported case: tree ${a}")
             val err = UnsupportedMatchExpression(a, a.srcPos)
             compiler.error(err, SirCase.Error(err) :: Nil)
+            
+     */
+
+    def parseConstructorPattern(
+        ctx: PatternMatchingContext,
+        unapply: UnApply,
+        bindingNameInfo: SirParsedCase.BindingNameInfo,
+        optGuard: Option[Tree],
+        pos: SourcePosition,
+        scrutineeType: SIRType
+    ): SirParsedCase.Pattern = {
+        if ctx.env.debug then
+            println(s"parseConstructorPattern: ${unapply.show} ${unapply.tpe.show}")
+        val cType = unapply.tpe.dealias.widen
+        val sirConstrType = compiler.sirTypeInEnv(cType, unapply.srcPos, ctx.env)
+        val (typeParams, constrDecl, typeArgs) = SIRType
+            .collectProd(sirConstrType)
+            .getOrElse(
+              throw TypingException(
+                cType,
+                unapply.srcPos,
+                s"constructor pattern type is not case class or enum: $sirConstrType"
+              )
+            )
+        val optParent = SIRType.prodParent(sirConstrType)
+        val constrSymbol = cType.typeSymbol.primaryConstructor
+        val typeParamsMap = constrDecl.typeParams.zip(typeArgs).toMap
+        val paramTypes =
+            constrDecl.params.map(b => SIRType.substitute(b.tp, typeParamsMap, Map.empty))
+        val subpatterns = unapply.patterns
+            .zip(paramTypes)
+            .map { case (p, tp) =>
+                parsePattern(ctx, p, None, p.sourcePos, tp)
+            }
+            .toIndexedSeq
+        // TODO: check type compatibility
+        SirParsedCase.Pattern.Constructor(
+          SIRType.CaseClass(constrDecl, typeArgs, optParent),
+          typeParams,
+          bindingNameInfo,
+          // constrSymbol,
+          subpatterns,
+          optGuard,
+          pos
+        )
+    }
+
+    def parsePatternInBind(
+        ctx: PatternMatchingContext,
+        pat: Tree,
+        bindingNameInfo: SirParsedCase.BindingNameInfo,
+        optGuard: Option[Tree],
+        pos: SourcePosition,
+        sirScrutineeType: SIRType
+    ): SirParsedCase.Pattern = {
+        pat match
+            case u @ UnApply(fun, _, _) =>
+                parseConstructorPattern(
+                  ctx,
+                  u,
+                  bindingNameInfo,
+                  optGuard,
+                  pos,
+                  sirScrutineeType
+                )
+            case Ident(nme.WILDCARD) =>
+                SirParsedCase.Pattern.Wildcard(sirScrutineeType, bindingNameInfo, optGuard, pos)
+            case Literal(const) =>
+                val sirExpr = compiler.compileExpr(ctx.env, pat)
+                sirExpr match
+                    case c: SIR.Const =>
+                        SirParsedCase.Pattern.PrimitiveConstant(c, None, pat.sourcePos)
+                    case _ =>
+                        val err = GenericError("const pattern should be a constant", pat.srcPos)
+                        compiler.error(err, SirParsedCase.Pattern.Error(err))
+            case Typed(inner, tpt) =>
+                val tptSirType = compiler.sirTypeInEnv(tpt.tpe, pos, ctx.env)
+                if tptSirType ~=~ sirScrutineeType then
+                    parsePatternInBind(
+                      ctx,
+                      inner,
+                      bindingNameInfo,
+                      optGuard,
+                      inner.sourcePos,
+                      tptSirType
+                    )
+                else
+                    val innerPattern = parsePatternInBind(
+                      ctx,
+                      inner,
+                      bindingNameInfo,
+                      None,
+                      inner.sourcePos,
+                      tptSirType
+                    )
+                    SirParsedCase.Pattern.TypeSelector(
+                      tptSirType,
+                      bindingNameInfo,
+                      innerPattern,
+                      optGuard,
+                      pos
+                    )
+            case Alternative(trees) =>
+                val patterns = trees.map { p =>
+                    parsePatternInBind(ctx, p, bindingNameInfo, None, p.sourcePos, sirScrutineeType)
+                }
+                SirParsedCase.Pattern.OrPattern(patterns.toList, pat.sourcePos)
+            case _ =>
+                compiler.error(
+                  UnsupportedMatchExpression(pat, pat.srcPos),
+                  SirParsedCase.Pattern.Wildcard(sirScrutineeType, bindingNameInfo, optGuard, pos)
+                )
+
+    }
+
+    def parsePattern(
+        ctx: PatternMatchingContext,
+        pat: Tree,
+        optGuard: Option[Tree],
+        pos: SrcPos,
+        sirScrutineeType: SIRType
+    ): SirParsedCase.Pattern = {
+        if ctx.env.debug then
+            println(s"parsePattern: ${pat.show} ${pat.tpe.show} ${sirScrutineeType}")
+        pat match
+            // this is case Constr(name @ _) or Constr(name)
+            case b @ Bind(name, patten) =>
+                val nameInfo = SirParsedCase.BindingNameInfo(name.show, Some(name.show), b.symbol)
+                parsePatternInBind(
+                  ctx,
+                  patten,
+                  nameInfo,
+                  optGuard,
+                  pat.srcPos.sourcePos,
+                  sirScrutineeType
+                )
+            case _ =>
+                val nameInfo = SirParsedCase.BindingNameInfo(
+                  ctx.freshName(Some("_w")),
+                  None,
+                  NoSymbol
+                )
+                parsePatternInBind(
+                  ctx,
+                  pat,
+                  nameInfo,
+                  optGuard,
+                  pat.srcPos.sourcePos,
+                  sirScrutineeType
+                )
+    }
+
+    def parseSIRCase(
+        ctx: PatternMatchingContext,
+        c: CaseDef,
+        i: Int,
+        scrutineeType: SIRType
+    ): (SirParsedCase, Tree) = {
+        c match
+            case CaseDef(pat, guard, rhs) =>
+                val optGuard = if guard.isEmpty then None else Some(guard)
+                val sirPat = parsePattern(ctx, pat, optGuard, c.srcPos, scrutineeType)
+                val sirCase = SirParsedCase.PatternAction(
+                  sirPat,
+                  SirParsedCase.Action.Origin(i),
+                  c.srcPos.sourcePos
+                )
+                (sirCase, rhs)
+    }
+
+    def parseMatch(
+        ctx: PatternMatchingContext,
+        tree: Match,
+        env: SIRCompiler.Env
+    ): SirParsedMatch = {
+        if env.debug then println(s"parsedMatch: ${tree.show}")
+        val Match(scrutinee, cases) = tree
+        val scrutineeType = scrutinee.tpe.dealias.widen
+        val scrutineeSirType = sirTypeInEnv(scrutineeType, tree.srcPos, env)
+        val sirCasesAndActions = cases.zipWithIndex.map { case (cs, i) =>
+            parseSIRCase(ctx, cs, i, scrutineeSirType)
+        }.toIndexedSeq
+        val actions = sirCasesAndActions.map(_._2)
+        val matchSirType = sirTypeInEnv(tree.tpe.dealias.widen, tree.srcPos, env)
+        ctx.originActions = actions
+        SirParsedMatch(
+          scrutinee,
+          sirCasesAndActions.map(_._1).toList,
+          actions,
+          scrutineeSirType,
+          matchSirType,
+          tree.srcPos.sourcePos
+        )
+    }
+
+    def buildDecisionTree(
+        ctx: PatternMatchingContext,
+        parsedMatch: SirParsedMatch,
+        env: SIRCompiler.Env
+    ): SirCaseDecisionTree = {
+        val cleanedCases = parsedMatch.cases.flatMap {
+            case SirParsedCase.PatternAction(pattern, action, pos) =>
+                pattern match
+                    case typeSelector: SirParsedCase.Pattern.TypeSelector =>
+                        unrollTypeSelector(
+                          ctx,
+                          typeSelector,
+                          action,
+                          pos,
+                          parsedMatch.scrutineeTp,
+                          None
+                        )
+                    case alt: SirParsedCase.Pattern.OrPattern =>
+                        unrollAlternatives(
+                          alt,
+                          action,
+                          pos
+                        )
+                    case SirParsedCase.Pattern.    
+                    case _ =>
+                        ???
+
+        }
+        ???
+    }
+
+    def compileDecisionTree(
+        scrutinee: Tree,
+        decisionTree: SirCaseDecisionTree,
+        env: SIRCompiler.Env
+    ): AnnotatedSIR = {
+        ???
+    }
 
     def compileMatch(tree: Match, env: SIRCompiler.Env): AnnotatedSIR = {
+        val bPrefix = s"_${tree.srcPos.startPos.source.name}_${tree.srcPos.line}_match_"
+        val ctx = PatternMatchingContext(bPrefix, env)
+        val parsedMatch = parseMatch(ctx, tree, env)
+        val decisionTree = buildDecisionTree(ctx, parsedMatch, env)
+        val sirMatch = compileDecisionTree(parsedMatch.scrutinee, decisionTree, env)
+        sirMatch
+        /*
         if env.debug then println(s"compileMatch: ${tree.show}")
         val Match(matchTree, cases) = tree
         // val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
@@ -463,10 +921,229 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
           sirTypeInEnv(tree.tpe.dealias.widen, tree.srcPos, env),
           annotations
         )
+        
+         */
     }
 
     private def sirTypeInEnv(tpe: Type, srcPos: SrcPos, env: SIRCompiler.Env): SIRType = {
         compiler.sirTypeInEnv(tpe, srcPos, env)
     }
+
+    private def unrollTypeSelector(
+        ctx: PatternMatchingContext,
+        ts: SirParsedCase.Pattern.TypeSelector,
+        action: SirParsedCase.Action,
+        pos: SrcPos,
+        scrutineeTp: SIRType,
+        optParentSeq: Option[Seq[SIRType]]
+    ): List[SirParsedCase] = {
+
+        if ts.tp == SIRType.FreeUnificator then
+            List(SirParsedCase.PatternAction(ts.innerPattern.withAlias(ts.nameInfo), action, pos))
+        else if SIRType.isSum(scrutineeTp) then {
+            val parentSeq = optParentSeq.getOrElse(SIRType.parentsEqSeq(ts.tp, scrutineeTp))
+            parentSeq match
+                case Nil =>
+                    val err = GenericError(
+                      s"Type selector pattern type ${ts.tp} is not a parent of scrutinee type ${scrutineeTp}",
+                      pos
+                    )
+                    compiler.error(err, List.empty)
+                case head :: Nil =>
+                    List(
+                      SirParsedCase.PatternAction(
+                        ts.innerPattern.withAlias(ts.nameInfo),
+                        action,
+                        pos
+                      )
+                    )
+                case head :: middle :: next =>
+                    if !next.isEmpty then
+                        val err = GenericError(
+                          s"Type selector with more than two levels of nesting is not supported",
+                          pos
+                        )
+                        compiler.error(err, List.empty)
+                    else
+                        // most typical case, second is selector
+                        SIRType.collectProd(ts.tp) match {
+                            case Some((typeParams, constrDecl, typeArgs)) =>
+                                ts.innerPattern match {
+                                    case wd: SirParsedCase.Pattern.Wildcard =>
+                                        val optParent = SIRType.prodParent(ts.tp)
+                                        val typeMap = constrDecl.typeParams.zip(typeArgs).toMap
+                                        val subpatterns = constrDecl.params.map { p =>
+                                            val ptp = SIRType.substitute(p.tp, typeMap, Map.empty)
+                                            val nameInfo = SirParsedCase.BindingNameInfo(
+                                              ctx.freshName(Some("_w")),
+                                              None,
+                                              NoSymbol
+                                            )
+                                            SirParsedCase.Pattern.Wildcard(
+                                              ptp,
+                                              nameInfo,
+                                              None,
+                                              pos
+                                            )
+                                        }
+                                        val constrPattern = SirParsedCase.Pattern.Constructor(
+                                          SIRType.CaseClass(constrDecl, typeArgs, optParent),
+                                          typeParams,
+                                          ts.nameInfo,
+                                          subpatterns.toIndexedSeq,
+                                          ts.optGuard,
+                                          pos
+                                        )
+                                        if next.isEmpty then
+                                            List(
+                                              SirParsedCase
+                                                  .PatternAction(constrPattern, action, pos)
+                                            )
+                                        else {
+                                            val nTypeSelector = SirParsedCase.Pattern.TypeSelector(
+                                              middle,
+                                              ts.nameInfo,
+                                              constrPattern,
+                                              None,
+                                              pos
+                                            )
+                                            unrollTypeSelector(
+                                              ctx,
+                                              nTypeSelector,
+                                              action,
+                                              pos,
+                                              scrutineeTp,
+                                              Some(next)
+                                            )
+                                        }
+                                    case _ =>
+                                        val err = GenericError(
+                                          s"Type selector with non-wildcard inner pattern is not supported",
+                                          pos
+                                        )
+                                        compiler.error(err, List.empty)
+                                }
+                            case None =>
+                                SIRType.collectSum(ts.tp) match {
+                                    case Some((freeTypeParams, dataDecl, typeArgs)) =>
+                                        SIRType.collectSum(middle) match {
+                                            case Some((_, middleDataDecl, middleTypeArgs)) =>
+                                                val constrName =
+                                                    SIRType.syntheticNarrowConstrDeclName(
+                                                      middleDataDecl.name
+                                                    )
+                                                val constrTp = middleDataDecl.constrType(constrName)
+                                                SIRType.collectProd(constrTp) match
+                                                    case None =>
+                                                        val err = GenericError(
+                                                          s"narrowing constructor type is not case class or enum: ${constrTp.show}",
+                                                          pos
+                                                        )
+                                                        compiler.error(err, List.empty)
+                                                    case Some((prodTp, constrDecl, typeArgs)) =>
+                                                        val caseClassType = SIRType.CaseClass(
+                                                          constrDecl,
+                                                          typeArgs,
+                                                          Some(middle)
+                                                        )
+                                                        val newNameInfo =
+                                                            SirParsedCase.BindingNameInfo(
+                                                              ctx.freshName(Some("_w")),
+                                                              None,
+                                                              NoSymbol
+                                                            )
+                                                        val nPattern =
+                                                            SirParsedCase.Pattern.Constructor(
+                                                              caseClassType,
+                                                              prodTp,
+                                                              newNameInfo,
+                                                              IndexedSeq(
+                                                                ts.innerPattern.withAlias(
+                                                                  ts.nameInfo
+                                                                )
+                                                              ),
+                                                              ts.optGuard,
+                                                              ts.pos
+                                                            )
+                                                        if next.isEmpty then {
+                                                            val retval =
+                                                                SirParsedCase.PatternAction(
+                                                                  nPattern,
+                                                                  action,
+                                                                  pos
+                                                                )
+                                                            List(retval)
+                                                        } else {
+                                                            val nTypeSelector =
+                                                                SirParsedCase.Pattern.TypeSelector(
+                                                                  middle,
+                                                                  newNameInfo,
+                                                                  nPattern,
+                                                                  None,
+                                                                  pos
+                                                                )
+                                                            unrollTypeSelector(
+                                                              ctx,
+                                                              nTypeSelector,
+                                                              action,
+                                                              pos,
+                                                              scrutineeTp,
+                                                              Some(next)
+                                                            )
+                                                        }
+                                            case None =>
+                                                val err = GenericError(
+                                                  s"Type selector pattern type ${ts.tp.show} is not found in ${middle.show} constructors",
+                                                  pos
+                                                )
+                                                compiler.error(err, List.empty)
+                                        }
+                                    case None =>
+                                        val err = GenericError(
+                                          s"Type selector pattern type ${ts.tp.show} is not a product or sum",
+                                          pos
+                                        )
+                                        compiler.error(err, List.empty)
+                                }
+                        }
+        } else if SIRType.isProd(scrutineeTp) then {
+            if SIRType.isProd(ts.tp) then {
+                SIRUnify.topLevelUnifyType(scrutineeTp, ts.tp, SIRUnify.Env.empty) match
+                    case SIRUnify.UnificationSuccess(env, u) =>
+                        val nPattern = ts.innerPattern.withAlias(ts.nameInfo)
+                        List(SirParsedCase.PatternAction(nPattern, action, pos))
+                    case SIRUnify.UnificationFailure(path, left, right) =>
+                        val err = GenericError(
+                          s"Type selector pattern type ${ts.tp.show} is not compatible with scrutinee type ${scrutineeTp.show}",
+                          pos
+                        )
+                        compiler.error(err, List.empty)
+            } else
+                val err = GenericError(
+                  s"Type selector pattern type ${ts.tp.show} is not a child of scrutinee type ${scrutineeTp.show}",
+                  pos
+                )
+                compiler.error(err, List.empty)
+        } else {
+            SIRUnify.topLevelUnifyType(ts.tp, scrutineeTp, SIRUnify.Env.empty) match
+                case SIRUnify.UnificationSuccess(env, u) =>
+                    val nPattern = ts.innerPattern.withAlias(ts.nameInfo)
+                    val retval = SirParsedCase.PatternAction(nPattern, action, pos)
+                    List(retval)
+                case SIRUnify.UnificationFailure(path, left, right) =>
+                    val err = GenericError(
+                      s"Type selector pattern type ${ts.tp.show} is not compatible with scrutinee type ${scrutineeTp.show}",
+                      pos
+                    )
+                    compiler.error(err, List.empty)
+        }
+
+    }
+
+    private def unrollAlternatives(
+        alt: SirParsedCase.Pattern.OrPattern,
+        action: SirParsedCase.Action,
+        pos: SrcPos,
+    ): List[SirParsedCase] = alt.patterns.map(p => SirParsedCase.PatternAction(p, action, p.pos))
 
 }
