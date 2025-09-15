@@ -5,6 +5,7 @@ import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
 import scalus.ledger.api.ValidityInterval
+import scalus.Cbor
 
 /** Represents a complete transaction in Cardano */
 case class Transaction(
@@ -28,7 +29,7 @@ case class Transaction(
         ValidityInterval(body.value.validityStartSlot, body.value.ttl)
 
     def toCbor: Array[Byte] = {
-        Cbor.encode(this).toByteArray
+        Cbor.encode(this)
     }
 }
 
@@ -41,7 +42,7 @@ object Transaction {
 
     def fromCbor(bytes: Array[Byte]): Transaction = {
         given OriginalCborByteArray = OriginalCborByteArray(bytes)
-        Cbor.decode(bytes).to[Transaction].value
+        Cbor.decode(bytes)
     }
 
     /** CBOR codec for Transaction */
