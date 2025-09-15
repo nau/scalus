@@ -2,11 +2,12 @@ package scalus.cardano.ledger.txbuilder
 import com.bloxbean.cardano.client.backend.api.BackendService
 import com.bloxbean.cardano.client.function.TxSigner as CCLSigner
 import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
-import scalus.builtin.{platform, ByteString, Data}
+import scalus.builtin.{ByteString, Data, platform}
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.txbuilder.TxBuilder.{dummyVkey, modifyBody, modifyWs}
 import scalus.cardano.ledger.utils.TxBalance
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.Script.{Native, PlutusV3}
 
 import scala.collection.immutable.SortedMap
 
@@ -16,6 +17,8 @@ case class TxBuilder(
     tx: Transaction = TxBuilder.emptyTx,
     backendService: BackendService = null,
     var payer: Address = null,
+    var attachedScript: PlutusV3 = null,
+    var attachedNativeScript: Native = null,
     signer: CCLSigner = null
 ) {
 
@@ -23,6 +26,8 @@ case class TxBuilder(
         copy(backendService = backendService)
     def withSigner(signer: CCLSigner): TxBuilder = copy(signer = signer)
     def withPayer(address: Address): TxBuilder = copy(payer = address)
+    def withAttachedScript(script: PlutusV3) = copy(attachedScript = script)
+    def withAttachedNativeScript(script: Script.Native) = copy(attachedNativeScript = script)
 
     /** Configures the behaviour that is invoked when the payment transaction produces more ada than
       * it consumes.
@@ -40,12 +45,27 @@ case class TxBuilder(
         )
     }
 
-    def payTo(address: Address, value: Value) = new PaymentTransactionBuilder(
-      context,
-      payer,
-      address,
-      value
-    )
+    def payTo(address: Address, value: Value) = {
+        PaymentTransactionBuilder(
+            context,
+            payer,
+            address,
+            value,
+            Option(attachedScript),
+            Option(attachedNativeScript)
+        )   
+    }
+
+    def mint(tokens: MultiAsset, receiver: Address) = {
+        MintTransactionBuilder(
+            context,
+            payer,
+            receiver,
+            tokens,
+            Option(attachedScript),
+            Option(attachedNativeScript)
+        )
+    }
 
     /** Adds a new output which contains the specified value to be sent to the specified address.
       * The output contains the specified data stored as inline datum.
@@ -387,7 +407,6 @@ case class TxBuilder(
         )
         context.validate(balanced).toTry.get
     }
-
 
     private def isPlutusScriptTx(transaction: Transaction): Boolean =
         transaction.witnessSet.plutusV1Scripts.size +

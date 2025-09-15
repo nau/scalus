@@ -18,7 +18,7 @@ case class BuilderContext(
     protocolParams: ProtocolParams,
     evaluator: PlutusScriptEvaluator,
     network: Network,
-    utxoProvider: UtxoProvider,
+    utxoProvider: UtxoProvider = UtxoProvider.from(Map.empty), 
     validators: Seq[Validator] = Seq.empty,
     backendService: BackendService = null,
 ) {
