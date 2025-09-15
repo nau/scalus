@@ -879,7 +879,7 @@ object BlahBuilder {
 
 object LowLevelTxBuilder {
     class ChangeOutputDiffHandler(protocolParams: ProtocolParams, changeOutputIdx: Int) {
-        def changeOutputDiffHandler(diffValue: Value, tx: Transaction): Transaction = {
+        def changeOutputDiffHandler(diff: Long, tx: Transaction): Transaction = {
             val numOutputs = tx.body.value.outputs.size
             require(
               changeOutputIdx < numOutputs,
@@ -887,59 +887,38 @@ object LowLevelTxBuilder {
             )
             val changeOut = tx.body.value.outputs(changeOutputIdx)
             val changeLovelace = changeOut.value.value.coin.value
+            val minAda = MinCoinSizedTransactionOutput(changeOut, protocolParams)
+            require(minAda.value > 0, s"Min ada must be positive, got ${minAda.value}")
+            val updatedLovelaceChange = changeLovelace + diff
 
-            val diff = diffValue.coin.value
-            if diff == 0 then
-                val minAda = MinCoinSizedTransactionOutput(changeOut, protocolParams)
-                if minAda.value <= changeLovelace then tx
-                else
-                    throw new RuntimeException(
-                      s"Transaction cannot be balanced: not enough funds to cover change output min ada: $diff"
-                    )
-            else if diff > 0 then
-                // extra lovelace, add to change output
-                val updatedLovelaceChange = changeLovelace + diff
+            if updatedLovelaceChange <= minAda.value then
+                throw new RuntimeException(
+                  s"Transaction cannot be balanced: not enough funds to cover change output min ada: $diff"
+                )
 
-                val newChangeOut =
-                    val newValue =
-                        changeOut.value.value.focus(_.coin.value).replace(updatedLovelaceChange)
-                    Sized(changeOut.value.withValue(newValue))
-
-                val minAda = MinCoinSizedTransactionOutput(newChangeOut, protocolParams)
-                if updatedLovelaceChange < minAda.value then
-                    throw new RuntimeException(
-                      s"Transaction cannot be balanced: not enough funds to cover change output min ada: $diff"
-                    )
+            if diff == 0 then tx
+            else
+                val newValue =
+                    changeOut.value.value
+                        .focus(_.coin.value)
+                        .replace(updatedLovelaceChange)
+                val newChangeOut = Sized(changeOut.value.withValue(newValue))
                 val t = tx
                     .focus(_.body.value.outputs.index(changeOutputIdx))
                     .replace(newChangeOut)
                 t
-            else
-                val minAda = MinCoinSizedTransactionOutput(changeOut, protocolParams)
-                require(minAda.value > 0, s"Min ada must be positive, got ${minAda.value}")
-                val updatedLovelaceChange = changeLovelace + diff // remove excess lovelace
-                if minAda.value <= updatedLovelaceChange // still enough lovelace to cover min ada
-                then
-                    val newChangeOut =
-                        val newValue =
-                            changeOut.value.value
-                                .focus(_.coin.value)
-                                .replace(updatedLovelaceChange)
-                        Sized(changeOut.value.withValue(newValue))
-                    val t = tx
-                        .focus(_.body.value.outputs.index(changeOutputIdx))
-                        .replace(newChangeOut)
-                    t
-                else
-                    throw new RuntimeException(
-                      s"Transaction cannot be balanced: not enough funds: $diff"
-                    )
         }
     }
 
+    /** Balances the transaction using a diff handler to adjust the transaction.
+      *
+      * Invariants:
+      *   - only ADA is adjusted, native tokens must be balanced beforehand
+      *   - fees never go below the initial fee
+      */
     def balanceFeeAndChange(
         initial: Transaction,
-        diffHandler: (Value, Transaction) => Transaction,
+        diffHandler: (Long, Transaction) => Transaction,
         protocolParams: ProtocolParams,
         resolvedUtxo: UTxO,
         evaluator: PlutusScriptEvaluator,
@@ -952,13 +931,13 @@ object LowLevelTxBuilder {
             val fee = Coin(math.max(minFee.value, tx.body.value.fee.value))
             val txWithFees = setFee(fee)(txWithExUnits)
             // find the diff
-            val diffValue = calculateChangeValue(txWithFees, resolvedUtxo, protocolParams)
+            val diff = calculateChangeLovelace(txWithFees, resolvedUtxo, protocolParams)
             // try to balance it
-            val balanced = diffHandler(diffValue, txWithFees)
-            val balancedDiff = calculateChangeValue(balanced, resolvedUtxo, protocolParams)
+            val balanced = diffHandler(diff, txWithFees)
+            val balancedDiff = calculateChangeLovelace(balanced, resolvedUtxo, protocolParams)
             iteration += 1
             // if diff is zero, we are done
-            if balancedDiff.isZero then balanced
+            if balancedDiff == 0 then balanced
             else if iteration > 20 then
                 throw new RuntimeException(
                   s"Transaction cannot be balanced after $iteration iterations, diff: $balancedDiff"
