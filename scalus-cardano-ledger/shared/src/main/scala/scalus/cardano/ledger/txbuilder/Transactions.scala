@@ -877,9 +877,19 @@ object BlahBuilder {
     TransactionRequirements(params) => Transaction
  */
 
+// Transaction balancing error types
+enum TxBalancingError {
+    case FeeCalculationFailed(cause: Throwable)
+    case IterationLimitExceeded(iterations: Int, lastDiff: Long)
+    case InsufficientFunds(diff: Long, minRequired: Long)
+}
+
 object LowLevelTxBuilder {
     class ChangeOutputDiffHandler(protocolParams: ProtocolParams, changeOutputIdx: Int) {
-        def changeOutputDiffHandler(diff: Long, tx: Transaction): Transaction = {
+        def changeOutputDiffHandler(
+            diff: Long,
+            tx: Transaction
+        ): Either[TxBalancingError, Transaction] = {
             val numOutputs = tx.body.value.outputs.size
             require(
               changeOutputIdx < numOutputs,
@@ -888,25 +898,22 @@ object LowLevelTxBuilder {
             val changeOut = tx.body.value.outputs(changeOutputIdx)
             val changeLovelace = changeOut.value.value.coin.value
             val minAda = MinCoinSizedTransactionOutput(changeOut, protocolParams)
-            require(minAda.value > 0, s"Min ada must be positive, got ${minAda.value}")
             val updatedLovelaceChange = changeLovelace + diff
 
-            if updatedLovelaceChange <= minAda.value then
-                throw new RuntimeException(
-                  s"Transaction cannot be balanced: not enough funds to cover change output min ada: $diff"
+            if updatedLovelaceChange < minAda.value then
+                return Left(
+                  TxBalancingError.InsufficientFunds(diff, minAda.value - updatedLovelaceChange)
                 )
 
-            if diff == 0 then tx
-            else
-                val newValue =
-                    changeOut.value.value
-                        .focus(_.coin.value)
-                        .replace(updatedLovelaceChange)
-                val newChangeOut = Sized(changeOut.value.withValue(newValue))
-                val t = tx
-                    .focus(_.body.value.outputs.index(changeOutputIdx))
-                    .replace(newChangeOut)
-                t
+            val newValue =
+                changeOut.value.value
+                    .focus(_.coin.value)
+                    .replace(updatedLovelaceChange)
+            val newChangeOut = Sized(changeOut.value.withValue(newValue))
+            val t = tx
+                .focus(_.body.value.outputs.index(changeOutputIdx))
+                .replace(newChangeOut)
+            Right(t)
         }
     }
 
@@ -918,31 +925,40 @@ object LowLevelTxBuilder {
       */
     def balanceFeeAndChange(
         initial: Transaction,
-        diffHandler: (Long, Transaction) => Transaction,
+        diffHandler: (Long, Transaction) => Either[TxBalancingError, Transaction],
         protocolParams: ProtocolParams,
         resolvedUtxo: UTxO,
         evaluator: PlutusScriptEvaluator,
-    ): Transaction = {
+    ): Either[TxBalancingError, Transaction] = {
         var iteration = 0
-        @tailrec def loop(tx: Transaction): Transaction = {
+        @tailrec def loop(tx: Transaction): Either[TxBalancingError, Transaction] = {
             val txWithExUnits = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
-            val minFee = MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams).toTry.get
-            // don't go below initial fee
-            val fee = Coin(math.max(minFee.value, tx.body.value.fee.value))
-            val txWithFees = setFee(fee)(txWithExUnits)
-            // find the diff
-            val diff = calculateChangeLovelace(txWithFees, resolvedUtxo, protocolParams)
-            // try to balance it
-            val balanced = diffHandler(diff, txWithFees)
-            val balancedDiff = calculateChangeLovelace(balanced, resolvedUtxo, protocolParams)
-            iteration += 1
-            // if diff is zero, we are done
-            if balancedDiff == 0 then balanced
-            else if iteration > 20 then
-                throw new RuntimeException(
-                  s"Transaction cannot be balanced after $iteration iterations, diff: $balancedDiff"
-                )
-            else loop(tx) // try again
+
+            MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams) match {
+                case Right(minFee) =>
+                    // don't go below initial fee
+                    val fee = Coin(math.max(minFee.value, tx.body.value.fee.value))
+                    val txWithFees = setFee(fee)(txWithExUnits)
+                    // find the diff
+                    val diff = calculateChangeLovelace(txWithFees, resolvedUtxo, protocolParams)
+                    // try to balance it
+                    diffHandler(diff, txWithFees) match {
+                        case Right(balanced) =>
+                            val balancedDiff =
+                                calculateChangeLovelace(balanced, resolvedUtxo, protocolParams)
+                            iteration += 1
+                            // if diff is zero, we are done
+                            if balancedDiff == 0 then Right(balanced)
+                            else if iteration > 20 then
+                                Left(
+                                  TxBalancingError
+                                      .IterationLimitExceeded(iteration, balancedDiff)
+                                )
+                            else loop(tx) // try again
+                        case Left(error) => Left(error)
+                    }
+                case Left(error) => Left(TxBalancingError.FeeCalculationFailed(error))
+            }
         }
         loop(initial)
     }

@@ -6,18 +6,31 @@ import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.rules.{Context, State, ValueNotConservedUTxOValidator}
 import scalus.cardano.ledger.txbuilder.LowLevelTxBuilder.ChangeOutputDiffHandler
+import scalus.cardano.ledger.txbuilder.TxBalancingError
+import scalus.cardano.ledger.txbuilder.TxBalancingError.InsufficientFunds
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.eval.ExBudget
 import upickle.default.read
 
 import scala.collection.immutable.SortedSet
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 class ChangeOutputDiffHandlerTest extends AnyFunSuite {
+
+    private val params: ProtocolParams = read[ProtocolParams](
+      this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
+    )(using ProtocolParams.blockfrostParamsRW)
+    private val evaluator = PlutusScriptEvaluator(
+      SlotConfig.Mainnet,
+      initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
+      protocolMajorVersion = MajorProtocolVersion.plominPV,
+      costModels = CostModels.fromProtocolParams(params)
+    )
+
     enum Expected {
         case Success(outputLovelace: Long, fee: Long)
-        case Failure(reason: String)
+        case Failure(error: TxBalancingError)
     }
 
     test("should fail when insufficient funds would require change output below minimum ADA") {
@@ -25,7 +38,7 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
           in = 1_000_000,
           output = 800_000,
           fee = 200_000,
-          expected = Expected.Failure("min ada")
+          expected = Expected.Failure(InsufficientFunds(0, 178370))
         )
     }
 
@@ -57,11 +70,19 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
     }
 
     test("should fail when output would become below minimum ADA") {
+        val insufficientFunds: InsufficientFunds = InsufficientFunds(-160529, 138899)
         check(
           in = 1_000_000,
           output = 1_000_000,
           fee = 0,
-          expected = Expected.Failure("min ada")
+          expected = Expected.Failure(insufficientFunds)
+        )
+
+        check(
+          in = 1_000_000 + insufficientFunds.minRequired,
+          output = 1_000_000,
+          fee = 0,
+          expected = Expected.Success(outputLovelace = 978_370, fee = -insufficientFunds.diff)
         )
     }
 
@@ -91,21 +112,15 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
         val (utxo, tx) = mkTx(Coin(2_000_000), Coin(1_000_000), Coin(200_000))
         val handler = ChangeOutputDiffHandler(params, 5) // Invalid index > outputs.size
 
-        val result = Try(
-          LowLevelTxBuilder.balanceFeeAndChange(
-            tx,
-            handler.changeOutputDiffHandler,
-            params,
-            utxo,
-            evaluator
-          )
-        )
-
-        result match {
-            case Success(_) => fail("Should fail with invalid change output index")
-            case Failure(err) =>
-                assert(err.getMessage.contains("out of bounds") || err.getMessage.contains("index"))
-        }
+        try
+            LowLevelTxBuilder.balanceFeeAndChange(
+              tx,
+              handler.changeOutputDiffHandler,
+              params,
+              utxo,
+              evaluator
+            )
+        catch case err => assert(err.getMessage.contains("requirement failed"))
     }
 
     private def mkTx(in: Coin, output: Coin, fee: Coin) = {
@@ -145,37 +160,25 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
         val (utxo, tx) = mkTx(Coin(in), Coin(output), Coin(fee))
 
         val handler = ChangeOutputDiffHandler(params, 0)
-        val r = Try(
-          LowLevelTxBuilder.balanceFeeAndChange(
-            tx,
-            handler.changeOutputDiffHandler,
-            params,
-            utxo,
-            evaluator
-          )
+        val r = LowLevelTxBuilder.balanceFeeAndChange(
+          tx,
+          handler.changeOutputDiffHandler,
+          params,
+          utxo,
+          evaluator
         )
         (r, expected) match
-            case (Success(value), Expected.Success(expectedValue, expectedFee)) =>
+            case (Right(value), Expected.Success(expectedValue, expectedFee)) =>
                 assert(
                   ValueNotConservedUTxOValidator.validate(Context(), State(utxo), value).isRight
                 )
                 val body = value.body.value
                 assert(body.fee.value == expectedFee)
                 assert(body.outputs(0).value.value.coin.value == expectedValue)
-            case (Failure(err), Expected.Failure(reason)) =>
-                assert(err.getMessage.contains(reason))
+            case (Left(err), Expected.Failure(expectedError)) =>
+                assert(err == expectedError)
             case _ =>
                 fail(s"Unexpected result: $r")
 
     }
-
-    private val params: ProtocolParams = read[ProtocolParams](
-      this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-    )(using ProtocolParams.blockfrostParamsRW)
-    private val evaluator = PlutusScriptEvaluator(
-      SlotConfig.Mainnet,
-      initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
-      protocolMajorVersion = MajorProtocolVersion.plominPV,
-      costModels = CostModels.fromProtocolParams(params)
-    )
 }
