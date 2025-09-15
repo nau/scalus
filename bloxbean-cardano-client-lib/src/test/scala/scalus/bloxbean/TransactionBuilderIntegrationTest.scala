@@ -24,7 +24,10 @@ import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 
 class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
-    // Reuse the same addresses and setup from TxBuilderIntegrationTest
+    /*
+     * Existing yaci utxos.
+     */
+
     private val EXISTING_UTXO = "6d36c0e2f304a5c27b85b3f04e95fc015566d35aef5f061c17c70e3e8b9ee508"
     private val SPENDER_ADDRESS = Address.fromBech32(
       "addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex"
@@ -51,7 +54,6 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         Environment(protocolParams = params, evaluator = evaluator, network = Network.Testnet)
     }
 
-    // Reuse the fetchProtocolParams method from TxBuilderIntegrationTest
     def fetchProtocolParams(): ProtocolParams = {
         import upickle.default.*
 
@@ -103,10 +105,8 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         override def getNetworkInfoService: NetworkInfoService = cluster.getNetworkInfoService
     }
 
-    // convenience factory mirroring your signature
     def createBackendService(): BackendService = new DevkitCompositeBackend()
 
-    // Reuse the submitTransactionToCardano method from TxBuilderIntegrationTest
     def submitTransactionToCardano(transaction: scalus.cardano.ledger.Transaction) = {
 
         val cborBytes = scalus.Cbor.encode(transaction)
