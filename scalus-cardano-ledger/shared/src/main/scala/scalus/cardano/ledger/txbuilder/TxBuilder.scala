@@ -45,6 +45,8 @@ case class TxBuilder(
         )
     }
 
+    def registerDrep(address: Address) = RegisterDRepTransactionBuilder(this, address)
+
     def payTo(address: Address, value: Value) = {
         PaymentTransactionBuilder(
             context,

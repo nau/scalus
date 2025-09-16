@@ -518,4 +518,24 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         }
         println("Success!")
     }
+
+    test("register DRep") {
+        pending
+        val network = Networks.testnet()
+        val account = new Account(network, MNEMONIC)
+
+        val context = BuilderContext(
+            environment.protocolParams,
+            environment.evaluator,
+            environment.network,
+            backendService = backendService
+        )
+
+        println("Registering DRep...")
+        val tx = context.buildNewTx.registerDrep(account0.address).withAccount(account).build
+
+        val signed = account0.signer.signTx(tx)
+        submitTransactionToCardano(signed)
+        println("Success!")
+    }
 }
