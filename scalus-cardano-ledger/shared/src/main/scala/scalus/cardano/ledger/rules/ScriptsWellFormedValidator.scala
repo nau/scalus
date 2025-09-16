@@ -97,13 +97,13 @@ object ScriptsWellFormedValidator extends STS.Validator {
     ): Set[DefaultFun] = {
         builtinsIntroducedIn.get(language) match
             case Some(majorProtocolVersionBuiltins) =>
-                val floorMajorProtocolVersionBuiltins =
-                    majorProtocolVersionBuiltins.view.takeWhile {
-                        case (currentMajorProtocolVersion, _) =>
-                            currentMajorProtocolVersion <= majorProtocolVersion
-                    }.lastOption
-
-                floorMajorProtocolVersionBuiltins.map(_._2).getOrElse(Set.empty)
+                majorProtocolVersionBuiltins.view
+                    .takeWhile { case (currentMajorProtocolVersion, _) =>
+                        currentMajorProtocolVersion <= majorProtocolVersion
+                    }
+                    .foldLeft(Set.empty[DefaultFun]) { case (acc, (_, builtins)) =>
+                        acc ++ builtins
+                    }
             case None => Set.empty
     }
 
