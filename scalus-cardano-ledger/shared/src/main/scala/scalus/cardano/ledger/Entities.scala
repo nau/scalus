@@ -227,6 +227,12 @@ object TransactionException {
           s"Ill-formed scripts for transactionId $transactionId, invalid witnesses scripts: $invalidWitnessesScripts, invalid scripts from all outputs: $InvalidScriptsFromAllOutputs"
         )
 
+    // It's part of Shelley.validateWrongNetworkWithdrawal in cardano-ledger
+    final case class WrongNetworkWithdrawal(transactionId: TransactionHash, wrongNetwork: Network)
+        extends TransactionException(
+          s"Wrong network in transaction withdrawal: $wrongNetwork"
+        )
+
     // It's part of Alonzo.validateWrongNetworkInTxBody in cardano-ledger
     final case class WrongNetworkInTxBody(transactionId: TransactionHash, wrongNetworkId: Int)
         extends TransactionException(
