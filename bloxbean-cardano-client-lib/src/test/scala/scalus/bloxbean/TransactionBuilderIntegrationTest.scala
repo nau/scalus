@@ -5,7 +5,7 @@ import com.bloxbean.cardano.client.backend.api.*
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import com.bloxbean.cardano.client.common.model.Networks
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{ByteString, Data, platform}
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder}
 import scalus.cardano.ledger.{AddrKeyHash, AssetName, Coin, CostModels, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, Value}
@@ -16,7 +16,7 @@ import scalus.ledger.babbage.ProtocolParams
 import scalus.prelude.orFail
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
-import scalus.{Compiler, plutusV3, toUplc}
+import scalus.{plutusV3, toUplc, Compiler}
 
 import scala.collection.immutable.SortedMap
 import java.net.URI
@@ -28,16 +28,136 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
      * Existing yaci utxos.
      */
 
-    private val EXISTING_UTXO = "6d36c0e2f304a5c27b85b3f04e95fc015566d35aef5f061c17c70e3e8b9ee508"
-    private val SPENDER_ADDRESS = Address.fromBech32(
-      "addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex"
-    )
-    private val TARGET_ADDRESS = Address.fromBech32(
-      "addr_test1qpqy3lufef8c3en9nrnzp2svwy5vy9zangvp46dy4qw23clgfxhn3pqv243d6wptud7fuaj5tjqer7wc7m036gx0emsqaqa8te"
-    )
+    /*
+     * Predefined accounts that exist in a fresh yaci devkit instance.
+     */
     private val MNEMONIC =
         "test test test test test test test test test test test test test test test test test test test test test test test sauce"
-    private val DERIVATION = "m/1852'/1815'/0'/0/0"
+
+    case class ExistingAccount(rawAddress: String, derivation: String) {
+        def address = Address.fromBech32(rawAddress)
+        def signer = makeSignerFrom(derivation, MNEMONIC)
+    }
+        val account0 = ExistingAccount(
+          rawAddress =
+              "addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex",
+          derivation = "m/1852'/1815'/0'/0/0"
+        )
+
+        val account1 = ExistingAccount(
+          rawAddress =
+              "addr_test1qpqy3lufef8c3en9nrnzp2svwy5vy9zangvp46dy4qw23clgfxhn3pqv243d6wptud7fuaj5tjqer7wc7m036gx0emsqaqa8te",
+          derivation = "m/1852'/1815'/1'/0/0"
+        )
+
+        val account2 = ExistingAccount(
+          rawAddress =
+              "addr_test1qr9xuxclxgx4gw3y4h4tcz4yvfmrt3e5nd3elphhf00a67xnrv5vjcv6tzehj2nnjj4cth4ndzyuf4asvvkgzeac2hfqk0za93",
+          derivation = "m/1852'/1815'/2'/0/0"
+        )
+
+        val account3 = ExistingAccount(
+          rawAddress =
+              "addr_test1qqra0q073cecs03hr724psh3ppejrlpjuphgpdj7xjwvkqnhqttgsr5xuaaq2g805dldu3gq9gw7gwmgdyhpwkm59ensgyph06",
+          derivation = "m/1852'/1815'/3'/0/0"
+        )
+
+        val account4 = ExistingAccount(
+          rawAddress =
+              "addr_test1qp38kfvcm4c39yt8sfgkp3tyqe736fz708xzxuy5s9w9ev43yh3sash5eeq9ngrfuzxrekpvmly52xlmyfy8lz39emhs2spswl",
+          derivation = "m/1852'/1815'/4'/0/0"
+        )
+
+        val account5 = ExistingAccount(
+          rawAddress =
+              "addr_test1qrrv7774puml0exvzc0uqrc8axezy6a925kv4ucdx906qy6mhjxtmx44x70ndr7g6dgqcdaf69q8fnrdmtvfud5x7rsqvsuqx5",
+          derivation = "m/1852'/1815'/5'/0/0"
+        )
+
+        val account6 = ExistingAccount(
+          rawAddress =
+              "addr_test1qpgkf2ccvu2uscmcqgy4dkyjeae0va3kk7yk04nuleekq3u3xrwgnnm6n0yfzz0e8x2kkehex2f6mexrjg9h9l2qhm4qkms53s",
+          derivation = "m/1852'/1815'/6'/0/0"
+        )
+
+        val account7 = ExistingAccount(
+          rawAddress =
+              "addr_test1qq7a8p6zaxzgcmcjcy7ak8u5vn7qec9mjggzw6qg096nzlj6n7rflnv3x43vnv8q7q0h0ef4n6ncp5mljd2ljupwl79s5mqneq",
+          derivation = "m/1852'/1815'/7'/0/0"
+        )
+
+        val account8 = ExistingAccount(
+          rawAddress =
+              "addr_test1qzyw0ensk3w2kgezk5vw77m0vmfs4mqdjg7ugclyvuy357g0vaukh8a8zgj09prvaw70f9gvz8sypmsjf5c0dctyhn2slcvsjn",
+          derivation = "m/1852'/1815'/8'/0/0"
+        )
+
+        val account9 = ExistingAccount(
+          rawAddress =
+              "addr_test1qrrshpppv9uq95lj89tv4vv40cwnqmx5szzcndqhvr5hjfltl4s98wsjkwpg3v4k6h2vgcvdd2xwt82stq8fcmmsft6s8dzp8f",
+          derivation = "m/1852'/1815'/9'/0/0"
+        )
+
+        val account10 = ExistingAccount(
+          rawAddress =
+              "addr_test1qrqfxwuz8rm0xvewfrp5eudgup24jsan8n22h3f6a7mavyjt0njqm4ykhhqzkdrq9ua8w0lhen8wsuuerexgsehn5u9syjlrxr",
+          derivation = "m/1852'/1815'/10'/0/0"
+        )
+
+        val account11 = ExistingAccount(
+          rawAddress =
+              "addr_test1qp5l04egnh30q8x3uqn943d7jsa5za66htsvu6e74s8dacxwnjkm0n0v900d8mu20wlrx55xn07p8pm4fj0wdvtc9kwq7pztl7",
+          derivation = "m/1852'/1815'/11'/0/0"
+        )
+
+        val account12 = ExistingAccount(
+          rawAddress =
+              "addr_test1qpcf5ursqpwx2tp8maeah00rxxdfpvf8h65k4hk3chac0fvu28duly863yqhgjtl8an2pkksd6mlzv0qv4nejh5u2zjsshr90k",
+          derivation = "m/1852'/1815'/12'/0/0"
+        )
+
+        val account13 = ExistingAccount(
+          rawAddress =
+              "addr_test1qr79wm0n5fucskn6f58u2qph9k4pm9hjd3nkx4pwe54ds4gh2vpy4h4r0sf5ah4mdrwqe7hdtfcqn6pstlslakxsengsgyx75q",
+          derivation = "m/1852'/1815'/13'/0/0"
+        )
+
+        val account14 = ExistingAccount(
+          rawAddress =
+              "addr_test1qqe5df3su6tjhuuve6rjr8d36ccxre7dxfx2mzxp3egy72vsetrga9el2yjke2fcdql6f6sjzu7h6prajs8mhzpm6r5qpkfq9m",
+          derivation = "m/1852'/1815'/14'/0/0"
+        )
+
+        val account15 = ExistingAccount(
+          rawAddress =
+              "addr_test1qq5tscksq8n2vjszkdtqe0zn9645246ex3mu88x9y0stnlzjwyqgnrq3uuc3jst3hyy244rrwuxke0m7ezr3cn93u5vq0rfv8t",
+          derivation = "m/1852'/1815'/15'/0/0"
+        )
+
+        val account16 = ExistingAccount(
+          rawAddress =
+              "addr_test1qp0qu4cypvrwn4c7pu50zf3x9qu2drdsk545l5dnsa7a5gsr6htafuvutm36rm23hdnsw7w7r82q4tljuh55drxqt30q6vm8vs",
+          derivation = "m/1852'/1815'/16'/0/0"
+        )
+
+        val account17 = ExistingAccount(
+          rawAddress =
+              "addr_test1qqm87edtdxc7vu2u34dpf9jzzny4qhk3wqezv6ejpx3vgrwt46dz4zq7vqll88fkaxrm4nac0m5cq50jytzlu0hax5xqwlraql",
+          derivation = "m/1852'/1815'/17'/0/0"
+        )
+
+        val account18 = ExistingAccount(
+          rawAddress =
+              "addr_test1qrzufj3g0ua489yt235wtc3mrjrlucww2tqdnt7kt5rs09grsag6vxw5v053atks5a6whke03cf2qx3h3g2nhsmzwv3sgml3ed",
+          derivation = "m/1852'/1815'/18'/0/0"
+        )
+
+        val account19 = ExistingAccount(
+          rawAddress =
+              "addr_test1qrh3nrahcd0pj6ps3g9htnlw2jjxuylgdhfn2s5rxqyrr43yzewr2766qsfeq6stl65t546cwvclpqm2rpkkxtksgxuq90xn5f",
+          derivation = "m/1852'/1815'/19'/0/0"
+        )
+
 
     private lazy val params = fetchProtocolParams()
     private lazy val backendService = createBackendService()
@@ -108,7 +228,6 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
     def createBackendService(): BackendService = new DevkitCompositeBackend()
 
     def submitTransactionToCardano(transaction: scalus.cardano.ledger.Transaction) = {
-
         val cborBytes = scalus.Cbor.encode(transaction)
         val result = backendService.getTransactionService.submitTransaction(cborBytes)
         if result.isSuccessful then succeed
@@ -121,14 +240,14 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
         val paymentAmount = Value.lovelace(5_000_000L)
         val tx = BuilderContext(
-            environment.protocolParams,
-            environment.evaluator,
-            environment.network,
-            backendService = backendService
+          environment.protocolParams,
+          environment.evaluator,
+          environment.network,
+          backendService = backendService
         ).buildNewTx
-            .withPayer(SPENDER_ADDRESS)
-            .payTo(TARGET_ADDRESS, paymentAmount)
-            .buildAndSign(makeSignerFrom(DERIVATION, MNEMONIC))
+            .withPayer(account0.address)
+            .payTo(account1.address, paymentAmount)
+            .buildAndSign(account0.signer)
 
         submitTransactionToCardano(tx)
 
@@ -145,23 +264,23 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val nativeScript = Script.Native(signatureTimelock)
 
         val scriptAddress = ShelleyAddress(
-            Network.Testnet,
-            ShelleyPaymentPart.scriptHash(nativeScript.scriptHash),
-            ShelleyDelegationPart.Null
+          Network.Testnet,
+          ShelleyPaymentPart.scriptHash(nativeScript.scriptHash),
+          ShelleyDelegationPart.Null
         )
 
         val paymentAmount = Value.lovelace(5_000_000L)
         val context = BuilderContext(
-            environment.protocolParams,
-            environment.evaluator,
-            environment.network,
-            backendService = backendService
+          environment.protocolParams,
+          environment.evaluator,
+          environment.network,
+          backendService = backendService
         )
 
         val tx1 = context.buildNewTx
-            .withPayer(SPENDER_ADDRESS)
+            .withPayer(account1.address)
             .payTo(scriptAddress, paymentAmount)
-            .buildAndSign(makeSignerFrom(DERIVATION, MNEMONIC))
+            .buildAndSign(account1.signer)
 
         println("Transferring to native script...")
         submitTransactionToCardano(tx1)
@@ -173,8 +292,8 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tx2 = context.buildNewTx
             .withPayer(scriptAddress)
             .withAttachedNativeScript(nativeScript)
-            .payTo(SPENDER_ADDRESS, Value.lovelace(3_000_000L))
-            .buildAndSign(makeSignerFrom(DERIVATION, MNEMONIC))
+            .payTo(account2.address, Value.lovelace(3_000_000L))
+            .buildAndSign(account0.signer)
 
         submitTransactionToCardano(tx2)
         println("Native script spending transaction submitted successfully")
@@ -194,22 +313,22 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tokenName = AssetName(ByteString.fromString("co2"))
         val tokenAmount = 1000L
         val tokens = MultiAsset(
-            SortedMap(policyId -> SortedMap(tokenName -> tokenAmount))
+          SortedMap(policyId -> SortedMap(tokenName -> tokenAmount))
         )
 
         val context = BuilderContext(
-            environment.protocolParams,
-            environment.evaluator,
-            environment.network,
-            backendService = backendService
+          environment.protocolParams,
+          environment.evaluator,
+          environment.network,
+          backendService = backendService
         )
 
         println("Minting co2 using a native script...")
         val tx = context.buildNewTx
-            .withPayer(SPENDER_ADDRESS)
+            .withPayer(account0.address)
             .withAttachedNativeScript(nativeScript)
-            .mint(tokens, TARGET_ADDRESS)
-            .buildAndSign(makeSignerFrom(DERIVATION, MNEMONIC))
+            .mint(tokens, account3.address)
+            .buildAndSign(account0.signer)
 
         submitTransactionToCardano(tx)
         println("Success!")
@@ -240,7 +359,10 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
                 val context = scriptContext.to[ScriptContext]
 
-                val outs: scalus.prelude.SortedMap[CurrencySymbol, scalus.prelude.SortedMap[TokenName, BigInt]] =
+                val outs: scalus.prelude.SortedMap[
+                  CurrencySymbol,
+                  scalus.prelude.SortedMap[TokenName, BigInt]
+                ] =
                     context.txInfo.outputs.head.value.toSortedMap
                 val l = outs.toList
                 val amount = outs.toList.head._2.toList.head._2
@@ -269,9 +391,9 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
           backendService = backendService
         )
         val tx1 = context.buildNewTx
-            .withPayer(SPENDER_ADDRESS)
+            .withPayer(account3.address)
             .payTo(scriptAddress, paymentAmount)
-        .buildAndSign(makeSignerFrom(DERIVATION, MNEMONIC))
+            .buildAndSign(account3.signer)
 
         println("Transferring to script...")
         submitTransactionToCardano(tx1)
@@ -281,9 +403,9 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tx2 = context.buildNewTx
             .withPayer(scriptAddress)
             .withAttachedScript(script)
-            .payTo(SPENDER_ADDRESS, Value.lovelace(5_000_002L))
-            .setCollateralPayer(SPENDER_ADDRESS)
-            .buildAndSign(makeSignerFrom(DERIVATION, MNEMONIC)) // to be able to spend collaterals
+            .payTo(account4.address, Value.lovelace(5_000_002L))
+            .setCollateralPayer(account3.address)
+            .buildAndSign(account3.signer) // to be able to spend collaterals
         submitTransactionToCardano(tx2)
         println("Success!")
     }
@@ -311,23 +433,23 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tokenName = AssetName(ByteString.fromString("co2"))
         val tokenAmount = 500L
         val tokens = MultiAsset(
-            SortedMap(policyId -> SortedMap(tokenName -> tokenAmount))
+          SortedMap(policyId -> SortedMap(tokenName -> tokenAmount))
         )
 
         val context = BuilderContext(
-            environment.protocolParams,
-            environment.evaluator,
-            environment.network,
-            backendService = backendService
+          environment.protocolParams,
+          environment.evaluator,
+          environment.network,
+          backendService = backendService
         )
 
         println("Minting co2 tokens using a plutus script...")
         val tx = context.buildNewTx
-            .withPayer(SPENDER_ADDRESS)
+            .withPayer(account4.address)
             .withAttachedScript(plutusScript)
-            .mint(tokens, TARGET_ADDRESS)
-            .setCollateralPayer(SPENDER_ADDRESS)
-            .buildAndSign(makeSignerFrom(DERIVATION, MNEMONIC))
+            .mint(tokens, account5.address)
+            .setCollateralPayer(account4.address)
+            .buildAndSign(account4.signer)
 
         submitTransactionToCardano(tx)
         println("Success!")
@@ -336,23 +458,28 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
     test("register stake address") {
         val network = Networks.testnet()
         val account = new Account(network, MNEMONIC)
-        
+
         // Create a stake address from the same account
-        val stakeKeyHash = AddrKeyHash(platform.blake2b_224(ByteString.fromArray(account.stakeHdKeyPair().getPublicKey.getKeyData)))
-        val stakeAddress = StakeAddress(Network.Testnet, StakePayload.fromBytes(stakeKeyHash.bytes, false).get)
-        
+        val stakeKeyHash = AddrKeyHash(
+          platform.blake2b_224(
+            ByteString.fromArray(account.stakeHdKeyPair().getPublicKey.getKeyData)
+          )
+        )
+        val stakeAddress =
+            StakeAddress(Network.Testnet, StakePayload.fromBytes(stakeKeyHash.bytes, false).get)
+
         val context = BuilderContext(
-            environment.protocolParams,
-            environment.evaluator,
-            environment.network,
-            backendService = backendService
+          environment.protocolParams,
+          environment.evaluator,
+          environment.network,
+          backendService = backendService
         )
 
         println("Registering stake address...")
-        val tx = StakingTransactionBuilder(context, SPENDER_ADDRESS, stakeAddress)
-            .registerStakeAddress
+        val tx =
+            StakingTransactionBuilder(context, account5.address, stakeAddress).registerStakeAddress
 
-        val signed = makeSignerFrom(DERIVATION, MNEMONIC).signTx(tx)
+        val signed = account5.signer.signTx(tx)
         submitTransactionToCardano(signed)
         println("Success!")
     }
@@ -360,23 +487,28 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
     test("withdraw staking rewards") {
         val network = Networks.testnet()
         val account = new Account(network, MNEMONIC)
-        
+
         // Create a stake address from the same account
-        val stakeKeyHash = AddrKeyHash(platform.blake2b_224(ByteString.fromArray(account.stakeHdKeyPair().getPublicKey.getKeyData)))
-        val stakeAddress = StakeAddress(Network.Testnet, StakePayload.fromBytes(stakeKeyHash.bytes, false).get)
-        
+        val stakeKeyHash = AddrKeyHash(
+          platform.blake2b_224(
+            ByteString.fromArray(account.stakeHdKeyPair().getPublicKey.getKeyData)
+          )
+        )
+        val stakeAddress =
+            StakeAddress(Network.Testnet, StakePayload.fromBytes(stakeKeyHash.bytes, false).get)
+
         val context = BuilderContext(
-            environment.protocolParams,
-            environment.evaluator,
-            environment.network,
-            backendService = backendService
+          environment.protocolParams,
+          environment.evaluator,
+          environment.network,
+          backendService = backendService
         )
 
         println("Withdrawing staking rewards...")
-        val tx = StakingTransactionBuilder(context, SPENDER_ADDRESS, stakeAddress)
+        val tx = StakingTransactionBuilder(context, account6.address, stakeAddress)
             .withdraw(500)
 
-        val signed = makeSignerFrom(DERIVATION, MNEMONIC).signTx(tx)
+        val signed = account6.signer.signTx(tx)
         try {
             submitTransactionToCardano(signed)
         } catch {
