@@ -1,7 +1,8 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.ledger.TransactionException.{WrongNetworkInTxBody, WrongNetworkWithdrawal}
+import scalus.cardano.address.*
+import scalus.cardano.ledger.TransactionException.{WrongNetworkAddress, WrongNetworkInTxBody, WrongNetworkWithdrawal}
 
 // It's part of Babbage.missingRequiredDatums in cardano-ledger
 object MissingRequiredDatumsValidator extends STS.Validator {
@@ -40,10 +41,13 @@ object OutputBootAddrAttrsTooBigValidator extends STS.Validator {
 }
 // It's part of Shelley.validateWrongNetwork in cardano-ledger
 object WrongNetworkValidator extends STS.Validator {
-    override final type Error = TransactionException
+    override final type Error = WrongNetworkAddress
 
     override def validate(context: Context, state: State, event: Event): Result = {
-        ???
+        event.body.value.outputs
+            .find(_.value.address.getNetwork.fold(false)(_ != context.env.network))
+            .map(t => failure(WrongNetworkAddress(event.id, t.value.address)))
+            .getOrElse(success)
     }
 }
 // It's part of Shelley.validateWrongNetworkWithdrawal in cardano-ledger

@@ -1,6 +1,6 @@
 package scalus.cardano.ledger
 
-import scalus.cardano.address.Network
+import scalus.cardano.address.{Address, Network}
 import scalus.ledger.api.ValidityInterval
 
 // TODO: maybe replace on enum
@@ -227,16 +227,24 @@ object TransactionException {
           s"Ill-formed scripts for transactionId $transactionId, invalid witnesses scripts: $invalidWitnessesScripts, invalid scripts from all outputs: $InvalidScriptsFromAllOutputs"
         )
 
+    // It's part of Shelley.validateWrongNetwork in cardano-ledger
+    final case class WrongNetworkAddress(
+        transactionId: TransactionHash,
+        wrongNetworkAddress: Address
+    ) extends TransactionException(
+          s"Wrong network address $wrongNetworkAddress in transaction $transactionId"
+        )
+
     // It's part of Shelley.validateWrongNetworkWithdrawal in cardano-ledger
     final case class WrongNetworkWithdrawal(transactionId: TransactionHash, wrongNetwork: Network)
         extends TransactionException(
-          s"Wrong network in transaction withdrawal: $wrongNetwork"
+          s"Wrong network withdrawal $wrongNetwork in transaction $transactionId"
         )
 
     // It's part of Alonzo.validateWrongNetworkInTxBody in cardano-ledger
     final case class WrongNetworkInTxBody(transactionId: TransactionHash, wrongNetworkId: Int)
         extends TransactionException(
-          s"Wrong networkId in transaction body: $wrongNetworkId"
+          s"Wrong networkId $wrongNetworkId in body of transaction $transactionId"
         )
 
     // TODO: placeholder for general exception, remove after finishing development
