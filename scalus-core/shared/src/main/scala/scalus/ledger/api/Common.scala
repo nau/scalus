@@ -1,6 +1,8 @@
 package scalus.ledger.api
+
 import scalus.cardano.ledger.Language
 import upickle.default.ReadWriter
+import scala.collection.immutable.SortedSet
 
 enum BuiltinSemanticsVariant:
     case A, B, C
@@ -72,8 +74,8 @@ object ProtocolVersion {
     val futurePV = ProtocolVersion(Int.MaxValue, 0)
 
     // Known protocol versions
-    val knownPVs: Set[ProtocolVersion] =
-        Set(shelleyPV, allegraPV, maryPV, alonzoPV, vasilPV, valentinePV, conwayPV)
+    val knownPVs: SortedSet[ProtocolVersion] =
+        SortedSet(shelleyPV, allegraPV, maryPV, alonzoPV, vasilPV, valentinePV, conwayPV)
 }
 
 case class MajorProtocolVersion(version: Int) extends Ordered[MajorProtocolVersion]
@@ -94,6 +96,6 @@ object MajorProtocolVersion {
     val futurePV = MajorProtocolVersion(Int.MaxValue)
 
     // Known protocol versions
-    val knownPVs: Set[MajorProtocolVersion] =
-        Set(shelleyPV, allegraPV, maryPV, alonzoPV, vasilPV, valentinePV, changPV, plominPV)
+    val knownPVs: SortedSet[MajorProtocolVersion] =
+        SortedSet(shelleyPV, allegraPV, maryPV, alonzoPV, vasilPV, valentinePV, changPV, plominPV)
 }

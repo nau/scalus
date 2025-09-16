@@ -6,6 +6,7 @@ import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.Cbor
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
+import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
 import scalus.utils.Hex.toHex
 import upickle.default.ReadWriter as UpickleReadWriter
@@ -185,6 +186,14 @@ object Language {
             case Language.PlutusV1 => "v1"
             case Language.PlutusV2 => "v2"
             case Language.PlutusV3 => "v3"
+        }
+    }
+
+    extension (lang: Language) {
+        def majorProtocolVersion: MajorProtocolVersion = lang match {
+            case Language.PlutusV1 => MajorProtocolVersion.alonzoPV
+            case Language.PlutusV2 => MajorProtocolVersion.vasilPV
+            case Language.PlutusV3 => MajorProtocolVersion.changPV
         }
     }
 

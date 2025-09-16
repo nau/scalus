@@ -13,6 +13,7 @@ sealed trait Script {
 }
 
 sealed trait PlutusScript extends Script {
+    def script: ByteString
 
     /** Get script language */
     def language: Language
@@ -28,7 +29,8 @@ object Script {
     }
 
     /** Plutus V1 script */
-    @key(1) final case class PlutusV1(script: ByteString) extends PlutusScript derives Codec {
+    @key(1) final case class PlutusV1(override val script: ByteString) extends PlutusScript
+        derives Codec {
 
         /** Get the script hash for this Plutus V1 script */
         @transient lazy val scriptHash: ScriptHash = Hash(
@@ -39,7 +41,8 @@ object Script {
     }
 
     /** Plutus V2 script */
-    @key(2) final case class PlutusV2(script: ByteString) extends PlutusScript derives Codec {
+    @key(2) final case class PlutusV2(override val script: ByteString) extends PlutusScript
+        derives Codec {
 
         /** Get the script hash for this Plutus V2 script */
         @transient lazy val scriptHash: ScriptHash = Hash(
@@ -49,7 +52,8 @@ object Script {
     }
 
     /** Plutus V3 script */
-    @key(3) final case class PlutusV3(script: ByteString) extends PlutusScript derives Codec {
+    @key(3) final case class PlutusV3(override val script: ByteString) extends PlutusScript
+        derives Codec {
 
         /** Get the script hash for this Plutus V3 script */
         @transient lazy val scriptHash: ScriptHash = Hash(
