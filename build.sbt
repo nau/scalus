@@ -493,6 +493,7 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.3" % "test",
+      inConfig(Test)(PluginDependency),
       publish / skip := false
     )
     .jvmSettings(
