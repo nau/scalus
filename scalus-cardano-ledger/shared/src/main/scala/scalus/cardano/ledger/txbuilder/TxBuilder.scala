@@ -46,7 +46,8 @@ case class TxBuilder(
         )
     }
 
-    def registerDrep(account: Account) = RegisterDRepTransactionBuilder(context, account)
+    def registerDrep(account: Account) = RegisterDRepTransactionBuilder(this.context, account)
+    def unRegistrerDrep(account: Account) = UnregisterDRepTransactionBuilder(this.context, account)
 
     def payTo(address: Address, value: Value) = {
         PaymentTransactionBuilder(

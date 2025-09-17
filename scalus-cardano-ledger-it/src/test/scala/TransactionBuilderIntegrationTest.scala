@@ -231,9 +231,12 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     def createBackendService(): BackendService = new DevkitCompositeBackend()
 
-    def submitTransactionToCardano(transaction: scalus.cardano.ledger.Transaction) = {
+    def submitTransactionToCardano(
+        context: BuilderContext,
+        transaction: scalus.cardano.ledger.Transaction
+    ) = {
         val cborBytes = scalus.Cbor.encode(transaction)
-        val result = backendService.getTransactionService.submitTransaction(cborBytes)
+        val result = context.backendService.getTransactionService.submitTransaction(cborBytes)
         if result.isSuccessful then succeed
         else fail(s"Error during tx submission: ${result.getResponse}")
     }
@@ -243,17 +246,18 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val account = new Account(network, MNEMONIC)
 
         val paymentAmount = Value.lovelace(5_000_000L)
-        val tx = BuilderContext(
+        val ctx = BuilderContext(
           environment.protocolParams,
           environment.evaluator,
           environment.network,
           backendService = backendService
-        ).buildNewTx
+        )
+        val tx = ctx.buildNewTx
             .withPayer(account0.address)
             .payTo(account1.address, paymentAmount)
             .buildAndSign(account0.signer)
 
-        submitTransactionToCardano(tx)
+        submitTransactionToCardano(ctx, tx)
 
         println("CCL transaction submitted successfully")
     }
@@ -274,32 +278,32 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         )
 
         val paymentAmount = Value.lovelace(5_000_000L)
-        val context = BuilderContext(
+        val ctx = BuilderContext(
           environment.protocolParams,
           environment.evaluator,
           environment.network,
           backendService = backendService
         )
 
-        val tx1 = context.buildNewTx
+        val tx1 = ctx.buildNewTx
             .withPayer(account1.address)
             .payTo(scriptAddress, paymentAmount)
             .buildAndSign(account1.signer)
 
         println("Transferring to native script...")
-        submitTransactionToCardano(tx1)
+        submitTransactionToCardano(ctx, tx1)
         println("Success!")
         println("Transferring from native script...")
 
         Thread.sleep(1_000)
 
-        val tx2 = context.buildNewTx
+        val tx2 = ctx.buildNewTx
             .withPayer(scriptAddress)
             .withAttachedNativeScript(nativeScript)
             .payTo(account2.address, Value.lovelace(3_000_000L))
             .buildAndSign(account0.signer)
 
-        submitTransactionToCardano(tx2)
+        submitTransactionToCardano(ctx, tx2)
         println("Native script spending transaction submitted successfully")
     }
 
@@ -334,7 +338,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .mint(tokens, account3.address)
             .buildAndSign(account0.signer)
 
-        submitTransactionToCardano(tx)
+        submitTransactionToCardano(context, tx)
         println("Success!")
     }
 
@@ -400,7 +404,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .buildAndSign(account3.signer)
 
         println("Transferring to script...")
-        submitTransactionToCardano(tx1)
+        submitTransactionToCardano(context, tx1)
         println("Success!")
         println("Transferring from script...")
         Thread.sleep(1_000)
@@ -410,7 +414,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .payTo(account4.address, Value.lovelace(5_000_002L))
             .setCollateralPayer(account3.address)
             .buildAndSign(account3.signer) // to be able to spend collaterals
-        submitTransactionToCardano(tx2)
+        submitTransactionToCardano(context, tx2)
         println("Success!")
     }
 
@@ -455,7 +459,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .setCollateralPayer(account4.address)
             .buildAndSign(account4.signer)
 
-        submitTransactionToCardano(tx)
+        submitTransactionToCardano(context, tx)
         println("Success!")
     }
 
@@ -484,7 +488,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             StakingTransactionBuilder(context, account5.address, stakeAddress).registerStakeAddress
 
         val signed = account5.signer.signTx(tx)
-        submitTransactionToCardano(signed)
+        submitTransactionToCardano(context, signed)
         println("Success!")
     }
 
@@ -514,7 +518,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
         val signed = account6.signer.signTx(tx)
         try {
-            submitTransactionToCardano(signed)
+            submitTransactionToCardano(context, signed)
         } catch {
             case e if e.getMessage.contains("WithdrawalsNotInRewards") =>
                 pending // no rewards in account
@@ -526,11 +530,11 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
     test("register a DRep") {
         // Use your own for the test
         val mnemonic =
-            "talent motor jar elite episode empty scale soul lobster produce tell stool onion practice pattern cup eye expand vibrant thrive purpose goat february kiss"
-        val BLOCKFROST_PROJECT_ID = "previewNNWtzsHa7FSuq4pn4O3yQagMRi3zGnHl"
-        val blockfrostUrl = "https://cardano-preview.blockfrost.io/api/v0/"
+            "burger sheriff ginger public attract machine loyal cluster armed guitar midnight fabric total update mixture all humble age spirit pottery wealth cherry fork embark"
+        val BLOCKFROST_PROJECT_ID = "preprod9cHsFFm9r39J6L9BCcrCCZAUk56GXMMY"
+        val blockfrostUrl = "https://cardano-preprod.blockfrost.io/api/v0/"
         val backend = new BFBackendService(blockfrostUrl, BLOCKFROST_PROJECT_ID)
-        val account = new Account(Networks.preview, mnemonic)
+        val account = new Account(Networks.preprod(), mnemonic)
 
         val context = BuilderContext(
           environment.protocolParams,
@@ -539,8 +543,33 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
           backendService = backend
         )
 
+        println("Registering DRep...")
         val tx = context.buildNewTx.registerDrep(account).buildAndSign()
-        submitTransactionToCardano(tx)
+        submitTransactionToCardano(context, tx)
+        println("Success!")
+    }
+
+    test("unregister a DRep") {
+        // Use your own for the test
+        val mnemonic =
+            "burger sheriff ginger public attract machine loyal cluster armed guitar midnight fabric total update mixture all humble age spirit pottery wealth cherry fork embark"
+        val BLOCKFROST_PROJECT_ID = "preprod9cHsFFm9r39J6L9BCcrCCZAUk56GXMMY"
+        val blockfrostUrl = "https://cardano-preprod.blockfrost.io/api/v0/"
+        val backend = new BFBackendService(blockfrostUrl, BLOCKFROST_PROJECT_ID)
+        val account = new Account(Networks.preprod, mnemonic)
+
+        val context = BuilderContext(
+          environment.protocolParams,
+          environment.evaluator,
+          environment.network,
+          backendService = backend
+        )
+
+        val senderAddress = Address.fromBech32(account.baseAddress())
+        println("Unregistering DRep...")
+        val tx = context.buildNewTx.unRegistrerDrep(account).buildAndSign()
+        submitTransactionToCardano(context, tx)
+        println("Success!")
     }
 
     def makeSignerFrom(derivation: String, mnemonic: String) = {
