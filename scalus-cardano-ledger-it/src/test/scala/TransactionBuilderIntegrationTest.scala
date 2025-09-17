@@ -1,5 +1,3 @@
-package scalus.bloxbean
-
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.backend.api.*
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
@@ -21,12 +19,12 @@ import scalus.{plutusV3, toUplc, Compiler}
 import scala.collection.immutable.SortedMap
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
+import com.bloxbean.cardano.client.crypto.cip1852.{DerivationPath, Segment}
+import org.bouncycastle.crypto.digests.SHA512Digest
+import scalus.cardano.ledger.{Transaction, VKeyWitness}
+import scalus.cardano.ledger.txbuilder.TxSigner
 
 class TransactionBuilderIntegrationTest extends AnyFunSuite {
-
-    /*
-     * Existing yaci utxos.
-     */
 
     /*
      * Predefined accounts that exist in a fresh yaci devkit instance.
@@ -38,126 +36,125 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         def address = Address.fromBech32(rawAddress)
         def signer = makeSignerFrom(derivation, MNEMONIC)
     }
-        val account0 = ExistingAccount(
-          rawAddress =
-              "addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex",
-          derivation = "m/1852'/1815'/0'/0/0"
-        )
+    val account0 = ExistingAccount(
+      rawAddress =
+          "addr_test1qryvgass5dsrf2kxl3vgfz76uhp83kv5lagzcp29tcana68ca5aqa6swlq6llfamln09tal7n5kvt4275ckwedpt4v7q48uhex",
+      derivation = "m/1852'/1815'/0'/0/0"
+    )
 
-        val account1 = ExistingAccount(
-          rawAddress =
-              "addr_test1qpqy3lufef8c3en9nrnzp2svwy5vy9zangvp46dy4qw23clgfxhn3pqv243d6wptud7fuaj5tjqer7wc7m036gx0emsqaqa8te",
-          derivation = "m/1852'/1815'/1'/0/0"
-        )
+    val account1 = ExistingAccount(
+      rawAddress =
+          "addr_test1qpqy3lufef8c3en9nrnzp2svwy5vy9zangvp46dy4qw23clgfxhn3pqv243d6wptud7fuaj5tjqer7wc7m036gx0emsqaqa8te",
+      derivation = "m/1852'/1815'/1'/0/0"
+    )
 
-        val account2 = ExistingAccount(
-          rawAddress =
-              "addr_test1qr9xuxclxgx4gw3y4h4tcz4yvfmrt3e5nd3elphhf00a67xnrv5vjcv6tzehj2nnjj4cth4ndzyuf4asvvkgzeac2hfqk0za93",
-          derivation = "m/1852'/1815'/2'/0/0"
-        )
+    val account2 = ExistingAccount(
+      rawAddress =
+          "addr_test1qr9xuxclxgx4gw3y4h4tcz4yvfmrt3e5nd3elphhf00a67xnrv5vjcv6tzehj2nnjj4cth4ndzyuf4asvvkgzeac2hfqk0za93",
+      derivation = "m/1852'/1815'/2'/0/0"
+    )
 
-        val account3 = ExistingAccount(
-          rawAddress =
-              "addr_test1qqra0q073cecs03hr724psh3ppejrlpjuphgpdj7xjwvkqnhqttgsr5xuaaq2g805dldu3gq9gw7gwmgdyhpwkm59ensgyph06",
-          derivation = "m/1852'/1815'/3'/0/0"
-        )
+    val account3 = ExistingAccount(
+      rawAddress =
+          "addr_test1qqra0q073cecs03hr724psh3ppejrlpjuphgpdj7xjwvkqnhqttgsr5xuaaq2g805dldu3gq9gw7gwmgdyhpwkm59ensgyph06",
+      derivation = "m/1852'/1815'/3'/0/0"
+    )
 
-        val account4 = ExistingAccount(
-          rawAddress =
-              "addr_test1qp38kfvcm4c39yt8sfgkp3tyqe736fz708xzxuy5s9w9ev43yh3sash5eeq9ngrfuzxrekpvmly52xlmyfy8lz39emhs2spswl",
-          derivation = "m/1852'/1815'/4'/0/0"
-        )
+    val account4 = ExistingAccount(
+      rawAddress =
+          "addr_test1qp38kfvcm4c39yt8sfgkp3tyqe736fz708xzxuy5s9w9ev43yh3sash5eeq9ngrfuzxrekpvmly52xlmyfy8lz39emhs2spswl",
+      derivation = "m/1852'/1815'/4'/0/0"
+    )
 
-        val account5 = ExistingAccount(
-          rawAddress =
-              "addr_test1qrrv7774puml0exvzc0uqrc8axezy6a925kv4ucdx906qy6mhjxtmx44x70ndr7g6dgqcdaf69q8fnrdmtvfud5x7rsqvsuqx5",
-          derivation = "m/1852'/1815'/5'/0/0"
-        )
+    val account5 = ExistingAccount(
+      rawAddress =
+          "addr_test1qrrv7774puml0exvzc0uqrc8axezy6a925kv4ucdx906qy6mhjxtmx44x70ndr7g6dgqcdaf69q8fnrdmtvfud5x7rsqvsuqx5",
+      derivation = "m/1852'/1815'/5'/0/0"
+    )
 
-        val account6 = ExistingAccount(
-          rawAddress =
-              "addr_test1qpgkf2ccvu2uscmcqgy4dkyjeae0va3kk7yk04nuleekq3u3xrwgnnm6n0yfzz0e8x2kkehex2f6mexrjg9h9l2qhm4qkms53s",
-          derivation = "m/1852'/1815'/6'/0/0"
-        )
+    val account6 = ExistingAccount(
+      rawAddress =
+          "addr_test1qpgkf2ccvu2uscmcqgy4dkyjeae0va3kk7yk04nuleekq3u3xrwgnnm6n0yfzz0e8x2kkehex2f6mexrjg9h9l2qhm4qkms53s",
+      derivation = "m/1852'/1815'/6'/0/0"
+    )
 
-        val account7 = ExistingAccount(
-          rawAddress =
-              "addr_test1qq7a8p6zaxzgcmcjcy7ak8u5vn7qec9mjggzw6qg096nzlj6n7rflnv3x43vnv8q7q0h0ef4n6ncp5mljd2ljupwl79s5mqneq",
-          derivation = "m/1852'/1815'/7'/0/0"
-        )
+    val account7 = ExistingAccount(
+      rawAddress =
+          "addr_test1qq7a8p6zaxzgcmcjcy7ak8u5vn7qec9mjggzw6qg096nzlj6n7rflnv3x43vnv8q7q0h0ef4n6ncp5mljd2ljupwl79s5mqneq",
+      derivation = "m/1852'/1815'/7'/0/0"
+    )
 
-        val account8 = ExistingAccount(
-          rawAddress =
-              "addr_test1qzyw0ensk3w2kgezk5vw77m0vmfs4mqdjg7ugclyvuy357g0vaukh8a8zgj09prvaw70f9gvz8sypmsjf5c0dctyhn2slcvsjn",
-          derivation = "m/1852'/1815'/8'/0/0"
-        )
+    val account8 = ExistingAccount(
+      rawAddress =
+          "addr_test1qzyw0ensk3w2kgezk5vw77m0vmfs4mqdjg7ugclyvuy357g0vaukh8a8zgj09prvaw70f9gvz8sypmsjf5c0dctyhn2slcvsjn",
+      derivation = "m/1852'/1815'/8'/0/0"
+    )
 
-        val account9 = ExistingAccount(
-          rawAddress =
-              "addr_test1qrrshpppv9uq95lj89tv4vv40cwnqmx5szzcndqhvr5hjfltl4s98wsjkwpg3v4k6h2vgcvdd2xwt82stq8fcmmsft6s8dzp8f",
-          derivation = "m/1852'/1815'/9'/0/0"
-        )
+    val account9 = ExistingAccount(
+      rawAddress =
+          "addr_test1qrrshpppv9uq95lj89tv4vv40cwnqmx5szzcndqhvr5hjfltl4s98wsjkwpg3v4k6h2vgcvdd2xwt82stq8fcmmsft6s8dzp8f",
+      derivation = "m/1852'/1815'/9'/0/0"
+    )
 
-        val account10 = ExistingAccount(
-          rawAddress =
-              "addr_test1qrqfxwuz8rm0xvewfrp5eudgup24jsan8n22h3f6a7mavyjt0njqm4ykhhqzkdrq9ua8w0lhen8wsuuerexgsehn5u9syjlrxr",
-          derivation = "m/1852'/1815'/10'/0/0"
-        )
+    val account10 = ExistingAccount(
+      rawAddress =
+          "addr_test1qrqfxwuz8rm0xvewfrp5eudgup24jsan8n22h3f6a7mavyjt0njqm4ykhhqzkdrq9ua8w0lhen8wsuuerexgsehn5u9syjlrxr",
+      derivation = "m/1852'/1815'/10'/0/0"
+    )
 
-        val account11 = ExistingAccount(
-          rawAddress =
-              "addr_test1qp5l04egnh30q8x3uqn943d7jsa5za66htsvu6e74s8dacxwnjkm0n0v900d8mu20wlrx55xn07p8pm4fj0wdvtc9kwq7pztl7",
-          derivation = "m/1852'/1815'/11'/0/0"
-        )
+    val account11 = ExistingAccount(
+      rawAddress =
+          "addr_test1qp5l04egnh30q8x3uqn943d7jsa5za66htsvu6e74s8dacxwnjkm0n0v900d8mu20wlrx55xn07p8pm4fj0wdvtc9kwq7pztl7",
+      derivation = "m/1852'/1815'/11'/0/0"
+    )
 
-        val account12 = ExistingAccount(
-          rawAddress =
-              "addr_test1qpcf5ursqpwx2tp8maeah00rxxdfpvf8h65k4hk3chac0fvu28duly863yqhgjtl8an2pkksd6mlzv0qv4nejh5u2zjsshr90k",
-          derivation = "m/1852'/1815'/12'/0/0"
-        )
+    val account12 = ExistingAccount(
+      rawAddress =
+          "addr_test1qpcf5ursqpwx2tp8maeah00rxxdfpvf8h65k4hk3chac0fvu28duly863yqhgjtl8an2pkksd6mlzv0qv4nejh5u2zjsshr90k",
+      derivation = "m/1852'/1815'/12'/0/0"
+    )
 
-        val account13 = ExistingAccount(
-          rawAddress =
-              "addr_test1qr79wm0n5fucskn6f58u2qph9k4pm9hjd3nkx4pwe54ds4gh2vpy4h4r0sf5ah4mdrwqe7hdtfcqn6pstlslakxsengsgyx75q",
-          derivation = "m/1852'/1815'/13'/0/0"
-        )
+    val account13 = ExistingAccount(
+      rawAddress =
+          "addr_test1qr79wm0n5fucskn6f58u2qph9k4pm9hjd3nkx4pwe54ds4gh2vpy4h4r0sf5ah4mdrwqe7hdtfcqn6pstlslakxsengsgyx75q",
+      derivation = "m/1852'/1815'/13'/0/0"
+    )
 
-        val account14 = ExistingAccount(
-          rawAddress =
-              "addr_test1qqe5df3su6tjhuuve6rjr8d36ccxre7dxfx2mzxp3egy72vsetrga9el2yjke2fcdql6f6sjzu7h6prajs8mhzpm6r5qpkfq9m",
-          derivation = "m/1852'/1815'/14'/0/0"
-        )
+    val account14 = ExistingAccount(
+      rawAddress =
+          "addr_test1qqe5df3su6tjhuuve6rjr8d36ccxre7dxfx2mzxp3egy72vsetrga9el2yjke2fcdql6f6sjzu7h6prajs8mhzpm6r5qpkfq9m",
+      derivation = "m/1852'/1815'/14'/0/0"
+    )
 
-        val account15 = ExistingAccount(
-          rawAddress =
-              "addr_test1qq5tscksq8n2vjszkdtqe0zn9645246ex3mu88x9y0stnlzjwyqgnrq3uuc3jst3hyy244rrwuxke0m7ezr3cn93u5vq0rfv8t",
-          derivation = "m/1852'/1815'/15'/0/0"
-        )
+    val account15 = ExistingAccount(
+      rawAddress =
+          "addr_test1qq5tscksq8n2vjszkdtqe0zn9645246ex3mu88x9y0stnlzjwyqgnrq3uuc3jst3hyy244rrwuxke0m7ezr3cn93u5vq0rfv8t",
+      derivation = "m/1852'/1815'/15'/0/0"
+    )
 
-        val account16 = ExistingAccount(
-          rawAddress =
-              "addr_test1qp0qu4cypvrwn4c7pu50zf3x9qu2drdsk545l5dnsa7a5gsr6htafuvutm36rm23hdnsw7w7r82q4tljuh55drxqt30q6vm8vs",
-          derivation = "m/1852'/1815'/16'/0/0"
-        )
+    val account16 = ExistingAccount(
+      rawAddress =
+          "addr_test1qp0qu4cypvrwn4c7pu50zf3x9qu2drdsk545l5dnsa7a5gsr6htafuvutm36rm23hdnsw7w7r82q4tljuh55drxqt30q6vm8vs",
+      derivation = "m/1852'/1815'/16'/0/0"
+    )
 
-        val account17 = ExistingAccount(
-          rawAddress =
-              "addr_test1qqm87edtdxc7vu2u34dpf9jzzny4qhk3wqezv6ejpx3vgrwt46dz4zq7vqll88fkaxrm4nac0m5cq50jytzlu0hax5xqwlraql",
-          derivation = "m/1852'/1815'/17'/0/0"
-        )
+    val account17 = ExistingAccount(
+      rawAddress =
+          "addr_test1qqm87edtdxc7vu2u34dpf9jzzny4qhk3wqezv6ejpx3vgrwt46dz4zq7vqll88fkaxrm4nac0m5cq50jytzlu0hax5xqwlraql",
+      derivation = "m/1852'/1815'/17'/0/0"
+    )
 
-        val account18 = ExistingAccount(
-          rawAddress =
-              "addr_test1qrzufj3g0ua489yt235wtc3mrjrlucww2tqdnt7kt5rs09grsag6vxw5v053atks5a6whke03cf2qx3h3g2nhsmzwv3sgml3ed",
-          derivation = "m/1852'/1815'/18'/0/0"
-        )
+    val account18 = ExistingAccount(
+      rawAddress =
+          "addr_test1qrzufj3g0ua489yt235wtc3mrjrlucww2tqdnt7kt5rs09grsag6vxw5v053atks5a6whke03cf2qx3h3g2nhsmzwv3sgml3ed",
+      derivation = "m/1852'/1815'/18'/0/0"
+    )
 
-        val account19 = ExistingAccount(
-          rawAddress =
-              "addr_test1qrh3nrahcd0pj6ps3g9htnlw2jjxuylgdhfn2s5rxqyrr43yzewr2766qsfeq6stl65t546cwvclpqm2rpkkxtksgxuq90xn5f",
-          derivation = "m/1852'/1815'/19'/0/0"
-        )
-
+    val account19 = ExistingAccount(
+      rawAddress =
+          "addr_test1qrh3nrahcd0pj6ps3g9htnlw2jjxuylgdhfn2s5rxqyrr43yzewr2766qsfeq6stl65t546cwvclpqm2rpkkxtksgxuq90xn5f",
+      derivation = "m/1852'/1815'/19'/0/0"
+    )
 
     private lazy val params = fetchProtocolParams()
     private lazy val backendService = createBackendService()
@@ -520,15 +517,17 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
     }
 
     test("register DRep") {
-        pending
         val network = Networks.testnet()
         val account = new Account(network, MNEMONIC)
 
         val context = BuilderContext(
-            environment.protocolParams,
-            environment.evaluator,
-            environment.network,
-            backendService = backendService
+          environment.protocolParams.copy(
+            dRepDeposit = 2000000L, // 2 ADA instead of 500 ADA
+            govActionDeposit = 100000000L // 100 ADA instead of 100,000 ADA
+          ),
+          environment.evaluator,
+          environment.network,
+          backendService = backendService
         )
 
         println("Registering DRep...")
@@ -537,5 +536,87 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val signed = account0.signer.signTx(tx)
         submitTransactionToCardano(signed)
         println("Success!")
+    }
+
+    def makeSignerFrom(derivation: String, mnemonic: String) = {
+        val derivationPieces = derivation.split("/").drop(1).map(_.stripSuffix("'")).map(_.toInt)
+
+        val derivationPath = DerivationPath
+            .builder()
+            .purpose(new Segment(derivationPieces(0), true))
+            .coinType(new Segment(derivationPieces(1), true))
+            .account(new Segment(derivationPieces(2), true))
+            .role(new Segment(derivationPieces(3), false))
+            .index(new Segment(derivationPieces(4), false))
+            .build()
+        val account = new Account(Networks.testnet(), mnemonic, derivationPath)
+        val publicKeyData = account.publicKeyBytes()
+        val privateKeyData = account.privateKeyBytes()
+        new TxSigner {
+            override def signTx(unsigned: Transaction): Transaction = {
+                val signature = signEd25519(
+                  privateKeyData,
+                  publicKeyData,
+                  unsigned.id.bytes
+                )
+                val ws = unsigned.witnessSet
+                    .copy(vkeyWitnesses =
+                        Set(
+                          VKeyWitness(
+                            ByteString.fromArray(publicKeyData),
+                            ByteString.fromArray(signature)
+                          )
+                        )
+                    )
+                unsigned.copy(witnessSet = ws)
+            }
+        }
+    }
+
+    /*
+     * This method implements slip-001 ed25519 signatures, which is the way to sign transactions on
+     * cardano, hence why we cannot just use the public bouncycastle ed25519 API.
+     *
+     * In an ideal world, we use the public API, for which we need bouncycastle to expose this method.
+     */
+    def signEd25519(
+        cardanoExtendedPrivKey: Array[Byte],
+        publicKey: Array[Byte],
+        data: Array[Byte]
+    ): Array[Byte] = {
+        // private static Unit implSign(d: Digest, h: Array[Byte], s: Array[Byte], pk: Array[Byte], pkOff: Int, ctx: Array[Byte], phflag: Byte, m: Array[Byte], mOff: Int, mLen: Int, sig: Array[Byte], sigOff: Int)
+        val ed25519Class = classOf[org.bouncycastle.math.ec.rfc8032.Ed25519]
+        val method = ed25519Class.getDeclaredMethod(
+          "implSign",
+          classOf[org.bouncycastle.crypto.Digest],
+          classOf[Array[Byte]],
+          classOf[Array[Byte]],
+          classOf[Array[Byte]],
+          classOf[Int],
+          classOf[Array[Byte]],
+          classOf[Byte],
+          classOf[Array[Byte]],
+          classOf[Int],
+          classOf[Int],
+          classOf[Array[Byte]],
+          classOf[Int]
+        )
+        method.setAccessible(true)
+        val d = new SHA512Digest
+        val h = new Array[Byte](64)
+        Array.copy(cardanoExtendedPrivKey, 0, h, 0, 64)
+        val s = new Array[Byte](32)
+        Array.copy(cardanoExtendedPrivKey, 0, s, 0, 32)
+        val pk = new Array[Byte](32)
+        Array.copy(publicKey, 0, pk, 0, 32)
+        val ctx = null
+        val phflag: Byte = 0
+        val m = data
+        val mOff = 0
+        val mLen = data.length
+        val sig = new Array[Byte](64)
+        val sigOff = 0
+        method.invoke(null, d, h, s, pk, 0, ctx, phflag, m, mOff, mLen, sig, sigOff)
+        sig
     }
 }
