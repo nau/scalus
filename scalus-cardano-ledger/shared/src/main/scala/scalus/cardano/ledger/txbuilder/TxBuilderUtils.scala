@@ -42,18 +42,20 @@ object TxBuilderUtils {
             (transaction.body.value.inputs.toSeq ++ transaction.body.value.referenceInputs.toSeq).toSet
         for input <- allInputs do
             if !utxos.contains(input) then
-                val outputResult = context.backendService.getUtxoService.getTxOutput(input.transactionId.toHex, input.index)
+                val outputResult = context.backendService.getUtxoService
+                    .getTxOutput(input.transactionId.toHex, input.index)
                 val output = outputResult.getValue
-                val scriptRef = Option(output).flatMap(o => Option(o.getReferenceScriptHash)).map { scriptHash =>
-                    context.backendService.getScriptService
-                        .getPlutusScript(scriptHash)
-                        .getValue match
-                        case s: PlutusV1Script =>
-                            ScriptRef(Script.PlutusV1(decodeToSingleCbor(s)))
-                        case s: PlutusV2Script =>
-                            ScriptRef(Script.PlutusV2(decodeToSingleCbor(s)))
-                        case s: PlutusV3Script =>
-                            ScriptRef(Script.PlutusV3(decodeToSingleCbor(s)))
+                val scriptRef = Option(output).flatMap(o => Option(o.getReferenceScriptHash)).map {
+                    scriptHash =>
+                        context.backendService.getScriptService
+                            .getPlutusScript(scriptHash)
+                            .getValue match
+                            case s: PlutusV1Script =>
+                                ScriptRef(Script.PlutusV1(decodeToSingleCbor(s)))
+                            case s: PlutusV2Script =>
+                                ScriptRef(Script.PlutusV2(decodeToSingleCbor(s)))
+                            case s: PlutusV3Script =>
+                                ScriptRef(Script.PlutusV3(decodeToSingleCbor(s)))
                 }
                 val out = TxBuilderUtils.getTransactionOutput(output, scriptRef)
                 utxos.put(input, out)
@@ -100,14 +102,18 @@ object TxBuilderUtils {
         )
     }
 
-    def convertToCCLNativeScript(scalusScript: Script.Native): com.bloxbean.cardano.client.transaction.spec.script.NativeScript = {
+    def convertToCCLNativeScript(
+        scalusScript: Script.Native
+    ): com.bloxbean.cardano.client.transaction.spec.script.NativeScript = {
         import scalus.ledger.api.Timelock
-        
+
         scalusScript.script match {
             case Timelock.Signature(keyHash) =>
                 new ScriptPubkey(keyHash.toHex)
             case _ =>
-                throw new UnsupportedOperationException("Only signature-based native scripts are currently supported")
+                throw new UnsupportedOperationException(
+                  "Only signature-based native scripts are currently supported"
+                )
         }
     }
 }
