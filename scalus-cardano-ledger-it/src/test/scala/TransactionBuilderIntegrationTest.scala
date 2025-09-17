@@ -2,34 +2,28 @@ import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.backend.api.*
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import com.bloxbean.cardano.client.common.model.Networks
+import com.bloxbean.cardano.client.crypto.bip32.HdKeyPair
+import com.bloxbean.cardano.client.crypto.cip1852.{DerivationPath, Segment}
+import com.bloxbean.cardano.client.function.helper.SignerProviders
+import com.bloxbean.cardano.client.quicktx.{QuickTxBuilder, Tx}
+import org.bouncycastle.crypto.digests.SHA512Digest
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.*
-import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder}
-import scalus.cardano.ledger.{AddrKeyHash, AssetName, Coin, CostModels, MultiAsset, PlutusScriptEvaluator, Script, SlotConfig, Value}
-import scalus.ledger.api.{MajorProtocolVersion, Timelock}
+import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder, TxSigner}
+import scalus.cardano.ledger.*
 import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
 import scalus.ledger.api.v3.ScriptContext
+import scalus.ledger.api.{MajorProtocolVersion, Timelock}
 import scalus.ledger.babbage.ProtocolParams
 import scalus.prelude.orFail
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
 import scalus.{plutusV3, toUplc, Compiler}
 
-import scala.collection.immutable.SortedMap
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
-import com.bloxbean.cardano.client.crypto.cip1852.{DerivationPath, Segment}
-import com.bloxbean.cardano.client.function.helper.SignerProviders
-import com.bloxbean.cardano.client.quicktx.{QuickTxBuilder, Tx}
-import com.bloxbean.cardano.client.transaction.spec.Withdrawal
-import com.bloxbean.cardano.client.transaction.spec.governance.{Anchor, DRep}
-import com.bloxbean.cardano.client.transaction.spec.governance.actions.TreasuryWithdrawalsAction
-import org.bouncycastle.crypto.digests.SHA512Digest
-import scalus.cardano.ledger.{Transaction, VKeyWitness}
-import scalus.cardano.ledger.txbuilder.TxSigner
-
-import java.math.BigInteger
+import scala.collection.immutable.SortedMap
 
 class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
@@ -41,7 +35,8 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     case class ExistingAccount(rawAddress: String, derivation: String) {
         def address = Address.fromBech32(rawAddress)
-        def signer = makeSignerFrom(derivation, MNEMONIC)
+        def signer(getKeyPairs: Account => Seq[HdKeyPair] = a => Seq(a.hdKeyPair())) =
+            makeSignerFrom(derivation, MNEMONIC)(getKeyPairs)
     }
     val account0 = ExistingAccount(
       rawAddress =
@@ -255,7 +250,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tx = ctx.buildNewTx
             .withPayer(account0.address)
             .payTo(account1.address, paymentAmount)
-            .buildAndSign(account0.signer)
+            .buildAndSign(account0.signer())
 
         submitTransactionToCardano(ctx, tx)
 
@@ -288,7 +283,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tx1 = ctx.buildNewTx
             .withPayer(account1.address)
             .payTo(scriptAddress, paymentAmount)
-            .buildAndSign(account1.signer)
+            .buildAndSign(account1.signer())
 
         println("Transferring to native script...")
         submitTransactionToCardano(ctx, tx1)
@@ -301,7 +296,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .withPayer(scriptAddress)
             .withAttachedNativeScript(nativeScript)
             .payTo(account2.address, Value.lovelace(3_000_000L))
-            .buildAndSign(account0.signer)
+            .buildAndSign(account0.signer())
 
         submitTransactionToCardano(ctx, tx2)
         println("Native script spending transaction submitted successfully")
@@ -336,7 +331,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .withPayer(account0.address)
             .withAttachedNativeScript(nativeScript)
             .mint(tokens, account3.address)
-            .buildAndSign(account0.signer)
+            .buildAndSign(account0.signer())
 
         submitTransactionToCardano(context, tx)
         println("Success!")
@@ -401,7 +396,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tx1 = context.buildNewTx
             .withPayer(account3.address)
             .payTo(scriptAddress, paymentAmount)
-            .buildAndSign(account3.signer)
+            .buildAndSign(account3.signer())
 
         println("Transferring to script...")
         submitTransactionToCardano(context, tx1)
@@ -413,7 +408,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .withAttachedScript(script)
             .payTo(account4.address, Value.lovelace(5_000_002L))
             .setCollateralPayer(account3.address)
-            .buildAndSign(account3.signer) // to be able to spend collaterals
+            .buildAndSign(account3.signer()) // to be able to spend collaterals
         submitTransactionToCardano(context, tx2)
         println("Success!")
     }
@@ -457,7 +452,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .withAttachedScript(plutusScript)
             .mint(tokens, account5.address)
             .setCollateralPayer(account4.address)
-            .buildAndSign(account4.signer)
+            .buildAndSign(account4.signer())
 
         submitTransactionToCardano(context, tx)
         println("Success!")
@@ -487,7 +482,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tx =
             StakingTransactionBuilder(context, account5.address, stakeAddress).registerStakeAddress
 
-        val signed = account5.signer.signTx(tx)
+        val signed = account5.signer().signTx(tx)
         submitTransactionToCardano(context, signed)
         println("Success!")
     }
@@ -516,13 +511,34 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
           backendService = backendService
         )
 
+        println("Prepare stake addresss...")
+        prepareStakeAddress(account)
+
         println("Withdrawing staking rewards...")
         val tx = StakingTransactionBuilder(context, account6.address, stakeAddress)
             .withdraw(0)
 
-        val signed = account6.signer.signTx(tx)
+        val signed = account6.signer(a => Seq(a.hdKeyPair(), a.stakeHdKeyPair())).signTx(tx)
         submitTransactionToCardano(context, signed)
         println("Success!")
+    }
+
+    private def prepareStakeAddress(account: Account) = {
+        QuickTxBuilder(backendService)
+            .compose {
+                new Tx()
+                    .registerStakeAddress(account.stakeAddress())
+                    .delegateVotingPowerTo(
+                      account.stakeAddress(),
+                      com.bloxbean.cardano.client.transaction.spec.governance.DRep.abstain()
+                    )
+                    .from(account.baseAddress())
+            }
+            .validFrom(0)
+            .feePayer(account.baseAddress())
+            .withSigner(SignerProviders.signerFrom(account.stakeHdKeyPair()))
+            .withSigner(account.sign)
+            .completeAndWait()
     }
 
     test("register a DRep") {
@@ -544,6 +560,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         println("Registering DRep...")
         val tx = context.buildNewTx.registerDrep(account).buildAndSign()
         submitTransactionToCardano(context, tx)
+        Thread.sleep(40_000)
         println("Success!")
     }
 
@@ -566,11 +583,14 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val senderAddress = Address.fromBech32(account.baseAddress())
         println("Unregistering DRep...")
         val tx = context.buildNewTx.unRegistrerDrep(account).buildAndSign()
+        println(tx.body.value.inputs)
         submitTransactionToCardano(context, tx)
         println("Success!")
     }
 
-    def makeSignerFrom(derivation: String, mnemonic: String) = {
+    def makeSignerFrom(derivation: String, mnemonic: String)(
+        keyPairToUse: Account => Seq[HdKeyPair] = a => Seq(a.hdKeyPair())
+    ) = {
         val derivationPieces = derivation.split("/").drop(1).map(_.stripSuffix("'")).map(_.toInt)
 
         val derivationPath = DerivationPath
@@ -582,24 +602,25 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .index(new Segment(derivationPieces(4), false))
             .build()
         val account = new Account(Networks.testnet(), mnemonic, derivationPath)
-        val publicKeyData = account.publicKeyBytes()
-        val privateKeyData = account.privateKeyBytes()
+        val pairs = keyPairToUse(account)
         new TxSigner {
             override def signTx(unsigned: Transaction): Transaction = {
-                val signature = signEd25519(
-                  privateKeyData,
-                  publicKeyData,
-                  unsigned.id.bytes
-                )
-                val ws = unsigned.witnessSet
-                    .copy(vkeyWitnesses =
-                        Set(
-                          VKeyWitness(
-                            ByteString.fromArray(publicKeyData),
-                            ByteString.fromArray(signature)
-                          )
-                        )
+                val signatures = pairs.map { hdKeyPair =>
+                    val privateK = hdKeyPair.getPrivateKey
+                    val publicK = hdKeyPair.getPublicKey
+                    val signature =
+                        signEd25519(privateK.getKeyData, publicK.getKeyData, unsigned.id.bytes)
+                    (privateK, publicK, signature)
+                }
+
+                val VKeyWitnesses = signatures.map { (priv, pub, sign) =>
+                    VKeyWitness(
+                      ByteString.fromArray(pub.getKeyData),
+                      ByteString.fromArray(sign)
                     )
+                }.toSet
+
+                val ws = unsigned.witnessSet.copy(vkeyWitnesses = VKeyWitnesses)
                 unsigned.copy(witnessSet = ws)
             }
         }

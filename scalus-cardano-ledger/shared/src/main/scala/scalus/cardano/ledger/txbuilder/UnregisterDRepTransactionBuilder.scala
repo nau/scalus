@@ -13,7 +13,12 @@ case class UnregisterDRepTransactionBuilder(
 
     def buildAndSign(): Transaction = {
         val cclTx = QuickTxBuilder(context.backendService)
-            .compose(new Tx().unregisterDRep(account.drepCredential()).from(account.baseAddress()))
+            .compose(
+              new Tx()
+                  .unregisterDRep(account.drepCredential())
+                  .from(account.baseAddress())
+                  .withChangeAddress(account.baseAddress())
+            )
             .withSigner(SignerProviders.signerFrom(account))
             .withSigner(SignerProviders.signerFrom(account.drepHdKeyPair()))
             .buildAndSign()
