@@ -62,7 +62,8 @@ case class MintTransactionBuilder(
             .build()
 
         val r = Transaction.fromCbor(cclTx.serialize())
-        val redeemers = context.evaluator.evalPlutusScripts(r, TxBuilderUtils.resolveUtxos(r, context))
+        val redeemers =
+            context.evaluator.evalPlutusScripts(r, TxBuilderUtils.resolveUtxos(r, context))
         setupRedeemers(context.protocolParams, r, redeemers)
 
     }

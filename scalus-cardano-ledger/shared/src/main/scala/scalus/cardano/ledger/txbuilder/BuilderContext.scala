@@ -18,7 +18,7 @@ case class BuilderContext(
     protocolParams: ProtocolParams,
     evaluator: PlutusScriptEvaluator,
     network: Network,
-    utxoProvider: UtxoProvider = UtxoProvider.from(Map.empty), 
+    utxoProvider: UtxoProvider = UtxoProvider.from(Map.empty),
     validators: Seq[Validator] = Seq.empty,
     backendService: BackendService = null,
 ) {
@@ -32,7 +32,6 @@ case class BuilderContext(
       * specified one.
       */
     def withUtxo(utxo: UTxO): BuilderContext = copy(utxoProvider = utxoProvider.extendWith(utxo))
-
 
     /** Validates the transaction against the [[validators]] of this context. */
     def validate(tx: Transaction): Either[TransactionException, Transaction] = {

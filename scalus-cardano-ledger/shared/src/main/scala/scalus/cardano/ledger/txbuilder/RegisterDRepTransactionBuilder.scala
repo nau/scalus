@@ -1,7 +1,6 @@
 package scalus.cardano.ledger.txbuilder
 
 import com.bloxbean.cardano.client.account.Account
-import com.bloxbean.cardano.client.address.Credential
 import com.bloxbean.cardano.client.quicktx.{QuickTxBuilder, Tx}
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.{Anchor, Transaction}

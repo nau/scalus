@@ -76,8 +76,8 @@ case class StakingTransactionBuilder(
         )
 
         val cclPoolOwners = poolOwners.map(_.toHex).asJava
-        val cclRelays = new java.util.ArrayList[com.bloxbean.cardano.client.transaction.spec.cert.Relay]()
-
+        val cclRelays =
+            new java.util.ArrayList[com.bloxbean.cardano.client.transaction.spec.cert.Relay]()
 
         val cclTx = QuickTxBuilder(context.backendService)
             .compose(

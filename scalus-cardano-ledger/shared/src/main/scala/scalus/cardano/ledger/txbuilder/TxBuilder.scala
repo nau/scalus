@@ -2,7 +2,7 @@ package scalus.cardano.ledger.txbuilder
 import com.bloxbean.cardano.client.backend.api.BackendService
 import com.bloxbean.cardano.client.function.TxSigner as CCLSigner
 import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
-import scalus.builtin.{ByteString, Data, platform}
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.txbuilder.TxBuilder.{dummyVkey, modifyBody, modifyWs}
 import scalus.cardano.ledger.utils.TxBalance
@@ -49,23 +49,23 @@ case class TxBuilder(
 
     def payTo(address: Address, value: Value) = {
         PaymentTransactionBuilder(
-            context,
-            payer,
-            address,
-            value,
-            Option(attachedScript),
-            Option(attachedNativeScript)
-        )   
+          context,
+          payer,
+          address,
+          value,
+          Option(attachedScript),
+          Option(attachedNativeScript)
+        )
     }
 
     def mint(tokens: MultiAsset, receiver: Address) = {
         MintTransactionBuilder(
-            context,
-            payer,
-            receiver,
-            tokens,
-            Option(attachedScript),
-            Option(attachedNativeScript)
+          context,
+          payer,
+          receiver,
+          tokens,
+          Option(attachedScript),
+          Option(attachedNativeScript)
         )
     }
 
