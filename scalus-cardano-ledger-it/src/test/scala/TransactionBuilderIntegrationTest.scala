@@ -20,9 +20,16 @@ import scala.collection.immutable.SortedMap
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import com.bloxbean.cardano.client.crypto.cip1852.{DerivationPath, Segment}
+import com.bloxbean.cardano.client.function.helper.SignerProviders
+import com.bloxbean.cardano.client.quicktx.{QuickTxBuilder, Tx}
+import com.bloxbean.cardano.client.transaction.spec.Withdrawal
+import com.bloxbean.cardano.client.transaction.spec.governance.{Anchor, DRep}
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.TreasuryWithdrawalsAction
 import org.bouncycastle.crypto.digests.SHA512Digest
 import scalus.cardano.ledger.{Transaction, VKeyWitness}
 import scalus.cardano.ledger.txbuilder.TxSigner
+
+import java.math.BigInteger
 
 class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
@@ -516,26 +523,24 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         println("Success!")
     }
 
-    test("register DRep") {
-        val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+    test("register a DRep") {
+        // Use your own for the test
+        val mnemonic =
+            "talent motor jar elite episode empty scale soul lobster produce tell stool onion practice pattern cup eye expand vibrant thrive purpose goat february kiss"
+        val BLOCKFROST_PROJECT_ID = "previewNNWtzsHa7FSuq4pn4O3yQagMRi3zGnHl"
+        val blockfrostUrl = "https://cardano-preview.blockfrost.io/api/v0/"
+        val backend = new BFBackendService(blockfrostUrl, BLOCKFROST_PROJECT_ID)
+        val account = new Account(Networks.preview, mnemonic)
 
         val context = BuilderContext(
-          environment.protocolParams.copy(
-            dRepDeposit = 2000000L, // 2 ADA instead of 500 ADA
-            govActionDeposit = 100000000L // 100 ADA instead of 100,000 ADA
-          ),
+          environment.protocolParams,
           environment.evaluator,
           environment.network,
-          backendService = backendService
+          backendService = backend
         )
 
-        println("Registering DRep...")
-        val tx = context.buildNewTx.registerDrep(account0.address).withAccount(account).build
-
-        val signed = account0.signer.signTx(tx)
-        submitTransactionToCardano(signed)
-        println("Success!")
+        val tx = context.buildNewTx.registerDrep(account).buildAndSign()
+        submitTransactionToCardano(tx)
     }
 
     def makeSignerFrom(derivation: String, mnemonic: String) = {

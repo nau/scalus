@@ -1,4 +1,5 @@
 package scalus.cardano.ledger.txbuilder
+import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.backend.api.BackendService
 import com.bloxbean.cardano.client.function.TxSigner as CCLSigner
 import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
@@ -45,7 +46,7 @@ case class TxBuilder(
         )
     }
 
-    def registerDrep(address: Address) = RegisterDRepTransactionBuilder(this, address)
+    def registerDrep(account: Account) = RegisterDRepTransactionBuilder(context, account)
 
     def payTo(address: Address, value: Value) = {
         PaymentTransactionBuilder(
