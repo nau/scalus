@@ -219,6 +219,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
       // enable when debug compilation of tests
       Test / scalacOptions += "-color:never",
+      // For tx builder
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6",
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
@@ -510,6 +512,25 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
       }
     )
     .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
+
+lazy val scalusCardanoLedgerIt = project
+    .in(file("scalus-cardano-ledger-it"))
+    .dependsOn(scalusCardanoLedger.jvm, `scalus-bloxbean-cardano-client-lib`)
+    .settings(
+      name := "scalus-cardano-ledger-it",
+      scalacOptions ++= commonScalacOptions,
+      publish / skip := true,
+      Test / fork := true,
+      Test / testOptions += Tests.Argument("-oF"),
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.8" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
+      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.3.0" % "test",
+      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.81" % "test",
+      inConfig(Test)(PluginDependency)
+    )
 
 addCommandAlias(
   "mima",

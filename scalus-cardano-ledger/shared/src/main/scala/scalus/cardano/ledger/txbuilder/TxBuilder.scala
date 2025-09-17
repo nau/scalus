@@ -1,16 +1,34 @@
 package scalus.cardano.ledger.txbuilder
+import com.bloxbean.cardano.client.account.Account
+import com.bloxbean.cardano.client.backend.api.BackendService
+import com.bloxbean.cardano.client.function.TxSigner as CCLSigner
+import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.txbuilder.TxBuilder.{dummyVkey, modifyBody, modifyWs}
 import scalus.cardano.ledger.utils.TxBalance
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.Script.{Native, PlutusV3}
+
 import scala.collection.immutable.SortedMap
 
 case class TxBuilder(
     context: BuilderContext,
     onSurplus: OnSurplus = OnSurplus.toFirstPayer,
-    tx: Transaction = TxBuilder.emptyTx
+    tx: Transaction = TxBuilder.emptyTx,
+    backendService: BackendService = null,
+    var payer: Address = null,
+    var attachedScript: PlutusV3 = null,
+    var attachedNativeScript: Native = null,
+    signer: CCLSigner = null
 ) {
+
+    def withBackendService(backendService: BackendService): TxBuilder =
+        copy(backendService = backendService)
+    def withSigner(signer: CCLSigner): TxBuilder = copy(signer = signer)
+    def withPayer(address: Address): TxBuilder = copy(payer = address)
+    def withAttachedScript(script: PlutusV3) = copy(attachedScript = script)
+    def withAttachedNativeScript(script: Script.Native) = copy(attachedNativeScript = script)
 
     /** Configures the behaviour that is invoked when the payment transaction produces more ada than
       * it consumes.
@@ -28,11 +46,28 @@ case class TxBuilder(
         )
     }
 
-    /** Adds a new output which contains the specified value to be sent to the specified address.
-      */
-    def payTo(address: Address, value: Value): TxBuilder = {
-        val out = Sized(TransactionOutput(address, value))
-        copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
+    def registerDrep(account: Account) = RegisterDRepTransactionBuilder(context, account)
+
+    def payTo(address: Address, value: Value) = {
+        PaymentTransactionBuilder(
+          context,
+          payer,
+          address,
+          value,
+          Option(attachedScript),
+          Option(attachedNativeScript)
+        )
+    }
+
+    def mint(tokens: MultiAsset, receiver: Address) = {
+        MintTransactionBuilder(
+          context,
+          payer,
+          receiver,
+          tokens,
+          Option(attachedScript),
+          Option(attachedNativeScript)
+        )
     }
 
     /** Adds a new output which contains the specified value to be sent to the specified address.
@@ -373,22 +408,7 @@ case class TxBuilder(
           context.protocolParams,
           onSurplus
         )
-
-        val signed = signTx(removeDummyVkey(balanced))
-        context.validate(signed).toTry.get
-    }
-
-    private def signTx(txToSign: Transaction): Transaction = {
-        if context.signingKeys.isEmpty then {
-            txToSign
-        } else {
-            val signatures = context.signingKeys.map { (publicKey, privateKey) =>
-                val signature = platform.signEd25519(privateKey, txToSign.id)
-                VKeyWitness(publicKey, signature)
-            }.toSet
-
-            modifyWs(txToSign, ws => ws.copy(vkeyWitnesses = ws.vkeyWitnesses ++ signatures))
-        }
+        context.validate(balanced).toTry.get
     }
 
     private def isPlutusScriptTx(transaction: Transaction): Boolean =
