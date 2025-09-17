@@ -1,9 +1,6 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.address.*
-import scalus.cardano.ledger.TransactionException.{WrongNetworkAddress, WrongNetworkInTxBody, WrongNetworkWithdrawal}
-
 // It's part of Babbage.missingRequiredDatums in cardano-ledger
 object MissingRequiredDatumsValidator extends STS.Validator {
     override final type Error = TransactionException
@@ -37,40 +34,5 @@ object OutputBootAddrAttrsTooBigValidator extends STS.Validator {
 
     override def validate(context: Context, state: State, event: Event): Result = {
         ???
-    }
-}
-// It's part of Shelley.validateWrongNetwork in cardano-ledger
-object WrongNetworkValidator extends STS.Validator {
-    override final type Error = WrongNetworkAddress
-
-    override def validate(context: Context, state: State, event: Event): Result = {
-        event.body.value.outputs
-            .find(_.value.address.getNetwork.fold(false)(_ != context.env.network))
-            .map(t => failure(WrongNetworkAddress(event.id, t.value.address)))
-            .getOrElse(success)
-    }
-}
-// It's part of Shelley.validateWrongNetworkWithdrawal in cardano-ledger
-object WrongNetworkWithdrawalValidator extends STS.Validator {
-    override final type Error = WrongNetworkWithdrawal
-
-    override def validate(context: Context, state: State, event: Event): Result = {
-        (for
-            ws <- event.body.value.withdrawals
-            w <- ws.withdrawals.find(_._1.address.network != context.env.network)
-        yield failure(WrongNetworkWithdrawal(event.id, w._1.address.network)))
-            .getOrElse(success)
-    }
-}
-
-// It's part of Alonzo.validateWrongNetworkInTxBody in cardano-ledger
-object WrongNetworkInTxBodyValidator extends STS.Validator {
-    override final type Error = WrongNetworkInTxBody
-    override def validate(context: Context, state: State, event: Event): Result = {
-        event.body.value.networkId.fold(success)(networkId =>
-            if networkId != context.env.network.value then
-                failure(WrongNetworkInTxBody(event.id, networkId))
-            else success
-        )
     }
 }
