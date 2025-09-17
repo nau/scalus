@@ -4,6 +4,8 @@ import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
 import scalus.cardano.ledger.{ExUnitPrices, ExUnits, NonNegativeInterval}
 
+import scala.util.Try
+
 /** Protocol parameters for the Cardano blockchain of Babbage era Field names are taken from the
   * `cardano-cli query protocol-parameters` output
   * @note
@@ -183,10 +185,10 @@ object ProtocolParams {
                       json("pvt_committee_no_confidence").numOpt.map(_.toLong).getOrElse(0L),
                   hardForkInitiation =
                       json("pvt_hard_fork_initiation").numOpt.map(_.toLong).getOrElse(0L),
-                  ppSecurityGroup = json("pvtpp_security_group").numOpt
-                      .map(_.toLong)
-                      .orElse(json("pvt_p_p_security_group").numOpt.map(_.toLong))
-                      .getOrElse(0L)
+                  ppSecurityGroup =
+                      Try(json("pvtpp_security_group").numOpt.map(_.toLong).getOrElse(0L)).toOption
+                          .orElse(json("pvt_p_p_security_group").numOpt.map(_.toLong))
+                          .getOrElse(0L)
                 ),
                 protocolVersion = ProtocolVersion(
                   major = json("protocol_major_ver").num.toInt,
