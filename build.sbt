@@ -98,7 +98,6 @@ lazy val jvm: Project = project
       scalusDesignPatterns,
       bench,
       `scalus-bloxbean-cardano-client-lib`,
-      scalusCardanoLedgerIt,
     )
     .settings(
       publish / skip := true

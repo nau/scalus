@@ -183,8 +183,10 @@ object ProtocolParams {
                       json("pvt_committee_no_confidence").numOpt.map(_.toLong).getOrElse(0L),
                   hardForkInitiation =
                       json("pvt_hard_fork_initiation").numOpt.map(_.toLong).getOrElse(0L),
-                  ppSecurityGroup =
-                      json("pvt_p_p_security_group").numOpt.map(_.toLong).getOrElse(0L),
+                  ppSecurityGroup = json("pvtpp_security_group").numOpt
+                      .map(_.toLong)
+                      .orElse(json("pvt_p_p_security_group").numOpt.map(_.toLong))
+                      .getOrElse(0L)
                 ),
                 protocolVersion = ProtocolVersion(
                   major = json("protocol_major_ver").num.toInt,
