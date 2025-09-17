@@ -39,8 +39,6 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
     private lazy val params = fetchProtocolParams()
     private lazy val environment = createEnvironment()
 
-
-
     def fetchProtocolParams(): ProtocolParams = {
         import upickle.default.*
 
@@ -107,11 +105,11 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
     }
 
     def resolvedTransaction(
-                               txHash: String,
-                               address: Address,
-                               index: Int = 0,
-                               lovelace: Long = 10_000_000_000L
-                           ) = {
+        txHash: String,
+        address: Address,
+        index: Int = 0,
+        lovelace: Long = 10_000_000_000L
+    ) = {
         TransactionInput(TransactionHash.fromHex(txHash), index) ->
             TransactionOutput(address, Value.lovelace(lovelace))
     }
