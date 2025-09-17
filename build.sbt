@@ -78,7 +78,6 @@ lazy val root: Project = project
       scalusDesignPatterns,
       bench,
       `scalus-bloxbean-cardano-client-lib`,
-      scalusCardanoLedgerIt,
       docs
     )
     .settings(

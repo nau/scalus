@@ -125,7 +125,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
       * the script back to the SPENDER
       */
     test("build and submit transactions that spend script inputs") {
-//        pending
+        pending
         import scalus.*
         val luckyPaymentsOnly: Program = Compiler
             .compile((scriptContext: Data) => {
