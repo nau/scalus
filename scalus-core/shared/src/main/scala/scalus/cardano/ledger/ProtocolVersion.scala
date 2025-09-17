@@ -53,9 +53,20 @@ object MajorProtocolVersion {
     val valentinePV = MajorProtocolVersion(8)
     val changPV = MajorProtocolVersion(9)
     val plominPV = MajorProtocolVersion(10)
+    val pv11PV = MajorProtocolVersion(11)
     val futurePV = MajorProtocolVersion(Int.MaxValue)
 
     // Known protocol versions
     val knownPVs: SortedSet[MajorProtocolVersion] =
-        SortedSet(shelleyPV, allegraPV, maryPV, alonzoPV, vasilPV, valentinePV, changPV, plominPV)
+        SortedSet(
+          shelleyPV,
+          allegraPV,
+          maryPV,
+          alonzoPV,
+          vasilPV,
+          valentinePV,
+          changPV,
+          plominPV,
+          pv11PV
+        )
 }

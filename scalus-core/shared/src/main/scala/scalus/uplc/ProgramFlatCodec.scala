@@ -27,14 +27,15 @@ object ProgramFlatCodec:
 
     /** Decodes Flat-encoded [[DeBruijnedProgram]] from bytes */
     def decodeFlat(encoded: Array[Byte]): DeBruijnedProgram =
-        val decoderState = new DecoderState(encoded)
+        val decoderState = DecoderState(encoded)
         flatCodec.decode(decoderState)
 
     case class DecodeResult(program: DeBruijnedProgram, remainder: Array[Byte])
 
-    /** Decodes Flat-encoded [[DeBruijnedProgram]] from bytes */
-    def decodeFlat2(encoded: Array[Byte]): (DeBruijnedProgram, Array[Byte]) =
-        val decoderState = new DecoderState(encoded)
+    /** Decodes Flat-encoded [[DeBruijnedProgram]] from bytes with remaining bytes */
+    def decodeFlatWithRemainingBytes(
+        encoded: Array[Byte]
+    ): Either[IllegalStateException, (DeBruijnedProgram, Array[Byte])] =
+        val decoderState = DecoderState(encoded)
         val p = flatCodec.decode(decoderState)
-        val remaining = decoderState.remainingBytes()
-        (p, remaining)
+        decoderState.remainingBytes().map(remaining => (p, remaining))

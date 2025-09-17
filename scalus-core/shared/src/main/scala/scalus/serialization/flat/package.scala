@@ -1,6 +1,8 @@
 package scalus.serialization
 
 import scala.collection.mutable.ListBuffer
+import scala.util.boundary
+import scala.util.boundary.break
 
 package object flat:
     case class Natural(n: BigInt)
@@ -312,10 +314,10 @@ package object flat:
         val buffer: Uint8Array
     ):
 
-        /** Pointer to the current byte being decoded (0..buffer.byteLength-1) */
+        /** Pointer to the current byte being decoded [0..buffer.byteLength) */
         var currPtr: Int = 0
 
-        /** Number of already decoded bits in the current byte (0..7) */
+        /** Number of already decoded bits in the current byte [0..7] */
         var usedBits: Int = 0
 
         val hashConsed: HashConsed.State = HashConsed.State.empty
@@ -327,7 +329,7 @@ package object flat:
 
         /** Decode up to 8 bits
           * @param numBits
-          *   the Int of bits to decode (0..8)
+          *   the Int of bits to decode [0..8]
           */
         def lookupBits8(numBits: Int): Byte =
             if numBits < 0 || numBits > 8 then
@@ -368,11 +370,33 @@ package object flat:
         // Available bytes, ignoring used bits
         def availableBytes(): Int = this.buffer.length - this.currPtr
 
-        def remainingBytes(): Array[Byte] = {
-            require(this.usedBits == 0, "remainBytes: usedBits must be 0")
+        def remainingBytes(): Either[IllegalStateException, Array[Byte]] = boundary {
+            val remainingBits =
+                if this.usedBits != 0 then 8 - this.usedBits
+                else if this.availableBytes() != 0 then 8
+                else 0
+
+            if remainingBits != 0 then
+                for _ <- 1 until remainingBits do
+                    if this.bits8(1) != 0 then
+                        break(
+                          Left(
+                            IllegalStateException(
+                              s"padding bits except last must be 0, actual: ${this.buffer(this.currPtr)}"
+                            )
+                          )
+                        )
+
+                if this.bits8(1) != 1 then
+                    return Left(
+                      IllegalStateException(
+                        s"last padding bit must be 1, actual: ${this.buffer(this.currPtr)}"
+                      )
+                    )
+
             val remaining = new Array[Byte](this.buffer.length - this.currPtr)
             System.arraycopy(this.buffer, this.currPtr, remaining, 0, remaining.length)
-            remaining
+            Right(remaining)
         }
 
         private def dropBits(numBits: Int): Unit =
