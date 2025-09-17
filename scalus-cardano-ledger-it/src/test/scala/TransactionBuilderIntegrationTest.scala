@@ -494,7 +494,11 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("withdraw staking rewards") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = new Account(
+          network,
+          MNEMONIC,
+          DerivationPath.createExternalAddressDerivationPathForAccount(6)
+        )
 
         // Create a stake address from the same account
         val stakeKeyHash = AddrKeyHash(
@@ -514,16 +518,10 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
         println("Withdrawing staking rewards...")
         val tx = StakingTransactionBuilder(context, account6.address, stakeAddress)
-            .withdraw(500)
+            .withdraw(0)
 
         val signed = account6.signer.signTx(tx)
-        try {
-            submitTransactionToCardano(context, signed)
-        } catch {
-            case e if e.getMessage.contains("WithdrawalsNotInRewards") =>
-                pending // no rewards in account
-
-        }
+        submitTransactionToCardano(context, signed)
         println("Success!")
     }
 
