@@ -36,27 +36,3 @@ object OutputBootAddrAttrsTooBigValidator extends STS.Validator {
         ???
     }
 }
-// It's part of Shelley.validateWrongNetwork in cardano-ledger
-object WrongNetworkValidator extends STS.Validator {
-    override final type Error = TransactionException
-
-    override def validate(context: Context, state: State, event: Event): Result = {
-        ???
-    }
-}
-// It's part of Shelley.validateWrongNetworkWithdrawal in cardano-ledger
-object WrongNetworkWithdrawalValidator extends STS.Validator {
-    override final type Error = TransactionException
-
-    override def validate(context: Context, state: State, event: Event): Result = {
-        ???
-    }
-}
-// It's part of Alonzo.validateWrongNetworkInTxBody in cardano-ledger
-object WrongNetworkInTxBodyValidator extends STS.Validator {
-    override final type Error = TransactionException
-
-    override def validate(context: Context, state: State, event: Event): Result = {
-        ???
-    }
-}

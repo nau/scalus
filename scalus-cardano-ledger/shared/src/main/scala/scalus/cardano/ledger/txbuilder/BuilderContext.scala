@@ -36,7 +36,7 @@ case class BuilderContext(
     /** Validates the transaction against the [[validators]] of this context. */
     def validate(tx: Transaction): Either[TransactionException, Transaction] = {
         val certState = CertState.empty
-        val context = Context(tx.body.value.fee, UtxoEnv(1L, protocolParams, certState))
+        val context = Context(tx.body.value.fee, UtxoEnv(1L, protocolParams, certState, network))
         val state = State(utxo, certState)
         validators
             .map(_.validate(context, state, tx))

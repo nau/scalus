@@ -348,6 +348,7 @@ case class ShelleyAddress(
                   )
                 )
 
+    inline override def getNetwork: Option[Network] = Some(network)
 }
 
 /** A decoded Stake address for delegation purposes */
@@ -393,6 +394,8 @@ case class StakeAddress(network: Network, payload: StakePayload) extends Address
     def scriptHashOption: Option[ScriptHash] = payload match
         case StakePayload.Script(hash) => Some(hash)
         case _                         => None
+
+    inline override def getNetwork: Option[Network] = Some(network)
 }
 
 /** Placeholder for Byron address - complex legacy format */
@@ -449,6 +452,8 @@ sealed trait Address {
 
     /** Get script hash if available */
     def scriptHashOption: Option[ScriptHash]
+
+    def getNetwork: Option[Network] = None
 
 }
 

@@ -5,6 +5,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.Ignore
 import scalus.builtin.Data
 import scalus.cardano.address.*
+import scalus.cardano.address.Network.Testnet
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.rules.{CardanoMutator, Context, State, UtxoEnv}
 import scalus.cardano.ledger.txbuilder.*
@@ -89,7 +90,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
     def validateAndSubmit(unsigned: Transaction, utxo: UTxO): Unit = {
         val signed = makeSignerFrom(DERIVATION, MNEMONIC).signTx(unsigned)
         val validationResult = CardanoMutator(
-          Context(signed.body.value.fee, UtxoEnv(0L, params, CertState.empty)),
+          Context(signed.body.value.fee, UtxoEnv(0L, params, CertState.empty, Testnet)),
           State(utxo, CertState.empty),
           signed
         )

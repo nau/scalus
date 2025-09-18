@@ -1,6 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
+import scalus.cardano.address.Network
 import scalus.ledger.babbage.ProtocolParams
 import upickle.default.read
 
@@ -21,7 +22,7 @@ case class State(
     donation: Coin = Coin.zero // Donation amount
 )
 
-case class UtxoEnv(slot: SlotNo, params: ProtocolParams, certState: CertState)
+case class UtxoEnv(slot: SlotNo, params: ProtocolParams, certState: CertState, network: Network)
 object UtxoEnv {
     // TODO: remove
     val default: UtxoEnv =
@@ -34,7 +35,8 @@ object UtxoEnv {
         UtxoEnv(
           0,
           params,
-          CertState.empty
+          CertState.empty,
+          Network.Testnet
         )
 }
 
