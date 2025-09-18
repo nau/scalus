@@ -879,8 +879,8 @@ object BlahBuilder {
 
 // Transaction balancing error types
 enum TxBalancingError {
-    case FeeCalculationFailed(cause: Throwable)
-    case IterationLimitExceeded(iterations: Int, lastDiff: Long)
+    case Failed(cause: Throwable)
+    case CantBalance(lastDiff: Long)
     case InsufficientFunds(diff: Long, minRequired: Long)
 }
 
@@ -897,24 +897,45 @@ object LowLevelTxBuilder {
             )
             val changeOut = tx.body.value.outputs(changeOutputIdx)
             val changeLovelace = changeOut.value.value.coin.value
-            val minAda = MinCoinSizedTransactionOutput(changeOut, protocolParams)
             val updatedLovelaceChange = changeLovelace + diff
+            val newValue = changeOut.value.value
+                .focus(_.coin.value)
+                .replace(updatedLovelaceChange)
+            val newChangeOut = Sized(changeOut.value.withValue(newValue))
+            val minAda = MinCoinSizedTransactionOutput(newChangeOut, protocolParams)
 
             if updatedLovelaceChange < minAda.value then
                 return Left(
                   TxBalancingError.InsufficientFunds(diff, minAda.value - updatedLovelaceChange)
                 )
 
-            val newValue =
-                changeOut.value.value
-                    .focus(_.coin.value)
-                    .replace(updatedLovelaceChange)
-            val newChangeOut = Sized(changeOut.value.withValue(newValue))
             val t = tx
                 .focus(_.body.value.outputs.index(changeOutputIdx))
                 .replace(newChangeOut)
             Right(t)
         }
+    }
+
+    /** Balances the transaction using a diff handler to adjust the transaction.
+      *
+      * Invariants:
+      *   - only ADA is adjusted, native tokens must be balanced beforehand
+      *   - fees never go below the initial fee
+      */
+    def balanceFeeAndChange(
+        initial: Transaction,
+        changeOutputIdx: Int,
+        protocolParams: ProtocolParams,
+        resolvedUtxo: UTxO,
+        evaluator: PlutusScriptEvaluator,
+    ): Either[TxBalancingError, Transaction] = {
+        balanceFeeAndChange(
+          initial,
+          new ChangeOutputDiffHandler(protocolParams, changeOutputIdx).changeOutputDiffHandler,
+          protocolParams,
+          resolvedUtxo,
+          evaluator
+        )
     }
 
     /** Balances the transaction using a diff handler to adjust the transaction.
@@ -934,7 +955,7 @@ object LowLevelTxBuilder {
         @tailrec def loop(tx: Transaction): Either[TxBalancingError, Transaction] = {
             val txWithExUnits = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
 
-            MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams) match {
+            MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams) match
                 case Right(minFee) =>
                     // don't go below initial fee
                     val fee = Coin(math.max(minFee.value, tx.body.value.fee.value))
@@ -942,7 +963,7 @@ object LowLevelTxBuilder {
                     // find the diff
                     val diff = calculateChangeLovelace(txWithFees, resolvedUtxo, protocolParams)
                     // try to balance it
-                    diffHandler(diff, txWithFees) match {
+                    diffHandler(diff, txWithFees) match
                         case Right(balanced) =>
                             val balancedDiff =
                                 calculateChangeLovelace(balanced, resolvedUtxo, protocolParams)
@@ -950,15 +971,10 @@ object LowLevelTxBuilder {
                             // if diff is zero, we are done
                             if balancedDiff == 0 then Right(balanced)
                             else if iteration > 20 then
-                                Left(
-                                  TxBalancingError
-                                      .IterationLimitExceeded(iteration, balancedDiff)
-                                )
+                                Left(TxBalancingError.CantBalance(balancedDiff))
                             else loop(tx) // try again
                         case Left(error) => Left(error)
-                    }
-                case Left(error) => Left(TxBalancingError.FeeCalculationFailed(error))
-            }
+                case Left(error) => Left(TxBalancingError.Failed(error))
         }
         loop(initial)
     }

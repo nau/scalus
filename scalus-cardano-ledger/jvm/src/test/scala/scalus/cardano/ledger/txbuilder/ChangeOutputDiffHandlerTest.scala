@@ -6,7 +6,6 @@ import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.rules.{Context, State, ValueNotConservedUTxOValidator}
 import scalus.cardano.ledger.txbuilder.LowLevelTxBuilder.ChangeOutputDiffHandler
-import scalus.cardano.ledger.txbuilder.TxBalancingError
 import scalus.cardano.ledger.txbuilder.TxBalancingError.InsufficientFunds
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.babbage.ProtocolParams
@@ -14,7 +13,6 @@ import scalus.uplc.eval.ExBudget
 import upickle.default.read
 
 import scala.collection.immutable.SortedSet
-import scala.util.Try
 
 class ChangeOutputDiffHandlerTest extends AnyFunSuite {
 

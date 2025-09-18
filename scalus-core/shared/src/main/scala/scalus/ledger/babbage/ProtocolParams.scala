@@ -4,6 +4,8 @@ import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
 import scalus.cardano.ledger.{ExUnitPrices, ExUnits, NonNegativeInterval}
 
+import scala.util.Try
+
 /** Protocol parameters for the Cardano blockchain of Babbage era Field names are taken from the
   * `cardano-cli query protocol-parameters` output
   * @note
@@ -130,31 +132,32 @@ object ProtocolParams {
           json =>
               ProtocolParams(
                 collateralPercentage = json("collateral_percent").num.toLong,
-                committeeMaxTermLength = json("committee_max_term_length").str.toLong,
-                committeeMinSize = json("committee_min_size").str.toLong,
+                committeeMaxTermLength =
+                    json("committee_max_term_length").strOpt.map(_.toLong).getOrElse(0L),
+                committeeMinSize = json("committee_min_size").strOpt.map(_.toLong).getOrElse(0L),
                 costModels = json("cost_models").obj.map { case (k, v) =>
                     k -> v.obj.values.map(_.num.toLong).toIndexedSeq
                 }.toMap,
-                dRepActivity = json("drep_activity").str.toLong,
-                dRepDeposit = json("drep_deposit").str.toLong,
+                dRepActivity = json("drep_activity").strOpt.map(_.toLong).getOrElse(0L),
+                dRepDeposit = json("drep_deposit").strOpt.map(_.toLong).getOrElse(0L),
                 dRepVotingThresholds = DRepVotingThresholds(
-                  motionNoConfidence = json("dvt_motion_no_confidence").num,
-                  committeeNormal = json("dvt_committee_normal").num,
-                  committeeNoConfidence = json("dvt_committee_no_confidence").num,
-                  updateToConstitution = json("dvt_update_to_constitution").num,
-                  hardForkInitiation = json("dvt_hard_fork_initiation").num,
-                  ppNetworkGroup = json("dvt_p_p_network_group").num,
-                  ppEconomicGroup = json("dvt_p_p_economic_group").num,
-                  ppTechnicalGroup = json("dvt_p_p_technical_group").num,
-                  ppGovGroup = json("dvt_p_p_gov_group").num,
-                  treasuryWithdrawal = json("dvt_treasury_withdrawal").num
+                  motionNoConfidence = json("dvt_motion_no_confidence").numOpt.getOrElse(0),
+                  committeeNormal = json("dvt_committee_normal").numOpt.getOrElse(0),
+                  committeeNoConfidence = json("dvt_committee_no_confidence").numOpt.getOrElse(0),
+                  updateToConstitution = json("dvt_update_to_constitution").numOpt.getOrElse(0),
+                  hardForkInitiation = json("dvt_hard_fork_initiation").numOpt.getOrElse(0),
+                  ppNetworkGroup = json("dvt_p_p_network_group").numOpt.getOrElse(0),
+                  ppEconomicGroup = json("dvt_p_p_economic_group").numOpt.getOrElse(0),
+                  ppTechnicalGroup = json("dvt_p_p_technical_group").numOpt.getOrElse(0),
+                  ppGovGroup = json("dvt_p_p_gov_group").numOpt.getOrElse(0),
+                  treasuryWithdrawal = json("dvt_treasury_withdrawal").numOpt.getOrElse(0)
                 ),
                 executionUnitPrices = ExUnitPrices(
                   priceMemory = NonNegativeInterval(json("price_mem").num),
                   priceSteps = NonNegativeInterval(json("price_step").num)
                 ),
-                govActionDeposit = json("gov_action_deposit").str.toLong,
-                govActionLifetime = json("gov_action_lifetime").str.toLong,
+                govActionDeposit = json("gov_action_deposit").strOpt.map(_.toLong).getOrElse(0L),
+                govActionLifetime = json("gov_action_lifetime").strOpt.map(_.toLong).getOrElse(0L),
                 maxBlockBodySize = json("max_block_size").num.toLong,
                 maxBlockExecutionUnits = ExUnits(
                   memory = json("max_block_ex_mem").str.toLong,
@@ -168,17 +171,24 @@ object ProtocolParams {
                 ),
                 maxTxSize = json("max_tx_size").num.toLong,
                 maxValueSize = json("max_val_size").str.toLong,
-                minFeeRefScriptCostPerByte = json("min_fee_ref_script_cost_per_byte").num.toLong,
+                minFeeRefScriptCostPerByte =
+                    json("min_fee_ref_script_cost_per_byte").numOpt.map(_.toLong).getOrElse(0L),
                 minPoolCost = json("min_pool_cost").str.toLong,
                 monetaryExpansion = json("rho").num,
                 poolPledgeInfluence = json("a0").num,
                 poolRetireMaxEpoch = json("e_max").num.toLong,
                 poolVotingThresholds = PoolVotingThresholds(
-                  motionNoConfidence = json("pvt_motion_no_confidence").num,
-                  committeeNormal = json("pvt_committee_normal").num,
-                  committeeNoConfidence = json("pvt_committee_no_confidence").num,
-                  hardForkInitiation = json("pvt_hard_fork_initiation").num,
-                  ppSecurityGroup = json("pvtpp_security_group").num
+                  motionNoConfidence =
+                      json("pvt_motion_no_confidence").numOpt.map(_.toLong).getOrElse(0L),
+                  committeeNormal = json("pvt_committee_normal").numOpt.map(_.toLong).getOrElse(0L),
+                  committeeNoConfidence =
+                      json("pvt_committee_no_confidence").numOpt.map(_.toLong).getOrElse(0L),
+                  hardForkInitiation =
+                      json("pvt_hard_fork_initiation").numOpt.map(_.toLong).getOrElse(0L),
+                  ppSecurityGroup =
+                      Try(json("pvtpp_security_group").numOpt.map(_.toLong).getOrElse(0L)).toOption
+                          .orElse(json("pvt_p_p_security_group").numOpt.map(_.toLong))
+                          .getOrElse(0L)
                 ),
                 protocolVersion = ProtocolVersion(
                   major = json("protocol_major_ver").num.toInt,

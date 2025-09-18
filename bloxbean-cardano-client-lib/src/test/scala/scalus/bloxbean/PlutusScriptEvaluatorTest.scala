@@ -197,7 +197,15 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
         import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 
-        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
+        // this makes sure to download the utxos in the same directory that `resolveUtxoFromResources` is going to
+        // look for them in.
+        val blocksUrl = getClass.getResource("/blocks")
+        val compiledResourcesPath = Paths.get(blocksUrl.toURI).getParent
+        val resourcesPath = compiledResourcesPath.getParent.getParent.getParent
+            .resolve("src")
+            .resolve("test")
+            .resolve("resources")
+
         val backendService =
             new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, BlocksValidation.apiKey)
         val utxoSupplier = CachedUtxoSupplier(

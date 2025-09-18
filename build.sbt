@@ -483,6 +483,8 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
         "io.bullet" %%% "borer-core" % "1.16.1",
         "io.bullet" %%% "borer-derivation" % "1.16.1"
       ),
+      // For tx builder
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6",
       libraryDependencies += "com.outr" %%% "scribe" % "3.17.0", // logging
       libraryDependencies ++= Seq(
         "dev.optics" %%% "monocle-core" % "3.3.0",
@@ -493,6 +495,7 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
       libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.3" % "test",
+      inConfig(Test)(PluginDependency),
       publish / skip := false
     )
     .jvmSettings(
@@ -509,6 +512,25 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
       }
     )
     .jsConfigure { project => project.enablePlugins(ScalaJSBundlerPlugin) }
+
+lazy val scalusCardanoLedgerIt = project
+    .in(file("scalus-cardano-ledger-it"))
+    .dependsOn(scalusCardanoLedger.jvm, `scalus-bloxbean-cardano-client-lib`)
+    .settings(
+      name := "scalus-cardano-ledger-it",
+      scalacOptions ++= commonScalacOptions,
+      publish / skip := true,
+      Test / fork := true,
+      Test / testOptions += Tests.Argument("-oF"),
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.8" % "test",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
+      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.3.0" % "test",
+      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.81" % "test",
+      inConfig(Test)(PluginDependency)
+    )
 
 addCommandAlias(
   "mima",

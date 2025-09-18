@@ -1,7 +1,7 @@
 package scalus.cardano.ledger.utils
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
-import scalus.cardano.ledger.txbuilder.{ChangeReturnStrategy, FeePayerStrategy, OnSurplus}
+import scalus.cardano.ledger.txbuilder.{ChangeReturnStrategy, FeePayerStrategy}
 import scalus.ledger.babbage.ProtocolParams
 
 import scala.annotation.tailrec
@@ -96,7 +96,7 @@ object TxBalance {
 
     def doBalance(
         tx: Transaction
-    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: OnSurplus): Transaction = {
+    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: Any): Transaction = {
         val consumed = TxBalance.consumed(tx, CertState.empty, utxo, protocolParams).toTry.get
         val produced = TxBalance.produced(tx)
         if consumed.coin < produced.coin then {
@@ -110,7 +110,7 @@ object TxBalance {
             diffLong match {
                 case d if d > 0L =>
                     val diff = Coin(d)
-                    val newTx = onSurplus(utxo, diff)(currentTx)
+                    val newTx = currentTx
                     val correctFee = MinTransactionFee(newTx, utxo, protocolParams).toTry.get
                     val newTxWithFee = modifyBody(newTx, _.copy(fee = correctFee))
                     val newProduced = TxBalance.produced(newTxWithFee)

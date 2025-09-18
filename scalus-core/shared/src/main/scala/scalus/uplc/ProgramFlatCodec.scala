@@ -29,3 +29,12 @@ object ProgramFlatCodec:
     def decodeFlat(encoded: Array[Byte]): DeBruijnedProgram =
         val decoderState = new DecoderState(encoded)
         flatCodec.decode(decoderState)
+
+    case class DecodeResult(program: DeBruijnedProgram, remainder: Array[Byte])
+
+    /** Decodes Flat-encoded [[DeBruijnedProgram]] from bytes */
+    def decodeFlat2(encoded: Array[Byte]): (DeBruijnedProgram, Array[Byte]) =
+        val decoderState = new DecoderState(encoded)
+        val p = flatCodec.decode(decoderState)
+        val remaining = decoderState.remainingBytes()
+        (p, remaining)

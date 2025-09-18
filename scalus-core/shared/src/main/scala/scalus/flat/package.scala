@@ -346,12 +346,12 @@ package object flat:
                 val lowerBits = (nextByte & 255) >>> (unusedBits + leadingZeros)
                 r = r | lowerBits
 
-            return (r & 255).toByte
+            (r & 255).toByte
 
         def bits8(numBits: Int): Byte =
             val r = lookupBits8(numBits)
             this.dropBits(numBits)
-            return r
+            r
 
         def filler(): Unit =
             while this.bits8(1) == 0 do ()
@@ -362,15 +362,19 @@ package object flat:
                   "DecoderState: Not enough data available: " + this.toString
                 )
 
-        def bitPosition(): Int =
-            this.currPtr * 8 + this.usedBits
+        def bitPosition(): Int = this.currPtr * 8 + this.usedBits
 
-        private def availableBits(): Int =
-            return 8 * this.availableBytes() - this.usedBits
+        private def availableBits(): Int = 8 * this.availableBytes() - this.usedBits
 
         // Available bytes, ignoring used bits
-        private def availableBytes(): Int =
-            return this.buffer.length - this.currPtr
+        def availableBytes(): Int = this.buffer.length - this.currPtr
+
+        def remainingBytes(): Array[Byte] = {
+            require(this.usedBits == 0, "remainBytes: usedBits must be 0")
+            val remaining = new Array[Byte](this.buffer.length - this.currPtr)
+            System.arraycopy(this.buffer, this.currPtr, remaining, 0, remaining.length)
+            remaining
+        }
 
         private def dropBits(numBits: Int): Unit =
             val totUsed = numBits + this.usedBits
