@@ -20,14 +20,23 @@ trait ValidatorRulesTestKit extends ArbitraryInstances {
           body = KeepRaw(
             tx.body.value.copy(
               networkId = Some(network.value),
-              outputs = tx.body.value.outputs.map(x =>
-                  Sized(
-                    TransactionOutput(
-                      Arbitrary.arbitrary[ShelleyAddress].sample.get.copy(network = network),
-                      x.value.value
-                    )
+              outputs = tx.body.value.outputs
+                  .map(x =>
+                      Sized(
+                        TransactionOutput(
+                          Arbitrary.arbitrary[ShelleyAddress].sample.get.copy(network = network),
+                          x.value.value
+                        )
+                      )
                   )
-              ),
+                  .appended(
+                    Sized(
+                      TransactionOutput(
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get.copy(network = network),
+                        Arbitrary.arbitrary[Value].sample.get
+                      )
+                    )
+                  ),
               withdrawals = tx.body.value.withdrawals
                   .map(w =>
                       w.copy(withdrawals =
