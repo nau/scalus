@@ -2,7 +2,7 @@ package scalus.ledger.babbage
 
 import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
-import scalus.cardano.ledger.{ExUnitPrices, ExUnits, NonNegativeInterval, PoolVotingThresholds, UnitInterval}
+import scalus.cardano.ledger.{DRepVotingThresholds, ExUnitPrices, ExUnits, NonNegativeInterval, PoolVotingThresholds, UnitInterval}
 
 import scala.util.Try
 
@@ -45,19 +45,6 @@ case class ProtocolParams(
     utxoCostPerByte: Long
 ) derives ReadWriter
 
-case class DRepVotingThresholds(
-    committeeNoConfidence: Double,
-    committeeNormal: Double,
-    hardForkInitiation: Double,
-    motionNoConfidence: Double,
-    ppEconomicGroup: Double,
-    ppGovGroup: Double,
-    ppNetworkGroup: Double,
-    ppTechnicalGroup: Double,
-    treasuryWithdrawal: Double,
-    updateToConstitution: Double
-) derives ReadWriter
-
 object ProtocolParams {
     import upickle.default.{readwriter, ReadWriter}
 
@@ -78,16 +65,16 @@ object ProtocolParams {
                 },
                 "drep_activity" -> params.dRepActivity.toString,
                 "drep_deposit" -> params.dRepDeposit.toString,
-                "dvt_motion_no_confidence" -> params.dRepVotingThresholds.motionNoConfidence,
-                "dvt_committee_normal" -> params.dRepVotingThresholds.committeeNormal,
-                "dvt_committee_no_confidence" -> params.dRepVotingThresholds.committeeNoConfidence,
-                "dvt_update_to_constitution" -> params.dRepVotingThresholds.updateToConstitution,
-                "dvt_hard_fork_initiation" -> params.dRepVotingThresholds.hardForkInitiation,
-                "dvt_p_p_network_group" -> params.dRepVotingThresholds.ppNetworkGroup,
-                "dvt_p_p_economic_group" -> params.dRepVotingThresholds.ppEconomicGroup,
-                "dvt_p_p_technical_group" -> params.dRepVotingThresholds.ppTechnicalGroup,
-                "dvt_p_p_gov_group" -> params.dRepVotingThresholds.ppGovGroup,
-                "dvt_treasury_withdrawal" -> params.dRepVotingThresholds.treasuryWithdrawal,
+                "dvt_motion_no_confidence" -> params.dRepVotingThresholds.motionNoConfidence.toDouble,
+                "dvt_committee_normal" -> params.dRepVotingThresholds.committeeNormal.toDouble,
+                "dvt_committee_no_confidence" -> params.dRepVotingThresholds.committeeNoConfidence.toDouble,
+                "dvt_update_to_constitution" -> params.dRepVotingThresholds.updateToConstitution.toDouble,
+                "dvt_hard_fork_initiation" -> params.dRepVotingThresholds.hardForkInitiation.toDouble,
+                "dvt_p_p_network_group" -> params.dRepVotingThresholds.ppNetworkGroup.toDouble,
+                "dvt_p_p_economic_group" -> params.dRepVotingThresholds.ppEconomicGroup.toDouble,
+                "dvt_p_p_technical_group" -> params.dRepVotingThresholds.ppTechnicalGroup.toDouble,
+                "dvt_p_p_gov_group" -> params.dRepVotingThresholds.ppGovGroup.toDouble,
+                "dvt_treasury_withdrawal" -> params.dRepVotingThresholds.treasuryWithdrawal.toDouble,
                 "price_mem" -> params.executionUnitPrices.priceMemory.toDouble,
                 "price_step" -> params.executionUnitPrices.priceSteps.toDouble,
                 "gov_action_deposit" -> params.govActionDeposit.toString,
@@ -133,16 +120,28 @@ object ProtocolParams {
                 dRepActivity = json("drep_activity").strOpt.map(_.toLong).getOrElse(0L),
                 dRepDeposit = json("drep_deposit").strOpt.map(_.toLong).getOrElse(0L),
                 dRepVotingThresholds = DRepVotingThresholds(
-                  motionNoConfidence = json("dvt_motion_no_confidence").numOpt.getOrElse(0),
-                  committeeNormal = json("dvt_committee_normal").numOpt.getOrElse(0),
-                  committeeNoConfidence = json("dvt_committee_no_confidence").numOpt.getOrElse(0),
-                  updateToConstitution = json("dvt_update_to_constitution").numOpt.getOrElse(0),
-                  hardForkInitiation = json("dvt_hard_fork_initiation").numOpt.getOrElse(0),
-                  ppNetworkGroup = json("dvt_p_p_network_group").numOpt.getOrElse(0),
-                  ppEconomicGroup = json("dvt_p_p_economic_group").numOpt.getOrElse(0),
-                  ppTechnicalGroup = json("dvt_p_p_technical_group").numOpt.getOrElse(0),
-                  ppGovGroup = json("dvt_p_p_gov_group").numOpt.getOrElse(0),
-                  treasuryWithdrawal = json("dvt_treasury_withdrawal").numOpt.getOrElse(0)
+                  motionNoConfidence =
+                      UnitInterval.fromDouble(json("dvt_motion_no_confidence").numOpt.getOrElse(0)),
+                  committeeNormal =
+                      UnitInterval.fromDouble(json("dvt_committee_normal").numOpt.getOrElse(0)),
+                  committeeNoConfidence = UnitInterval.fromDouble(
+                    json("dvt_committee_no_confidence").numOpt.getOrElse(0)
+                  ),
+                  updateToConstitution = UnitInterval.fromDouble(
+                    json("dvt_update_to_constitution").numOpt.getOrElse(0)
+                  ),
+                  hardForkInitiation =
+                      UnitInterval.fromDouble(json("dvt_hard_fork_initiation").numOpt.getOrElse(0)),
+                  ppNetworkGroup =
+                      UnitInterval.fromDouble(json("dvt_p_p_network_group").numOpt.getOrElse(0)),
+                  ppEconomicGroup =
+                      UnitInterval.fromDouble(json("dvt_p_p_economic_group").numOpt.getOrElse(0)),
+                  ppTechnicalGroup =
+                      UnitInterval.fromDouble(json("dvt_p_p_technical_group").numOpt.getOrElse(0)),
+                  ppGovGroup =
+                      UnitInterval.fromDouble(json("dvt_p_p_gov_group").numOpt.getOrElse(0)),
+                  treasuryWithdrawal =
+                      UnitInterval.fromDouble(json("dvt_treasury_withdrawal").numOpt.getOrElse(0))
                 ),
                 executionUnitPrices = ExUnitPrices(
                   priceMemory = NonNegativeInterval(json("price_mem").num),
