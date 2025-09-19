@@ -525,6 +525,7 @@ lazy val scalusCardanoLedgerIt = project
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.8" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "yaci-cardano-test" % "0.1.0" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
       libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.3.0" % "test",
