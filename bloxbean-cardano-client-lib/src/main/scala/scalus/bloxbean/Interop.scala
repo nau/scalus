@@ -48,13 +48,13 @@ import scalus.ledger.api.v1.StakingCredential
 import scalus.ledger.api.v2
 import scalus.ledger.api.v3
 import scalus.ledger.api.v3.GovernanceActionId
-import scalus.ledger.babbage.PlutusV1Params
-import scalus.ledger.babbage.PlutusV2Params
-import scalus.ledger.babbage.PlutusV3Params
 import scalus.prelude
 import scalus.prelude.SortedMap
 import scalus.prelude.List
 import scalus.prelude.asScalus
+import scalus.uplc.PlutusV1Params
+import scalus.uplc.PlutusV2Params
+import scalus.uplc.PlutusV3Params
 import scalus.uplc.eval.*
 
 import java.math.BigInteger

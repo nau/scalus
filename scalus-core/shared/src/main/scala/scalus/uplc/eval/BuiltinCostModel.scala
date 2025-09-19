@@ -1,10 +1,9 @@
 package scalus.uplc.eval
 
 import scalus.cardano.ledger.Language
-import scalus.ledger.api.BuiltinSemanticsVariant
-import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.ledger.babbage.PlutusParams
+import scalus.ledger.api.{BuiltinSemanticsVariant, PlutusLedgerLanguage}
 import scalus.macros.Macros
+import scalus.uplc.PlutusParams
 import upickle.default.*
 
 case class BuiltinCostModel(

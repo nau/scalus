@@ -4,7 +4,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.cardano.ledger.Language
 import scalus.ledger.api.BuiltinSemanticsVariant
-import scalus.ledger.babbage.*
+import scalus.ledger.babbage.ProtocolParams
+import scalus.uplc.*
 import upickle.default.*
 
 import java.nio.charset.StandardCharsets
