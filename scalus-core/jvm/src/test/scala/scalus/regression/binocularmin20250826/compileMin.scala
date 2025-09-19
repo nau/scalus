@@ -1,4 +1,4 @@
-package scalus.bugtracking.binocularmin20250826
+package scalus.regression.binocularmin20250826
 
 import scalus.*
 import scalus.builtin.Builtins.*

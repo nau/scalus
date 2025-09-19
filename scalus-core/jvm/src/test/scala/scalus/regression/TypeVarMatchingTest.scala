@@ -1,4 +1,4 @@
-package scalus.bugtracking
+package scalus.regression
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*

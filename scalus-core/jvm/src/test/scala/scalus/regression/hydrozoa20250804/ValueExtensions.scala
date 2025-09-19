@@ -1,4 +1,4 @@
-package scalus.bugtracking.hydrozoa20250804
+package scalus.regression.hydrozoa20250804
 
 import scalus.Compile
 import scalus.ledger.api.v1.Value.{-, zero}

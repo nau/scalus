@@ -1,4 +1,4 @@
-package scalus.bugtracking.hydrozoa20250804
+package scalus.regression.hydrozoa20250804
 
 import cats.syntax.group.*
 //import com.bloxbean.cardano.client.address

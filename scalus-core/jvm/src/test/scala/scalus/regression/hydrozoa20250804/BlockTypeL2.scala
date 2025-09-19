@@ -1,4 +1,4 @@
-package scalus.bugtracking.hydrozoa20250804
+package scalus.regression.hydrozoa20250804
 
 enum BlockTypeL2 derives CanEqual:
     case Minor
