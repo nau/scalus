@@ -11,7 +11,7 @@ import dotty.tools.dotc.core.StdNames.{nme, tpnme}
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.{SourcePosition, SrcPos}
-import scalus.SirParsedCase.JoinedConstructorCaseElement
+import scalus.SirCaseDecisionTree.{ConstructorBinding, Leaf}
 import scalus.sir.{SIRType, *}
 
 //import scala.language.implicitConversions
@@ -101,46 +101,21 @@ end SirCase
   *
   * http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf
   */
-sealed trait SirParsedCase {
-
-    def pos: SrcPos
-
-    def withAlias(nameInfo: SirParsedCase.BindingNameInfo): SirParsedCase
-
-}
+case class SirParsedCase(
+    pattern: SirParsedCase.Pattern,
+    action: SirParsedCase.Action,
+    pos: SrcPos
+)
 
 object SirParsedCase:
 
-    case class PatternAction(
-        pattern: SirParsedCase.Pattern,
-        action: SirParsedCase.Action,
-        pos: SrcPos
-    ) extends SirParsedCase {
-        def withAlias(alias: BindingNameInfo): SirParsedCase =
-            this.copy(pattern = this.pattern.withAlias(alias))
-    }
+    // sealed trait SirParsedCase {
 
-    case class JoinedConstructorCaseElement(
-        patterns: IndexedSeq[Pattern],
-        optNameInfo: Option[BindingNameInfo],
-        optGuard: Option[AnnotatedSIR],
-        action: Action,
-        pos: SrcPos,
-    )
+    //    def pos: SrcPos
 
-    case class JoinedConstructorCases(
-        tp: SIRType.CaseClass,
-        upLevelNameInfo: Option[BindingNameInfo],
-        typeParams: List[SIRType],
-        cases: IndexedSeq[JoinedConstructorCaseElement],
-        pos: SrcPos
-    ) extends SirParsedCase {
-        override def withAlias(nameInfo: BindingNameInfo): SirParsedCase =
-            upLevelNameInfo match {
-                case None       => this.copy(upLevelNameInfo = Some(nameInfo))
-                case Some(info) => this.copy(upLevelNameInfo = Some(info.withAlias(nameInfo)))
-            }
-    }
+    //    def withAlias(nameInfo: SirParsedCase.BindingNameInfo): SirParsedCase
+
+    // }
 
     sealed trait Pattern:
 
@@ -264,18 +239,35 @@ object SirParsedCase:
                 this.copy(patterns = this.patterns.map(_.withAlias(alias)))
 
             override def optGuard: Option[AnnotatedSIR] = None
+
             override def optNameInfo: Option[BindingNameInfo] = None
 
             override def collectNames: Map[String, SIRType] = Map.empty
 
         }
 
+        /** Tuple patterns are created duting specialize step, when we join constructor argumetns
+          * with other rowa
+          */
+        case class TuplePattern(
+            elementTypes: IndexedSeq[SIRType],
+            elements: IndexedSeq[Pattern],
+            optNameInfo: Option[BindingNameInfo],
+            optGuard: Option[AnnotatedSIR],
+            pos: SrcPos,
+            activeColumns: Set[Int],
+            rebinds: Map[String, String]
+        )
+
         case class Error(error: CompilationError) extends Pattern {
             def pos = error.srcPos
+
             def withAlias(alias: BindingNameInfo): Pattern = this
 
             override def optNameInfo: Option[BindingNameInfo] = None
+
             override def optGuard: Option[AnnotatedSIR] = None
+
             override def collectNames: Map[String, SIRType] = Map.empty
         }
 
@@ -296,6 +288,7 @@ object SirParsedCase:
     case class BindingNameInfo(
         name: String,
         scalaName: Option[String],
+        tp: SIRType,
         symbol: Symbol,
         aliases: Set[BindingNameInfo] = Set.empty
     ) {
@@ -303,10 +296,38 @@ object SirParsedCase:
             this.copy(aliases = this.aliases + alias)
     }
 
+    case class JoinedConstructorCase(
+        patterns: IndexedSeq[Pattern],
+        optNameInfo: Option[BindingNameInfo],
+        action: Action,
+        pos: SrcPos,
+    )
+
+    case class JoinedConstructorCases(
+        tp: SIRType.CaseClass,
+        freeTypeParams: List[SIRType.TypeVar],
+        argTypes: IndexedSeq[SIRType],
+        cases: List[JoinedConstructorCase],
+    )
+
+    case class GroupedTupleRow(
+        patterns: IndexedSeq[Pattern],
+        action: Action,
+        optGuard: Option[AnnotatedSIR],
+        pos: SrcPos
+    )
+    
+    case class GroupedTuples(
+        columnBinding: IndexedSeq[BindingNameInfo],
+        activeColumns: Set[Int],
+        rows: IndexedSeq[GroupedTupleRow]
+                            )
+    
+
 end SirParsedCase
 
 case class SirParsedMatch(
-    scrutinee: Tree,
+    scrutinee: AnnotatedSIR,
     cases: List[SirParsedCase],
     originActions: IndexedSeq[Tree],
     scrutineeTp: SIRType,
@@ -319,12 +340,12 @@ sealed trait SirCaseDecisionTree
 object SirCaseDecisionTree:
 
     case class ConstructorsChoice(
+        columnName: Option[String],
         byConstructors: Map[String, ConstructorEntry]
     ) extends SirCaseDecisionTree
 
     case class ConstructorBinding(
         name: String,
-        symbol: Symbol,
         tp: SIRType,
         index: Int,
         pos: SrcPos
@@ -354,17 +375,22 @@ object SirCaseDecisionTree:
     ) extends SirCaseDecisionTree
 
     case class RebindUpConstructor(
-        constructorSymbol: Symbol,
         names: IndexedSeq[ConstructorBinding],
-        pos: SourcePosition,
         next: SirCaseDecisionTree
     ) extends SirCaseDecisionTree
 
-    case class SelectNextBind(
-        constructorSymbol: Symbol,
-        index: Int,
-        next: SirCaseDecisionTree,
-    ) extends SirCaseDecisionTree
+    case class RebindTopLevelBind(
+        name: String,
+        next: SirCaseDecisionTree
+    )
+
+    case class DropRebinds(names: String, next: SirCaseDecisionTree)
+
+    case class InnerMatch(
+        scrutinee: SIR.Var,
+        matchDecisionTree: SirCaseDecisionTree,
+        actions: IndexedSeq[SirCaseDecisionTree]
+    )
 
     case class Leaf(
         action: SirParsedCase.Action,
@@ -903,7 +929,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case CaseDef(pat, guard, rhs) =>
                 val optGuard = if guard.isEmpty then None else Some(guard)
                 val sirPat = parsePattern(ctx, pat, optGuard, c.srcPos, scrutineeType)
-                val sirCase = SirParsedCase.PatternAction(
+                val sirCase = SirParsedCase(
                   sirPat,
                   SirParsedCase.Action.Origin(i),
                   c.srcPos.sourcePos
@@ -926,8 +952,9 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         val actions = sirCasesAndActions.map(_._2)
         val matchSirType = sirTypeInEnv(tree.tpe.dealias.widen, tree.srcPos, env)
         ctx.originActions = actions
+        val scrutineeSir = compiler.compileExpr(env, scrutinee)
         SirParsedMatch(
-          scrutinee,
+          scrutineeSir,
           sirCasesAndActions.map(_._1).toList,
           actions,
           scrutineeSirType,
@@ -962,7 +989,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 SirCaseDecisionTree.Leaf(SirParsedCase.Action.FailMatch, topLevelPos)
             case head :: tail =>
                 head match
-                    case SirParsedCase.PatternAction(pattern, action, pos) =>
+                    case SirParsedCase(pattern, action, pos) =>
                         pattern match
                             case typeSelector: SirParsedCase.Pattern.TypeSelector =>
                                 val nCases = unrollTypeSelector(
@@ -990,7 +1017,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                             case const: SirParsedCase.Pattern.PrimitiveConstant =>
                                 val guard =
                                     constantToWidlcardWithGuard(ctx, const, currentScrutineeTp)
-                                val nCase = SirParsedCase.PatternAction(guard, action, pos)
+                                val nCase = SirParsedCase(guard, action, pos)
                                 buildDecisionTreeRec(
                                   ctx,
                                   nCase :: tail,
@@ -1019,6 +1046,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                 val (constructors, tail) = collectConstructors(ctx, cases)
                                 val tree = SirCaseDecisionTree
                                     .ConstructorsChoice(
+                                      constr.optNameInfo.map(_.name),
                                       constructors
                                           .map(c =>
                                               (
@@ -1044,7 +1072,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                         topLevelPos
                                       )
                                     )
-
+                            case tuple: SirParsedCase.Pattern.TuplePattern =>
+                                ???
     }
 
     def buildConstructorDecisionTree(
@@ -1052,8 +1081,278 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         constructorCases: SirParsedCase.JoinedConstructorCases,
         scrutineeTp: SIRType,
         topLevelPos: SrcPos
-    ): SirCaseDecisionTree.ConstructorEntry = {
-        ???
+    ): SirCaseDecisionTree = {
+        val cases = constructorCases.cases.map(c => tryRemoveGuard(ctx, c))
+
+        val argTypes = constructorCases.argTypes
+
+        //val useScrutineeBind = constructorCases.
+
+        //case class TuplePattern(
+        //                           elementTypes: IndexedSeq[SIRType],
+        //                           elements: IndexedSeq[Pattern],
+        //                           optNameInfo: Option[BindingNameInfo],
+        //                           optGuard: Option[AnnotatedSIR],
+        //                           pos: SrcPos,
+        //                           activeColumns: Set[Int],
+        //                          
+        //                       )
+
+        
+        
+
+        val tupleRows = cases.map { c =>
+            argTypes,
+            c.patterns,
+            None,
+            (1 until argTypes.size).toSet
+        }
+
+
+        val constructorsBindings =
+            if cases.size == 1 then
+                // we can get names from the first case
+                val firstCase = cases.head
+                if firstCase.patterns.size != argTypes.size then
+                    compiler.error(
+                      GenericError(
+                        s"Constructor ${constructorCases.tp.constrDecl.name} have ${argTypes.size} parameters, but pattern has ${firstCase.patterns.size} patterns",
+                        firstCase.pos
+                      ),
+                      ()
+                    )
+                val constrParamNames = constructorCases.tp.constrDecl.params.map(_.name)
+
+                firstCase.patterns.zip(argTypes).zip(constrParamNames).zipWithIndex.map {
+                    case (((p, tp), pn), i) =>
+                        SirCaseDecisionTree.ConstructorBinding(
+                          p.optNameInfo.map(_.name).getOrElse(ctx.freshName(s"_${pn}")),
+                          tp,
+                          i,
+                          p.pos
+                        )
+                }
+            else
+                // we need to generate unique names for bindings
+                argTypes.zip(constrParamNames).zipWithIndex.map { ((p,tp), i) =>
+                    SirCaseDecisionTree.ConstructorBinding(
+                      ctx.freshName(s"_${p.name}"),
+                      tp,
+                      i,
+                      topLevelPos
+                    )
+                }
+
+
+
+            val internalTree = buildConstructorInternalDecisionTree(
+              ctx,
+              cases,
+              constructorsBindings,
+              scrutineeTp,
+              topLevelPos
+            )
+            SirCaseDecisionTree.ConstructorEntry(
+              constructorCases.tp,
+              constructorBindings,
+              internalTree,
+              topLevelPos
+            )
+    }
+
+    private def buildConstructorInternalDecisionTree(
+        ctx: PatternMatchingContext,
+        cases: IndexedSeq[SirParsedCase.JoinedConstructorCaseElement],
+        constrArgsBindings: IndexedSeq[SirCaseDecisionTree.ConstructorBinding],
+        constrType: SIRType,
+        topLevelPos: SrcPos,
+        currentRowIndex: Int
+    ): SirCaseDecisionTree = {
+        if cases.size >= currentRowIndex then Leaf(SirParsedCase.Action.FailMatch, topLevelPos)
+        else
+            var firstRowIndexWithGuard = currentRowIndex
+            while firstRowIndexWithGuard < cases.size && cases(
+                  firstRowIndexWithGuard
+                ).optGuard.isEmpty
+            do firstRowIndexWithGuard += 1
+            val block = buildConstructorInternalDecisionTreeBlock(
+              ctx,
+              cases,
+              constrArgsBindings,
+              constrType,
+              topLevelPos,
+              currentRowIndex,
+              firstRowIndexWithGuard
+            )
+            if firstRowIndexWithGuard != cases.size - 1 then
+                val next = buildConstructorInternalDecisionTree(
+                  ctx,
+                  cases,
+                  constrArgsBindings,
+                  constrType,
+                  topLevelPos,
+                  firstRowIndexWithGuard + 1
+                )
+                // SirCaseDecisionTree.SeqCheck(block, next)
+            else block
+    }
+
+    /*
+        else
+            val head = cases(currentRowIndex)
+            val nonWildcards = head.patterns.zipWithIndex.filter((p, i) =>
+                p match {
+                    case SirParsedCase.Pattern.Wildcard(_, _, None, _) => false
+                    case _                                             => true
+                }
+            )
+            val rebindNames =
+                head.patterns.zipWithIndex.foldLeft(IndexedSeq.empty[ConstructorBinding]) {
+                    case (s, (v, i)) =>
+                        e.optBindingNameInfo match
+                            case Some(b) =>
+                                s :+ ConstructorBinding(b.name, v.tp, i, v.pos)
+                            case None => s
+                }
+
+            if nonWildcards.isEmpty then
+                if head.optGuard.isEmpty then
+                    val leaf = Leaf(head.action, head.pos)
+                    val constrRebinds = SirCaseDecisionTree.RebindUpConstructor(rebindNames, leaf)
+                    val retval = head.optNameInfo match
+                        case Some(b) =>
+                            SirCaseDecisionTree.RebindTopLevelBind(b.name, constrRebinds)
+                        case None => constrRebinds
+                    if currentRowIndex < cases.size - 1 then
+                        report.warning(s"Unused cases ", tail.head.pos)
+                    retval
+                else
+                    val condLeaf = Leaf(head.action, head.pos)
+                    val nextFalse = buildConstructorInternalDecisionTree(
+                      ctx,
+                      tail,
+                      constrArgsBindings,
+                      constrType,
+                      topLevelPos
+                    )
+                    val guardCheck = SirCaseDecisionTree.CheckGuard(
+                      head.optGuard.get,
+                      head.pos,
+                      condLeaf,
+                      nextFalse
+                    )
+                    val constrRebinds =
+                        SirCaseDecisionTree.RebindUpConstructor(rebindNames, guardCheck)
+                    val retval = head.optNameInfo match
+                        case Some(b) =>
+                            SirCaseDecisionTree.RebindTopLevelBind(b.name, constrRebinds)
+                        case None => constrRebinds
+                    retval
+            else
+                val withConditionRows = nonWildcards.map((p, i) =>
+                    (p, i, yesNoRows(cases, currentRow, i)).sortBy(_._3._2.size)
+                )
+                // TODO: we can use other heurisitics or do profile-driven optimization.
+                val fullRows = (currentRowIndex to cases.size - 1).toSet
+                val checks =
+                    withConditionRows.foldLeft(
+                      (
+                        Seq.empty[(SirCaseDecisionTree, SIR.Var, Set[Int], Set[Int])],
+                        fullRows
+                      )
+                    ) { (acc, e) =>
+                        val (pattern, index, (yesSet, noSet)) = e
+                        val argBinding = constrArgsBindings(index)
+                        val newScrutinee = SIR.Var(
+                          argBinding.name,
+                          argBinding.tp,
+                          AnnotationsDecl.fromSrcPos(argBinding.pos)
+                        )
+                        val newMatch = buildDecisionTree(
+                          ctx,
+                          SirParsedMatch(
+                            newScrutinee,
+                            List(
+                              SirParsedCase.PatternAction(
+                                pattern,
+                                SirParsedCase.Action.Origin(0),
+                                pattern.pos
+                              )
+                            )
+                          )
+                        )
+                        val newYesIndex = acc._3 and yesSet
+                        val newNoIndex = acc._3 and noSet
+                        val newAcc = (
+                          acc._2 :+ (newMatch, newScrutinee, newYesIndex, newNoIndex),
+                          newYesIndex
+                        )
+                    }
+                val (checkSeq, lastYes) = checks
+                val restTree =
+                    if currentRowIndex == cases.size - 1 then Leaf(FailMatch)
+                    else
+                        buildConstructorInternalDecisionTree(
+                          ctx,
+                          cases,
+                          constrArgsBindings,
+                          constrType,
+                          currentRowIndex + 1
+                        )
+                val nextFailGuardIndex =
+                    if lastYes.size == 1 then Leaf(FailMatch)
+                    else restTree
+                val firstFailUnique = checkSeq.head._3.size == 1
+                val ifHead = head.action
+                val guardedIfHead = head.optGuard match {
+                    case Some(guard) =>
+                        SirCaseDecisionTree.CheckGuard(
+                          guard,
+                          head.pos,
+                          Leaf(ifHead, head.pos),
+                          nextFailGuardIndex
+                        )
+                }
+                
+                val allPossibleNoRows = checksSeq.foldLeft(Set.empty[Inf])
+                val tree = checks._1.fold {
+                    case (
+                          (tree1, scrutinee1, yesSet1, noSet1),
+                          (tree2, scrutinee2, yesSet2, noSet2)
+                        ) =>
+                        SirCaseDecisionTree.InnerMatch(
+                          scrutinee1,
+                          tree,
+                        )
+                }
+                ???
+                
+     */
+
+    private def yesNoRows(
+        cases: IndexedSeq[SirParsedCase.JoinedConstructorCaseElement],
+        currentRow: SirParsedCase.JoinedConstructorCaseElement,
+        patternIndex: Int
+    ): (Set[Int], Set[Int]) = {
+        val currentPattern = currentRow.patterns(patternIndex)
+        val (yesSet, noSet) =
+            (currentRow + 1 to cases.size - 1).foldLeft((Set(currentRow), Set.empty[Int])) {
+                case ((sYes, sNo), i) =>
+                    val checkedPattern = cases(i).patterns(patternIndex)
+                    partiallyComparePatterns(currentPattern, checkedPattern) match
+                        case Some(true)  => (sYes + i, sNo)
+                        case Some(false) => (sYes, sNo + i)
+                        case None        => (sYes + 1, sNo + i)
+            }
+        (yesSet, noSet)
+    }
+
+    private def tryRemoveGuard(
+        ctx: PatternMatchingContext,
+        c: SirParsedCase.JoinedConstructorCase
+    ): SirParsedCase.JoinedConstructorCase = {
+        // TODO: try to move checks for elements inside elements if this is possible
+        c
     }
 
     def compileDecisionTree(
@@ -1483,22 +1782,18 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
         while {
             cursor.nonEmpty && {
-                cursor.head match {
-                    case pa: SirParsedCase.PatternAction =>
-                        pa.pattern match
-                            case constr: SirParsedCase.Pattern.Constructor =>
-                                val constrName = constr.tp.constrDecl.name
-                                byConstructor.get(constrName) match
-                                    case Some((tp, lst)) => lst += pa
-                                    case None =>
-                                        byConstructor = byConstructor.updated(
-                                          constrName,
-                                          (constr.tp, ListBuffer(pa))
-                                        )
-                                true
-                            case _ => false
+                cursor.head.pattern match
+                    case constr: SirParsedCase.Pattern.Constructor =>
+                        val constrName = constr.tp.constrDecl.name
+                        byConstructor.get(constrName) match
+                            case Some((tp, lst)) => lst += pa
+                            case None =>
+                                byConstructor = byConstructor.updated(
+                                  constrName,
+                                  (constr.tp, ListBuffer(pa))
+                                )
+                        true
                     case _ => false
-                }
             }
         } do {
             cursor = cursor.tail
@@ -1514,7 +1809,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
     private def makeJoinedConstructorCase(
         constrTp: SIRType.CaseClass,
-        cases: List[SirParsedCase.PatternAction]
+        cases: List[SirParsedCase]
     ): SirParsedCase.JoinedConstructorCases = {
         val constrDecl = constrTp.constrDecl
         val constrName = constrDecl.name
