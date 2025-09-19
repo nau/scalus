@@ -13,6 +13,7 @@ import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
 import com.bloxbean.cardano.yaci.core.model.serializers.util.{TransactionBodyExtractor, WitnessUtil}
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
+import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.bloxbean.*
 import scalus.bloxbean.Interop.??
@@ -44,7 +45,7 @@ import scala.util.Using
   *   - cat script-1.flat | uplc evaluate --input-format flat --counting --trace-mode
   *     LogsWithBudgets --builtin-semantics-variant B
   */
-object BlocksValidation:
+class BlocksValidation extends AnyFunSuite {
 
     case class BlockTx(tx: Transaction, datums: util.List[ByteString], txHash: String)
 
@@ -332,7 +333,6 @@ object BlocksValidation:
         }.get
     }
 
-    @main
     def validateNativeScriptEvaluation(): Unit = {
         case class Res(
             var succ: Int,
@@ -382,7 +382,6 @@ object BlocksValidation:
         )
     }
 
-    @main
     def validateScriptDataHashEvaluation(): Unit = {
         import com.bloxbean.cardano.yaci.core.config.YaciConfig
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
@@ -541,7 +540,6 @@ object BlocksValidation:
         bbgenerated
     }
 
-    @main
     def findInterestingBlocks(): Unit = {
         val blocks = getAllBlocksPaths()
         println(s"Found ${blocks.size} blocks")
@@ -566,18 +564,14 @@ object BlocksValidation:
         }
     }
 
-    @main
-    def validateBlocks(): Unit = {
-        validateBlocksOfEpoch(543)
-    }
-
-    @main
-    def validateBlocksOfEpochWithScalusMain() = {
-        validateBlocksOfEpochWithScalus(543)
-    }
-
-    def main(args: Array[String]): Unit = {
+    test("validate blocks") {
         validateBlocksOfEpoch(543)
         validateNativeScriptEvaluation()
         validateScriptDataHashEvaluation()
     }
+
+    test("validate blocks with scalus") {
+        validateBlocksOfEpochWithScalus(543)
+    }
+
+}
