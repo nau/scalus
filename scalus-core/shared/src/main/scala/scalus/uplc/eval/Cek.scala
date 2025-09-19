@@ -5,12 +5,11 @@ import cats.syntax.group.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.PlatformSpecific
-import scalus.cardano.ledger.Language
+import scalus.cardano.ledger.{Language, ProtocolParams}
 import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.ProtocolVersion
-import scalus.ledger.babbage.*
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec

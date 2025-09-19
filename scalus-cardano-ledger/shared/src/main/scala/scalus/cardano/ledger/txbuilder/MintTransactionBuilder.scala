@@ -6,7 +6,7 @@ import com.bloxbean.cardano.client.transaction.spec.Asset
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{Native, PlutusV3}
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.ProtocolParams
 
 import java.math.BigInteger
 import scala.collection.immutable.TreeSet

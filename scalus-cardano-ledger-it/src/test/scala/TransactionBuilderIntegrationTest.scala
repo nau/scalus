@@ -15,7 +15,7 @@ import scalus.cardano.ledger.*
 import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
 import scalus.ledger.api.v3.ScriptContext
 import scalus.ledger.api.{MajorProtocolVersion, Timelock}
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.ProtocolParams
 import scalus.prelude.orFail
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget

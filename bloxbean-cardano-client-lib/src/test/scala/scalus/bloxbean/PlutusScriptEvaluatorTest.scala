@@ -10,7 +10,6 @@ import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentP
 import scalus.cardano.ledger.*
 import scalus.examples.PubKeyValidator
 import scalus.ledger.api.MajorProtocolVersion
-import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
 import upickle.default.read

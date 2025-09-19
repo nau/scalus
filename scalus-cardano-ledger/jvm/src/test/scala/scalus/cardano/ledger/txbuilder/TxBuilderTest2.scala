@@ -10,7 +10,7 @@ import scalus.cardano.ledger.rules.*
 import scalus.cardano.ledger.utils.TxBalance
 import scalus.cardano.ledger.{AddrKeyHash, ArbitraryInstances as ArbLedger, CertState, CostModels, PlutusScriptEvaluator, Script, SlotConfig, TransactionInput, TransactionOutput, Value}
 import scalus.ledger.api.MajorProtocolVersion
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.ProtocolParams
 import scalus.uplc.eval.ExBudget
 import upickle.default.read
 

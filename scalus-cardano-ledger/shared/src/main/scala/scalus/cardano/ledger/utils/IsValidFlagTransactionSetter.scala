@@ -3,7 +3,7 @@ package utils
 
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.eval.ExBudget
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.ProtocolParams
 
 object IsValidFlagTransactionSetter {
     def setIsValidTransactionFlag(

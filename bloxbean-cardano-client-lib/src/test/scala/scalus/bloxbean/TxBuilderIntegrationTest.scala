@@ -15,7 +15,6 @@ import scalus.ledger.api
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
 import scalus.ledger.api.v3.ScriptContext
-import scalus.ledger.babbage.ProtocolParams
 import scalus.prelude.{orFail, SortedMap}
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget

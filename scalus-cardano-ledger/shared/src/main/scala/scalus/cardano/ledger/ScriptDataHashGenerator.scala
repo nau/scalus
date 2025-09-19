@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 
 import scalus.builtin.{platform, ByteString, Data, PlatformSpecific, given}
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.ProtocolParams
 
 import scala.collection.immutable
 import scala.collection.immutable.{ListMap, TreeSet}
