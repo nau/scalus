@@ -38,7 +38,7 @@ class SameCborTest extends AnyFunSuite {
           "java",
           "-cp",
           classpath,
-          "scalus.bugtracking.hydrozoa20250804.disputeResolutionValidatorRun"
+          "scalus.regression.hydrozoa20250804.disputeResolutionValidatorRun"
         )
         val process1 = pb1.start()
         val output1 = readOutput(process1)
@@ -47,7 +47,7 @@ class SameCborTest extends AnyFunSuite {
           "java",
           "-cp",
           classpath,
-          "scalus.bugtracking.hydrozoa20250804.disputeResolutionValidatorRun"
+          "scalus.regression.hydrozoa20250804.disputeResolutionValidatorRun"
         )
         val process2 = pb2.start()
         val output2 = readOutput(process2)
