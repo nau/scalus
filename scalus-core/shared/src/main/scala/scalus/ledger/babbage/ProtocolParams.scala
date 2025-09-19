@@ -2,7 +2,7 @@ package scalus.ledger.babbage
 
 import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
-import scalus.cardano.ledger.{ExUnitPrices, ExUnits, NonNegativeInterval}
+import scalus.cardano.ledger.{ExUnitPrices, ExUnits, NonNegativeInterval, PoolVotingThresholds, UnitInterval}
 
 import scala.util.Try
 
@@ -58,14 +58,6 @@ case class DRepVotingThresholds(
     updateToConstitution: Double
 ) derives ReadWriter
 
-case class PoolVotingThresholds(
-    committeeNoConfidence: Double,
-    committeeNormal: Double,
-    hardForkInitiation: Double,
-    motionNoConfidence: Double,
-    ppSecurityGroup: Double
-) derives ReadWriter
-
 object ProtocolParams {
     import upickle.default.{readwriter, ReadWriter}
 
@@ -114,11 +106,11 @@ object ProtocolParams {
                 "rho" -> params.monetaryExpansion,
                 "a0" -> params.poolPledgeInfluence,
                 "e_max" -> params.poolRetireMaxEpoch,
-                "pvt_motion_no_confidence" -> params.poolVotingThresholds.motionNoConfidence,
-                "pvt_committee_normal" -> params.poolVotingThresholds.committeeNormal,
-                "pvt_committee_no_confidence" -> params.poolVotingThresholds.committeeNoConfidence,
-                "pvt_hard_fork_initiation" -> params.poolVotingThresholds.hardForkInitiation,
-                "pvtpp_security_group" -> params.poolVotingThresholds.ppSecurityGroup,
+                "pvt_motion_no_confidence" -> params.poolVotingThresholds.motionNoConfidence.toDouble,
+                "pvt_committee_normal" -> params.poolVotingThresholds.committeeNormal.toDouble,
+                "pvt_committee_no_confidence" -> params.poolVotingThresholds.committeeNoConfidence.toDouble,
+                "pvt_hard_fork_initiation" -> params.poolVotingThresholds.hardForkInitiation.toDouble,
+                "pvtpp_security_group" -> params.poolVotingThresholds.ppSecurityGroup.toDouble,
                 "protocol_major_ver" -> params.protocolVersion.major,
                 "protocol_minor_ver" -> params.protocolVersion.minor,
                 "key_deposit" -> params.stakeAddressDeposit.toString,
@@ -178,17 +170,25 @@ object ProtocolParams {
                 poolPledgeInfluence = json("a0").num,
                 poolRetireMaxEpoch = json("e_max").num.toLong,
                 poolVotingThresholds = PoolVotingThresholds(
-                  motionNoConfidence =
-                      json("pvt_motion_no_confidence").numOpt.map(_.toLong).getOrElse(0L),
-                  committeeNormal = json("pvt_committee_normal").numOpt.map(_.toLong).getOrElse(0L),
-                  committeeNoConfidence =
-                      json("pvt_committee_no_confidence").numOpt.map(_.toLong).getOrElse(0L),
-                  hardForkInitiation =
-                      json("pvt_hard_fork_initiation").numOpt.map(_.toLong).getOrElse(0L),
-                  ppSecurityGroup =
-                      Try(json("pvtpp_security_group").numOpt.map(_.toLong).getOrElse(0L)).toOption
-                          .orElse(json("pvt_p_p_security_group").numOpt.map(_.toLong))
-                          .getOrElse(0L)
+                  motionNoConfidence = json("pvt_motion_no_confidence").numOpt
+                      .map(UnitInterval.fromDouble)
+                      .getOrElse(UnitInterval.zero),
+                  committeeNormal = json("pvt_committee_normal").numOpt
+                      .map(UnitInterval.fromDouble)
+                      .getOrElse(UnitInterval.zero),
+                  committeeNoConfidence = json("pvt_committee_no_confidence").numOpt
+                      .map(UnitInterval.fromDouble)
+                      .getOrElse(UnitInterval.zero),
+                  hardForkInitiation = json("pvt_hard_fork_initiation").numOpt
+                      .map(UnitInterval.fromDouble)
+                      .getOrElse(UnitInterval.zero),
+                  ppSecurityGroup = Try(
+                    json("pvtpp_security_group").numOpt
+                        .map(UnitInterval.fromDouble)
+                        .getOrElse(UnitInterval.zero)
+                  ).toOption
+                      .orElse(json("pvt_p_p_security_group").numOpt.map(UnitInterval.fromDouble))
+                      .getOrElse(UnitInterval.zero)
                 ),
                 protocolVersion = ProtocolVersion(
                   major = json("protocol_major_ver").num.toInt,

@@ -1,6 +1,7 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
+import upickle.ReadWriter
 
 /** Represents voting thresholds for stake pools in the Cardano blockchain.
   *
@@ -13,7 +14,7 @@ import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
   *   Threshold for normal committee updates
   * @param committeeNoConfidence
   *   Threshold for committee updates after no confidence
-  * @param hardFork
+  * @param hardForkInitiation
   *   Threshold for hard fork initiations
   * @param ppSecurityGroup
   *   Threshold for security protocol parameter changes
@@ -22,9 +23,9 @@ case class PoolVotingThresholds(
     motionNoConfidence: UnitInterval,
     committeeNormal: UnitInterval,
     committeeNoConfidence: UnitInterval,
-    hardFork: UnitInterval,
+    hardForkInitiation: UnitInterval,
     ppSecurityGroup: UnitInterval
-)
+) derives ReadWriter
 
 object PoolVotingThresholds {
 
@@ -36,7 +37,7 @@ object PoolVotingThresholds {
                 .write(value.motionNoConfidence)
                 .write(value.committeeNormal)
                 .write(value.committeeNoConfidence)
-                .write(value.hardFork)
+                .write(value.hardForkInitiation)
                 .write(value.ppSecurityGroup)
                 .writeArrayClose()
     }
