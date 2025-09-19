@@ -49,7 +49,7 @@ class BlocksValidation extends AnyFunSuite {
 
     case class BlockTx(tx: Transaction, datums: util.List[ByteString], txHash: String)
 
-    lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(
+    private lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(
       "BLOCKFROST_API_KEY is not set, please set it before running the test"
     )
 
@@ -108,6 +108,7 @@ class BlocksValidation extends AnyFunSuite {
                             if scripts.nonEmpty then r.addOne((tx, datums, txhash, scripts))
                         catch
                             case e: Exception =>
+                                errors += ((e.getMessage, blockNum, txhash))
                                 println(s"Error in block $blockNum, tx $txhash: ${e.getMessage}")
                     r.toSeq
                 print(s"\rBlock $blockNum, num txs to validate: ${txsWithScripts.size}")
@@ -158,9 +159,11 @@ class BlocksValidation extends AnyFunSuite {
                |v3: $v3ScriptsExecuted of ${v3Scripts.size}
                |""".stripMargin)
 
+        assert(errors.isEmpty, errors)
     }
 
     private def validateBlocksOfEpochWithScalus(epoch: Int): Unit = {
+        val errors = mutable.ArrayBuffer[String]()
         val resourcesPath = Paths.get(".")
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
@@ -211,18 +214,17 @@ class BlocksValidation extends AnyFunSuite {
                         for (key, (_, actualExUnits)) <- actualRedeemers do
                             val expectedExUnits = expectedRedeemers(key)._2
                             if actualExUnits > expectedExUnits then
-                                println(
-                                  s"\n${Console.RED}AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits ${Console.RESET}"
-                                )
+                                errors +=
+                                    s"\n${Console.RED}AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits ${Console.RESET}"
                     }
                 catch
                     case e: Exception =>
-                        println(s"Error in block $path, tx ${tx.id}: ${e.getMessage}")
-                        e.printStackTrace()
+                        errors += s"Error in block $path, tx ${tx.id}: ${e.getMessage}"
                 totalTx += 1
         println(
           s"\n${Console.GREEN}Total txs: $totalTx, blocks: ${blocks.size}, epoch: $epoch${Console.RESET}"
         )
+        assert(errors.isEmpty, errors)
     }
 
     def readTransactionsFromBlockCbor(path: Path): collection.Seq[BlockTx] = {
@@ -372,14 +374,13 @@ class BlocksValidation extends AnyFunSuite {
             catch
                 case e: Exception =>
                     println(s"Error reading block $path: ${e.getMessage}")
-                    e.printStackTrace()
-            print(s"\rBlock $path")
         end for
         println()
         println(s"Time taken: ${System.currentTimeMillis() - start} ms")
         println(
           s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
         )
+        assert(stats.values.map(_.fail).sum == 0)
     }
 
     def validateScriptDataHashEvaluation(): Unit = {
@@ -482,6 +483,7 @@ class BlocksValidation extends AnyFunSuite {
         println(
           s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
         )
+        assert(stats.values.map(_.fail).sum == 0)
     }
 
     private def getRefScriptTypes(
@@ -564,14 +566,16 @@ class BlocksValidation extends AnyFunSuite {
         }
     }
 
-    test("validate blocks") {
+    test("validateBlocksOfEpoch(543)"):
         validateBlocksOfEpoch(543)
-        validateNativeScriptEvaluation()
-        validateScriptDataHashEvaluation()
-    }
 
-    test("validate blocks with scalus") {
+    test("validateNativeScriptEvaluation()"):
+        validateNativeScriptEvaluation()
+
+    test("validateScriptDataHashEvaluation()"):
+        validateScriptDataHashEvaluation()
+
+    test("validateBlocksOfEpochWithScalus(543)"):
         validateBlocksOfEpochWithScalus(543)
-    }
 
 }
