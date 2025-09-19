@@ -1,4 +1,4 @@
-package scalus.bloxbean
+package scalus.testing.integration
 
 import co.nstant.in.cbor.{model as cbor, CborException}
 import com.bloxbean.cardano.client.api.UtxoSupplier
@@ -14,6 +14,7 @@ import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArra
 import com.bloxbean.cardano.yaci.core.model.serializers.util.{TransactionBodyExtractor, WitnessUtil}
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
 import scalus.*
+import scalus.bloxbean.*
 import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
@@ -90,57 +91,61 @@ object BlocksValidation:
         var v3ScriptsExecuted = 0
 
         println(s"Validating blocks of epoch $epoch...")
-        for blockNum <- 11544518 to 11546100 do
-            val txs = readTransactionsFromBlockCbor(
-              resourcesPath.resolve(s"blocks/block-$blockNum.cbor")
-            )
-            val txsWithScripts =
-                val r = mutable.Buffer.empty[
-                  (Transaction, util.List[ByteString], String, Map[ScriptHash, Script])
-                ]
-                for BlockTx(tx, datums, txhash) <- txs do
-                    try
-                        val utxos = utxoResolver.resolveUtxos(tx)
-                        val scripts = TxEvaluator.getAllResolvedScripts(tx, utxos)
-                        if scripts.nonEmpty then r.addOne((tx, datums, txhash, scripts))
-                    catch
-                        case e: Exception =>
-                            println(s"Error in block $blockNum, tx $txhash: ${e.getMessage}")
-                r.toSeq
-            print(s"\rBlock $blockNum, num txs to validate: ${txsWithScripts.size}")
+        for blockNum <- 11544518 to 11660768 do
+            try
+                val txs = readTransactionsFromBlockCbor(
+                  resourcesPath.resolve(s"blocks/block-$blockNum.cbor")
+                )
+                val txsWithScripts =
+                    val r = mutable.Buffer.empty[
+                      (Transaction, util.List[ByteString], String, Map[ScriptHash, Script])
+                    ]
+                    for BlockTx(tx, datums, txhash) <- txs do
+                        try
+                            val utxos = utxoResolver.resolveUtxos(tx)
+                            val scripts = TxEvaluator.getAllResolvedScripts(tx, utxos)
+                            if scripts.nonEmpty then r.addOne((tx, datums, txhash, scripts))
+                        catch
+                            case e: Exception =>
+                                println(s"Error in block $blockNum, tx $txhash: ${e.getMessage}")
+                    r.toSeq
+                print(s"\rBlock $blockNum, num txs to validate: ${txsWithScripts.size}")
 //            println(s"Block txs:\n${txsWithScripts.map(_._3).sorted.mkString("\n")}")
 
-            for (tx, datums, txhash, scripts) <- txsWithScripts do {
+                for (tx, datums, txhash, scripts) <- txsWithScripts do {
 //                println(s"Validating tx $txhash")
-                //                println(tx)
-                if tx.isValid
-                && (datums.size() == tx.getWitnessSet.getPlutusDataList
-                    .size()) // FIXME: remove this check when we have the correct datums
-                then
-                    val result = evaluator.evaluateTx(tx, util.Set.of(), datums, txhash)
-                    totalTx += 1
-                    if !result.isSuccessful then
-                        errors += ((result.getResponse, blockNum, txhash))
-                        println(
-                          s"${Console.RED}AAAA!!!! block $blockNum $txhash ${result.getResponse}${Console.RESET}"
-                        )
-                    else
+                    //                println(tx)
+                    if tx.isValid
+                    && (datums.size() == tx.getWitnessSet.getPlutusDataList
+                        .size()) // FIXME: remove this check when we have the correct datums
+                    then
+                        val result = evaluator.evaluateTx(tx, util.Set.of(), datums, txhash)
+                        totalTx += 1
+                        if !result.isSuccessful then
+                            errors += ((result.getResponse, blockNum, txhash))
+                            println(
+                              s"${Console.RED}AAAA!!!! block $blockNum $txhash ${result.getResponse}${Console.RESET}"
+                            )
+                        else
 //                        println(result.getResponse)
-                        for script <- scripts.values do
-                            script match
-                                case _: Script.PlutusV1 =>
-                                    v1Scripts += script.scriptHash.toHex
-                                    v1ScriptsExecuted += 1
-                                case _: Script.PlutusV2 =>
-                                    v2Scripts += script.scriptHash.toHex
-                                    v2ScriptsExecuted += 1
-                                case _: Script.PlutusV3 =>
-                                    v3Scripts += script.scriptHash.toHex
-                                    v3ScriptsExecuted += 1
-                                case _ =>
-                else
-                    println(s"${Console.RED}AAAAA invalid!!! $txhash ${Console.RESET}")
-                    errors += (("Invalid tx", blockNum, txhash))
+                            for script <- scripts.values do
+                                script match
+                                    case _: Script.PlutusV1 =>
+                                        v1Scripts += script.scriptHash.toHex
+                                        v1ScriptsExecuted += 1
+                                    case _: Script.PlutusV2 =>
+                                        v2Scripts += script.scriptHash.toHex
+                                        v2ScriptsExecuted += 1
+                                    case _: Script.PlutusV3 =>
+                                        v3Scripts += script.scriptHash.toHex
+                                        v3ScriptsExecuted += 1
+                                    case _ =>
+                    else
+                        println(s"${Console.RED}AAAAA invalid!!! $txhash ${Console.RESET}")
+                        errors += (("Invalid tx", blockNum, txhash))
+                }
+            catch {
+                case e: Exception =>
             }
 
 //                println("----------------------------------------------------")
