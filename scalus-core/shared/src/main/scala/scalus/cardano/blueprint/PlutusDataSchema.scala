@@ -1,7 +1,8 @@
-package scalus.cardano.plutus.contract.blueprint
+package scalus.cardano.blueprint
+
 import com.github.plokhotnyuk.jsoniter_scala.core.{writeToString, JsonValueCodec, WriterConfig}
 import com.github.plokhotnyuk.jsoniter_scala.macros.{CodecMakerConfig, JsonCodecMaker}
-import scalus.cardano.plutus.contract.blueprint.PlutusDataSchema.given_JsonValueCodec_PlutusDataSchema
+import PlutusDataSchema.given_JsonValueCodec_PlutusDataSchema
 
 import scala.annotation.tailrec
 import scala.quoted.*

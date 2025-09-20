@@ -5,8 +5,7 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.ToData
-import scalus.cardano.plutus.contract.blueprint.Application
-import scalus.cardano.plutus.contract.blueprint.Blueprint
+import scalus.cardano.blueprint.{Application, Blueprint}
 import scalus.ledger.api.v1.Address
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*

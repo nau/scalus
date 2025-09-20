@@ -1,4 +1,4 @@
-package scalus.cardano.plutus.contract.blueprint
+package scalus.cardano.blueprint
 
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker

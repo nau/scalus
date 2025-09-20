@@ -1,7 +1,8 @@
-package scalus.cardano.plutus.contract.blueprint
+package scalus.cardano.blueprint
+
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
-import scalus.cardano.plutus.contract.blueprint.HtlcValidatorInputs.{Action, ContractDatum}
+import HtlcValidatorInputs.{Action, ContractDatum}
 import scalus.uplc.Program
 
 class ScriptDefinitionTest extends AnyFunSuite {

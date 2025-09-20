@@ -1,8 +1,7 @@
-package scalus.cardano.plutus.contract.blueprint
+package scalus.cardano.blueprint
 
 import scalus.*
 import scalus.cardano.ledger.{Language, PlutusScript, Script}
-import scalus.cardano.plutus.contract.blueprint
 import scalus.sir.SIR
 import scalus.uplc.{Program, Term}
 
@@ -47,7 +46,7 @@ trait CompiledContract {
 
     def asScript: PlutusScript
 
-    def describeValidator: blueprint.Validator
+    def describeValidator: Validator
 
     def sir: SIR
 }
@@ -60,8 +59,8 @@ case class PlutusV3(
 ) extends CompiledContract {
     private val uplc: Term = sir.toUplcOptimized()
 
-    def describeValidator: blueprint.Validator = {
-        blueprint.Validator(
+    def describeValidator: Validator = {
+        Validator(
           title = title,
           datum = datumSchema.map(schema => TypeDescription(schema = schema)),
           redeemer = redeemerSchema.map(schema => TypeDescription(schema = schema)),
