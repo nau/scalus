@@ -6,13 +6,11 @@ repository.
 ## Quick Reference for Claude Code
 
 **Essential Commands:**
-- `sbtn quick` - Format, compile, and test on JVM (use this frequently)
-- `sbtn precommit` - Clean, format, compile, and test everything (ALWAYS run before completing tasks)
-- `sbtn ci` - Full CI build with formatting checks
-- `sbtn test` - Run all tests
-- `sbtn scalafmtAll scalafmtSbt` - Format all code
+
+- `sbtn quick` - Format, compile, and test on JVM (run before completing tasks when it makes sense)
 
 **Key Patterns:**
+
 - Always study existing code patterns before making changes
 - Use `@Compile` annotation for Plutus smart contracts
 - Extend `Validator` trait for validator scripts
@@ -28,7 +26,7 @@ development.
 
 ## Key Principles for Claude Code
 
-- **Always run `sbtn precommit` before considering any task complete** - This ensures formatting,
+- **Always run `sbtn quick` before considering any task complete** - This ensures formatting,
   compilation, and tests pass
 - **Use existing patterns and conventions** - Study similar files before making changes
 - **Prefer editing existing files over creating new ones** - Only create files when absolutely
