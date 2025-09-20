@@ -1,7 +1,5 @@
 package scalus
 
-import scala.annotation.nowarn
-import java.nio.charset.StandardCharsets
 import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.tpd.*
 import dotty.tools.dotc.core.*
@@ -9,13 +7,13 @@ import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
-import dotty.tools.dotc.util.Spans
 import dotty.tools.dotc.util.Spans.Span
-import scalus.serialization.flat.DecoderState
-import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState, HashConsedReprRefFlat}
-import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
-import scalus.sir.SIRPosition
-import scalus.sir.AnnotationsDecl
+import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, Spans, SrcPos}
+import scalus.serialization.flat.{DecoderState, HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState, HashConsedReprRefFlat}
+import scalus.sir.{AnnotationsDecl, SIRPosition}
+
+import java.nio.charset.StandardCharsets
+import scala.annotation.nowarn
 
 /** Convert SIR to a [[Tree]] that represents that SIR by encoding it to a string and generating a
   * code that decodes it back.

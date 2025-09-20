@@ -1,6 +1,6 @@
 package scalus.serialization
 
-import scalus.utils.HashConsed
+import scalus.serialization.flat.HashConsed
 
 import scala.collection.mutable.ListBuffer
 

@@ -4,8 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.serialization.flat.FlatInstances.{*, given}
-import scalus.serialization.flat.{DecoderState, EncoderState}
-import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState}
+import scalus.serialization.flat.{DecoderState, EncoderState, HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState}
 
 import java.io.{BufferedInputStream, File, FileInputStream}
 
@@ -55,16 +54,15 @@ class FlatSIRClausifyTest extends AnyFunSuite {
 
         val myDeclTp = myDecl.get.tp
 
-        val hcBitSizeState = scalus.utils.HashConsed.State.empty
+        val hcBitSizeState = scalus.serialization.flat.HashConsed.State.empty
         val hcBitSize = SIRTypeHashConsedFlat.bitSizeHC(myDeclTp, hcBitSizeState)
         val byteSize = (hcBitSize / 8) + 1
         val hcEncodeState = new HashConsedEncoderState(
           new EncoderState(byteSize),
-          scalus.utils.HashConsed.State.empty,
+          scalus.serialization.flat.HashConsed.State.empty,
           debug = false
         )
-        val flat =
-            serialization.flat.FlatInstances.SIRTypeHashConsedFlat.encodeHC(myDeclTp, hcEncodeState)
+        serialization.flat.FlatInstances.SIRTypeHashConsedFlat.encodeHC(myDeclTp, hcEncodeState)
 
         val hcDecodeState =
             new HashConsedDecoderState(

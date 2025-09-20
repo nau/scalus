@@ -1,7 +1,6 @@
-package scalus.utils
+package scalus.serialization.flat
 
-import scalus.serialization.flat.*
-import scalus.utils.HashConsed.ForwardRefAcceptor
+import scalus.serialization.flat.HashConsed.ForwardRefAcceptor
 
 class HashConsedEncoderState(
     val encode: EncoderState,

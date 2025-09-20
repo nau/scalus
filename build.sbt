@@ -1,12 +1,9 @@
-import org.scalajs.linker.interface.OutputPatterns
+import com.typesafe.tools.mima.core.{DirectMissingMethodProblem, IncompatibleResultTypeProblem, ProblemFilters}
+import sbt.internal.util.ManagedLogger
 import sbtwelcome.*
 
-import scala.scalanative.build.*
-import com.typesafe.tools.mima.core.{DirectMissingMethodProblem, IncompatibleResultTypeProblem, ProblemFilters}
-import com.typesafe.tools.mima.core.ProblemFilters.*
-import sbt.internal.util.ManagedLogger
-
 import java.net.URI
+import scala.scalanative.build.*
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
@@ -133,11 +130,12 @@ lazy val scalusPlugin = project
        */
       copySharedFiles := {
           val sharedFiles = Seq(
-            "scalus/utils/Hex.scala",
-            "scalus/utils/HashConsed.scala",
-            "scalus/utils/HashConsedFlat.scala",
             "scalus/builtin/Data.scala",
             "scalus/builtin/BuiltinList.scala",
+            "scalus/serialization/flat/package.scala",
+            "scalus/serialization/flat/FlatInstances.scala",
+            "scalus/serialization/flat/HashConsed.scala",
+            "scalus/serialization/flat/HashConsedFlat.scala",
             "scalus/sir/SIR.scala",
             "scalus/sir/SIRDefaultOptions.scala",
             "scalus/sir/SIRMacro.scala",
@@ -153,8 +151,7 @@ lazy val scalusPlugin = project
             "scalus/uplc/DefaultUni.scala",
             "scalus/uplc/CommonFlatInstances.scala",
             "scalus/uplc/TypeScheme.scala",
-            "scalus/serialization/flat/package.scala",
-            "scalus/serialization/flat/FlatInstances.scala"
+            "scalus/utils/Hex.scala",
           )
 
           val baseDir =
