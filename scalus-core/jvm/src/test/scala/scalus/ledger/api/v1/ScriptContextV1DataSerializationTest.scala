@@ -7,7 +7,8 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.*
 import scalus.cardano.ledger.MajorProtocolVersion
-import scalus.ledger.api.{v2, PlutusLedgerLanguage}
+import scalus.ledger.api.v2
+import scalus.cardano.ledger.Language
 import scalus.ledger.api.v1.Credential.*
 import scalus.prelude.SortedMap
 import scalus.prelude.List.*
@@ -108,9 +109,9 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
     )
 
     val machineParamsV1 =
-        MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV1, MajorProtocolVersion.vasilPV)
+        MachineParams.defaultParamsFor(Language.PlutusV1, MajorProtocolVersion.vasilPV)
     val machineParamsV2 =
-        MachineParams.defaultParamsFor(PlutusLedgerLanguage.PlutusV2, MajorProtocolVersion.vasilPV)
+        MachineParams.defaultParamsFor(Language.PlutusV2, MajorProtocolVersion.vasilPV)
 
     test("ScriptContext is the same as in Plutus") {
         // byte array to hex string

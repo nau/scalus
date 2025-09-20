@@ -39,7 +39,7 @@ import scalus.builtin.BuiltinPair
 import scalus.cardano.ledger.{MajorProtocolVersion, Script}
 import scalus.ledger
 import scalus.ledger.api
-import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.cardano.ledger.Language
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.ScriptPurpose
@@ -232,27 +232,26 @@ object Interop {
                 BytesPlutusData.of(b.bytes)
     }
 
-    /** Creates [[MachineParams]] from a [[CostMdls]] and a [[PlutusLedgerLanguage]] */
+    /** Creates [[MachineParams]] from a [[CostMdls]] and a [[Language]] */
     def translateMachineParamsFromCostMdls(
         costMdls: CostMdls,
-        plutus: PlutusLedgerLanguage,
+        plutus: Language,
         protocolVersion: MajorProtocolVersion
     ): MachineParams = {
-        import scalus.cardano.ledger.Language as L
         val (lang, params) = plutus match
-            case PlutusLedgerLanguage.PlutusV1 =>
-                val costs = costMdls.get(Language.PLUTUS_V1)
-                L.PlutusV1 -> PlutusV1Params.fromSeq(
+            case Language.PlutusV1 =>
+                val costs = costMdls.get(com.bloxbean.cardano.client.plutus.spec.Language.PLUTUS_V1)
+                Language.PlutusV1 -> PlutusV1Params.fromSeq(
                   immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
                 )
-            case PlutusLedgerLanguage.PlutusV2 =>
-                val costs = costMdls.get(Language.PLUTUS_V2)
-                L.PlutusV2 -> PlutusV2Params.fromSeq(
+            case Language.PlutusV2 =>
+                val costs = costMdls.get(com.bloxbean.cardano.client.plutus.spec.Language.PLUTUS_V2)
+                Language.PlutusV2 -> PlutusV2Params.fromSeq(
                   immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
                 )
-            case PlutusLedgerLanguage.PlutusV3 =>
-                val costs = costMdls.get(Language.PLUTUS_V3)
-                L.PlutusV3 -> PlutusV3Params.fromSeq(
+            case Language.PlutusV3 =>
+                val costs = costMdls.get(com.bloxbean.cardano.client.plutus.spec.Language.PLUTUS_V3)
+                Language.PlutusV3 -> PlutusV3Params.fromSeq(
                   immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
                 )
 

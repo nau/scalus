@@ -1,7 +1,7 @@
 package scalus.uplc.eval
 
 import scalus.builtin.{platform, PlatformSpecific, given}
-import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.cardano.ledger.Language
 import scalus.uplc.{BuiltinSemanticsVariant, BuiltinsMeaning}
 import scalus.uplc.Constant
 import scalus.uplc.DeBruijn
@@ -27,7 +27,7 @@ import scalus.uplc.Term
   *   The platform specific implementation of certain functions used by VM builtins
   */
 class PlutusVM(
-    val language: PlutusLedgerLanguage,
+    val language: Language,
     val machineParams: MachineParams,
     val semanticVariant: BuiltinSemanticsVariant,
     platformSpecific: PlatformSpecific
@@ -120,9 +120,9 @@ class PlutusVM(
       *   [CIP-117](https://cips.cardano.org/cip/CIP-0117/)
       */
     private def isResultValid(res: Term): Boolean = (language, res) match
-        case (PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2, _) => true
-        case (PlutusLedgerLanguage.PlutusV3, Term.Const(Constant.Unit))         => true
-        case _                                                                  => false
+        case (Language.PlutusV1 | Language.PlutusV2, _)     => true
+        case (Language.PlutusV3, Term.Const(Constant.Unit)) => true
+        case _                                              => false
 }
 
 /** Companion object for PlutusVM that provides factory methods for creating VM instances for
@@ -138,7 +138,7 @@ object PlutusVM {
       *   A configured Plutus V1 VM instance
       */
     def makePlutusV1VM(params: MachineParams): PlutusVM = new PlutusVM(
-      PlutusLedgerLanguage.PlutusV1,
+      Language.PlutusV1,
       params,
       params.semanticVariant,
       platform
@@ -152,7 +152,7 @@ object PlutusVM {
     def makePlutusV1VM(): PlutusVM = {
         val params = MachineParams.defaultPlutusV1PostConwayParams
         new PlutusVM(
-          PlutusLedgerLanguage.PlutusV1,
+          Language.PlutusV1,
           params,
           params.semanticVariant,
           platform
@@ -168,7 +168,7 @@ object PlutusVM {
       */
     def makePlutusV2VM(params: MachineParams): PlutusVM =
         new PlutusVM(
-          PlutusLedgerLanguage.PlutusV2,
+          Language.PlutusV2,
           params,
           params.semanticVariant,
           platform
@@ -182,7 +182,7 @@ object PlutusVM {
     def makePlutusV2VM(): PlutusVM =
         val params = MachineParams.defaultPlutusV2PostConwayParams
         new PlutusVM(
-          PlutusLedgerLanguage.PlutusV2,
+          Language.PlutusV2,
           params,
           params.semanticVariant,
           platform
@@ -197,7 +197,7 @@ object PlutusVM {
       */
     def makePlutusV3VM(params: MachineParams): PlutusVM =
         new PlutusVM(
-          PlutusLedgerLanguage.PlutusV3,
+          Language.PlutusV3,
           params,
           params.semanticVariant,
           platform
@@ -211,7 +211,7 @@ object PlutusVM {
     def makePlutusV3VM(): PlutusVM = {
         val params = MachineParams.defaultPlutusV3Params
         new PlutusVM(
-          PlutusLedgerLanguage.PlutusV3,
+          Language.PlutusV3,
           params,
           params.semanticVariant,
           platform

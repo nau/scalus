@@ -21,8 +21,8 @@ import scalus.builtin.Data
 import scalus.cardano.ledger.{MajorProtocolVersion, Script}
 import scalus.ledger
 import scalus.ledger.api
-import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.ledger.api.PlutusLedgerLanguage.*
+import scalus.cardano.ledger.Language
+
 import scalus.ledger.api.v1
 import scalus.ledger.api.v2
 import scalus.ledger.api.v2.OutputDatum
@@ -102,7 +102,7 @@ class TxEvaluator(
         PlutusVM.makePlutusV1VM(
           translateMachineParamsFromCostMdls(
             costMdls,
-            PlutusV1,
+            Language.PlutusV1,
             MajorProtocolVersion(protocolMajorVersion)
           )
         )
@@ -110,7 +110,7 @@ class TxEvaluator(
         PlutusVM.makePlutusV2VM(
           translateMachineParamsFromCostMdls(
             costMdls,
-            PlutusV2,
+            Language.PlutusV2,
             MajorProtocolVersion(protocolMajorVersion)
           )
         )
@@ -118,7 +118,7 @@ class TxEvaluator(
         PlutusVM.makePlutusV3VM(
           translateMachineParamsFromCostMdls(
             costMdls,
-            PlutusV3,
+            Language.PlutusV3,
             MajorProtocolVersion(protocolMajorVersion)
           )
         )

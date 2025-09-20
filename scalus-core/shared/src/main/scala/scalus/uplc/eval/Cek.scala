@@ -4,7 +4,7 @@ package eval
 import cats.syntax.group.*
 import scalus.builtin.{ByteString, Data, PlatformSpecific}
 import scalus.cardano.ledger.{Language, MajorProtocolVersion, ProtocolParams, ProtocolVersion}
-import scalus.ledger.api.PlutusLedgerLanguage
+
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
@@ -156,13 +156,13 @@ case class MachineParams(
 object MachineParams {
 
     lazy val defaultPlutusV1PostConwayParams: MachineParams =
-        defaultParamsFor(PlutusLedgerLanguage.PlutusV1, MajorProtocolVersion.plominPV)
+        defaultParamsFor(Language.PlutusV1, MajorProtocolVersion.plominPV)
 
     lazy val defaultPlutusV2PostConwayParams: MachineParams =
-        defaultParamsFor(PlutusLedgerLanguage.PlutusV2, MajorProtocolVersion.plominPV)
+        defaultParamsFor(Language.PlutusV2, MajorProtocolVersion.plominPV)
 
     lazy val defaultPlutusV3Params: MachineParams =
-        defaultParamsFor(PlutusLedgerLanguage.PlutusV3, MajorProtocolVersion.plominPV)
+        defaultParamsFor(Language.PlutusV3, MajorProtocolVersion.plominPV)
 
     /** Creates default machine parameters for a given Plutus version and protocol version.
       *
@@ -174,7 +174,7 @@ object MachineParams {
       *   The machine parameters
       */
     def defaultParamsFor(
-        plutus: PlutusLedgerLanguage,
+        plutus: Language,
         protocolVersion: MajorProtocolVersion
     ): MachineParams = {
         val variant = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(protocolVersion, plutus)
@@ -210,7 +210,7 @@ object MachineParams {
       */
     @deprecated("Use the overload with MajorProtocolVersion", "0.12.0")
     def defaultParamsFor(
-        plutus: PlutusLedgerLanguage,
+        plutus: Language,
         protocolVersion: ProtocolVersion
     ): MachineParams = defaultParamsFor(plutus, MajorProtocolVersion(protocolVersion.major))
 
@@ -225,7 +225,7 @@ object MachineParams {
       */
     def fromCardanoCliProtocolParamsJson(
         json: String,
-        plutus: PlutusLedgerLanguage
+        plutus: Language
     ): MachineParams = {
         val pparams = ProtocolParams.fromCardanoCliJson(json)
         fromProtocolParams(pparams, plutus)
@@ -242,16 +242,10 @@ object MachineParams {
       */
     def fromBlockfrostProtocolParamsJson(
         json: String,
-        plutus: PlutusLedgerLanguage
+        plutus: Language
     ): MachineParams = {
         val pparams = ProtocolParams.fromBlockfrostJson(json)
         fromProtocolParams(pparams, plutus)
-    }
-
-    /** Creates [[MachineParams]] from a [[ProtocolParams]] and a [[PlutusLedgerLanguage]]
-      */
-    def fromProtocolParams(pparams: ProtocolParams, plutus: PlutusLedgerLanguage): MachineParams = {
-        fromProtocolParams(pparams, plutus.toLanguage)
     }
 
     /** Creates [[MachineParams]] from a [[ProtocolParams]] and a [[Language]]

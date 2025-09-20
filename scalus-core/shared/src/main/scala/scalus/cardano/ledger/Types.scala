@@ -160,7 +160,7 @@ object AssetName {
 }
 
 /** Represents the supported scripting languages in Cardano */
-enum Language {
+enum Language extends java.lang.Enum[Language] {
 
     /** Plutus V1, first version of Plutus */
     case PlutusV1

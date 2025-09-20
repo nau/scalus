@@ -1,7 +1,6 @@
 package scalus.uplc.eval
 
 import scalus.cardano.ledger.Language
-import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.macros.Macros
 import scalus.uplc.{BuiltinSemanticsVariant, PlutusParams}
 import upickle.default.*
@@ -391,7 +390,7 @@ object BuiltinCostModel {
 
     @deprecated("Use fromPlutusParams instead")
     def fromCostModelParams(
-        plutus: PlutusLedgerLanguage,
+        plutus: Language,
         semvar: BuiltinSemanticsVariant,
         costModelParams: Map[String, Long]
     ): BuiltinCostModel =
@@ -427,7 +426,7 @@ object BuiltinCostModel {
           ),
           multiplyInteger = (plutus, semvar) match
               case (
-                    PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2,
+                    Language.PlutusV1 | Language.PlutusV2,
                     BuiltinSemanticsVariant.A
                   ) =>
                   DefaultCostingFun(
@@ -445,9 +444,9 @@ object BuiltinCostModel {
                     )
                   )
               case (
-                    PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2,
+                    Language.PlutusV1 | Language.PlutusV2,
                     BuiltinSemanticsVariant.B
-                  ) | (PlutusLedgerLanguage.PlutusV3, BuiltinSemanticsVariant.C) =>
+                  ) | (Language.PlutusV3, BuiltinSemanticsVariant.C) =>
                   DefaultCostingFun(
                     cpu = TwoArguments.MultipliedSizes(
                       OneVariableLinearFunction(
@@ -468,7 +467,7 @@ object BuiltinCostModel {
                   )
           ,
           divideInteger = plutus match
-              case PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2 =>
+              case Language.PlutusV1 | Language.PlutusV2 =>
                   DefaultCostingFun(
                     cpu = TwoArguments.ConstAboveDiagonal(
                       ConstantOrTwoArguments(
@@ -490,7 +489,7 @@ object BuiltinCostModel {
                       )
                     )
                   )
-              case PlutusLedgerLanguage.PlutusV3 =>
+              case Language.PlutusV3 =>
                   DefaultCostingFun(
                     cpu = TwoArguments.ConstAboveDiagonal(
                       ConstantOrTwoArguments(
@@ -518,7 +517,7 @@ object BuiltinCostModel {
                   )
           ,
           quotientInteger = plutus match
-              case PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2 =>
+              case Language.PlutusV1 | Language.PlutusV2 =>
                   DefaultCostingFun(
                     cpu = TwoArguments.ConstAboveDiagonal(
                       ConstantOrTwoArguments(
@@ -540,7 +539,7 @@ object BuiltinCostModel {
                       )
                     )
                   )
-              case PlutusLedgerLanguage.PlutusV3 =>
+              case Language.PlutusV3 =>
                   DefaultCostingFun(
                     cpu = TwoArguments.ConstAboveDiagonal(
                       ConstantOrTwoArguments(
@@ -569,7 +568,7 @@ object BuiltinCostModel {
                   )
           ,
           remainderInteger = plutus match
-              case PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2 =>
+              case Language.PlutusV1 | Language.PlutusV2 =>
                   DefaultCostingFun(
                     cpu = TwoArguments.ConstAboveDiagonal(
                       ConstantOrTwoArguments(
@@ -591,7 +590,7 @@ object BuiltinCostModel {
                       )
                     )
                   )
-              case PlutusLedgerLanguage.PlutusV3 =>
+              case Language.PlutusV3 =>
                   // same as modInteger
                   DefaultCostingFun(
                     cpu = TwoArguments.ConstAboveDiagonal(
@@ -620,7 +619,7 @@ object BuiltinCostModel {
                   )
           ,
           modInteger = plutus match
-              case PlutusLedgerLanguage.PlutusV1 | PlutusLedgerLanguage.PlutusV2 =>
+              case Language.PlutusV1 | Language.PlutusV2 =>
                   DefaultCostingFun(
                     cpu = TwoArguments.ConstAboveDiagonal(
                       ConstantOrTwoArguments(
@@ -642,7 +641,7 @@ object BuiltinCostModel {
                       )
                     )
                   )
-              case PlutusLedgerLanguage.PlutusV3 =>
+              case Language.PlutusV3 =>
                   DefaultCostingFun(
                     cpu = TwoArguments.ConstAboveDiagonal(
                       ConstantOrTwoArguments(

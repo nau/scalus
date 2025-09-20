@@ -1,5 +1,7 @@
 package scalus.ledger
 
+import scalus.cardano.ledger.Language
+
 package object api {
 
     /** @deprecated
@@ -53,4 +55,11 @@ package object api {
     @deprecated("Use scalus.cardano.ledger.MajorProtocolVersion instead", "0.12.0")
     val MajorProtocolVersion: scalus.cardano.ledger.MajorProtocolVersion.type =
         scalus.cardano.ledger.MajorProtocolVersion
+
+    @deprecated("Use scalus.cardano.ledger.Language instead", "0.12.0")
+    type PlutusLedgerLanguage = Language
+
+    @deprecated("Use scalus.cardano.ledger.Language instead", "0.12.0")
+    val PlutusLedgerLanguage: Language.type = Language
+
 }
