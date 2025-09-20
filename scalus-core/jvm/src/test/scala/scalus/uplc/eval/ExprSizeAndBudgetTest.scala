@@ -5,7 +5,7 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data
-import scalus.flat.Flat
+import scalus.serialization.flat.Flat
 import scalus.uplc.FlatInstantces.given
 import scalus.uplc.NamedDeBruijn
 import scalus.uplc.Term

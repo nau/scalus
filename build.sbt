@@ -146,7 +146,6 @@ lazy val scalusPlugin = project
             "scalus/sir/SIRBuiltins.scala",
             "scalus/sir/SIRUnify.scala",
             "scalus/sir/SIRHashCodeInRec.scala",
-            "scalus/sir/FlatInstances.scala",
             "scalus/sir/RemoveRecursivity.scala",
             "scalus/sir/RenamingTypeVars.scala",
             "scalus/uplc/Constant.scala",
@@ -154,7 +153,8 @@ lazy val scalusPlugin = project
             "scalus/uplc/DefaultUni.scala",
             "scalus/uplc/CommonFlatInstances.scala",
             "scalus/uplc/TypeScheme.scala",
-            "scalus/flat/package.scala"
+            "scalus/serialization/flat/package.scala",
+            "scalus/serialization/flat/FlatInstances.scala"
           )
 
           val baseDir =

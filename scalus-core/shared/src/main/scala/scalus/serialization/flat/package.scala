@@ -1,7 +1,8 @@
-package scalus
+package scalus.serialization
+
+import scalus.utils.HashConsed
 
 import scala.collection.mutable.ListBuffer
-import scalus.utils.HashConsed
 
 package object flat:
     case class Natural(n: BigInt)

@@ -11,7 +11,7 @@ import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.util.Spans
 import dotty.tools.dotc.util.Spans.Span
-import scalus.flat.DecoderState
+import scalus.serialization.flat.DecoderState
 import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState, HashConsedReprRefFlat}
 import dotty.tools.dotc.util.{NoSourcePosition, SourcePosition, SrcPos}
 import scalus.sir.SIRPosition

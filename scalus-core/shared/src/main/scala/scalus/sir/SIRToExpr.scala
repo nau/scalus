@@ -1,7 +1,7 @@
 package scalus.sir
 
-import scalus.flat.*
-import scalus.flat.FlatInstantces.{SIRHashConsedFlat, SIRTypeHashConsedFlat}
+import scalus.serialization.flat.*
+import scalus.serialization.flat.FlatInstances.{SIRHashConsedFlat, SIRTypeHashConsedFlat}
 import scalus.sir.SIRType.checkAllProxiesFilled
 import scalus.utils.*
 
@@ -169,7 +169,7 @@ object ToExprHSSIRFlat extends HashConsedFlat[SIR] {
 
 object SIRToExpr extends ToExprHS[SIR](ToExprHSSIRFlat, '{ ToExprHSSIRFlat }, summon[Type[SIR]])
 
-import scalus.flat.FlatInstantces.given HashConsedFlat[Module]
+import scalus.serialization.flat.FlatInstances.given HashConsedFlat[Module]
 
 object ModuleToExpr
     extends ToExprHS[Module](

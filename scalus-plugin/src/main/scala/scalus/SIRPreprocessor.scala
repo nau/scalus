@@ -11,7 +11,7 @@ import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import scalus.sir.{Module as SIRModule, *}
-import scalus.flat.FlatInstantces.ModuleHashSetReprFlat
+import scalus.serialization.flat.FlatInstances.ModuleHashSetReprFlat
 
 /** Preprocess SIR - run before the Pickling and sbt.ExtreactApi phases and add toSIR-compiled
   * modules fields, which later set in Scalus phase and used during linking.

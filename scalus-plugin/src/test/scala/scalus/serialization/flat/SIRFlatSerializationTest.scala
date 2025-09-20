@@ -1,12 +1,8 @@
-package scalus.flat
+package scalus.serialization.flat
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.flat
-import scalus.flat.DecoderState
-import scalus.flat.EncoderState
-import scalus.flat.Flat
-import scalus.flat.FlatInstantces.given
+import scalus.serialization.flat.FlatInstances.given
 import scalus.sir.{AnnotationsDecl, Binding, Module, SIR, SIRType}
 
 class SIRFlatSerializationTest extends AnyFunSuite with ScalaCheckPropertyChecks:
@@ -18,11 +14,11 @@ class SIRFlatSerializationTest extends AnyFunSuite with ScalaCheckPropertyChecks
         val binding = Binding("x", SIRType.Integer, sir)
         val module = Module((1, 0), "test-module", List(binding))
         val enc = EncoderState(fl.bitSize(module) / 8 + 1)
-        flat.encode(module, enc)
+        encode(module, enc)
         // now filler inside the encoder.
         //  TODO: rethink.
         // enc.filler()
         val dec = DecoderState(enc.buffer)
-        val module2 = flat.decode[Module](dec)
+        val module2 = decode[Module](dec)
         assert(module == module2)
     }
