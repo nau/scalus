@@ -14,7 +14,7 @@ import scalus.prelude.{!==, ===}
 
 import scala.annotation.tailrec
 
-case class Value private (toSortedMap: SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]])
+case class Value private (toSortedMap: SortedMap[PolicyId, SortedMap[TokenName, BigInt]])
 
 @Compile
 object Value {
@@ -46,7 +46,7 @@ object Value {
       *   {{{
       *   Value(Value.adaCurrencySymbol, Value.adaTokenName, BigInt(1000000)) === Value.lovelace(BigInt(1000000))
       *
-      *   val policyId: CurrencySymbol = ByteString.fromString("currencySymbol")
+      *   val policyId: PolicyId = ByteString.fromString("currencySymbol")
       *   val tokenName: TokenName = ByteString.fromString("tokenName")
       *   val value = Value(policyId, tokenName, BigInt(100))
       *   value.quantityOf(policyId, tokenName) === BigInt(100)
@@ -56,7 +56,7 @@ object Value {
       *   Value(policyId, tokenName, BigInt(0)) === Value.zero
       *   }}}
       */
-    def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value =
+    def apply(cs: PolicyId, tn: TokenName, v: BigInt): Value =
         if v !== BigInt(0) then Value(SortedMap.singleton(cs, SortedMap.singleton(tn, v))) else zero
 
     /** Creates a `Value` representing a specific amount of ADA in lovelace.
@@ -104,7 +104,7 @@ object Value {
       *   [[fromList]] or [[fromStrictlyAscendingListWithNonZeroAmounts]] for safe versions
       */
     def unsafeFromList(
-        list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
+        list: List[(PolicyId, List[(TokenName, BigInt)])]
     ): Value = Value(
       SortedMap.unsafeFromList(
         list.map { pair => (pair._1, SortedMap.unsafeFromList(pair._2)) }
@@ -140,7 +140,7 @@ object Value {
       *   [[fromStrictlyAscendingListWithNonZeroAmounts]] for a faster stricter version
       */
     def fromList(
-        list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
+        list: List[(PolicyId, List[(TokenName, BigInt)])]
     ): Value = Value(
       SortedMap.fromList(
         list.filterMap { pair =>
@@ -192,7 +192,7 @@ object Value {
       *   version that filters invalid entries
       */
     def fromStrictlyAscendingListWithNonZeroAmounts(
-        list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
+        list: List[(PolicyId, List[(TokenName, BigInt)])]
     ): Value = Value(
       SortedMap.fromStrictlyAscendingList(
         list.map { case (currencySymbol, tokens) =>
@@ -213,7 +213,7 @@ object Value {
       *   Value.adaCurrencySymbol === ByteString.empty
       *   }}}
       */
-    val adaCurrencySymbol: CurrencySymbol = ByteString.empty
+    val adaCurrencySymbol: PolicyId = ByteString.empty
 
     /** The token name for ADA, represented as an empty `ByteString`.
       *
@@ -564,7 +564,7 @@ object Value {
     given valueFromData: FromData[Value] =
         (data: Data) => {
             Value(
-              fromData[SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]]](data)
+              fromData[SortedMap[PolicyId, SortedMap[TokenName, BigInt]]](data)
             )
         }
 
@@ -586,7 +586,7 @@ object Value {
             given [A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
                 SortedMap.sortedMapFromDataWithValidation
 
-            val payload = fromData[SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]]](data)
+            val payload = fromData[SortedMap[PolicyId, SortedMap[TokenName, BigInt]]](data)
 
             scalus.prelude.require(
               payload.forall { case (_, tokens) =>
@@ -701,7 +701,7 @@ object Value {
           *   }}}
           */
         def quantityOf(
-            cs: CurrencySymbol,
+            cs: PolicyId,
             tn: TokenName
         ): BigInt = v.toSortedMap.get(cs) match
             case Option.Some(tokens) => tokens.get(tn).getOrElse(0)
@@ -767,7 +767,7 @@ object Value {
           *   )
           *   }}}
           */
-        def flatten: List[(CurrencySymbol, TokenName, BigInt)] =
+        def flatten: List[(PolicyId, TokenName, BigInt)] =
             v.toSortedMap.foldRight(List.empty) { case (pair1, acc1) =>
                 pair1._2.foldRight(acc1) { case (pair2, acc2) =>
                     List.Cons((pair1._1, pair2._1, pair2._2), acc2)
@@ -778,7 +778,7 @@ object Value {
           * tokens.
           *
           * @return
-          *   A list of sorted [[scalus.ledger.api.v1.CurrencySymbol]]
+          *   A list of sorted [[scalus.ledger.api.v1.PolicyId]]
           * @example
           *   {{{
           *   val value = Value.fromList(
@@ -801,7 +801,7 @@ object Value {
           *   )
           *   }}}
           */
-        def currencySymbols: List[CurrencySymbol] = v.toSortedMap.keys
+        def currencySymbols: List[PolicyId] = v.toSortedMap.keys
 
     private def binaryOpTokens(
         a: SortedMap[TokenName, BigInt],
@@ -853,9 +853,9 @@ object Value {
         op: (BigInt, BigInt) => BigInt
     ): Value = {
         def go(
-            lhs: List[(CurrencySymbol, SortedMap[TokenName, BigInt])],
-            rhs: List[(CurrencySymbol, SortedMap[TokenName, BigInt])]
-        ): List[(CurrencySymbol, List[(TokenName, BigInt)])] = {
+            lhs: List[(PolicyId, SortedMap[TokenName, BigInt])],
+            rhs: List[(PolicyId, SortedMap[TokenName, BigInt])]
+        ): List[(PolicyId, List[(TokenName, BigInt)])] = {
             lhs match
                 case List.Nil =>
                     rhs.map { case (cs, tokens) =>

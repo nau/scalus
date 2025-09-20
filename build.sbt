@@ -575,6 +575,10 @@ addCommandAlias(
   "scalafmtAll;scalafmtSbt;jvm/Test/compile;jvm/testQuick"
 )
 addCommandAlias(
+    "cleanpile",
+    "clean;jvm/Test/compile"
+)
+addCommandAlias(
   "precommit",
   "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;jvm/Test/compile;scalusPluginTests/test;jvm/test;docs/mdoc"
 )

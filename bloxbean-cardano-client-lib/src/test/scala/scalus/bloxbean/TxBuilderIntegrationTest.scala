@@ -13,7 +13,7 @@ import scalus.cardano.ledger.txbuilder.Intention.Pay
 import scalus.cardano.ledger.txbuilder.ResolvedTxInput.Pubkey
 import scalus.ledger.api
 import scalus.ledger.api.MajorProtocolVersion
-import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
+import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
 import scalus.prelude.{orFail, SortedMap}
 import scalus.uplc.Program
@@ -142,7 +142,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
                 }
                 val context = scriptContext.to[ScriptContext]
 
-                val outs: SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]] =
+                val outs: SortedMap[PolicyId, SortedMap[TokenName, BigInt]] =
                     context.txInfo.outputs.last.value.toSortedMap
                 val l = outs.toList
                 val amount = outs.toList.head._2.toList.head._2

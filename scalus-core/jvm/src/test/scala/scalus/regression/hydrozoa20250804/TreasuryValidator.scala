@@ -57,7 +57,7 @@ object TreasuryValidator extends Validator:
     given ToData[TreasuryDatum] = ToData.derived
 
     case class UnresolvedDatum(
-        headMp: CurrencySymbol,
+        headMp: PolicyId,
         disputeId: TokenName,
         peers: List[VerificationKey],
         peersN: BigInt,
@@ -70,7 +70,7 @@ object TreasuryValidator extends Validator:
     given ToData[UnresolvedDatum] = ToData.derived
 
     case class ResolvedDatum(
-        headMp: CurrencySymbol,
+        headMp: PolicyId,
         utxosActive: MembershipProof,
         version: (BigInt, BigInt),
         params: L2ConsensusParamsH32

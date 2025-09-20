@@ -35,7 +35,7 @@ trait Validator {
 
     def mint(
         redeemer: Data,
-        currencySymbol: CurrencySymbol,
+        currencySymbol: PolicyId,
         tx: TxInfo
     ): Unit = {
         fail("Empty Validator.mint")

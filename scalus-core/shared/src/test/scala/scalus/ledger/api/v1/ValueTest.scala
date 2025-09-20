@@ -35,12 +35,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ).toSortedMap,
           SortedMap.singleton(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             SortedMap.singleton(ByteString.fromString("TokenName"), BigInt(1000))
           )
         )
@@ -49,12 +49,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
     test("zero") {
         assertEvalEq(
           Value.zero.toSortedMap,
-          SortedMap.empty[CurrencySymbol, SortedMap[TokenName, BigInt]]
+          SortedMap.empty[PolicyId, SortedMap[TokenName, BigInt]]
         )
     }
 
     test("apply") {
-        checkEval { (currencySymbol: CurrencySymbol, tokenName: TokenName, value: BigInt) =>
+        checkEval { (currencySymbol: PolicyId, tokenName: TokenName, value: BigInt) =>
             Value(currencySymbol, tokenName, value).toSortedMap ===
                 (
                   if value !== BigInt(0) then
@@ -68,19 +68,19 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1)
           ).toSortedMap,
           SortedMap.singleton(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             SortedMap.singleton(ByteString.fromString("TokenName"), BigInt(1))
           )
         )
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(0)
           ),
@@ -118,12 +118,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
     test("unsafeFromList") {
 
         val sir = scalus.Compiler.compile {
-            // (list: List[(CurrencySymbol, List[(TokenName, BigInt)])]) =>
+            // (list: List[(PolicyId, List[(TokenName, BigInt)])]) =>
             (d: Data) =>
                 import scalus.prelude.*
                 val list = Data.fromData[
                   scalus.prelude.List[
-                    (CurrencySymbol, scalus.prelude.List[(TokenName, BigInt)])
+                    (PolicyId, scalus.prelude.List[(TokenName, BigInt)])
                   ]
                 ](d)
                 // val validList = list
@@ -182,7 +182,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         val listFromDataSir = scalus.Compiler.compile { (x: Data) =>
             Data.fromData[
-              scalus.prelude.List[(CurrencySymbol, scalus.prelude.List[(TokenName, BigInt)])]
+              scalus.prelude.List[(PolicyId, scalus.prelude.List[(TokenName, BigInt)])]
             ](x)
         }
 
@@ -228,7 +228,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
          */
 
-        checkEval { (list: List[(CurrencySymbol, List[(TokenName, BigInt)])]) =>
+        checkEval { (list: List[(PolicyId, List[(TokenName, BigInt)])]) =>
             val validList =
                 list.distinct(using Eq.keyPairEq)
                     .quicksort(using Ord.keyPairOrd)
@@ -276,7 +276,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
     test("fromList") {
 
-        checkEval { (list: List[(CurrencySymbol, List[(TokenName, BigInt)])]) =>
+        checkEval { (list: List[(PolicyId, List[(TokenName, BigInt)])]) =>
             Value.fromList(list).toSortedMap === SortedMap.fromList(
               list.filterMap { case (cs, tnList) =>
                   val tokens = tnList.filter { _._2 !== BigInt(0) }
@@ -321,7 +321,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
     }
 
     test("fromStrictlyAscendingListWithNonZeroAmounts") {
-        checkEval { (list: List[(CurrencySymbol, List[(TokenName, BigInt)])]) =>
+        checkEval { (list: List[(PolicyId, List[(TokenName, BigInt)])]) =>
             val validList =
                 list.distinct(using Eq.keyPairEq)
                     .quicksort(using Ord.keyPairOrd)
@@ -404,7 +404,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEval(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(0)
           ) === Value.zero
@@ -412,12 +412,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEval(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1)
           ) ===
               Value(
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 ByteString.fromString("TokenName"),
                 BigInt(1)
               )
@@ -438,12 +438,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEval(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName1"),
             BigInt(1)
           ) !==
               Value(
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 ByteString.fromString("TokenName2"),
                 BigInt(1)
               )
@@ -451,12 +451,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEval(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1)
           ) !==
               Value(
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 ByteString.fromString("TokenName"),
                 BigInt(2)
               )
@@ -508,12 +508,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           -Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ),
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(-1000)
           )
@@ -553,17 +553,17 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ) +
               Value(
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 ByteString.fromString("TokenName"),
                 BigInt(2000)
               ),
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(3000)
           )
@@ -571,13 +571,13 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ) +
               Value.zero,
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           )
@@ -586,12 +586,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
         assertEvalEq(
           Value.zero +
               Value(
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 ByteString.fromString("TokenName"),
                 BigInt(1000)
               ),
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           )
@@ -614,7 +614,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ) +
@@ -622,7 +622,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
           Value.fromList(
             List(
               (
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 List((ByteString.fromString("TokenName"), BigInt(1000)))
               ),
               (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
@@ -632,12 +632,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ) +
               Value(
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 ByteString.fromString("TokenName"),
                 BigInt(-1000)
               ),
@@ -650,7 +650,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
           Value.fromList(
             List(
               (
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 List((ByteString.fromString("TokenName"), BigInt(1000)))
               ),
               (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
@@ -659,7 +659,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
               Value.fromList(
                 List(
                   (
-                    ByteString.fromString("CurrencySymbol"),
+                    ByteString.fromString("PolicyId"),
                     List((ByteString.fromString("TokenName"), BigInt(-1000)))
                   ),
                   (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(-1000))))
@@ -672,7 +672,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
           Value.fromList(
             List(
               (
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 List((ByteString.fromString("TokenName"), BigInt(1000)))
               ),
               (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
@@ -681,7 +681,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
               Value.fromList(
                 List(
                   (
-                    ByteString.fromString("CurrencySymbol"),
+                    ByteString.fromString("PolicyId"),
                     List((ByteString.fromString("TokenName"), BigInt(-1000)))
                   )
                 )
@@ -693,7 +693,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
           Value.fromList(
             List(
               (
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 List((ByteString.fromString("TokenName"), BigInt(1000)))
               ),
               (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
@@ -705,7 +705,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
                 )
               ),
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           )
@@ -741,17 +741,17 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ) -
               Value(
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 ByteString.fromString("TokenName"),
                 BigInt(2000)
               ),
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(-1000)
           )
@@ -759,13 +759,13 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ) -
               Value.zero,
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           )
@@ -774,12 +774,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
         assertEvalEq(
           Value.zero -
               Value(
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 ByteString.fromString("TokenName"),
                 BigInt(1000)
               ),
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(-1000)
           )
@@ -802,7 +802,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ) -
@@ -810,7 +810,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
           Value.fromList(
             List(
               (
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 List((ByteString.fromString("TokenName"), BigInt(1000)))
               ),
               (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(-1000))))
@@ -820,12 +820,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ) -
               Value(
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 ByteString.fromString("TokenName"),
                 BigInt(1000)
               ),
@@ -838,7 +838,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
           Value.fromList(
             List(
               (
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 List((ByteString.fromString("TokenName"), BigInt(1000)))
               ),
               (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
@@ -847,7 +847,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
               Value.fromList(
                 List(
                   (
-                    ByteString.fromString("CurrencySymbol"),
+                    ByteString.fromString("PolicyId"),
                     List((ByteString.fromString("TokenName"), BigInt(1000)))
                   ),
                   (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
@@ -860,7 +860,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
           Value.fromList(
             List(
               (
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 List((ByteString.fromString("TokenName"), BigInt(1000)))
               ),
               (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
@@ -869,7 +869,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
               Value.fromList(
                 List(
                   (
-                    ByteString.fromString("CurrencySymbol"),
+                    ByteString.fromString("PolicyId"),
                     List((ByteString.fromString("TokenName"), BigInt(1000)))
                   )
                 )
@@ -881,7 +881,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
           Value.fromList(
             List(
               (
-                ByteString.fromString("CurrencySymbol"),
+                ByteString.fromString("PolicyId"),
                 List((ByteString.fromString("TokenName"), BigInt(1000)))
               ),
               (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
@@ -893,7 +893,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
                 )
               ),
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           )
@@ -917,12 +917,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ) * BigInt(2),
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(2000)
           )
@@ -930,7 +930,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ) * BigInt(0),
@@ -990,7 +990,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ).getLovelace,
@@ -999,7 +999,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(0)
           ).getLovelace,
@@ -1020,7 +1020,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEval(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(0)
           ).isZero
@@ -1028,7 +1028,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEval(
           !Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ).isZero
@@ -1052,7 +1052,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEval(
           !Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(0)
           ).nonZero
@@ -1060,7 +1060,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEval(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ).nonZero
@@ -1068,7 +1068,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
     }
 
     test("quantityOf") {
-        checkEval { (value: Value, currencySymbol: CurrencySymbol, tokenName: TokenName) =>
+        checkEval { (value: Value, currencySymbol: PolicyId, tokenName: TokenName) =>
             value.quantityOf(currencySymbol, tokenName) ===
                 value.toSortedMap
                     .get(currencySymbol)
@@ -1097,7 +1097,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ).quantityOf(Value.adaCurrencySymbol, Value.adaTokenName),
@@ -1106,10 +1106,10 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
-          ).quantityOf(ByteString.fromString("CurrencySymbol"), ByteString.fromString("TokenName")),
+          ).quantityOf(ByteString.fromString("PolicyId"), ByteString.fromString("TokenName")),
           BigInt(1000)
         )
     }
@@ -1128,12 +1128,12 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 
         assertEvalEq(
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           ).withoutLovelace,
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           )
@@ -1144,7 +1144,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
               .fromList(
                 List(
                   (
-                    ByteString.fromString("CurrencySymbol"),
+                    ByteString.fromString("PolicyId"),
                     List((ByteString.fromString("TokenName"), BigInt(1000)))
                   ),
                   (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
@@ -1152,7 +1152,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
               )
               .withoutLovelace,
           Value(
-            ByteString.fromString("CurrencySymbol"),
+            ByteString.fromString("PolicyId"),
             ByteString.fromString("TokenName"),
             BigInt(1000)
           )
@@ -1179,13 +1179,13 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
         // TODO: UPLC error
 //        assertEvalEq(
 //          Value(
-//            ByteString.fromString("CurrencySymbol"),
+//            ByteString.fromString("PolicyId"),
 //            ByteString.fromString("TokenName"),
 //            BigInt(1000)
 //          ).flatten,
 //          List(
 //            (
-//              ByteString.fromString("CurrencySymbol"),
+//              ByteString.fromString("PolicyId"),
 //              ByteString.fromString("TokenName"),
 //              BigInt(1000)
 //            )
@@ -1198,7 +1198,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 //              .fromList(
 //                List(
 //                  (
-//                    ByteString.fromString("CurrencySymbol"),
+//                    ByteString.fromString("PolicyId"),
 //                    List((ByteString.fromString("TokenName"), BigInt(1000)))
 //                  ),
 //                  (Value.adaCurrencySymbol, List((Value.adaTokenName, BigInt(1000))))
@@ -1208,7 +1208,7 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
 //          List(
 //            (Value.adaCurrencySymbol, Value.adaTokenName, BigInt(1000)),
 //            (
-//              ByteString.fromString("CurrencySymbol"),
+//              ByteString.fromString("PolicyId"),
 //              ByteString.fromString("TokenName"),
 //              BigInt(1000)
 //            )

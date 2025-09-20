@@ -12,7 +12,7 @@ import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder, TxSigner}
 import scalus.cardano.ledger.*
-import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
+import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
 import scalus.ledger.api.{MajorProtocolVersion, Timelock}
 import scalus.prelude.orFail
@@ -361,7 +361,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
                 val context = scriptContext.to[ScriptContext]
 
                 val outs: scalus.prelude.SortedMap[
-                  CurrencySymbol,
+                  PolicyId,
                   scalus.prelude.SortedMap[TokenName, BigInt]
                 ] =
                     context.txInfo.outputs.head.value.toSortedMap

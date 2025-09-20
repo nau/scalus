@@ -195,7 +195,7 @@ object Betting extends Validator:
       */
     override def mint(
         @annotation.unused redeemer: Data,
-        currencySymbol: CurrencySymbol,
+        currencySymbol: PolicyId,
         tx: TxInfo
     ): Unit =
         // Find all outputs going to this script's address

@@ -46,7 +46,7 @@ object ParseScriptInfo {
 
     def mint(
         redeemer: Data,
-        currencySymbol: CurrencySymbol,
+        currencySymbol: PolicyId,
         txInfo: TxInfo
     ): Boolean = {
         false

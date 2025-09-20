@@ -37,7 +37,7 @@ trait ParameterizedValidator[A] {
     def mint(
         param: A,
         redeemer: Data,
-        currencySymbol: CurrencySymbol,
+        currencySymbol: PolicyId,
         tx: TxInfo
     ): Unit = {
         fail("Empty Validator.mint")
@@ -119,7 +119,7 @@ trait DataParameterizedValidator {
     def mint(
         param: Data,
         redeemer: Data,
-        currencySymbol: CurrencySymbol,
+        currencySymbol: PolicyId,
         tx: TxInfo
     ): Unit = {
         fail("Empty Validator.mint")
