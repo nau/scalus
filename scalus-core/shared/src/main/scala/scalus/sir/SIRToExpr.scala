@@ -3,7 +3,6 @@ package scalus.sir
 import scalus.serialization.flat.*
 import scalus.serialization.flat.FlatInstances.{SIRHashConsedFlat, SIRTypeHashConsedFlat}
 import scalus.sir.SIRType.checkAllProxiesFilled
-import scalus.utils.*
 
 import java.nio.charset.StandardCharsets
 import scala.annotation.nowarn

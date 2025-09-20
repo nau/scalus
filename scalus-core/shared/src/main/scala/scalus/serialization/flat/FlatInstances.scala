@@ -8,7 +8,6 @@ import scalus.sir.*
 import scalus.sir.SIR.{LetFlags, Pattern}
 import scalus.uplc.CommonFlatInstances.{*, given}
 import scalus.uplc.DefaultFun
-import scalus.utils.*
 
 import scala.util.control.NonFatal
 

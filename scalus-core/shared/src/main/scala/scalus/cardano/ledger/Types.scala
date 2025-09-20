@@ -3,10 +3,10 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
-import scalus.Cbor
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
 import scalus.ledger.api.MajorProtocolVersion
+import scalus.serialization.cbor.Cbor
 import scalus.utils.Hex.toHex
 import upickle.default.ReadWriter as UpickleReadWriter
 

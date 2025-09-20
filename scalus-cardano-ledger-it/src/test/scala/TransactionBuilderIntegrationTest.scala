@@ -8,7 +8,7 @@ import com.bloxbean.cardano.client.function.helper.SignerProviders
 import com.bloxbean.cardano.client.quicktx.{QuickTxBuilder, Tx}
 import org.bouncycastle.crypto.digests.SHA512Digest
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{platform, ByteString, Data}
+import scalus.builtin.{ByteString, Data, platform}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder, TxSigner}
 import scalus.cardano.ledger.*
@@ -16,9 +16,10 @@ import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
 import scalus.ledger.api.v3.ScriptContext
 import scalus.ledger.api.{MajorProtocolVersion, Timelock}
 import scalus.prelude.orFail
+import scalus.serialization.cbor.Cbor
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
-import scalus.{plutusV3, toUplc, Compiler}
+import scalus.{Compiler, plutusV3, toUplc}
 
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
@@ -227,7 +228,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         context: BuilderContext,
         transaction: scalus.cardano.ledger.Transaction
     ) = {
-        val cborBytes = scalus.Cbor.encode(transaction)
+        val cborBytes = Cbor.encode(transaction)
         val result = context.backendService.getTransactionService.submitTransaction(cborBytes)
         if result.isSuccessful then succeed
         else fail(s"Error during tx submission: ${result.getResponse}")

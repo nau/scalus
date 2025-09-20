@@ -4,7 +4,8 @@ import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.Codec
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.Cbor
+import scalus.serialization.cbor
+import scalus.serialization.cbor.Cbor
 import scalus.utils.Hex.*
 
 class KeepRawTest extends AnyFunSuite, ScalaCheckPropertyChecks {
@@ -42,7 +43,7 @@ class KeepRawTest extends AnyFunSuite, ScalaCheckPropertyChecks {
         println(duplicates.toHex)
         val set = new KeepRaw[Set[Int]](Set(100), raw = duplicates)
         val reencoded = Cbor.encode(set)
-        val reencoded2 = scalus.Cbor.encode(set)
+        val reencoded2 = cbor.Cbor.encode(set)
         assert(reencoded.toHex == duplicates.toHex)
         assert(reencoded2.toHex == duplicates.toHex)
     }

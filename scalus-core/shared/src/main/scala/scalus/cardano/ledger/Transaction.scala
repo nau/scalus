@@ -5,7 +5,7 @@ import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
 import scalus.ledger.api.ValidityInterval
-import scalus.Cbor
+import scalus.serialization.cbor.Cbor
 
 /** Represents a complete transaction in Cardano */
 case class Transaction(

@@ -1,8 +1,8 @@
 package scalus.cardano.ledger
 package utils
 
-import scalus.Cbor
 import scalus.cardano.ledger.ProtocolParams
+import scalus.serialization.cbor.Cbor
 import scala.annotation.tailrec
 
 object MinTransactionFee {

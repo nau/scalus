@@ -2,11 +2,11 @@ package scalus.bloxbean
 
 import com.bloxbean.cardano.client.transaction.spec
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil.getTxHash
-import scalus.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
+import scalus.serialization.cbor.Cbor
 
 import java.math.BigInteger
 

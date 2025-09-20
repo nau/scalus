@@ -1,7 +1,5 @@
 package scalus.serialization
 
-import scalus.serialization.flat.HashConsed
-
 import scala.collection.mutable.ListBuffer
 
 package object flat:

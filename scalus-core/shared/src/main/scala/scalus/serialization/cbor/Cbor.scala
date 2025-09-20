@@ -1,4 +1,4 @@
-package scalus
+package scalus.serialization.cbor
 
 import io.bullet.borer.{Cbor as Cborer, Decoder, Encoder, Input, Output, Receiver}
 import scalus.builtin.ByteString
