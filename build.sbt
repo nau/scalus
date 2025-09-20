@@ -36,6 +36,27 @@ Test / publishArtifact := false
 
 ThisBuild / javaOptions += "-Xss64m"
 
+// BSP and semantic features
+ThisBuild / semanticdbEnabled := true
+
+// Improve incremental compilation
+ThisBuild / incOptions := {
+    incOptions.value
+        .withLogRecompileOnMacro(false)
+        .withUseOptimizedSealed(true)
+}
+
+// BSP development workflow optimizations
+ThisBuild / watchBeforeCommand := Watch.clearScreen
+ThisBuild / watchTriggeredMessage := Watch.clearScreenOnTrigger
+ThisBuild / watchForceTriggerOnAnyChange := true
+
+// Enable parallel execution
+ThisBuild / parallelExecution := true
+Global / concurrentRestrictions := Seq(
+  Tags.limitAll(java.lang.Runtime.getRuntime.availableProcessors())
+)
+
 Compile / doc / scalacOptions ++= Seq(
   "-groups",
   "-project-version",
@@ -211,6 +232,14 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalaVersion := scalaVersion.value,
       scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
+
+      // Improve incremental compilation for cross-platform builds
+      Compile / incOptions := {
+          incOptions.value
+              .withApiDebug(false)
+              .withRelationsDebug(false)
+              .withRecompileOnMacroDef(false)
+      },
       // scalacOptions += "-Yretain-trees",
       mimaPreviousArtifacts := Set(organization.value %%% name.value % scalusCompatibleVersion),
 
@@ -324,6 +353,14 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalaVersion := scalaVersion.value,
       scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for Arbitrary[Certificate] = autoDerived
+
+      // Improve incremental compilation for cross-platform builds
+      Compile / incOptions := {
+          incOptions.value
+              .withApiDebug(false)
+              .withRelationsDebug(false)
+              .withRecompileOnMacroDef(false)
+      },
       Test / scalacOptions += "-color:never",
       copySharedFiles := {
           val sharedFiles = Seq(
