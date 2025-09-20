@@ -16,9 +16,9 @@ import scala.collection.immutable.SortedSet
 
 class ChangeOutputDiffHandlerTest extends AnyFunSuite {
 
-    private val params: ProtocolParams = read[ProtocolParams](
+    private val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
       this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-    )(using ProtocolParams.blockfrostParamsRW)
+    )
     private val evaluator = PlutusScriptEvaluator(
       SlotConfig.Mainnet,
       initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),

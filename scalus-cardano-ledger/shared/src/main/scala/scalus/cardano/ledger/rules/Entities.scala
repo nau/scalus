@@ -27,9 +27,9 @@ object UtxoEnv {
     // TODO: remove
     val default: UtxoEnv =
 
-        val params: ProtocolParams = read[ProtocolParams](
+        val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-        )(using ProtocolParams.blockfrostParamsRW)
+        )
 
         // Load protocol parameters from a JSON file
         UtxoEnv(

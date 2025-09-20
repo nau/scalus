@@ -12,15 +12,14 @@ import scalus.examples.PubKeyValidator
 import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
-import upickle.default.read
 
 import java.nio.file.Paths
 import scala.collection.immutable.SortedSet
 
 class PlutusScriptEvaluatorTest extends AnyFunSuite {
-    private val params: ProtocolParams = read[ProtocolParams](
+    private val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
       this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-    )(using ProtocolParams.blockfrostParamsRW)
+    )
     private val costModels = CostModels.fromProtocolParams(params)
 
     test("TxEvaluator PlutusV2") {

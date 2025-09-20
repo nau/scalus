@@ -20,9 +20,9 @@ class TxBuilderTest2
     with ArbLedger
     with ValidatorRulesTestKit {
 
-    val params: ProtocolParams = read[ProtocolParams](
+    val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
       this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-    )(using ProtocolParams.blockfrostParamsRW)
+    )
 
     private val costModels = CostModels.fromProtocolParams(params)
     private val evaluator = PlutusScriptEvaluator(

@@ -24,7 +24,6 @@ import scalus.cardano.ledger.ProtocolParams
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Hex.toHex
 import scalus.utils.Utils
-import upickle.default.read
 
 import java.math.BigInteger
 import java.nio.channels.FileChannel
@@ -169,9 +168,9 @@ object BlocksValidation:
           )
         )
         val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
-        val params: ProtocolParams = read[ProtocolParams](
+        val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-        )(using ProtocolParams.blockfrostParamsRW)
+        )
         val costModels = CostModels.fromProtocolParams(params)
         val evaluator = PlutusScriptEvaluator(
           ledger.SlotConfig.Mainnet,
@@ -406,9 +405,9 @@ object BlocksValidation:
           )
         )
 
-        val params: ProtocolParams = read[ProtocolParams](
+        val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-        )(using ProtocolParams.blockfrostParamsRW)
+        )
 
         val blocks = getAllBlocksPaths()
 

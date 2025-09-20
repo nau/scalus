@@ -40,7 +40,6 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
     private lazy val environment = createEnvironment()
 
     def fetchProtocolParams(): ProtocolParams = {
-        import upickle.default.*
 
         import java.net.URI
         import java.net.http.{HttpClient, HttpRequest, HttpResponse}
@@ -54,7 +53,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         if response.statusCode() == 200 then {
-            read[ProtocolParams](response.body())(using ProtocolParams.blockfrostParamsRW)
+            ProtocolParams.fromBlockfrostJson(response.body())
         } else {
             throw new Exception(response.body())
         }

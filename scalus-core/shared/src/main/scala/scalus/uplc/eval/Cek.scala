@@ -251,8 +251,7 @@ object MachineParams {
         json: String,
         plutus: PlutusLedgerLanguage
     ): MachineParams = {
-        import upickle.default.*
-        val pparams = read[ProtocolParams](json)(using ProtocolParams.blockfrostParamsRW)
+        val pparams = ProtocolParams.fromBlockfrostJson(json)
         fromProtocolParams(pparams, plutus)
     }
 

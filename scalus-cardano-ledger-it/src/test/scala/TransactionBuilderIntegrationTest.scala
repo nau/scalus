@@ -15,7 +15,6 @@ import scalus.cardano.ledger.*
 import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
 import scalus.ledger.api.v3.ScriptContext
 import scalus.ledger.api.{MajorProtocolVersion, Timelock}
-import scalus.cardano.ledger.ProtocolParams
 import scalus.prelude.orFail
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
@@ -185,7 +184,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         if response.statusCode() == 200 then {
-            read[ProtocolParams](response.body())(using ProtocolParams.blockfrostParamsRW)
+            ProtocolParams.fromBlockfrostJson(response.body())
         } else {
             throw new Exception(response.body())
         }

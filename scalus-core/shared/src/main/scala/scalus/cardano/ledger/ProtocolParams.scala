@@ -3,6 +3,7 @@ package scalus.cardano.ledger
 import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
 
+import java.io.InputStream
 import scala.util.Try
 
 /** Protocol parameters for the Cardano blockchain of Babbage era Field names are taken from the
@@ -49,6 +50,11 @@ object ProtocolParams {
 
     /** Reads ProtocolParams from JSON string in Blockfrost format */
     def fromBlockfrostJson(json: String): ProtocolParams = {
+        read[ProtocolParams](json)(using blockfrostParamsRW)
+    }
+
+    /** Reads ProtocolParams from JSON string in Blockfrost format */
+    def fromBlockfrostJson(json: InputStream): ProtocolParams = {
         read[ProtocolParams](json)(using blockfrostParamsRW)
     }
 
