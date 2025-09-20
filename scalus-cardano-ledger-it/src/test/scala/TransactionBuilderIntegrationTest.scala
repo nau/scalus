@@ -8,7 +8,7 @@ import com.bloxbean.cardano.client.function.helper.SignerProviders
 import com.bloxbean.cardano.client.quicktx.{QuickTxBuilder, Tx}
 import org.bouncycastle.crypto.digests.SHA512Digest
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{ByteString, Data, platform}
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder, TxSigner}
 import scalus.cardano.ledger.*
@@ -19,7 +19,7 @@ import scalus.prelude.orFail
 import scalus.serialization.cbor.Cbor
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
-import scalus.{Compiler, plutusV3, toUplc}
+import scalus.{plutusV3, toUplc, Compiler}
 
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
@@ -535,7 +535,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .validFrom(0)
             .feePayer(account.baseAddress())
             .withSigner(SignerProviders.signerFrom(account.stakeHdKeyPair()))
-            .withSigner(account.sign)
+            .withSigner((c, t) => account.sign(t))
             .completeAndWait()
     }
 

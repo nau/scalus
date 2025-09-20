@@ -219,9 +219,9 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
-      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.3.0",
-      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-core" % "2.37.8",
-      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % "2.37.8" % "compile",
+      libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.3.2",
+      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-core" % "2.37.11",
+      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % "2.37.11" % "compile",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.16.1",
         "io.bullet" %%% "borer-derivation" % "1.16.1"
@@ -247,7 +247,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       // Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-S", "-8077211454138081902"),
       Test / testOptions += Tests.Argument("-oF"),
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "provided",
-      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.81",
+      libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.82",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.11" % "test",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.11"
@@ -377,7 +377,7 @@ lazy val scalusExamples = crossProject(JSPlatform, JVMPlatform)
     .configurePlatform(JVMPlatform)(_.dependsOn(`scalus-bloxbean-cardano-client-lib`))
     .jvmSettings(
       Test / fork := true,
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6"
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.7.0"
     )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
@@ -421,11 +421,11 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
             .exclude[DirectMissingMethodProblem]("scalus.bloxbean.Interop.getScriptPurpose"),
         ProblemFilters.exclude[DirectMissingMethodProblem]("scalus.bloxbean.SlotConfig.default")
       ),
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.7.0" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.8" % "test",
       libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1",
       libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.3" % "test",
@@ -481,7 +481,7 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
         "io.bullet" %%% "borer-derivation" % "1.16.1"
       ),
       // For tx builder
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0",
       libraryDependencies += "com.outr" %%% "scribe" % "3.17.0", // logging
       libraryDependencies ++= Seq(
         "dev.optics" %%% "monocle-core" % "3.3.0",
@@ -520,7 +520,7 @@ lazy val scalusCardanoLedgerIt = project
       Test / fork := true,
       Test / testOptions += Tests.Argument("-oF"),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6" % "test",
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.6.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.7.0" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.8" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",

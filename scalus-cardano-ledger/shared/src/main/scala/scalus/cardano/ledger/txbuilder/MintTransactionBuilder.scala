@@ -58,7 +58,7 @@ case class MintTransactionBuilder(
             .validFrom(0)
             .feePayer(payer.encode.get)
             .collateralPayer(collateralPayer.encode.get)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         val r = Transaction.fromCbor(cclTx.serialize())
@@ -83,7 +83,7 @@ case class MintTransactionBuilder(
             })
             .validTo(Long.MaxValue)
             .validFrom(0)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         Transaction.fromCbor(cclTx.serialize())
