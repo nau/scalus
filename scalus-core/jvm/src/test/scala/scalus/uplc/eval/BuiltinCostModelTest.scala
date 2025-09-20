@@ -2,18 +2,15 @@ package scalus.uplc.eval
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
-import scalus.cardano.ledger.Language
+import scalus.cardano.ledger.{Language, ProtocolParams}
 import scalus.ledger.api.BuiltinSemanticsVariant
-import scalus.cardano.ledger.ProtocolParams
 import scalus.uplc.*
-import upickle.default.*
-
-import java.nio.charset.StandardCharsets
 
 class BuiltinCostModelTest extends AnyFunSuite:
     test("BuiltinCostModel from Cardano Protocol Parameters") {
-        val input = this.getClass.getResourceAsStream("/protocol-params.json")
-        val pparams = read[ProtocolParams](input)
+        val pparams = ProtocolParams.fromCardanoCliJson(
+          this.getClass.getResourceAsStream("/protocol-params.json")
+        )
         val v1 = pparams.costModels(Language.PlutusV1.toString)
         val v2 = pparams.costModels(Language.PlutusV2.toString)
         val v3 = pparams.costModels(Language.PlutusV3.toString)
@@ -29,9 +26,9 @@ class BuiltinCostModelTest extends AnyFunSuite:
     }
 
     test("BuiltinCostModel from Blockfrost pre-Plomin HF Protocol Parameters epoch 507") {
-        val input = this.getClass.getResourceAsStream("/blockfrost-params-epoch-507.json")
-        val json = new String(input.readAllBytes, StandardCharsets.UTF_8)
-        val pparams = ProtocolParams.fromBlockfrostJson(json)
+        val pparams = ProtocolParams.fromBlockfrostJson(
+          this.getClass.getResourceAsStream("/blockfrost-params-epoch-507.json")
+        )
         val v1 = pparams.costModels(Language.PlutusV1.toString)
         val v2 = pparams.costModels(Language.PlutusV2.toString)
         val v3 = pparams.costModels(Language.PlutusV3.toString)
@@ -52,9 +49,9 @@ class BuiltinCostModelTest extends AnyFunSuite:
     }
 
     test("BuiltinCostModel from Blockfrost Plomin HF Protocol Parameters epoch 544") {
-        val input = this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-        val json = new String(input.readAllBytes, StandardCharsets.UTF_8)
-        val pparams = ProtocolParams.fromBlockfrostJson(json)
+        val pparams = ProtocolParams.fromBlockfrostJson(
+          this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
+        )
         val v1 = pparams.costModels(Language.PlutusV1.toString)
         val v2 = pparams.costModels(Language.PlutusV2.toString)
         val v3 = pparams.costModels(Language.PlutusV3.toString)

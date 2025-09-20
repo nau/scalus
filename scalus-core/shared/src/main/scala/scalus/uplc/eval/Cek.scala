@@ -233,8 +233,7 @@ object MachineParams {
         json: String,
         plutus: PlutusLedgerLanguage
     ): MachineParams = {
-        import upickle.default.*
-        val pparams = read[ProtocolParams](json)
+        val pparams = ProtocolParams.fromCardanoCliJson(json)
         fromProtocolParams(pparams, plutus)
     }
 

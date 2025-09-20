@@ -8,9 +8,7 @@ import scalus.cardano.ledger.rules.{Context, State, ValueNotConservedUTxOValidat
 import scalus.cardano.ledger.txbuilder.LowLevelTxBuilder.ChangeOutputDiffHandler
 import scalus.cardano.ledger.txbuilder.TxBalancingError.InsufficientFunds
 import scalus.ledger.api.MajorProtocolVersion
-import scalus.cardano.ledger.ProtocolParams
 import scalus.uplc.eval.ExBudget
-import upickle.default.read
 
 import scala.collection.immutable.SortedSet
 

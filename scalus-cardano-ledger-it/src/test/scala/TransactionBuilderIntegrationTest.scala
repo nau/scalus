@@ -173,8 +173,6 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
     }
 
     def fetchProtocolParams(): ProtocolParams = {
-        import upickle.default.*
-
         val httpClient = HttpClient.newBuilder().build()
         val request = HttpRequest
             .newBuilder()

@@ -46,19 +46,28 @@ case class ProtocolParams(
 ) derives ReadWriter
 
 object ProtocolParams {
-    import upickle.default.{readwriter, ReadWriter}
 
     /** Reads ProtocolParams from JSON string in Blockfrost format */
     def fromBlockfrostJson(json: String): ProtocolParams = {
-        read[ProtocolParams](json)(using blockfrostParamsRW)
+        read[ProtocolParams](json)(using blockfrostParamsReadWriter)
     }
 
     /** Reads ProtocolParams from JSON string in Blockfrost format */
     def fromBlockfrostJson(json: InputStream): ProtocolParams = {
-        read[ProtocolParams](json)(using blockfrostParamsRW)
+        read[ProtocolParams](json)(using blockfrostParamsReadWriter)
     }
 
-    val blockfrostParamsRW: ReadWriter[ProtocolParams] =
+    /** Reads ProtocolParams from JSON string in Cardano CLI format */
+    def fromCardanoCliJson(json: String): ProtocolParams = {
+        read[ProtocolParams](json)
+    }
+
+    /** Reads ProtocolParams from JSON string in Cardano CLI format */
+    def fromCardanoCliJson(json: InputStream): ProtocolParams = {
+        read[ProtocolParams](json)
+    }
+
+    val blockfrostParamsReadWriter: ReadWriter[ProtocolParams] =
         readwriter[ujson.Value].bimap[ProtocolParams](
           params =>
               ujson.Obj(
@@ -207,4 +216,7 @@ object ProtocolParams {
                 utxoCostPerByte = json("coins_per_utxo_size").str.toLong
               )
         )
+
+    @deprecated("Use fromBlockfrostJson or blockfrostParamsReadWriter instead", "0.12")
+    val blockfrostParamsRW: ReadWriter[ProtocolParams] = blockfrostParamsReadWriter
 }

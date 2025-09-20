@@ -2,8 +2,6 @@ package scalus.cardano.ledger
 package rules
 
 import scalus.cardano.address.Network
-import scalus.cardano.ledger.ProtocolParams
-import upickle.default.read
 
 // It's mutable state for transient calculation
 class Context(
