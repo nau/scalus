@@ -1,4 +1,5 @@
-package scalus.ledger.api
+package scalus.cardano.ledger
+
 import io.bullet.borer.{Cbor, Decoder}
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite

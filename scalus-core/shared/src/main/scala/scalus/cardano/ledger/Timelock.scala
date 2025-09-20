@@ -1,9 +1,7 @@
-package scalus.ledger.api
+package scalus.cardano.ledger
 
 import io.bullet.borer.*
-import scalus.cardano.ledger.{AddrKeyHash, Hash, ScriptHash}
 import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
-import scalus.ledger.api.Timelock.{lteNegInfty, ltePosInfty}
 
 import scala.annotation.tailrec
 
@@ -96,10 +94,10 @@ enum Timelock:
                 isValidMOf(m, scripts)
 
             case Timelock.TimeStart(lockStart) =>
-                lteNegInfty(lockStart, interval.invalidBefore)
+                Timelock.lteNegInfty(lockStart, interval.invalidBefore)
 
             case Timelock.TimeExpire(lockExpire) =>
-                ltePosInfty(interval.invalidHereafter, lockExpire)
+                Timelock.ltePosInfty(interval.invalidHereafter, lockExpire)
     }
 
     def toCbor: Array[Byte] = Cbor.encode(this).toByteArray

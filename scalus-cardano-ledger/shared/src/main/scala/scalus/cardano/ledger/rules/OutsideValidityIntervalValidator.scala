@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.ledger.api.ValidityInterval
+import scalus.cardano.ledger.ValidityInterval
 
 // It's Allegra.validateOutsideValidityIntervalUTxO in cardano-ledger
 object OutsideValidityIntervalValidator extends STS.Validator {
