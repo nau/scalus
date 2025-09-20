@@ -39,7 +39,6 @@ import scalus.builtin.BuiltinPair
 import scalus.cardano.ledger.Script
 import scalus.ledger
 import scalus.ledger.api
-import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.DCert
@@ -52,7 +51,7 @@ import scalus.prelude
 import scalus.prelude.SortedMap
 import scalus.prelude.List
 import scalus.prelude.asScalus
-import scalus.uplc.PlutusV1Params
+import scalus.uplc.{BuiltinSemanticsVariant, PlutusV1Params}
 import scalus.uplc.PlutusV2Params
 import scalus.uplc.PlutusV3Params
 import scalus.uplc.eval.*

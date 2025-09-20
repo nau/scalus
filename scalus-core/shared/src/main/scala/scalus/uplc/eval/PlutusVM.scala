@@ -1,9 +1,8 @@
 package scalus.uplc.eval
 
 import scalus.builtin.{platform, PlatformSpecific, given}
-import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.uplc.BuiltinsMeaning
+import scalus.uplc.{BuiltinSemanticsVariant, BuiltinsMeaning}
 import scalus.uplc.Constant
 import scalus.uplc.DeBruijn
 import scalus.uplc.DeBruijnedProgram
