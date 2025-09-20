@@ -576,12 +576,13 @@ addCommandAlias(
 )
 addCommandAlias(
   "precommit",
-  "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc"
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;jvm/Test/compile;scalusPluginTests/test;jvm/test;docs/mdoc"
 )
 addCommandAlias(
   "ci",
   "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc;mima"
 )
+addCommandAlias("benchmark", "bench/jmh:run -i 1 -wi 1 -f 1 -t 1 .*")
 
 logo :=
     s"""
@@ -599,8 +600,9 @@ logo :=
 usefulTasks := Seq(
   UsefulTask("~compile", "Compile with file-watch enabled"),
   UsefulTask("quick", "Format all, compile and quick test everything on JVM"),
-  UsefulTask("precommit", "Format all, clean compile and test everything"),
-  UsefulTask("ci", "Clean compile, check formatting and test everything"),
+  UsefulTask("precommit", "Format all, clean compile and test everything on JVM"),
+  UsefulTask("ci", "Clean compile, check formatting and test everything, build docs, run MiMa"),
+  UsefulTask("benchmark", "Run benchmarks"),
   UsefulTask("mima", "Check binary compatibility with the previous version using MiMa"),
   UsefulTask("docs/docusaurusCreateSite", "Generate Scalus documentation website")
 )
