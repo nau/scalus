@@ -39,4 +39,11 @@ package object api {
     @deprecated("Use scalus.uplc.BuiltinSemanticsVariant instead", "0.12.0")
     val BuiltinSemanticsVariant: scalus.uplc.BuiltinSemanticsVariant.type =
         scalus.uplc.BuiltinSemanticsVariant
+
+    @deprecated("Use scalus.cardano.ledger.ProtocolVersion instead", "0.12.0")
+    type ProtocolVersion = scalus.cardano.ledger.ProtocolVersion
+
+    @deprecated("Use scalus.cardano.ledger.ProtocolVersion instead", "0.12.0")
+    val ProtocolVersion: scalus.cardano.ledger.ProtocolVersion.type =
+        scalus.cardano.ledger.ProtocolVersion
 }

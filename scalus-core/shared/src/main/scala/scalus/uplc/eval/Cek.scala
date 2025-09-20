@@ -214,6 +214,7 @@ object MachineParams {
       * @return
       *   The machine parameters
       */
+    @deprecated("Use the overload with MajorProtocolVersion", "0.12.0")
     def defaultParamsFor(
         plutus: PlutusLedgerLanguage,
         protocolVersion: ProtocolVersion
