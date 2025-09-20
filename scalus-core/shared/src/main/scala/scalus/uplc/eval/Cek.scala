@@ -2,21 +2,15 @@ package scalus.uplc
 package eval
 
 import cats.syntax.group.*
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.builtin.PlatformSpecific
-import scalus.cardano.ledger.{Language, ProtocolParams}
-import scalus.ledger.api.MajorProtocolVersion
+import scalus.builtin.{ByteString, Data, PlatformSpecific}
+import scalus.cardano.ledger.{Language, MajorProtocolVersion, ProtocolParams, ProtocolVersion}
 import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.ledger.api.ProtocolVersion
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
-import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.HashMap
+import scala.collection.mutable.{ArrayBuffer, HashMap}
+import scala.collection.{immutable, mutable}
 import scala.util.Try
 import scala.util.control.NonFatal
 
@@ -162,13 +156,13 @@ case class MachineParams(
 object MachineParams {
 
     lazy val defaultPlutusV1PostConwayParams: MachineParams =
-        defaultParamsFor(PlutusLedgerLanguage.PlutusV1, ProtocolVersion.conwayPV)
+        defaultParamsFor(PlutusLedgerLanguage.PlutusV1, MajorProtocolVersion.plominPV)
 
     lazy val defaultPlutusV2PostConwayParams: MachineParams =
-        defaultParamsFor(PlutusLedgerLanguage.PlutusV2, ProtocolVersion.conwayPV)
+        defaultParamsFor(PlutusLedgerLanguage.PlutusV2, MajorProtocolVersion.plominPV)
 
     lazy val defaultPlutusV3Params: MachineParams =
-        defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
+        defaultParamsFor(PlutusLedgerLanguage.PlutusV3, MajorProtocolVersion.plominPV)
 
     /** Creates default machine parameters for a given Plutus version and protocol version.
       *

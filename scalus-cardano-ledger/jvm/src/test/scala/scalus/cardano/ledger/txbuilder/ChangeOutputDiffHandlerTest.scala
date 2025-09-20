@@ -7,7 +7,6 @@ import scalus.cardano.ledger.*
 import scalus.cardano.ledger.rules.{Context, State, ValueNotConservedUTxOValidator}
 import scalus.cardano.ledger.txbuilder.LowLevelTxBuilder.ChangeOutputDiffHandler
 import scalus.cardano.ledger.txbuilder.TxBalancingError.InsufficientFunds
-import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.eval.ExBudget
 
 import scala.collection.immutable.SortedSet

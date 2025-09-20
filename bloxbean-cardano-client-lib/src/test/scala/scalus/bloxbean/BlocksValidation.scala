@@ -18,8 +18,7 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, OriginalCborByteArray, PlutusScriptEvaluator, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
-import scalus.ledger.api.MajorProtocolVersion
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
 import scalus.cardano.ledger.ProtocolParams
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Hex.toHex

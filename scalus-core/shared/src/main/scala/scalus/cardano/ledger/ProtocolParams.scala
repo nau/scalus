@@ -1,6 +1,5 @@
 package scalus.cardano.ledger
 
-import scalus.ledger.api.ProtocolVersion
 import upickle.default.*
 
 import java.io.InputStream

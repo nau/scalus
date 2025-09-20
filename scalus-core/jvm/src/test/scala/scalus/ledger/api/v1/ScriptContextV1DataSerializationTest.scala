@@ -6,7 +6,8 @@ import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.*
-import scalus.ledger.api.{v2, MajorProtocolVersion, PlutusLedgerLanguage}
+import scalus.cardano.ledger.MajorProtocolVersion
+import scalus.ledger.api.{v2, PlutusLedgerLanguage}
 import scalus.ledger.api.v1.Credential.*
 import scalus.prelude.SortedMap
 import scalus.prelude.List.*

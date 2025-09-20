@@ -12,7 +12,6 @@ import scalus.cardano.ledger.txbuilder.*
 import scalus.cardano.ledger.txbuilder.Intention.Pay
 import scalus.cardano.ledger.txbuilder.ResolvedTxInput.Pubkey
 import scalus.ledger.api
-import scalus.ledger.api.MajorProtocolVersion
 import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
 import scalus.prelude.{orFail, SortedMap}

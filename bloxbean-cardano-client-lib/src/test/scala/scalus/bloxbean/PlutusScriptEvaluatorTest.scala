@@ -9,7 +9,6 @@ import scalus.cardano.address.ShelleyDelegationPart.Null
 import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
 import scalus.examples.PubKeyValidator
-import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
 

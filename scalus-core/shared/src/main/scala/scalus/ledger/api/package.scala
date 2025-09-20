@@ -46,4 +46,11 @@ package object api {
     @deprecated("Use scalus.cardano.ledger.ProtocolVersion instead", "0.12.0")
     val ProtocolVersion: scalus.cardano.ledger.ProtocolVersion.type =
         scalus.cardano.ledger.ProtocolVersion
+
+    @deprecated("Use scalus.cardano.ledger.MajorProtocolVersion instead", "0.12.0")
+    type MajorProtocolVersion = scalus.cardano.ledger.MajorProtocolVersion
+
+    @deprecated("Use scalus.cardano.ledger.MajorProtocolVersion instead", "0.12.0")
+    val MajorProtocolVersion: scalus.cardano.ledger.MajorProtocolVersion.type =
+        scalus.cardano.ledger.MajorProtocolVersion
 }

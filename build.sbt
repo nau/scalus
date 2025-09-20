@@ -1,4 +1,4 @@
-import com.typesafe.tools.mima.core.{DirectMissingMethodProblem, IncompatibleResultTypeProblem, ProblemFilters}
+import com.typesafe.tools.mima.core.{DirectMissingMethodProblem, IncompatibleMethTypeProblem, IncompatibleResultTypeProblem, ProblemFilters}
 import sbt.internal.util.ManagedLogger
 import sbtwelcome.*
 
@@ -460,6 +460,10 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
         ProblemFilters
             .exclude[DirectMissingMethodProblem]("scalus.bloxbean.Interop.slotToBeginPosixTime"),
         ProblemFilters.exclude[DirectMissingMethodProblem](
+          "scalus.bloxbean.Interop.translateMachineParamsFromCostMdls"
+        ),
+        // Package migration from scalus.ledger.api to scalus.cardano.ledger
+        ProblemFilters.exclude[IncompatibleMethTypeProblem](
           "scalus.bloxbean.Interop.translateMachineParamsFromCostMdls"
         ),
       ),

@@ -1,7 +1,7 @@
 package scalus.uplc
 
-import scalus.cardano.ledger.Language
-import scalus.ledger.api.{MajorProtocolVersion, PlutusLedgerLanguage, ProtocolVersion}
+import scalus.cardano.ledger.*
+import scalus.ledger.api.PlutusLedgerLanguage
 
 enum BuiltinSemanticsVariant:
     case A, B, C

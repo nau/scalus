@@ -14,7 +14,6 @@ import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTran
 import scalus.cardano.ledger.*
 import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
-import scalus.ledger.api.{MajorProtocolVersion, Timelock}
 import scalus.prelude.orFail
 import scalus.serialization.cbor.Cbor
 import scalus.uplc.Program
