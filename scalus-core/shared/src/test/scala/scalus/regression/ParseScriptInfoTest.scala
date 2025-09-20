@@ -20,8 +20,8 @@ object ParseScriptInfo {
     def validate(scData: Data): Boolean = {
         val sc = scData.to[ScriptContext]
         sc.scriptInfo match
-            case ScriptInfo.MintingScript(currencySymbol) =>
-                mint(sc.redeemer, currencySymbol, sc.txInfo)
+            case ScriptInfo.MintingScript(policyId) =>
+                mint(sc.redeemer, policyId, sc.txInfo)
             case ScriptInfo.SpendingScript(txOutRef, datum) =>
                 spend(datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.RewardingScript(credential) =>
@@ -46,7 +46,7 @@ object ParseScriptInfo {
 
     def mint(
         redeemer: Data,
-        currencySymbol: PolicyId,
+        policyId: PolicyId,
         txInfo: TxInfo
     ): Boolean = {
         false

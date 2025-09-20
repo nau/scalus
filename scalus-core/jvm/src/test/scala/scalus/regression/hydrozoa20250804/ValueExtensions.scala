@@ -57,7 +57,7 @@ object ValueExtensions:
                 case List.Cons((cs, names), otherSymbols) =>
                     require(
                       otherSymbols.isEmpty,
-                      "onlyNonAdaToken: found more than one currency symbol"
+                      "onlyNonAdaToken: found more than one policy id"
                     )
                     names.toList match
                         case List.Cons((tokenName, amount), otherNames) =>

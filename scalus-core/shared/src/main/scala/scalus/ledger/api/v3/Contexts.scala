@@ -644,7 +644,7 @@ object ProposalProcedure:
 end ProposalProcedure
 
 enum ScriptPurpose:
-    case Minting(currencySymbol: PolicyId)
+    case Minting(policyId: PolicyId)
     case Spending(txOutRef: TxOutRef)
     case Rewarding(credential: Credential)
     case Certifying(index: BigInt, cert: TxCert)
@@ -732,7 +732,7 @@ object ScriptPurpose:
 end ScriptPurpose
 
 enum ScriptInfo:
-    case MintingScript(currencySymbol: PolicyId)
+    case MintingScript(policyId: PolicyId)
     case SpendingScript(txOutRef: TxOutRef, datum: Option[Datum] = Option.None)
     case RewardingScript(credential: Credential)
     case CertifyingScript(index: BigInt, cert: TxCert)

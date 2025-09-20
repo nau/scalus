@@ -69,7 +69,7 @@ object Betting extends Validator:
                     // Handle player2 joining the bet
                     case Action.Join =>
                         // Verify the input contains the bet token (proves it's a valid bet UTXO)
-                        val hasBetToken = input.value.currencySymbols
+                        val hasBetToken = input.value.policyIds
                             .map(Address.fromScriptHash)
                             .contains(input.address)
                         // Find the continuing output (bet UTXO with updated datum)
@@ -195,11 +195,11 @@ object Betting extends Validator:
       */
     override def mint(
         @annotation.unused redeemer: Data,
-        currencySymbol: PolicyId,
+        policyId: PolicyId,
         tx: TxInfo
     ): Unit =
         // Find all outputs going to this script's address
-        tx.outputs.filter(_.address === Address.fromScriptHash(currencySymbol)) match
+        tx.outputs.filter(_.address === Address.fromScriptHash(policyId)) match
             case List.Cons(betOutput, tail) =>
                 tail match // ???: headOrFail or matchOrFail
                     case List.Nil =>

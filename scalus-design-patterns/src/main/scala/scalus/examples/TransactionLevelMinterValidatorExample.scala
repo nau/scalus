@@ -57,12 +57,12 @@ object TransactionLevelMinterValidatorExample extends Validator {
 
     // Sample mint logic that benefits from this design pattern. This example
     // expects a specific number of inputs to be spent in each transaction.
-    override def mint(redeemer: Redeemer, currencySymbol: PolicyId, tx: TxInfo): Unit = {
+    override def mint(redeemer: Redeemer, policyId: PolicyId, tx: TxInfo): Unit = {
         val sampleMintRedeemer = redeemer.to[SampleMintRedeemer]
         val scriptInputsCount = tx.inputs.foldRight(BigInt(0)) { (input, acc) =>
             input.resolved.address.credential match
                 case Credential.ScriptCredential(validatorHash) =>
-                    if validatorHash === currencySymbol then acc + 1 else acc
+                    if validatorHash === policyId then acc + 1 else acc
                 case _ => acc
         }
 

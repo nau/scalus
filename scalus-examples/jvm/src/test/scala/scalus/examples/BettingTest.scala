@@ -61,7 +61,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
         val result = BettingContract.compiled.runScript(
           ScriptContext(
             txInfo = testTransaction,
-            scriptInfo = ScriptInfo.MintingScript(currencySymbol = policyId)
+            scriptInfo = ScriptInfo.MintingScript(policyId = policyId)
           )
         )
         assert(result.isSuccess, "Script execution should succeed for initial minting")

@@ -9,8 +9,8 @@ trait ParameterizedValidator[A] {
     def validate(param: A)(scData: Data): Unit = {
         val sc = scData.to[ScriptContext]
         sc.scriptInfo match
-            case ScriptInfo.MintingScript(currencySymbol) =>
-                mint(param, sc.redeemer, currencySymbol, sc.txInfo)
+            case ScriptInfo.MintingScript(policyId) =>
+                mint(param, sc.redeemer, policyId, sc.txInfo)
             case ScriptInfo.SpendingScript(txOutRef, datum) =>
                 spend(param, datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.RewardingScript(credential) =>
@@ -37,7 +37,7 @@ trait ParameterizedValidator[A] {
     def mint(
         param: A,
         redeemer: Data,
-        currencySymbol: PolicyId,
+        policyId: PolicyId,
         tx: TxInfo
     ): Unit = {
         fail("Empty Validator.mint")
@@ -91,8 +91,8 @@ trait DataParameterizedValidator {
     def validate(param: Data)(scData: Data): Unit = {
         val sc = scData.to[ScriptContext]
         sc.scriptInfo match
-            case ScriptInfo.MintingScript(currencySymbol) =>
-                mint(param, sc.redeemer, currencySymbol, sc.txInfo)
+            case ScriptInfo.MintingScript(policyId) =>
+                mint(param, sc.redeemer, policyId, sc.txInfo)
             case ScriptInfo.SpendingScript(txOutRef, datum) =>
                 spend(param, datum, sc.redeemer, sc.txInfo, txOutRef)
             case ScriptInfo.RewardingScript(credential) =>
@@ -119,7 +119,7 @@ trait DataParameterizedValidator {
     def mint(
         param: Data,
         redeemer: Data,
-        currencySymbol: PolicyId,
+        policyId: PolicyId,
         tx: TxInfo
     ): Unit = {
         fail("Empty Validator.mint")
