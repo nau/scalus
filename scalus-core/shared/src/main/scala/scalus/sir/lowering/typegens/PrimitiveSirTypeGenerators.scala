@@ -90,7 +90,10 @@ trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
         lctx: LoweringContext
     ): LoweredValue = {
         // TODO: add support
-        throw LoweringException(s"Boolean type have no match ${matchData}", matchData.anns.pos)
+        throw LoweringException(
+          s"Primitive type ${matchData.tp.show}  have no match ${matchData}",
+          matchData.anns.pos
+        )
     }
 
 }
