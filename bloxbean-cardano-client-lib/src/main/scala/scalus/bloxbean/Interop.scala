@@ -234,20 +234,6 @@ object Interop {
     }
 
     /** Creates [[MachineParams]] from a [[CostMdls]] and a [[PlutusLedgerLanguage]] */
-    @deprecated("Use the version with MajorProtocolVersion", "0.9.0")
-    def translateMachineParamsFromCostMdls(
-        costMdls: CostMdls,
-        plutus: PlutusLedgerLanguage,
-        protocolVersion: api.ProtocolVersion
-    ): MachineParams = {
-        translateMachineParamsFromCostMdls(
-          costMdls,
-          plutus,
-          api.MajorProtocolVersion(protocolVersion.major)
-        )
-    }
-
-    /** Creates [[MachineParams]] from a [[CostMdls]] and a [[PlutusLedgerLanguage]] */
     def translateMachineParamsFromCostMdls(
         costMdls: CostMdls,
         plutus: PlutusLedgerLanguage,
@@ -440,11 +426,6 @@ object Interop {
         else if out.getInlineDatum != null then
             v2.OutputDatum.OutputDatum(toScalusData(out.getInlineDatum))
         else v2.OutputDatum.NoOutputDatum
-    }
-
-    @deprecated("Use SlotConfig.slotToTime instead", "0.9.0")
-    def slotToBeginPosixTime(slot: Long, sc: SlotConfig): Long = {
-        sc.slotToTime(slot)
     }
 
     // https://github.com/IntersectMBO/cardano-ledger/blob/28ab3884cac8edbb7270fd4b8628a16429d2ec9e/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/Plutus/TxInfo.hs#L186

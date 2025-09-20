@@ -456,7 +456,12 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
             .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getVotingProcedures"),
         ProblemFilters
             .exclude[DirectMissingMethodProblem]("scalus.bloxbean.Interop.getScriptPurpose"),
-        ProblemFilters.exclude[DirectMissingMethodProblem]("scalus.bloxbean.SlotConfig.default")
+        ProblemFilters.exclude[DirectMissingMethodProblem]("scalus.bloxbean.SlotConfig.default"),
+        ProblemFilters
+            .exclude[DirectMissingMethodProblem]("scalus.bloxbean.Interop.slotToBeginPosixTime"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "scalus.bloxbean.Interop.translateMachineParamsFromCostMdls"
+        ),
       ),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",

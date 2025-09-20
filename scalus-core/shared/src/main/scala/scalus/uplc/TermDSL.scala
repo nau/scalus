@@ -2,7 +2,6 @@ package scalus.uplc
 
 import scalus.*
 import scalus.builtin.Data
-import scala.collection.immutable
 
 object TermDSL:
     given Conversion[DefaultFun, Term] with
