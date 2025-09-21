@@ -1,4 +1,12 @@
 package scalus.cardano.ledger.txbuilder
+package wip
+
+import scalus.cardano.ledger.{Transaction, TransactionInput, TransactionOutput, Value}
+
+import scalus.cardano.address.Address
+import scalus.cardano.ledger.Timelock
+
+type DiffHandler = (Long, Transaction) => Either[TxBalancingError, Transaction]
 
 /** Owns a set of UTxOs.
   *
