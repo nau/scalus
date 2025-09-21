@@ -36,7 +36,7 @@ class ValueNotConservedUTxOValidatorTest extends AnyFunSuite, ArbitraryInstances
         )
         val output = TransactionOutput.Babbage(
           address = arbitrary[Address].sample.get,
-          value = Value.lovelace(10000000), // 1 ADA
+          value = Value.ada(1), // 1 ADA
         )
         val state = State(
           utxo = Map(input -> resolvedOutput)

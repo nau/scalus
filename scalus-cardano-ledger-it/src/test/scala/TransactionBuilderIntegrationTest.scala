@@ -237,7 +237,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val network = Networks.testnet()
         val account = new Account(network, MNEMONIC)
 
-        val paymentAmount = Value.lovelace(5_000_000L)
+        val paymentAmount = Value.ada(5)
         val ctx = BuilderContext(
           environment.protocolParams,
           environment.evaluator,
@@ -269,7 +269,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
           ShelleyDelegationPart.Null
         )
 
-        val paymentAmount = Value.lovelace(5_000_000L)
+        val paymentAmount = Value.ada(5)
         val ctx = BuilderContext(
           environment.protocolParams,
           environment.evaluator,
@@ -292,7 +292,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tx2 = ctx.buildNewTx
             .withPayer(scriptAddress)
             .withAttachedNativeScript(nativeScript)
-            .payTo(account2.address, Value.lovelace(3_000_000L))
+            .payTo(account2.address, Value.ada(3))
             .buildAndSign(account0.signer())
 
         submitTransactionToCardano(ctx, tx2)
@@ -383,7 +383,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val network = Networks.testnet()
         val account = new Account(network, MNEMONIC)
 
-        val paymentAmount = Value.lovelace(10_000_000L)
+        val paymentAmount = Value.ada(10)
         val context = BuilderContext(
           environment.protocolParams,
           environment.evaluator,

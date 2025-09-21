@@ -165,7 +165,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
               Map(input),
               Wallet.create(Set(ResolvedTxInput.Pubkey(input)), Set.empty)
             )
-            val tx = interpreter.realize(Pay(scriptAddress, Value.lovelace(8_000_000_000L)))
+            val tx = interpreter.realize(Pay(scriptAddress, Value.ada(8_000L)))
             validateAndSubmit(tx, interpreter.wallet.utxo)
         }
         def transferFromScriptBackToSpender = {

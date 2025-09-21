@@ -56,7 +56,7 @@ class TxBuilderTest2
           Null
         )
 
-        val paymentAmount = Value.lovelace(1_000_000L)
+        val paymentAmount = Value.ada(1)
         val intention = Intention.Pay(targetAddress, paymentAmount)
         val tx = InterpreterWithProvidedData(
           wallet,
