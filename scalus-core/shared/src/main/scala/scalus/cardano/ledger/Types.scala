@@ -11,6 +11,7 @@ import upickle.default.ReadWriter as UpickleReadWriter
 import cats.kernel.CommutativeGroup
 
 import java.util
+import scala.annotation.targetName
 import scala.collection.immutable.{ListMap, SortedMap, TreeMap}
 import scala.compiletime.asMatchable
 
@@ -70,13 +71,75 @@ case class MultiAsset(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]) {
     def isNegative: Boolean = assets.values.forall(_.values.forall(_ < 0))
 
     import scalus.cardano.ledger.MultiAsset.binOp
+    @targetName("plus")
     infix def +(other: MultiAsset): MultiAsset = binOp(_ + _)(this, other)
+    @targetName("minus")
     infix def -(other: MultiAsset): MultiAsset = binOp(_ - _)(this, other)
 }
 
 object MultiAsset {
-    val zero: MultiAsset = MultiAsset(SortedMap.empty)
+    val zero: MultiAsset = MultiAsset(SortedMap.empty[PolicyId, SortedMap[AssetName, Long]])
     val empty: MultiAsset = zero
+
+    /** Create a MultiAsset with a single asset */
+    def asset(policyId: PolicyId, assetName: AssetName, amount: Long): MultiAsset = {
+        require(amount != 0, "Asset amount cannot be zero")
+        MultiAsset(
+          SortedMap(policyId -> SortedMap(assetName -> amount))
+        )
+    }
+
+    /** Create a MultiAsset from a single policy with multiple assets */
+    def fromPolicy(policyId: PolicyId, assets: Iterable[(AssetName, Long)]): MultiAsset = {
+        val filteredAssets = assets.filter(_._2 != 0)
+        require(filteredAssets.nonEmpty, "Assets map cannot be empty or contain only zero values")
+        MultiAsset(
+          SortedMap(policyId -> SortedMap.from(filteredAssets))
+        )
+    }
+
+    /** Create a MultiAsset from a map of policies to asset maps */
+    def fromAssets(
+        assets: collection.Map[PolicyId, collection.Map[AssetName, Long]]
+    ): MultiAsset = {
+        val filteredAssets = assets.view.mapValues(_.filter(_._2 != 0)).filter(_._2.nonEmpty)
+        if filteredAssets.isEmpty then MultiAsset.zero
+        else
+            MultiAsset(
+              SortedMap.from(
+                filteredAssets.map { case (policyId, assetMap) =>
+                    policyId -> SortedMap.from(assetMap)
+                }
+              )
+            )
+    }
+
+    /** Create a MultiAsset from a sequence of (PolicyId, AssetName, Amount) tuples */
+    def from(assets: Iterable[(PolicyId, AssetName, Long)]): MultiAsset = {
+        val grouped = assets.view
+            .filter(_._3 != 0) // Filter out zero amounts
+            .groupBy(_._1) // Group by PolicyId
+            .view
+            .mapValues(_.map(t => t._2 -> t._3).toMap) // Convert to asset maps
+            .toMap
+
+        fromAssets(grouped)
+    }
+
+    /** Create a MultiAsset from varargs of (PolicyId, AssetName, Amount) tuples */
+    def from(assets: (PolicyId, AssetName, Long)*): MultiAsset = {
+        from(assets)
+    }
+
+    /** Safely create a MultiAsset that filters out zero amounts and empty policies */
+    def safe(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]): MultiAsset = {
+        val filteredAssets = assets.view
+            .mapValues(_.filter(_._2 != 0)) // Remove zero amounts
+            .filter(_._2.nonEmpty) // Remove empty policies
+            .toMap
+
+        MultiAsset(SortedMap.from(filteredAssets))
+    }
 
     private[ledger] def binOp(
         op: (Long, Long) => Long
@@ -100,10 +163,10 @@ object MultiAsset {
                                 if combinedValue != 0 then Some(assetName -> combinedValue)
                                 else None
                             }
-                            .to(TreeMap)
+                            .to(SortedMap)
                     if mergedAssets.nonEmpty then Some(policyId -> mergedAssets) else None
                 }
-                .to(TreeMap)
+                .to(SortedMap)
         MultiAsset(assets)
     }
 
