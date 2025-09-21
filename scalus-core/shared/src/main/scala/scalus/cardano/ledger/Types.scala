@@ -8,6 +8,7 @@ import scalus.cardano.address.Address
 import scalus.serialization.cbor.Cbor
 import scalus.utils.Hex.toHex
 import upickle.default.ReadWriter as UpickleReadWriter
+import cats.kernel.CommutativeGroup
 
 import java.util
 import scala.collection.immutable.{ListMap, SortedMap, TreeMap}
@@ -18,20 +19,16 @@ enum Era(val value: Int) extends Enumeration {
     case Conway extends Era(7)
 }
 
+// FIXME: make sure we validate the Coin is non-negative in ledger rules
 /** Represents an amount of Cardano's native currency (ADA)
-  *
-  * In Cardano, coins are represented as unsigned integers
   */
 final case class Coin(value: Long) derives Codec {
-
-    /** Ensures the coin value is non-negative */
-    require(value >= 0, s"Coin value must be non-negative, got $value")
 
     /** Add another coin amount */
     def +(other: Coin): Coin = Coin(value + other.value)
 
-    /** Subtract another coin amount, returns 0 if the result would be negative */
-    def -(other: Coin): Coin = Coin(math.max(0, value - other.value))
+    /** Subtract another coin amount */
+    def -(other: Coin): Coin = Coin(value - other.value)
 
     def >(other: Coin): Boolean = value > other.value
     def >=(other: Coin): Boolean = value >= other.value
@@ -43,6 +40,11 @@ object Coin {
 
     /** Zero coin value */
     val zero: Coin = Coin(0)
+
+    given CommutativeGroup[Coin] with
+        def combine(x: Coin, y: Coin): Coin = x + y
+        def empty: Coin = Coin.zero
+        def inverse(x: Coin): Coin = Coin(-x.value)
 }
 
 /** Minting MultiAsset. Can't contain zeros, can't be empty */
@@ -66,6 +68,10 @@ case class MultiAsset(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]) {
 
     def isPositive: Boolean = assets.values.forall(_.values.forall(_ > 0))
     def isNegative: Boolean = assets.values.forall(_.values.forall(_ < 0))
+
+    import scalus.cardano.ledger.MultiAsset.binOp
+    infix def +(other: MultiAsset): MultiAsset = binOp(_ + _)(this, other)
+    infix def -(other: MultiAsset): MultiAsset = binOp(_ - _)(this, other)
 }
 
 object MultiAsset {
@@ -101,11 +107,6 @@ object MultiAsset {
         MultiAsset(assets)
     }
 
-    extension (self: MultiAsset) {
-        def +(other: MultiAsset): MultiAsset = binOp(_ + _)(self, other)
-        def -(other: MultiAsset): MultiAsset = binOp(_ - _)(self, other)
-    }
-
     given Encoder[MultiAsset] =
         Encoder.forMap[PolicyId, SortedMap[AssetName, Long], SortedMap].contramap(_.assets)
 
@@ -113,6 +114,11 @@ object MultiAsset {
         given Decoder[TreeMap[AssetName, Long]] = Decoder.forTreeMap[AssetName, Long]
         Decoder.forTreeMap[PolicyId, TreeMap[AssetName, Long]].map(MultiAsset.apply).read(r)
     }
+
+    given CommutativeGroup[MultiAsset] with
+        def combine(x: MultiAsset, y: MultiAsset): MultiAsset = x + y
+        def empty: MultiAsset = MultiAsset.zero
+        def inverse(x: MultiAsset): MultiAsset = binOp((a, b) => -a)(MultiAsset.zero, x)
 
 }
 

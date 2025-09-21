@@ -1,16 +1,21 @@
 package scalus.cardano.ledger
 
+import cats.kernel.CommutativeGroup
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 import scalus.cardano.ledger
 
+// FIXME: make sure we validate Value is non-negative in ledger rules
 /** Represents a value in Cardano, which can be either pure ADA or ADA with multi-assets */
 case class Value(coin: Coin, assets: ledger.MultiAsset) {
     // Validate multi-asset map
     validateMultiAsset(assets)
 
-    def +(rhs: Value): Value = binOp(_ + _)(rhs)
+    infix def +(rhs: Value): Value = binOp(_ + _)(rhs)
 
-    def -(rhs: Value): Value = binOp(_ - _)(rhs)
+    infix def -(rhs: Value): Value = binOp(_ - _)(rhs)
+
+    def unary_- : Value =
+        Value(Coin(-coin.value), summon[CommutativeGroup[MultiAsset]].inverse(assets))
 
     def isPositive: Boolean = coin.value > 0 && assets.isPositive
 
@@ -75,3 +80,8 @@ object Value:
                 // Single coin value
                 val coin = r.read[Coin]()
                 Value(coin)
+
+    given CommutativeGroup[Value] with
+        def combine(x: Value, y: Value): Value = x + y
+        def empty: Value = Value.zero
+        def inverse(x: Value): Value = -x
