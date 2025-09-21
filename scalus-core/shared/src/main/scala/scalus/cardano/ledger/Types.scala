@@ -42,6 +42,9 @@ object Coin {
     /** Zero coin value */
     val zero: Coin = Coin(0)
 
+    /** Create lovelace amount from ADA amount, e.g.  ada(2) = 2_000_000 lovelace */
+    def ada(amount: Long): Coin = Coin(amount * 1_000_000L)
+
     given CommutativeGroup[Coin] with
         def combine(x: Coin, y: Coin): Coin = x + y
         def empty: Coin = Coin.zero

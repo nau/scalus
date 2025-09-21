@@ -48,7 +48,8 @@ object Value:
     /** Create a pure lovelace value */
     def lovelace(amount: Long): Value = Value(Coin(amount))
 
-    def ada(amount: Long): Value = lovelace(amount * 1_000_000L)
+    /** Create a pure ADA value */
+    def ada(amount: Long): Value = Value(Coin.ada(amount))
 
     /** Create a Value from coin and multi-asset */
     def apply(coin: Coin, multiAsset: MultiAsset = MultiAsset.empty): Value =
@@ -66,9 +67,9 @@ object Value:
         )
 
     /** Create a Value with a single asset and ADA */
-    def asset(policyId: PolicyId, assetName: AssetName, amount: Long, coin: Coin): Value =
+    def asset(policyId: PolicyId, assetName: AssetName, amount: Long, lovelace: Coin): Value =
         Value(
-          coin,
+          lovelace,
           MultiAsset(
             scala.collection.immutable.TreeMap(
               policyId -> scala.collection.immutable.TreeMap(assetName -> amount)
@@ -113,19 +114,12 @@ object Value:
         )
 
     /** Combine multiple values into one */
-    def combine(values: List[Value]): Value =
-        values.foldLeft(Value.zero)(_ + _)
+    def combine(values: IterableOnce[Value]): Value =
+        values.iterator.foldLeft(Value.zero)(_ + _)
 
     /** Combine multiple values into one (varargs) */
     def combine(values: Value*): Value =
-        combine(values.toList)
-
-    /** Create ADA-only value (alias for lovelace for readability) */
-    def adaOnly(amount: Long): Value = lovelace(amount)
-
-    /** Create a Value with assets and specified ADA amount */
-    def withAda(assets: MultiAsset, coin: Coin): Value =
-        Value(coin, assets)
+        combine(values)
 
     /** CBOR encoder for Value */
     given Encoder[Value] with
