@@ -39,6 +39,9 @@ Test / publishArtifact := false
 
 ThisBuild / javaOptions += "-Xss64m"
 
+//
+//  Global / concurrentRestrictions += Tags.limitAll(4)
+
 Compile / doc / scalacOptions ++= Seq(
   "-groups",
   "-project-version",
