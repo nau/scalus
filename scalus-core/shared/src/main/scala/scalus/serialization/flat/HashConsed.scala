@@ -1,4 +1,4 @@
-package scalus.utils
+package scalus.serialization.flat
 
 import java.util.IdentityHashMap
 import scala.collection.mutable.Map as MutableMap

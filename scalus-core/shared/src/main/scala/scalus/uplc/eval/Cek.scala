@@ -2,23 +2,15 @@ package scalus.uplc
 package eval
 
 import cats.syntax.group.*
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.builtin.PlatformSpecific
-import scalus.cardano.ledger.Language
-import scalus.ledger.api.BuiltinSemanticsVariant
-import scalus.ledger.api.MajorProtocolVersion
-import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.ledger.api.ProtocolVersion
-import scalus.ledger.babbage.*
+import scalus.builtin.{ByteString, Data, PlatformSpecific}
+import scalus.cardano.ledger.{Language, MajorProtocolVersion, ProtocolParams, ProtocolVersion}
+
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
-import scala.collection.immutable
 import scala.collection.immutable.ArraySeq
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.HashMap
+import scala.collection.mutable.{ArrayBuffer, HashMap}
+import scala.collection.{immutable, mutable}
 import scala.util.Try
 import scala.util.control.NonFatal
 
@@ -164,13 +156,13 @@ case class MachineParams(
 object MachineParams {
 
     lazy val defaultPlutusV1PostConwayParams: MachineParams =
-        defaultParamsFor(PlutusLedgerLanguage.PlutusV1, ProtocolVersion.conwayPV)
+        defaultParamsFor(Language.PlutusV1, MajorProtocolVersion.plominPV)
 
     lazy val defaultPlutusV2PostConwayParams: MachineParams =
-        defaultParamsFor(PlutusLedgerLanguage.PlutusV2, ProtocolVersion.conwayPV)
+        defaultParamsFor(Language.PlutusV2, MajorProtocolVersion.plominPV)
 
     lazy val defaultPlutusV3Params: MachineParams =
-        defaultParamsFor(PlutusLedgerLanguage.PlutusV3, ProtocolVersion.conwayPV)
+        defaultParamsFor(Language.PlutusV3, MajorProtocolVersion.plominPV)
 
     /** Creates default machine parameters for a given Plutus version and protocol version.
       *
@@ -182,7 +174,7 @@ object MachineParams {
       *   The machine parameters
       */
     def defaultParamsFor(
-        plutus: PlutusLedgerLanguage,
+        plutus: Language,
         protocolVersion: MajorProtocolVersion
     ): MachineParams = {
         val variant = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(protocolVersion, plutus)
@@ -216,8 +208,9 @@ object MachineParams {
       * @return
       *   The machine parameters
       */
+    @deprecated("Use the overload with MajorProtocolVersion", "0.12.0")
     def defaultParamsFor(
-        plutus: PlutusLedgerLanguage,
+        plutus: Language,
         protocolVersion: ProtocolVersion
     ): MachineParams = defaultParamsFor(plutus, MajorProtocolVersion(protocolVersion.major))
 
@@ -232,10 +225,9 @@ object MachineParams {
       */
     def fromCardanoCliProtocolParamsJson(
         json: String,
-        plutus: PlutusLedgerLanguage
+        plutus: Language
     ): MachineParams = {
-        import upickle.default.*
-        val pparams = read[ProtocolParams](json)
+        val pparams = ProtocolParams.fromCardanoCliJson(json)
         fromProtocolParams(pparams, plutus)
     }
 
@@ -250,17 +242,10 @@ object MachineParams {
       */
     def fromBlockfrostProtocolParamsJson(
         json: String,
-        plutus: PlutusLedgerLanguage
+        plutus: Language
     ): MachineParams = {
-        import upickle.default.*
-        val pparams = read[ProtocolParams](json)(using ProtocolParams.blockfrostParamsRW)
+        val pparams = ProtocolParams.fromBlockfrostJson(json)
         fromProtocolParams(pparams, plutus)
-    }
-
-    /** Creates [[MachineParams]] from a [[ProtocolParams]] and a [[PlutusLedgerLanguage]]
-      */
-    def fromProtocolParams(pparams: ProtocolParams, plutus: PlutusLedgerLanguage): MachineParams = {
-        fromProtocolParams(pparams, plutus.toLanguage)
     }
 
     /** Creates [[MachineParams]] from a [[ProtocolParams]] and a [[Language]]

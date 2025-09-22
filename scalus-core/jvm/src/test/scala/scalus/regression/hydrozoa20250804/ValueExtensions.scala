@@ -2,7 +2,7 @@ package scalus.regression.hydrozoa20250804
 
 import scalus.Compile
 import scalus.ledger.api.v1.Value.{-, zero}
-import scalus.ledger.api.v3.{CurrencySymbol, TokenName, Value}
+import scalus.ledger.api.v3.{PolicyId, TokenName, Value}
 import scalus.prelude.List.Cons
 import scalus.prelude.{fail, require, List}
 
@@ -10,13 +10,13 @@ import scalus.prelude.{fail, require, List}
 object ValueExtensions:
     extension (self: Value)
 
-        def containsCurrencySymbol(cs: CurrencySymbol): Boolean =
+        def containsCurrencySymbol(cs: PolicyId): Boolean =
             // Split away ada which always comes first
             val List.Cons(_, tokens) = self.toSortedMap.toList: @unchecked
             tokens.map(_._1).contains(cs)
 
         // Is it useful? get(cs).getOrElse(AssocMap.empty) does the same job
-        //        def tokensUnder(cs: CurrencySymbol): AssocMap[TokenName, BigInt] =
+        //        def tokensUnder(cs: PolicyId): AssocMap[TokenName, BigInt] =
         //            // Split away ada which always comes first
         //            val List.Cons(_, tokens) = self.toList: @unchecked
         //            tokens.find(_._1 == cs).map(_._2).getOrElse(AssocMap.empty)
@@ -28,7 +28,7 @@ object ValueExtensions:
           * @return
           */
         def containsExactlyOneAsset(
-            cs: CurrencySymbol,
+            cs: PolicyId,
             tn: TokenName,
             amount: BigInt
         ): Boolean =
@@ -49,7 +49,7 @@ object ValueExtensions:
         /** Returns the only non-ada asset, i.e. a unique token in the value or fails.
           * @return
           */
-        def onlyNonAdaAsset: (CurrencySymbol, TokenName, BigInt) =
+        def onlyNonAdaAsset: (PolicyId, TokenName, BigInt) =
             // Split away ada which always comes first
             val List.Cons(_, tokens) = self.toSortedMap.toList: @unchecked
 
@@ -57,7 +57,7 @@ object ValueExtensions:
                 case List.Cons((cs, names), otherSymbols) =>
                     require(
                       otherSymbols.isEmpty,
-                      "onlyNonAdaToken: found more than one currency symbol"
+                      "onlyNonAdaToken: found more than one policy id"
                     )
                     names.toList match
                         case List.Cons((tokenName, amount), otherNames) =>

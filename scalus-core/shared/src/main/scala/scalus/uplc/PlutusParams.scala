@@ -1,4 +1,4 @@
-package scalus.ledger.babbage
+package scalus.uplc
 
 import upickle.default.*
 

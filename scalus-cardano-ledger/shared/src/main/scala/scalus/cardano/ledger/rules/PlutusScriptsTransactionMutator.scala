@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.eval.ExBudget
 
 import scala.util.boundary

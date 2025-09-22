@@ -8,11 +8,8 @@ import scalus.cardano.address.{ArbitraryInstances as ArbAddresses, Network, Shel
 import scalus.cardano.ledger.Script.PlutusV3
 import scalus.cardano.ledger.rules.*
 import scalus.cardano.ledger.utils.TxBalance
-import scalus.cardano.ledger.{AddrKeyHash, ArbitraryInstances as ArbLedger, CertState, CostModels, PlutusScriptEvaluator, Script, SlotConfig, TransactionInput, TransactionOutput, Value}
-import scalus.ledger.api.MajorProtocolVersion
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.{AddrKeyHash, ArbitraryInstances as ArbLedger, CertState, CostModels, MajorProtocolVersion, PlutusScriptEvaluator, ProtocolParams, Script, SlotConfig, TransactionInput, TransactionOutput, Value}
 import scalus.uplc.eval.ExBudget
-import upickle.default.read
 
 class TxBuilderTest2
     extends AnyFunSuite
@@ -20,9 +17,9 @@ class TxBuilderTest2
     with ArbLedger
     with ValidatorRulesTestKit {
 
-    val params: ProtocolParams = read[ProtocolParams](
+    val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
       this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-    )(using ProtocolParams.blockfrostParamsRW)
+    )
 
     private val costModels = CostModels.fromProtocolParams(params)
     private val evaluator = PlutusScriptEvaluator(
@@ -59,7 +56,7 @@ class TxBuilderTest2
           Null
         )
 
-        val paymentAmount = Value.lovelace(1_000_000L)
+        val paymentAmount = Value.ada(1)
         val intention = Intention.Pay(targetAddress, paymentAmount)
         val tx = InterpreterWithProvidedData(
           wallet,

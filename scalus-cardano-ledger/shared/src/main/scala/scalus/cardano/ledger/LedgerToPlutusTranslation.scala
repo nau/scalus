@@ -5,14 +5,13 @@ import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.ledger.api
+import scalus.ledger.api.*
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.GovernanceActionId
-import scalus.ledger.api.{ProtocolVersion as _, *}
-import scalus.ledger.babbage.{PlutusV1Params, PlutusV2Params, PlutusV3Params}
-import scalus.prelude.asScalus
-import scalus.prelude.{List, SortedMap}
+import scalus.prelude.{asScalus, List, SortedMap}
 import scalus.uplc.eval.*
+import scalus.uplc.{PlutusV1Params, PlutusV2Params, PlutusV3Params}
 import scalus.{builtin, ledger, prelude}
 
 import scala.collection.{immutable, mutable}
@@ -54,7 +53,7 @@ object LedgerToPlutusTranslation {
     def translateMachineParamsFromCostModels(
         costModels: CostModels,
         language: Language,
-        protocolVersion: api.MajorProtocolVersion
+        protocolVersion: MajorProtocolVersion
     ): MachineParams = {
         val params = language match
             case Language.PlutusV1 =>

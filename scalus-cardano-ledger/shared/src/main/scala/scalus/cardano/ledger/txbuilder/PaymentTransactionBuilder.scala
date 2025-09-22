@@ -59,7 +59,7 @@ case class PaymentTransactionBuilder(
             .validFrom(0)
             .feePayer(sender.encode.get)
             .collateralPayer(collateralPayer.encode.get)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         val result = Transaction.fromCbor(cclTx.serialize())
@@ -88,7 +88,7 @@ case class PaymentTransactionBuilder(
             })
             .validTo(Long.MaxValue)
             .validFrom(0)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         Transaction.fromCbor(cclTx.serialize())
@@ -109,7 +109,7 @@ case class PaymentTransactionBuilder(
             )
             .validTo(Long.MaxValue)
             .validFrom(0)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         Transaction.fromCbor(cclTx.serialize())

@@ -1,70 +1,97 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this
+repository.
+
+## Quick Reference for Claude Code
+
+**Essential Commands:**
+
+- `sbtn quick` - Format, compile, and test on JVM (run before completing tasks when it makes sense)
+
+**Key Patterns:**
+
+- Always study existing code patterns before making changes
+- Use `@Compile` annotation for Plutus smart contracts
+- Extend `Validator` trait for validator scripts
+- Place shared code in `shared/` directories for cross-platform support
+- Use modern Scala 3 features: `given`, `using`, extension methods
 
 ## Project Overview
 
-Scalus is a DApps development platform for Cardano that enables developers to write smart contracts in Scala 3, which are then compiled to Plutus Core. The codebase supports multi-platform development (JVM, JavaScript, Native) and provides a complete toolchain for Cardano smart contract development.
+Scalus is a DApps development platform for Cardano that enables developers to write smart contracts
+in Scala 3, which are then compiled to Plutus Core. The codebase supports multi-platform
+development (JVM, JavaScript, Native) and provides a complete toolchain for Cardano smart contract
+development.
+
+## Key Principles for Claude Code
+
+- **Always run `sbtn quick` before considering any task complete** - This ensures formatting,
+  compilation, and tests pass
+- **Use existing patterns and conventions** - Study similar files before making changes
+- **Prefer editing existing files over creating new ones** - Only create files when absolutely
+  necessary
+- **Follow Scala 3 idioms** - Use modern Scala 3 features like `given`, `using`, extension methods
+- **Respect the multi-platform architecture** - Place shared code in `shared/` directories
+- **Test thoroughly** - Use the existing test infrastructure and patterns
+- **Follow Scalus Scala 3 formatting guideline** described on CONTRIBUTING.md
 
 ## Essential Commands
 
 ### Build and Development
+
 ```bash
+# Format, compile on JVM, testQuick
+sbtn quick
+
 # Clean compile and test everything (recommended before commits)
-sbt precommit
+sbtn precommit
 
 # Continuous integration build (includes formatting checks)
-sbt ci
-
-# Compile with file-watch enabled
-sbt ~compile
-
-# Clean build
-sbt clean
+sbtn ci
 
 # Format all code
-sbt scalafmtAll scalafmtSbt
+sbtn scalafmtAll scalafmtSbt
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
-sbt test
+sbtn test
 
 # Run tests for specific module
-sbt scalus/test
-sbt scalusExamples/test
-sbt scalusTestkit/test
-
-# Run tests with forking (recommended for integration tests)
-sbt "Test/fork := true" test
+sbtn scalus/test
+sbtn scalusExamples/test
+sbtn scalusTestkit/test
+sbtn jvm/test
 ```
 
 ### Platform-Specific Builds
+
 ```bash
 # Build JavaScript library
-sbt scalusJS/copyBundle
+sbtn scalusJS/copyBundle
 
 # Build native library
-sbt scalusNative/nativeLink
+sbtn scalusNative/nativeLink
 
 # Prepare NPM package
-sbt scalusJS/prepareNpmPackage
+sbtn scalusJS/prepareNpmPackage
 ```
 
 ### Documentation
+
 ```bash
 # Generate documentation website
-sbt docs/docusaurusCreateSite
-
-# Generate API documentation
-sbt docs/unidoc
+sbtn docs/mdoc
 ```
 
 ### Debugging
+
 ```bash
 # Debug Scalus plugin during compilation
-sbt -J-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 compile
+sbtn -J-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 compile
 ```
 
 ## Architecture Overview
@@ -72,22 +99,22 @@ sbt -J-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 compile
 ### Module Structure
 
 - **`scalus-core/`** - Core platform with cross-compilation support (JVM/JS/Native)
-  - Contains the Plutus VM implementation, UPLC evaluation, and standard library
-  - Shared sources in `shared/` directory
-  - Platform-specific implementations in `jvm/`, `js/`, `native/`
+    - Contains the Plutus VM implementation, UPLC evaluation, and standard library
+    - Shared sources in `shared/` directory
+    - Platform-specific implementations in `jvm/`, `js/`, `native/`
 
 - **`scalus-plugin/`** - Scala 3 compiler plugin
-  - Handles `@Compile` annotations and `Compiler.compile()` transformations
-  - Compiles Scala code to Scalus Intermediate Representation (SIR)
-  - Two-phase compilation: preparation and transformation
+    - Handles `@Compile` annotations and `Compiler.compile()` transformations
+    - Compiles Scala code to Scalus Intermediate Representation (SIR)
+    - Two-phase compilation: preparation and transformation
 
 - **`scalus-examples/`** - Comprehensive smart contract examples
-  - Multi-platform examples (JVM and JavaScript)
-  - Integration examples with Cardano Client Lib
+    - Multi-platform examples (JVM and JavaScript)
+    - Integration examples with Cardano Client Lib
 
 - **`scalus-testkit/`** - Testing utilities and property-based testing support
 
-- **`scalus-cardano-ledger/`** - Cardano ledger domain models and CBOR serialization
+- **`scalus-cardano-ledger/`** - Cardano ledger rules and transaction builder
 
 - **`bloxbean-cardano-client-lib/`** - Integration with Bloxbean Cardano Client Library
 
@@ -145,6 +172,8 @@ sbt -J-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 compile
 ## Useful Aliases
 
 The build defines several useful command aliases:
+
+- `quick` - format, compile, and test everything on JVM
 - `precommit` - Clean, format, compile, and test everything
 - `ci` - Full CI build with formatting checks
 - `mima` - Check binary compatibility
@@ -152,8 +181,58 @@ The build defines several useful command aliases:
 ## Environment Setup
 
 For development, use Nix for reproducible builds:
+
 ```bash
 nix develop
 ```
 
-Requires Java 11+, sbt 1.x, and optionally Cardano `uplc` CLI tool.
+Requires Java 11+, sbtn 1.x, and optionally Cardano `uplc` CLI tool.
+
+## Claude Code Specific Guidelines
+
+### When Working with Smart Contracts
+
+- Look at existing examples in `scalus-examples/shared/src/main/scala/scalus/examples/`
+- Smart contracts should extend appropriate traits like `Validator`
+- Use `@Compile` annotation for Plutus compilation
+- Test contracts using `scalusTestkit` utilities
+
+### When Working with the Compiler Plugin
+
+- Plugin code is in `scalus-plugin/src/main/scala/scalus/plugin/`
+- Shared sources are automatically copied from `scalus-core` - don't edit them directly
+- Use debugging commands for plugin development
+- Plugin tests are in `scalus-plugin-tests/`
+
+### When Working with Core Platform
+
+- Core logic is in `scalus-core/shared/src/main/scala/`
+- Platform-specific implementations go in respective `jvm/`, `js/`, `native/` directories
+- SIR (Scalus Intermediate Representation) code is in `scalus/sir/`
+- UPLC implementation is in `scalus/uplc/`
+
+### File Organization Patterns
+
+- Follow the existing package structure: `scalus.{module}.{functionality}`
+- Tests mirror source structure but in `test/` instead of `main/`
+- Use object-oriented design with case classes for data structures
+- Prefer sealed traits for sum types
+
+### Common Tasks
+
+- **Adding a new validator**: Create in `scalus-examples`, extend `Validator`, add tests
+- **Modifying UPLC evaluation**: Edit files in `scalus-core/shared/src/main/scala/scalus/uplc/eval/`
+- **Adding standard library functions**: Add to `scalus-core/shared/src/main/scala/scalus/prelude/`
+- **Plugin modifications**: Work in `scalus-plugin/`, test with `scalus-plugin-tests/`
+
+### Before Submitting Changes
+
+```bash
+# Always run this before considering work complete
+sbtn quick
+
+# If quick fails, investigate and fix issues:
+sbtn scalafmtAll scalafmtSbt  # Fix formatting
+sbtn compile                 # Check compilation
+sbtn test                    # Run tests
+```

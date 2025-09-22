@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.Cbor
+import scalus.serialization.cbor.Cbor
 
 // It's Babbage.validateOutputTooBigUTxO in cardano-ledger
 object OutputsHaveTooBigValueStorageSizeValidator extends STS.Validator {

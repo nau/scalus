@@ -1,5 +1,5 @@
 import org.typelevel.paiges.Doc
-import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.cardano.ledger.Language
 import scalus.sir.PrettyPrinter.Style
 import scalus.sir.lowering.*
 import scalus.sir.*
@@ -100,7 +100,7 @@ package object scalus {
         def prettyXTerm: Doc = PrettyPrinter.pretty(p, Style.XTerm)
         def show: String = p.pretty.render(80)
         def showHighlighted: String = p.prettyXTerm.render(80)
-        def writePlutusFile(path: String, plutusVersion: PlutusLedgerLanguage): Unit =
+        def writePlutusFile(path: String, plutusVersion: Language): Unit =
             Utils.writePlutusFile(path, p.deBruijnedProgram, plutusVersion)
 
         /** Evaluates the program using the given VM according to the Plutus specification.
@@ -123,7 +123,7 @@ package object scalus {
         def prettyXTerm: Doc = PrettyPrinter.pretty(p.toProgram, Style.XTerm)
         def show: String = p.pretty.render(80)
         def showHighlighted: String = p.prettyXTerm.render(80)
-        def writePlutusFile(path: String, plutusVersion: PlutusLedgerLanguage): Unit =
+        def writePlutusFile(path: String, plutusVersion: Language): Unit =
             Utils.writePlutusFile(path, p, plutusVersion)
 
         /** Evaluates the program using the given VM according to the Plutus specification.

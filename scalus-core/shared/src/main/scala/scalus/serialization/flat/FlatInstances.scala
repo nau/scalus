@@ -1,21 +1,17 @@
-package scalus.flat
+package scalus.serialization.flat
+
+import scalus.builtin
+import scalus.builtin.Data
+import scalus.serialization.flat.HashConsed.CachedTaggedRef
+import scalus.serialization.flat.{DecoderState, EncoderState, Flat, given}
+import scalus.sir.*
+import scalus.sir.SIR.{LetFlags, Pattern}
+import scalus.uplc.CommonFlatInstances.{*, given}
+import scalus.uplc.DefaultFun
 
 import scala.util.control.NonFatal
-import scalus.{builtin, flat}
-import scalus.flat.DecoderState
-import scalus.flat.EncoderState
-import scalus.flat.Flat
-import scalus.flat.given
-import scalus.sir.*
-import scalus.uplc.CommonFlatInstances.*
-import scalus.uplc.CommonFlatInstances.given
-import scalus.builtin.Data
-import scalus.sir.SIR.{LetFlags, Pattern}
-import scalus.uplc.DefaultFun
-import scalus.utils.*
-import scalus.utils.HashConsed.CachedTaggedRef
 
-object FlatInstantces:
+object FlatInstances:
     // val termTagWidth = 4
 
     final val hashConsTagSIRType = HashConsed.tag(0x01)

@@ -4,7 +4,6 @@ import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.derivation.key
 import scalus.builtin.{platform, ByteString}
-import scalus.ledger.api.Timelock
 
 /** Represents a script in Cardano */
 sealed trait Script {

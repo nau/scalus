@@ -12,11 +12,10 @@ import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder, TxSigner}
 import scalus.cardano.ledger.*
-import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
+import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
-import scalus.ledger.api.{MajorProtocolVersion, Timelock}
-import scalus.ledger.babbage.ProtocolParams
 import scalus.prelude.orFail
+import scalus.serialization.cbor.Cbor
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
 import scalus.{plutusV3, toUplc, Compiler}
@@ -174,8 +173,6 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
     }
 
     def fetchProtocolParams(): ProtocolParams = {
-        import upickle.default.*
-
         val httpClient = HttpClient.newBuilder().build()
         val request = HttpRequest
             .newBuilder()
@@ -185,7 +182,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         if response.statusCode() == 200 then {
-            read[ProtocolParams](response.body())(using ProtocolParams.blockfrostParamsRW)
+            ProtocolParams.fromBlockfrostJson(response.body())
         } else {
             throw new Exception(response.body())
         }
@@ -230,7 +227,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         context: BuilderContext,
         transaction: scalus.cardano.ledger.Transaction
     ) = {
-        val cborBytes = scalus.Cbor.encode(transaction)
+        val cborBytes = Cbor.encode(transaction)
         val result = context.backendService.getTransactionService.submitTransaction(cborBytes)
         if result.isSuccessful then succeed
         else fail(s"Error during tx submission: ${result.getResponse}")
@@ -240,7 +237,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val network = Networks.testnet()
         val account = new Account(network, MNEMONIC)
 
-        val paymentAmount = Value.lovelace(5_000_000L)
+        val paymentAmount = Value.ada(5)
         val ctx = BuilderContext(
           environment.protocolParams,
           environment.evaluator,
@@ -272,7 +269,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
           ShelleyDelegationPart.Null
         )
 
-        val paymentAmount = Value.lovelace(5_000_000L)
+        val paymentAmount = Value.ada(5)
         val ctx = BuilderContext(
           environment.protocolParams,
           environment.evaluator,
@@ -295,7 +292,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tx2 = ctx.buildNewTx
             .withPayer(scriptAddress)
             .withAttachedNativeScript(nativeScript)
-            .payTo(account2.address, Value.lovelace(3_000_000L))
+            .payTo(account2.address, Value.ada(3))
             .buildAndSign(account0.signer())
 
         submitTransactionToCardano(ctx, tx2)
@@ -363,7 +360,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
                 val context = scriptContext.to[ScriptContext]
 
                 val outs: scalus.prelude.SortedMap[
-                  CurrencySymbol,
+                  PolicyId,
                   scalus.prelude.SortedMap[TokenName, BigInt]
                 ] =
                     context.txInfo.outputs.head.value.toSortedMap
@@ -386,7 +383,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val network = Networks.testnet()
         val account = new Account(network, MNEMONIC)
 
-        val paymentAmount = Value.lovelace(10_000_000L)
+        val paymentAmount = Value.ada(10)
         val context = BuilderContext(
           environment.protocolParams,
           environment.evaluator,
@@ -537,7 +534,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .validFrom(0)
             .feePayer(account.baseAddress())
             .withSigner(SignerProviders.signerFrom(account.stakeHdKeyPair()))
-            .withSigner(account.sign)
+            .withSigner((c, t) => account.sign(t))
             .completeAndWait()
     }
 

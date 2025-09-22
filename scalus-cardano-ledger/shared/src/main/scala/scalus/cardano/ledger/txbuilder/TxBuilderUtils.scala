@@ -105,7 +105,7 @@ object TxBuilderUtils {
     def convertToCCLNativeScript(
         scalusScript: Script.Native
     ): com.bloxbean.cardano.client.transaction.spec.script.NativeScript = {
-        import scalus.ledger.api.Timelock
+        import scalus.cardano.ledger.Timelock
 
         scalusScript.script match {
             case Timelock.Signature(keyHash) =>

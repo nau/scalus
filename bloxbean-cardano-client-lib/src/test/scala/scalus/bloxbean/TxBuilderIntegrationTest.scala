@@ -12,10 +12,8 @@ import scalus.cardano.ledger.txbuilder.*
 import scalus.cardano.ledger.txbuilder.Intention.Pay
 import scalus.cardano.ledger.txbuilder.ResolvedTxInput.Pubkey
 import scalus.ledger.api
-import scalus.ledger.api.MajorProtocolVersion
-import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
+import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
-import scalus.ledger.babbage.ProtocolParams
 import scalus.prelude.{orFail, SortedMap}
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
@@ -41,7 +39,6 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
     private lazy val environment = createEnvironment()
 
     def fetchProtocolParams(): ProtocolParams = {
-        import upickle.default.*
 
         import java.net.URI
         import java.net.http.{HttpClient, HttpRequest, HttpResponse}
@@ -55,7 +52,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         if response.statusCode() == 200 then {
-            read[ProtocolParams](response.body())(using ProtocolParams.blockfrostParamsRW)
+            ProtocolParams.fromBlockfrostJson(response.body())
         } else {
             throw new Exception(response.body())
         }
@@ -144,7 +141,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
                 }
                 val context = scriptContext.to[ScriptContext]
 
-                val outs: SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]] =
+                val outs: SortedMap[PolicyId, SortedMap[TokenName, BigInt]] =
                     context.txInfo.outputs.last.value.toSortedMap
                 val l = outs.toList
                 val amount = outs.toList.head._2.toList.head._2
@@ -168,7 +165,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
               Map(input),
               Wallet.create(Set(ResolvedTxInput.Pubkey(input)), Set.empty)
             )
-            val tx = interpreter.realize(Pay(scriptAddress, Value.lovelace(8_000_000_000L)))
+            val tx = interpreter.realize(Pay(scriptAddress, Value.ada(8_000L)))
             validateAndSubmit(tx, interpreter.wallet.utxo)
         }
         def transferFromScriptBackToSpender = {

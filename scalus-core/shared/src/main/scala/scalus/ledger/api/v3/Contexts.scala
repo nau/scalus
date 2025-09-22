@@ -20,7 +20,7 @@ export scalus.ledger.api.v1.Closure
 //export scalus.ledger.api.v1.Credential
 type Credential = scalus.ledger.api.v1.Credential
 val Credential = scalus.ledger.api.v1.Credential
-export scalus.ledger.api.v1.CurrencySymbol
+export scalus.ledger.api.v1.PolicyId
 export scalus.ledger.api.v1.DCert
 export scalus.ledger.api.v1.Datum
 export scalus.ledger.api.v1.DatumHash
@@ -644,7 +644,7 @@ object ProposalProcedure:
 end ProposalProcedure
 
 enum ScriptPurpose:
-    case Minting(currencySymbol: CurrencySymbol)
+    case Minting(policyId: PolicyId)
     case Spending(txOutRef: TxOutRef)
     case Rewarding(credential: Credential)
     case Certifying(index: BigInt, cert: TxCert)
@@ -732,7 +732,7 @@ object ScriptPurpose:
 end ScriptPurpose
 
 enum ScriptInfo:
-    case MintingScript(currencySymbol: CurrencySymbol)
+    case MintingScript(policyId: PolicyId)
     case SpendingScript(txOutRef: TxOutRef, datum: Option[Datum] = Option.None)
     case RewardingScript(credential: Credential)
     case CertifyingScript(index: BigInt, cert: TxCert)

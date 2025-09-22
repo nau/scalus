@@ -1,9 +1,10 @@
-package scalus.cardano.plutus.contract.blueprint
+package scalus.cardano.blueprint
+
 import scalus.Compiler.compile
 import scalus.buildinfo.BuildInfo
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.ledger.Script
-import scalus.cardano.plutus.contract.blueprint.HtlcValidatorInputs.{Action, ContractDatum}
+import HtlcValidatorInputs.{Action, ContractDatum}
 import scalus.ledger.api.v1.PosixTime
 import scalus.toUplc
 import scalus.plutusV3

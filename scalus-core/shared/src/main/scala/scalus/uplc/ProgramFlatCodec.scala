@@ -1,9 +1,9 @@
 package scalus.uplc
 
 import scalus.*
-import scalus.flat.DecoderState
-import scalus.flat.EncoderState
-import scalus.flat.Flat
+import scalus.serialization.flat.DecoderState
+import scalus.serialization.flat.EncoderState
+import scalus.serialization.flat.Flat
 
 object ProgramFlatCodec:
     import FlatInstantces.given

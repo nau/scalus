@@ -1,7 +1,7 @@
 package scalus.utils
 
-import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.ledger.api.PlutusLedgerLanguage.*
+import scalus.cardano.ledger.Language
+import scalus.cardano.ledger.Language.*
 import scalus.uplc.DeBruijnedProgram
 import scalus.uplc.Program
 import upickle.default.*
@@ -27,14 +27,14 @@ object Utils:
     def writePlutusFile(
         path: String,
         program: DeBruijnedProgram,
-        plutusVersion: PlutusLedgerLanguage
+        plutusVersion: Language
     ): Unit =
         val content = programToPlutusFileContent(program, plutusVersion)
         Files.write(Paths.get(path), content.getBytes("UTF-8"))
 
     def programToPlutusFileContent(
         program: DeBruijnedProgram,
-        plutusVersion: PlutusLedgerLanguage
+        plutusVersion: Language
     ): String =
         val `type` = plutusVersion match
             case PlutusV1 => "PlutusScriptV1"

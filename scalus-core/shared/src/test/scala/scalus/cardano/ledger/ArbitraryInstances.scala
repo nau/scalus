@@ -6,7 +6,6 @@ import org.scalacheck.{Arbitrary, Gen}
 import scalus.builtin
 import scalus.builtin.Data.*
 import scalus.builtin.{ByteString, Data}
-import scalus.ledger.api.{SlotNo, Timelock}
 import scalus.testutil.ArbitraryDerivation.autoDerived
 
 import scala.collection.immutable

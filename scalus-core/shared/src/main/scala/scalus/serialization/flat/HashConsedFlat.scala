@@ -1,7 +1,6 @@
-package scalus.utils
+package scalus.serialization.flat
 
-import scalus.flat.*
-import scalus.utils.HashConsed.ForwardRefAcceptor
+import scalus.serialization.flat.HashConsed.ForwardRefAcceptor
 
 class HashConsedEncoderState(
     val encode: EncoderState,
@@ -165,7 +164,7 @@ object HashConsedReprFlat {
     ): HashConsedReprFlat[Map[String, A], StringMapRep[A, SA]] =
         new HashConsedReprFlat[Map[String, A], StringMapRep[A, SA]] {
 
-            import scalus.flat.given
+            import scalus.serialization.flat.given
 
             def toRepr(a: Map[String, A]): StringMapRep[A, SA] =
                 StringMapRep[A, SA](a.view.mapValues(flatA.toRepr).toMap)

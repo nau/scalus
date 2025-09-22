@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.12.0 (TBD)
+
+### Added
+
+- experimental UPLC JIT compiler for improved performance
+- comprehensive transaction builder with intention-based API
+- Cardano ledger rules implementation and validation
+- new `Betting` and `Simple transfer` examples
+- `monocle` optics support for lens-based data manipulation
+- Ed25519 compatibility for Cardano key derivation and message signing
+- BLS12-381 scalar field support
+- `Show` typeclass implementation for better debugging in smart contracts
+- property-based testing utilities with ScalaCheck integration
+- enhanced plutus script evaluation on JavaScript platform
+
+### Changed
+
+- major package reorganization: moved serialization components to `scalus.serialization`
+- moved Cardano ledger types to `scalus.cardano.ledger`
+- moved protocol parameters and cost models to appropriate packages
+- transaction builder redesigned with cleaner intention-based API
+- improved Value implementation using SortedMap for better performance
+- enhanced error messages and debugging support
+- updated build system and dependency management
+
+### Fixed
+
+- script data hash generation for PlutusV1 cost model serialization order
+- various transaction building and balancing issues
+- improved error handling in script evaluation
+- better handling of native tokens in transaction building
+
 ## 0.11.0 (2025-07-28)
 
 ### Added

@@ -3,7 +3,6 @@ package rules
 
 import scala.collection.View
 import scalus.cardano.ledger.utils.AllResolvedScripts
-import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.{DeBruijnedProgram, DefaultFun, Term}
 
 // It's Babbage.validateScriptsWellFormed in cardano-ledger

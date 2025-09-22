@@ -3,6 +3,7 @@ package scalus.cardano.ledger.rules
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
+import scalus.serialization.cbor.Cbor
 import scalus.uplc.DeBruijnedProgram
 
 class ScriptsWellFormedValidatorTest extends AnyFunSuite {

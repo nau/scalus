@@ -1,11 +1,8 @@
 package scalus.uplc
 
 import scalus.builtin
-import scalus.flat
-import scalus.flat.DecoderState
-import scalus.flat.EncoderState
-import scalus.flat.Flat
-import scalus.flat.given
+import scalus.serialization.flat
+import scalus.serialization.flat.{DecoderState, EncoderState, Flat, given}
 import scalus.uplc.DefaultFun.*
 
 object CommonFlatInstances:
