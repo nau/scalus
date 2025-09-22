@@ -58,9 +58,20 @@ object Lowering {
                           s"  scrutinee.tp = ${scrutinee.tp.show}\n"
                     )
                 val loweredScrutinee = lowerSIR(scrutinee)
-                val retval = lctx
-                    .typeGenerator(loweredScrutinee.sirType)
-                    .genMatch(sirMatch, loweredScrutinee, optTargetType)
+                val retval =
+                    try
+                        lctx
+                            .typeGenerator(loweredScrutinee.sirType)
+                            .genMatch(sirMatch, loweredScrutinee, optTargetType)
+                    catch
+                        case NonFatal(ex) =>
+                            println(
+                              s"Error lowering match: ${sir.pretty.render(100)} at ${anns.pos.show}"
+                            )
+                            println(
+                              s"scrutinee: ${scrutinee.pretty.render(100)} of type ${scrutinee.tp.show}"
+                            )
+                            throw ex
                 if lctx.debug then
                     lctx.log(
                       s"Lowered match: ${sir.pretty.render(100)}\n" +
