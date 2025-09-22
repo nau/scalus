@@ -27,9 +27,10 @@ final class RepresentationProxyLoweredValue(
 ) extends BaseRepresentationProxyLoweredValue(input, representation, pos) {
 
     if input.representation == PrimitiveRepresentation.Constant && representation == PrimitiveRepresentation.PackedData
+        && input.sirType != SIRType.Data
     then
         throw LoweringException(
-          s"invalid conversion of constant value ${input.show} to packed data representation",
+          s"invalid conversion of constant value ${input.show} of type ${input.sirType.show} to packed data representation",
           pos
         )
 

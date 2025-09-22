@@ -2,7 +2,7 @@ package scalus.cardano.ledger
 package rules
 
 import org.scalacheck.Arbitrary
-import scalus.ledger.api.Timelock
+import scalus.cardano.ledger.Timelock
 import scalus.builtin.platform
 import scalus.cardano.address.{Address, StakeAddress, StakePayload}
 import org.scalatest.funsuite.AnyFunSuite

@@ -9,7 +9,7 @@ import scalus.cardano.ledger.LedgerToPlutusTranslation.*
 import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllResolvedScripts}
 import scalus.ledger
 import scalus.ledger.api
-import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion}
+import scalus.ledger.api.{v1, v2, v3}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
@@ -17,6 +17,7 @@ import scribe.Logger
 
 import java.nio.file.{Files, Paths}
 import scala.collection.immutable
+import scala.util.control.NonFatal
 
 enum EvaluatorMode extends Enum[EvaluatorMode] {
     case EvaluateAndComputeCost, Validate
@@ -377,7 +378,7 @@ class PlutusScriptEvaluator(
 
         // Optional debug dumping
         if debugDumpFilesForTesting then
-            dumpScriptForDebugging(applied, redeemer, txhash, vm.language.toLanguage)
+            dumpScriptForDebugging(applied, redeemer, txhash, vm.language)
 
         // Create budget spender based on evaluation mode
         val spender = mode match
@@ -401,8 +402,7 @@ class PlutusScriptEvaluator(
                 println(s"Script ${vm.language} ${redeemer.tag} evaluation failed: ${e.getMessage}")
 //                println(e.env.view.reverse.take(20).mkString("\n"))
                 throw new PlutusScriptEvaluationException(e.getMessage, e, logger.getLogs)
-            case e: InvalidReturnValue => throw e
-            case e: Exception =>
+            case NonFatal(e) =>
                 throw new PlutusScriptEvaluationException(e.getMessage, e, logger.getLogs)
     }
 

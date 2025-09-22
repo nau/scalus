@@ -3,7 +3,6 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.builtin.ByteString
-import scalus.ledger.api.Timelock
 
 import scala.collection.immutable
 

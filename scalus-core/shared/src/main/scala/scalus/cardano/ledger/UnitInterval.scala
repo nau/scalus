@@ -1,6 +1,7 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.*
+import upickle.{readwriter, ReadWriter}
 
 /** Represents a unit interval (a number between 0 and 1) in the Cardano blockchain.
   *
@@ -81,4 +82,10 @@ object UnitInterval {
             UnitInterval(numerator, denominator)
         }
     }
+
+    given ReadWriter[UnitInterval] =
+        readwriter[Double].bimap[UnitInterval](
+          interval => interval.toDouble,
+          double => UnitInterval.fromDouble(double)
+        )
 }

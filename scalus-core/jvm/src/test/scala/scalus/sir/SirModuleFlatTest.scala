@@ -2,9 +2,9 @@ package scalus.sir
 
 import java.io.InputStream
 import org.scalatest.funsuite.AnyFunSuite
-
-import scalus.flat.*
-import scalus.flat.FlatInstantces.given
+import scalus.serialization.flat
+import scalus.serialization.flat.*
+import scalus.serialization.flat.FlatInstances.given
 
 class SirModuleFlatTest extends AnyFunSuite {
 
@@ -19,7 +19,7 @@ class SirModuleFlatTest extends AnyFunSuite {
     def parseInputStream(input: InputStream): Module = {
         val buffer = input.readAllBytes()
         val dec = DecoderState(buffer)
-        val module = scalus.flat.decode[Module](dec)
+        val module = flat.decode[Module](dec)
         module
     }
 

@@ -2,7 +2,7 @@ package scalus.uplc
 package eval
 
 import scalus.builtin.Data
-import scalus.ledger.api.{MajorProtocolVersion, PlutusLedgerLanguage}
+import scalus.cardano.ledger.{Language, MajorProtocolVersion}
 import scalus.uplc
 
 import java.nio.charset.Charset
@@ -77,7 +77,7 @@ private object LibScalus:
     def fromCardanoCliProtocolParamsJson(json: CString, plutusVersion: CInt): MachineParams = {
         val jsonStr = fromCString(json)
         try
-            val pll = PlutusLedgerLanguage.fromOrdinal(plutusVersion - 1)
+            val pll = Language.fromOrdinal(plutusVersion - 1)
             MachineParams.fromCardanoCliProtocolParamsJson(jsonStr, pll).gc
         catch case _: Exception => null
     }
@@ -85,7 +85,7 @@ private object LibScalus:
     @exported(name = "scalus_get_default_machine_params")
     def defaultMachineParams(plutusVersion: CInt, protocolVersion: CInt): MachineParams = {
         try
-            val pll = PlutusLedgerLanguage.fromOrdinal(plutusVersion - 1)
+            val pll = Language.fromOrdinal(plutusVersion - 1)
             MachineParams.defaultParamsFor(pll, MajorProtocolVersion(protocolVersion)).gc
         catch
             case e: Exception =>

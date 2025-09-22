@@ -5,11 +5,13 @@ import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.Address
-import scalus.ledger.babbage.ProtocolParams
+import scalus.serialization.cbor.Cbor
 import scalus.utils.Hex.toHex
 import upickle.default.ReadWriter as UpickleReadWriter
+import cats.kernel.CommutativeGroup
 
 import java.util
+import scala.annotation.targetName
 import scala.collection.immutable.{ListMap, SortedMap, TreeMap}
 import scala.compiletime.asMatchable
 
@@ -18,20 +20,16 @@ enum Era(val value: Int) extends Enumeration {
     case Conway extends Era(7)
 }
 
+// FIXME: make sure we validate the Coin is non-negative in ledger rules
 /** Represents an amount of Cardano's native currency (ADA)
-  *
-  * In Cardano, coins are represented as unsigned integers
   */
 final case class Coin(value: Long) derives Codec {
-
-    /** Ensures the coin value is non-negative */
-    require(value >= 0, s"Coin value must be non-negative, got $value")
 
     /** Add another coin amount */
     def +(other: Coin): Coin = Coin(value + other.value)
 
-    /** Subtract another coin amount, returns 0 if the result would be negative */
-    def -(other: Coin): Coin = Coin(math.max(0, value - other.value))
+    /** Subtract another coin amount */
+    def -(other: Coin): Coin = Coin(value - other.value)
 
     def >(other: Coin): Boolean = value > other.value
     def >=(other: Coin): Boolean = value >= other.value
@@ -43,6 +41,14 @@ object Coin {
 
     /** Zero coin value */
     val zero: Coin = Coin(0)
+
+    /** Create lovelace amount from ADA amount, e.g.  ada(2) = 2_000_000 lovelace */
+    def ada(amount: Long): Coin = Coin(amount * 1_000_000L)
+
+    given CommutativeGroup[Coin] with
+        def combine(x: Coin, y: Coin): Coin = x + y
+        def empty: Coin = Coin.zero
+        def inverse(x: Coin): Coin = Coin(-x.value)
 }
 
 /** Minting MultiAsset. Can't contain zeros, can't be empty */
@@ -63,11 +69,80 @@ object Mint {
 
 case class MultiAsset(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]) {
     def isEmpty: Boolean = assets.isEmpty
+
+    def isPositive: Boolean = assets.values.forall(_.values.forall(_ > 0))
+    def isNegative: Boolean = assets.values.forall(_.values.forall(_ < 0))
+
+    import scalus.cardano.ledger.MultiAsset.binOp
+    @targetName("plus")
+    infix def +(other: MultiAsset): MultiAsset = binOp(_ + _)(this, other)
+    @targetName("minus")
+    infix def -(other: MultiAsset): MultiAsset = binOp(_ - _)(this, other)
 }
 
 object MultiAsset {
-    val zero: MultiAsset = MultiAsset(SortedMap.empty)
+    val zero: MultiAsset = MultiAsset(SortedMap.empty[PolicyId, SortedMap[AssetName, Long]])
     val empty: MultiAsset = zero
+
+    /** Create a MultiAsset with a single asset */
+    def asset(policyId: PolicyId, assetName: AssetName, amount: Long): MultiAsset = {
+        require(amount != 0, "Asset amount cannot be zero")
+        MultiAsset(
+          SortedMap(policyId -> SortedMap(assetName -> amount))
+        )
+    }
+
+    /** Create a MultiAsset from a single policy with multiple assets */
+    def fromPolicy(policyId: PolicyId, assets: Iterable[(AssetName, Long)]): MultiAsset = {
+        val filteredAssets = assets.filter(_._2 != 0)
+        require(filteredAssets.nonEmpty, "Assets map cannot be empty or contain only zero values")
+        MultiAsset(
+          SortedMap(policyId -> SortedMap.from(filteredAssets))
+        )
+    }
+
+    /** Create a MultiAsset from a map of policies to asset maps */
+    def fromAssets(
+        assets: collection.Map[PolicyId, collection.Map[AssetName, Long]]
+    ): MultiAsset = {
+        val filteredAssets = assets.view.mapValues(_.filter(_._2 != 0)).filter(_._2.nonEmpty)
+        if filteredAssets.isEmpty then MultiAsset.zero
+        else
+            MultiAsset(
+              SortedMap.from(
+                filteredAssets.map { case (policyId, assetMap) =>
+                    policyId -> SortedMap.from(assetMap)
+                }
+              )
+            )
+    }
+
+    /** Create a MultiAsset from a sequence of (PolicyId, AssetName, Amount) tuples */
+    def from(assets: Iterable[(PolicyId, AssetName, Long)]): MultiAsset = {
+        val grouped = assets.view
+            .filter(_._3 != 0) // Filter out zero amounts
+            .groupBy(_._1) // Group by PolicyId
+            .view
+            .mapValues(_.map(t => t._2 -> t._3).toMap) // Convert to asset maps
+            .toMap
+
+        fromAssets(grouped)
+    }
+
+    /** Create a MultiAsset from varargs of (PolicyId, AssetName, Amount) tuples */
+    def from(assets: (PolicyId, AssetName, Long)*): MultiAsset = {
+        from(assets)
+    }
+
+    /** Safely create a MultiAsset that filters out zero amounts and empty policies */
+    def safe(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]): MultiAsset = {
+        val filteredAssets = assets.view
+            .mapValues(_.filter(_._2 != 0)) // Remove zero amounts
+            .filter(_._2.nonEmpty) // Remove empty policies
+            .toMap
+
+        MultiAsset(SortedMap.from(filteredAssets))
+    }
 
     private[ledger] def binOp(
         op: (Long, Long) => Long
@@ -91,16 +166,11 @@ object MultiAsset {
                                 if combinedValue != 0 then Some(assetName -> combinedValue)
                                 else None
                             }
-                            .to(TreeMap)
+                            .to(SortedMap)
                     if mergedAssets.nonEmpty then Some(policyId -> mergedAssets) else None
                 }
-                .to(TreeMap)
+                .to(SortedMap)
         MultiAsset(assets)
-    }
-
-    extension (self: MultiAsset) {
-        def +(other: MultiAsset): MultiAsset = binOp(_ + _)(self, other)
-        def -(other: MultiAsset): MultiAsset = binOp(_ - _)(self, other)
     }
 
     given Encoder[MultiAsset] =
@@ -110,6 +180,11 @@ object MultiAsset {
         given Decoder[TreeMap[AssetName, Long]] = Decoder.forTreeMap[AssetName, Long]
         Decoder.forTreeMap[PolicyId, TreeMap[AssetName, Long]].map(MultiAsset.apply).read(r)
     }
+
+    given CommutativeGroup[MultiAsset] with
+        def combine(x: MultiAsset, y: MultiAsset): MultiAsset = x + y
+        def empty: MultiAsset = MultiAsset.zero
+        def inverse(x: MultiAsset): MultiAsset = binOp((a, b) => -a)(MultiAsset.zero, x)
 
 }
 
@@ -157,7 +232,7 @@ object AssetName {
 }
 
 /** Represents the supported scripting languages in Cardano */
-enum Language {
+enum Language extends java.lang.Enum[Language] {
 
     /** Plutus V1, first version of Plutus */
     case PlutusV1
@@ -181,6 +256,14 @@ object Language {
             case Language.PlutusV1 => "v1"
             case Language.PlutusV2 => "v2"
             case Language.PlutusV3 => "v3"
+        }
+    }
+
+    extension (lang: Language) {
+        def majorProtocolVersion: MajorProtocolVersion = lang match {
+            case Language.PlutusV1 => MajorProtocolVersion.alonzoPV
+            case Language.PlutusV2 => MajorProtocolVersion.vasilPV
+            case Language.PlutusV3 => MajorProtocolVersion.changPV
         }
     }
 
@@ -343,7 +426,7 @@ case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
                         //     a bytestring.
                         // PlutusV1: Double-bagged encoding for cost model as well
                         // here we must use indefinite CBOR map encoding for backward compatibility
-                        val encodedModel = Cbor.encode(costModel.toList).toByteArray
+                        val encodedModel = Cbor.encode(costModel.toList)
                         w.writeBytes(Array(0.toByte))
                         w.writeBytes(encodedModel)
                     case 1 | 2 => // PlutusV2 - uses standard encoding
@@ -362,7 +445,7 @@ case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
       * encoding.
       */
     def getLanguageViewEncoding: Array[Byte] = {
-        Cbor.encode(this)(using LanguageViewEncoder).toByteArray
+        Cbor.encode(this)(using LanguageViewEncoder)
     }
 }
 
@@ -414,7 +497,7 @@ case class KeepRaw[A](value: A, raw: Array[Byte]) {
 }
 
 object KeepRaw {
-    def apply[A: Encoder](value: A): KeepRaw[A] = new KeepRaw(value, Cbor.encode(value).toByteArray)
+    def apply[A: Encoder](value: A): KeepRaw[A] = new KeepRaw(value, Cbor.encode(value))
 
     given [A: Decoder](using OriginalCborByteArray): Decoder[KeepRaw[A]] =
         Decoder { r =>
@@ -432,7 +515,9 @@ object KeepRaw {
     given [A: Encoder]: Encoder[KeepRaw[A]] = (w: Writer, value: KeepRaw[A]) => {
         // FIXME: use w.writeValueAsRawBytes instead of re-encoding when it's supported:
         // https://github.com/sirthias/borer/issues/764
-        summon[Encoder[A]].write(w, value.value)
+//        summon[Encoder[A]].write(w, value.value)
+        w.output.writeBytes(value.raw)
+        w
     }
 }
 
@@ -444,20 +529,12 @@ extension (self: KeepRaw[Data]) {
 }
 
 case class Sized[A](value: A, size: Int) {
-    override def hashCode: Int =
-        util.Arrays.hashCode(Array(value.hashCode(), size))
-
-    override def equals(obj: Any): Boolean = obj.asMatchable match {
-        case that: Sized[?] =>
-            this.value == that.value && this.size == that.size
-        case _ => false
-    }
     override def toString: String = s"Sized(value=$value, size=$size)"
 }
 
 object Sized {
     def apply[A: Encoder](value: A): Sized[A] =
-        new Sized(value, Cbor.encode(value).toByteArray.length)
+        new Sized(value, Cbor.encode(value).length)
 
     given [A: Decoder](using OriginalCborByteArray): Decoder[Sized[A]] =
         Decoder { r =>
@@ -472,8 +549,6 @@ object Sized {
         }
 
     given [A: Encoder]: Encoder[Sized[A]] = (w: Writer, value: Sized[A]) => {
-        // FIXME: use w.writeValueAsRawBytes instead of re-encoding when it's supported:
-        // https://github.com/sirthias/borer/issues/764
         summon[Encoder[A]].write(w, value.value)
     }
 }

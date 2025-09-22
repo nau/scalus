@@ -18,11 +18,11 @@ import org.slf4j.LoggerFactory
 import scalus.bloxbean.Interop.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
-import scalus.cardano.ledger.Script
+import scalus.cardano.ledger.{MajorProtocolVersion, Script}
 import scalus.ledger
 import scalus.ledger.api
-import scalus.ledger.api.PlutusLedgerLanguage
-import scalus.ledger.api.PlutusLedgerLanguage.*
+import scalus.cardano.ledger.Language
+
 import scalus.ledger.api.v1
 import scalus.ledger.api.v2
 import scalus.ledger.api.v2.OutputDatum
@@ -102,24 +102,24 @@ class TxEvaluator(
         PlutusVM.makePlutusV1VM(
           translateMachineParamsFromCostMdls(
             costMdls,
-            PlutusV1,
-            api.MajorProtocolVersion(protocolMajorVersion)
+            Language.PlutusV1,
+            MajorProtocolVersion(protocolMajorVersion)
           )
         )
     private lazy val plutusV2VM =
         PlutusVM.makePlutusV2VM(
           translateMachineParamsFromCostMdls(
             costMdls,
-            PlutusV2,
-            api.MajorProtocolVersion(protocolMajorVersion)
+            Language.PlutusV2,
+            MajorProtocolVersion(protocolMajorVersion)
           )
         )
     private lazy val plutusV3VM =
         PlutusVM.makePlutusV3VM(
           translateMachineParamsFromCostMdls(
             costMdls,
-            PlutusV3,
-            api.MajorProtocolVersion(protocolMajorVersion)
+            Language.PlutusV3,
+            MajorProtocolVersion(protocolMajorVersion)
           )
         )
 

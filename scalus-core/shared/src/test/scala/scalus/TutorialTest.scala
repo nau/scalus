@@ -10,7 +10,7 @@ import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.fromData
 import scalus.builtin.FromData
-import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.cardano.ledger.Language
 import scalus.prelude.===
 import scalus.uplc.eval.CountingBudgetSpender
 import scalus.uplc.eval.Log
@@ -159,10 +159,10 @@ val serializeToDoubleCborHex = {
     Utils.writePlutusFile(
       "pubKeyValidator.plutus",
       program.deBruijnedProgram,
-      PlutusLedgerLanguage.PlutusV2
+      Language.PlutusV2
     )
     // or simply
-    program.writePlutusFile("pubKeyValidator.plutus", PlutusLedgerLanguage.PlutusV2)
+    program.writePlutusFile("pubKeyValidator.plutus", Language.PlutusV2)
 }
 
 def evaluation() = {
@@ -177,12 +177,12 @@ def evaluation() = {
     // you can get the actual execution costs from protocol parameters JSON from cardano-cli
     lazy val machineParams = MachineParams.fromCardanoCliProtocolParamsJson(
       "JSON with protocol parameters",
-      PlutusLedgerLanguage.PlutusV3
+      Language.PlutusV3
     )
     // or from blockfrost API
     lazy val machineParams2 = MachineParams.fromBlockfrostProtocolParamsJson(
       "JSON with protocol parameters",
-      PlutusLedgerLanguage.PlutusV3
+      Language.PlutusV3
     )
     // use latest PlutusV3 VM with explicit machine parameters
     val v3vm: PlutusVM = PlutusVM.makePlutusV3VM(machineParams)

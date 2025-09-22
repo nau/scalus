@@ -13,8 +13,8 @@ import dotty.tools.dotc.transform.{ElimByName, Pickler, PostTyper}
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.dotc.typer.Implicits
 import dotty.tools.io.ClassPath
-import scalus.flat.FlatInstantces
-import scalus.flat.FlatInstantces.SIRHashConsedFlat
+import scalus.serialization.flat.FlatInstances
+import scalus.serialization.flat.FlatInstances.SIRHashConsedFlat
 import scalus.sir.{RemoveRecursivity, SIRDefaultOptions, SIRPosition}
 
 import scala.collection.immutable

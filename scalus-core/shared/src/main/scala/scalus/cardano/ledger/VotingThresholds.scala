@@ -1,6 +1,7 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
+import upickle.ReadWriter
 
 /** Represents voting thresholds for stake pools in the Cardano blockchain.
   *
@@ -13,7 +14,7 @@ import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
   *   Threshold for normal committee updates
   * @param committeeNoConfidence
   *   Threshold for committee updates after no confidence
-  * @param hardFork
+  * @param hardForkInitiation
   *   Threshold for hard fork initiations
   * @param ppSecurityGroup
   *   Threshold for security protocol parameter changes
@@ -22,9 +23,9 @@ case class PoolVotingThresholds(
     motionNoConfidence: UnitInterval,
     committeeNormal: UnitInterval,
     committeeNoConfidence: UnitInterval,
-    hardFork: UnitInterval,
+    hardForkInitiation: UnitInterval,
     ppSecurityGroup: UnitInterval
-)
+) derives ReadWriter
 
 object PoolVotingThresholds {
 
@@ -36,7 +37,7 @@ object PoolVotingThresholds {
                 .write(value.motionNoConfidence)
                 .write(value.committeeNormal)
                 .write(value.committeeNoConfidence)
-                .write(value.hardFork)
+                .write(value.hardForkInitiation)
                 .write(value.ppSecurityGroup)
                 .writeArrayClose()
     }
@@ -74,9 +75,9 @@ object PoolVotingThresholds {
   *   Threshold for normal committee updates
   * @param committeeNoConfidence
   *   Threshold for committee updates after no confidence
-  * @param updateConstitution
+  * @param updateToConstitution
   *   Threshold for constitution updates
-  * @param hardFork
+  * @param hardForkInitiation
   *   Threshold for hard fork initiations
   * @param ppNetworkGroup
   *   Threshold for network protocol parameter changes
@@ -84,7 +85,7 @@ object PoolVotingThresholds {
   *   Threshold for economic protocol parameter changes
   * @param ppTechnicalGroup
   *   Threshold for technical protocol parameter changes
-  * @param ppGovernanceGroup
+  * @param ppGovGroup
   *   Threshold for governance protocol parameter changes
   * @param treasuryWithdrawal
   *   Threshold for treasury withdrawals
@@ -93,14 +94,14 @@ case class DRepVotingThresholds(
     motionNoConfidence: UnitInterval,
     committeeNormal: UnitInterval,
     committeeNoConfidence: UnitInterval,
-    updateConstitution: UnitInterval,
-    hardFork: UnitInterval,
+    updateToConstitution: UnitInterval,
+    hardForkInitiation: UnitInterval,
     ppNetworkGroup: UnitInterval,
     ppEconomicGroup: UnitInterval,
     ppTechnicalGroup: UnitInterval,
-    ppGovernanceGroup: UnitInterval,
+    ppGovGroup: UnitInterval,
     treasuryWithdrawal: UnitInterval
-)
+) derives ReadWriter
 
 object DRepVotingThresholds {
 
@@ -112,12 +113,12 @@ object DRepVotingThresholds {
                 .write(value.motionNoConfidence)
                 .write(value.committeeNormal)
                 .write(value.committeeNoConfidence)
-                .write(value.updateConstitution)
-                .write(value.hardFork)
+                .write(value.updateToConstitution)
+                .write(value.hardForkInitiation)
                 .write(value.ppNetworkGroup)
                 .write(value.ppEconomicGroup)
                 .write(value.ppTechnicalGroup)
-                .write(value.ppGovernanceGroup)
+                .write(value.ppGovGroup)
                 .write(value.treasuryWithdrawal)
                 .writeArrayClose()
     }
@@ -130,24 +131,24 @@ object DRepVotingThresholds {
             val motionNoConfidence = r.read[UnitInterval]()
             val committeeNormal = r.read[UnitInterval]()
             val committeeNoConfidence = r.read[UnitInterval]()
-            val updateConstitution = r.read[UnitInterval]()
-            val hardFork = r.read[UnitInterval]()
+            val updateToConstitution = r.read[UnitInterval]()
+            val hardForkInitiation = r.read[UnitInterval]()
             val ppNetworkGroup = r.read[UnitInterval]()
             val ppEconomicGroup = r.read[UnitInterval]()
             val ppTechnicalGroup = r.read[UnitInterval]()
-            val ppGovernanceGroup = r.read[UnitInterval]()
+            val ppGovGroup = r.read[UnitInterval]()
             val treasuryWithdrawal = r.read[UnitInterval]()
 
             DRepVotingThresholds(
               motionNoConfidence,
               committeeNormal,
               committeeNoConfidence,
-              updateConstitution,
-              hardFork,
+              updateToConstitution,
+              hardForkInitiation,
               ppNetworkGroup,
               ppEconomicGroup,
               ppTechnicalGroup,
-              ppGovernanceGroup,
+              ppGovGroup,
               treasuryWithdrawal
             )
         }

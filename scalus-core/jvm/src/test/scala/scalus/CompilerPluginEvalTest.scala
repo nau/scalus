@@ -3,7 +3,7 @@ package scalus
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, JVMPlatformSpecific}
-import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.cardano.ledger.Language
 import scalus.ledger.api.v1.*
 import scalus.uplc.eval.MachineParams
 //import scalus.ledger.api.v3.SpendingScriptInfo
@@ -191,7 +191,7 @@ class CompilerPluginEvalTest extends AnyFunSuite {
         given PlutusVM =
             val params = MachineParams.defaultPlutusV3Params
             new PlutusVM(
-              PlutusLedgerLanguage.PlutusV3,
+              Language.PlutusV3,
               params,
               params.semanticVariant,
               platform

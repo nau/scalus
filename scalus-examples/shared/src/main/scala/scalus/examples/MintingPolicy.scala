@@ -14,7 +14,7 @@ import scalus.builtin.Data.fromData
 
 case class TxInInfoTxOutRefOnly(txInInfoOutRef: TxOutRef)
 
-case class MintingContext(inputs: List[TxOutRef], minted: Value, ownSymbol: CurrencySymbol)
+case class MintingContext(inputs: List[TxOutRef], minted: Value, ownSymbol: PolicyId)
 
 @Compile
 object MintingPolicy {

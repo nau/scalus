@@ -16,7 +16,9 @@ type DatumHash = Hash
 type Redeemer = Data
 type ScriptHash = Hash
 type RedeemerHash = Hash
+@deprecated("Use PolicyId instead", "0.12.0")
 type CurrencySymbol = ByteString
+type PolicyId = ByteString
 type TokenName = ByteString
 type PosixTime = BigInt
 type PosixTimeRange = Interval
@@ -462,6 +464,27 @@ object Address {
     given ToData[Address] = ToData.derived
 
     given FromData[Address] = FromData.derived
+
+    /** Smart-constructor for an [[scalus.ledger.api.v1.Address]] from a
+      * [[scalus.ledger.api.v1.Credential]]. The resulting address has no delegation rights
+      * whatsoever.
+      */
+    inline def fromCredential(credential: Credential): Address =
+        Address(credential, Option.None)
+
+    /** Smart-constructor for an [[scalus.ledger.api.v1.Address]] from a
+      * [[scalus.ledger.api.v1.Credential.ScriptHash]] hash. The resulting address has no delegation
+      * rights whatsoever.
+      */
+    inline def fromScriptHash(script: ScriptHash): Address =
+        fromCredential(Credential.ScriptCredential(script))
+
+    /** Smart-constructor for an [[scalus.ledger.api.v1.Address]] from a
+      * [[scalus.ledger.api.v1.Credential.PubKeyHash]] hash. The resulting address has no delegation
+      * rights whatsoever.
+      */
+    inline def fromPubKeyHash(pubKey: PubKeyHash): Address =
+        fromCredential(Credential.PubKeyCredential(pubKey))
 
 }
 

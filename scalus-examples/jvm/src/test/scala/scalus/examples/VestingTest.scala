@@ -23,18 +23,29 @@ import scala.language.implicitConversions
 import org.scalatest.funsuite.AnyFunSuite
 
 object Mock {
-    val rootHash: ByteString =
+    val rootKeyHash: ByteString =
         ByteString.fromHex("a2c20c77887ace1cd986193e4e75babd8993cfd56995cd5cfce609c2")
 
-    private def mockKeyHash(variation: BigInt): ByteString = {
+    val rootTxHash: ByteString =
+        ByteString.fromHex("5a077cbcdffb88b104f292aacb9687ce93e2191e103a30a0cc5505c18b719f98")
+
+    private def mockHash(variation: BigInt, root: ByteString): ByteString =
         val variationBytes = ByteString.fromArray(variation.toByteArray)
-        blake2b_224(appendByteString(variationBytes, rootHash))
-    }
+        blake2b_224(appendByteString(variationBytes, root))
+
+    private def mockKeyHash(variation: BigInt): ByteString =
+        mockHash(variation, rootKeyHash)
+
+    private def mockTxHash(variation: BigInt): TxId =
+        TxId(mockHash(variation, rootKeyHash))
 
     def mockPubKeyHash(variation: BigInt): PubKeyHash = PubKeyHash(mockKeyHash(variation))
 
     def mockScriptHash(variation: BigInt): ValidatorHash =
         mockKeyHash(variation + 200)
+
+    def mockTxOutRef(variation: BigInt, idx: BigInt): TxOutRef =
+        TxOutRef(mockTxHash(variation), idx)
 }
 
 class VestingTest extends AnyFunSuite, ScalusTest {

@@ -2,7 +2,6 @@ package scalus.cardano.ledger
 
 import io.bullet.borer.*
 import io.bullet.borer.NullOptions.given
-import scalus.ledger.babbage.ProtocolParams
 
 import scala.collection.mutable
 

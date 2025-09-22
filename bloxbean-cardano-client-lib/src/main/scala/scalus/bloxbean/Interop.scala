@@ -36,11 +36,10 @@ import scalus.builtin.Data
 import scalus.builtin.Data.ToData
 import scalus.builtin.Data.toData
 import scalus.builtin.BuiltinPair
-import scalus.cardano.ledger.Script
+import scalus.cardano.ledger.{MajorProtocolVersion, Script}
 import scalus.ledger
 import scalus.ledger.api
-import scalus.ledger.api.BuiltinSemanticsVariant
-import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.cardano.ledger.Language
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.DCert
 import scalus.ledger.api.v1.ScriptPurpose
@@ -48,13 +47,13 @@ import scalus.ledger.api.v1.StakingCredential
 import scalus.ledger.api.v2
 import scalus.ledger.api.v3
 import scalus.ledger.api.v3.GovernanceActionId
-import scalus.ledger.babbage.PlutusV1Params
-import scalus.ledger.babbage.PlutusV2Params
-import scalus.ledger.babbage.PlutusV3Params
 import scalus.prelude
 import scalus.prelude.SortedMap
 import scalus.prelude.List
 import scalus.prelude.asScalus
+import scalus.uplc.{BuiltinSemanticsVariant, PlutusV1Params}
+import scalus.uplc.PlutusV2Params
+import scalus.uplc.PlutusV3Params
 import scalus.uplc.eval.*
 
 import java.math.BigInteger
@@ -233,41 +232,26 @@ object Interop {
                 BytesPlutusData.of(b.bytes)
     }
 
-    /** Creates [[MachineParams]] from a [[CostMdls]] and a [[PlutusLedgerLanguage]] */
-    @deprecated("Use the version with MajorProtocolVersion", "0.9.0")
+    /** Creates [[MachineParams]] from a [[CostMdls]] and a [[Language]] */
     def translateMachineParamsFromCostMdls(
         costMdls: CostMdls,
-        plutus: PlutusLedgerLanguage,
-        protocolVersion: api.ProtocolVersion
+        plutus: Language,
+        protocolVersion: MajorProtocolVersion
     ): MachineParams = {
-        translateMachineParamsFromCostMdls(
-          costMdls,
-          plutus,
-          api.MajorProtocolVersion(protocolVersion.major)
-        )
-    }
-
-    /** Creates [[MachineParams]] from a [[CostMdls]] and a [[PlutusLedgerLanguage]] */
-    def translateMachineParamsFromCostMdls(
-        costMdls: CostMdls,
-        plutus: PlutusLedgerLanguage,
-        protocolVersion: api.MajorProtocolVersion
-    ): MachineParams = {
-        import scalus.cardano.ledger.Language as L
         val (lang, params) = plutus match
-            case PlutusLedgerLanguage.PlutusV1 =>
-                val costs = costMdls.get(Language.PLUTUS_V1)
-                L.PlutusV1 -> PlutusV1Params.fromSeq(
+            case Language.PlutusV1 =>
+                val costs = costMdls.get(com.bloxbean.cardano.client.plutus.spec.Language.PLUTUS_V1)
+                Language.PlutusV1 -> PlutusV1Params.fromSeq(
                   immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
                 )
-            case PlutusLedgerLanguage.PlutusV2 =>
-                val costs = costMdls.get(Language.PLUTUS_V2)
-                L.PlutusV2 -> PlutusV2Params.fromSeq(
+            case Language.PlutusV2 =>
+                val costs = costMdls.get(com.bloxbean.cardano.client.plutus.spec.Language.PLUTUS_V2)
+                Language.PlutusV2 -> PlutusV2Params.fromSeq(
                   immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
                 )
-            case PlutusLedgerLanguage.PlutusV3 =>
-                val costs = costMdls.get(Language.PLUTUS_V3)
-                L.PlutusV3 -> PlutusV3Params.fromSeq(
+            case Language.PlutusV3 =>
+                val costs = costMdls.get(com.bloxbean.cardano.client.plutus.spec.Language.PLUTUS_V3)
+                Language.PlutusV3 -> PlutusV3Params.fromSeq(
                   immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
                 )
 
@@ -440,11 +424,6 @@ object Interop {
         else if out.getInlineDatum != null then
             v2.OutputDatum.OutputDatum(toScalusData(out.getInlineDatum))
         else v2.OutputDatum.NoOutputDatum
-    }
-
-    @deprecated("Use SlotConfig.slotToTime instead", "0.9.0")
-    def slotToBeginPosixTime(slot: Long, sc: SlotConfig): Long = {
-        sc.slotToTime(slot)
     }
 
     // https://github.com/IntersectMBO/cardano-ledger/blob/28ab3884cac8edbb7270fd4b8628a16429d2ec9e/eras/alonzo/impl/src/Cardano/Ledger/Alonzo/Plutus/TxInfo.hs#L186

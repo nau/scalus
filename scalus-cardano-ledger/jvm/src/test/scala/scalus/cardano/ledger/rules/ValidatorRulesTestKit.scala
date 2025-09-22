@@ -1,16 +1,67 @@
 package scalus.cardano.ledger.rules
 
-import org.scalacheck.Arbitrary
-import scalus.cardano.ledger.*
-import scalus.builtin.ByteString
-import java.security.SecureRandom
-import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.params.{Ed25519KeyGenerationParameters, Ed25519PrivateKeyParameters, Ed25519PublicKeyParameters}
+import org.scalacheck.Arbitrary
+import scalus.builtin.ByteString
+import scalus.cardano.address.{Network, ShelleyAddress, StakeAddress}
+import scalus.cardano.ledger.*
+
+import java.security.SecureRandom
+import scala.collection.immutable
 
 trait ValidatorRulesTestKit extends ArbitraryInstances {
     protected def randomValidTransaction: Transaction =
         Arbitrary.arbitrary[Transaction].sample.get.copy(isValid = true)
+
+    extension (tx: Transaction)
+        def withNetwork(network: Network): Transaction = tx.copy(
+          body = KeepRaw(
+            tx.body.value.copy(
+              networkId = Some(network.value),
+              outputs = tx.body.value.outputs
+                  .map(x =>
+                      Sized(
+                        TransactionOutput(
+                          Arbitrary.arbitrary[ShelleyAddress].sample.get.copy(network = network),
+                          x.value.value
+                        )
+                      )
+                  )
+                  .appended(
+                    Sized(
+                      TransactionOutput(
+                        Arbitrary.arbitrary[ShelleyAddress].sample.get.copy(network = network),
+                        Arbitrary.arbitrary[Value].sample.get
+                      )
+                    )
+                  ),
+              withdrawals = tx.body.value.withdrawals
+                  .map(w =>
+                      w.copy(withdrawals =
+                          w.withdrawals.map((k, v) =>
+                              (k.copy(address = k.address.copy(network = network)), v)
+                          )
+                      )
+                  )
+                  .orElse(
+                    Some(
+                      Withdrawals(
+                        immutable.SortedMap(
+                          (
+                            RewardAccount(
+                              Arbitrary.arbitrary[StakeAddress].sample.get.copy(network = network)
+                            ),
+                            Arbitrary.arbitrary[Coin].sample.get
+                          )
+                        )
+                      )
+                    )
+                  )
+            )
+          )
+        )
 
     private val keyPairGenerator = {
         val keyPairGenerator = new Ed25519KeyPairGenerator()

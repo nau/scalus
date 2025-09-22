@@ -4,7 +4,7 @@ import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
-import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.cardano.ledger.Language
 import scalus.uplc.{Program, Term}
 import scalus.uplc.Term.*
 import scalus.uplc.test.ArbitraryInstances
@@ -24,7 +24,7 @@ class UtilsTest
         val f = Files.createTempFile("test", ".plutus").toFile
         val path = f.getAbsolutePath
         f.deleteOnExit()
-        Utils.writePlutusFile(path, debruijnedProgram, PlutusLedgerLanguage.PlutusV2)
+        Utils.writePlutusFile(path, debruijnedProgram, Language.PlutusV2)
         val program2 = Utils.readPlutusFile(path)
         assert(undebuijnedProgram == program2)
     }
@@ -36,7 +36,7 @@ class UtilsTest
         assert(program == Program((1, 0, 0), lam("i0", "i1", "i2")(Term.Error)))
         val serialized = Utils.programToPlutusFileContent(
           program.deBruijnedProgram,
-          PlutusLedgerLanguage.PlutusV2
+          Language.PlutusV2
         )
         assert(serialized == alwaysFails)
     }

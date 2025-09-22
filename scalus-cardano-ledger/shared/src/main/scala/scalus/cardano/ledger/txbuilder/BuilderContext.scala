@@ -1,10 +1,13 @@
 package scalus.cardano.ledger.txbuilder
+import com.bloxbean.cardano.client.api.UtxoSupplier
+import com.bloxbean.cardano.client.backend.api.BackendService
+import com.bloxbean.cardano.client.function.TxSigner as CCLSigner
 import scalus.builtin.ByteString
 import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger.rules.{Context, State, UtxoEnv}
 import scalus.cardano.ledger.rules.STS.Validator
 import scalus.cardano.ledger.{CertState, Coin, PlutusScriptEvaluator, Sized, Transaction, TransactionException, TransactionInput, TransactionOutput, UTxO, Value}
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.ProtocolParams
 
 /** A context for transaction builders.
   *
@@ -15,13 +18,13 @@ case class BuilderContext(
     protocolParams: ProtocolParams,
     evaluator: PlutusScriptEvaluator,
     network: Network,
-    utxoProvider: UtxoProvider,
+    utxoProvider: UtxoProvider = UtxoProvider.from(Map.empty),
     validators: Seq[Validator] = Seq.empty,
-    signingKeys: Map[ByteString, ByteString] = Map.empty
+    backendService: BackendService = null,
 ) {
 
     /** Initializes a new transaction builder using this context. */
-    def buildNewTx: TxBuilder = TxBuilder(this)
+    def buildNewTx: TxBuilder = TxBuilder(this, backendService = backendService)
 
     def utxo: UTxO = utxoProvider.utxo
 
@@ -30,18 +33,10 @@ case class BuilderContext(
       */
     def withUtxo(utxo: UTxO): BuilderContext = copy(utxoProvider = utxoProvider.extendWith(utxo))
 
-    /** Specifies the key pair used for signing the transactions created by the txbuilder. */
-    def withSigningKey(publicKey: ByteString, privateKey: ByteString): BuilderContext =
-        copy(signingKeys = signingKeys + (publicKey -> privateKey))
-
-    /** Specifies the key pairs used for signing the transactions created by the txbuilder. */
-    def withSigningKeys(keys: Map[ByteString, ByteString]): BuilderContext =
-        copy(signingKeys = signingKeys ++ keys)
-
     /** Validates the transaction against the [[validators]] of this context. */
     def validate(tx: Transaction): Either[TransactionException, Transaction] = {
         val certState = CertState.empty
-        val context = Context(tx.body.value.fee, UtxoEnv(1L, protocolParams, certState))
+        val context = Context(tx.body.value.fee, UtxoEnv(1L, protocolParams, certState, network))
         val state = State(utxo, certState)
         validators
             .map(_.validate(context, state, tx))

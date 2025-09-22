@@ -2,7 +2,7 @@ package scalus.examples;
 
 import scala.math.BigInt;
 import scalus.builtin.Data;
-import scalus.ledger.api.PlutusLedgerLanguage;
+import scalus.cardano.ledger.Language;
 import scalus.uplc.DeBruijnedProgram;
 import scalus.uplc.eval.*;
 
@@ -24,7 +24,7 @@ class PlutusVMExample {
         // Load protocol parameters from a JSON file
         var pparams = readString(Paths.get("../../scalus-core/shared/src/main/resources/protocol-params.json"));
         // Setup PlutusV3 machine parameters (cost model) from the protocol parameters
-        var machineParams = MachineParams.fromCardanoCliProtocolParamsJson(pparams, PlutusLedgerLanguage.PlutusV3);
+        var machineParams = MachineParams.fromCardanoCliProtocolParamsJson(pparams, Language.PlutusV3);
         // Setup Plutus 3 VM with machine parameters
         var plutusVM = PlutusVM.makePlutusV3VM(machineParams);
         // Evaluate the script

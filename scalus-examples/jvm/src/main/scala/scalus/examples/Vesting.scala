@@ -10,7 +10,7 @@ import scalus.builtin.Data
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.ledger.api.v1.Value.getLovelace
 import scalus.Compiler.compile
-import scalus.cardano.plutus.contract.blueprint.{Application, Blueprint}
+import scalus.cardano.blueprint.{Application, Blueprint}
 
 case class VestingDatum(
     beneficiary: PubKeyHash,

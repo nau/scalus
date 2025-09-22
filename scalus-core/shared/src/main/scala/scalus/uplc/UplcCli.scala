@@ -1,6 +1,5 @@
 package scalus.uplc
 
-import scalus.ledger.api.BuiltinSemanticsVariant
 import scalus.uplc.eval.ExBudget
 import scalus.uplc.eval.ExCPU
 import scalus.uplc.eval.ExMemory

@@ -5,7 +5,7 @@ import scalus.Compiler.compile
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.Data
-import scalus.cardano.plutus.contract.blueprint.{Application, Blueprint}
+import scalus.cardano.blueprint.{Application, Blueprint}
 import scalus.ledger.api.v2.*
 import scalus.prelude.*
 import scalus.sir.SIR

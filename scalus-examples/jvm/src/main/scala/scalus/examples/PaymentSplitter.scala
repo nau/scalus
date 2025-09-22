@@ -2,7 +2,7 @@ package scalus.examples
 
 import scalus.*
 import scalus.builtin.{ByteString, Data}
-import scalus.cardano.plutus.contract.blueprint.{Application, Blueprint}
+import scalus.cardano.blueprint.{Application, Blueprint}
 import scalus.ledger.api.v1
 import scalus.ledger.api.v1.Value.*
 import scalus.ledger.api.v1.{Credential, PubKeyHash, Value}

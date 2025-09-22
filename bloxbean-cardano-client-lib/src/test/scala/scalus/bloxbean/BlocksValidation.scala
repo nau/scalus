@@ -18,17 +18,15 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, OriginalCborByteArray, PlutusScriptEvaluator, Redeemers, Script, ScriptDataHashGenerator}
-import scalus.ledger.api.{MajorProtocolVersion, ValidityInterval}
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
+import scalus.cardano.ledger.ProtocolParams
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Hex.toHex
 import scalus.utils.Utils
-import upickle.default.read
 
 import java.math.BigInteger
 import java.nio.channels.FileChannel
-import java.nio.file.{Files, Path, Paths, StandardCopyOption, StandardOpenOption}
+import java.nio.file.*
 import java.util
 import java.util.stream.Collectors
 import scala.collection.immutable.TreeSet
@@ -169,9 +167,9 @@ object BlocksValidation:
           )
         )
         val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
-        val params: ProtocolParams = read[ProtocolParams](
+        val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-        )(using ProtocolParams.blockfrostParamsRW)
+        )
         val costModels = CostModels.fromProtocolParams(params)
         val evaluator = PlutusScriptEvaluator(
           ledger.SlotConfig.Mainnet,
@@ -406,9 +404,9 @@ object BlocksValidation:
           )
         )
 
-        val params: ProtocolParams = read[ProtocolParams](
+        val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-        )(using ProtocolParams.blockfrostParamsRW)
+        )
 
         val blocks = getAllBlocksPaths()
 

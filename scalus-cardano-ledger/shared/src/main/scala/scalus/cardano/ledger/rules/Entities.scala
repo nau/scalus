@@ -1,8 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.ledger.babbage.ProtocolParams
-import upickle.default.read
+import scalus.cardano.address.Network
 
 // It's mutable state for transient calculation
 class Context(
@@ -21,20 +20,21 @@ case class State(
     donation: Coin = Coin.zero // Donation amount
 )
 
-case class UtxoEnv(slot: SlotNo, params: ProtocolParams, certState: CertState)
+case class UtxoEnv(slot: SlotNo, params: ProtocolParams, certState: CertState, network: Network)
 object UtxoEnv {
     // TODO: remove
     val default: UtxoEnv =
 
-        val params: ProtocolParams = read[ProtocolParams](
+        val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-        )(using ProtocolParams.blockfrostParamsRW)
+        )
 
         // Load protocol parameters from a JSON file
         UtxoEnv(
           0,
           params,
-          CertState.empty
+          CertState.empty,
+          Network.Testnet
         )
 }
 

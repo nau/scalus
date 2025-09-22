@@ -1,8 +1,8 @@
 package scalus.cardano.ledger.utils
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
-import scalus.cardano.ledger.txbuilder.{ChangeReturnStrategy, FeePayerStrategy, OnSurplus}
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.txbuilder.{ChangeReturnStrategy, FeePayerStrategy}
+import scalus.cardano.ledger.ProtocolParams
 
 import scala.annotation.tailrec
 import scala.util.boundary
@@ -96,7 +96,7 @@ object TxBalance {
 
     def doBalance(
         tx: Transaction
-    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: OnSurplus): Transaction = {
+    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: Any): Transaction = {
         val consumed = TxBalance.consumed(tx, CertState.empty, utxo, protocolParams).toTry.get
         val produced = TxBalance.produced(tx)
         if consumed.coin < produced.coin then {
@@ -110,7 +110,7 @@ object TxBalance {
             diffLong match {
                 case d if d > 0L =>
                     val diff = Coin(d)
-                    val newTx = onSurplus(utxo, diff)(currentTx)
+                    val newTx = currentTx
                     val correctFee = MinTransactionFee(newTx, utxo, protocolParams).toTry.get
                     val newTxWithFee = modifyBody(newTx, _.copy(fee = correctFee))
                     val newProduced = TxBalance.produced(newTxWithFee)
@@ -156,19 +156,22 @@ object TxBalance {
 
             diffLong match {
                 case d if d > 0L =>
-                    val diff = Coin(d)
                     val tempTx = modifyBody(
                       currentTx,
                       _.copy(outputs =
                           changeReturnStrategy
-                              .returnChange(diff, currentTx.body.value, utxo)
+                              .returnChange(diffLong, currentTx.body.value, utxo)
                               .map(Sized(_))
                       )
                     )
                     val correctFee = MinTransactionFee(tempTx, utxo, protocolParams).toTry.get
-                    val changeWithFee = diff + correctFee
+                    val changeWithFee = Coin(diffLong) + correctFee
                     val newOuts =
-                        changeReturnStrategy.returnChange(changeWithFee, currentTx.body.value, utxo)
+                        changeReturnStrategy.returnChange(
+                          changeWithFee.value,
+                          currentTx.body.value,
+                          utxo
+                        )
                     val newTx = modifyBody(currentTx, _.copy(outputs = newOuts.map(Sized(_))))
                     val outputsAfterAppliedFee = feePayerStrategy(correctFee, newOuts)
                     val newTxWithFee = modifyBody(

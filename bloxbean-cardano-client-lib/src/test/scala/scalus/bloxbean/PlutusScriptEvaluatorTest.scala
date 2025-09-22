@@ -9,19 +9,16 @@ import scalus.cardano.address.ShelleyDelegationPart.Null
 import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
 import scalus.examples.PubKeyValidator
-import scalus.ledger.api.MajorProtocolVersion
-import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
-import upickle.default.read
 
 import java.nio.file.Paths
 import scala.collection.immutable.SortedSet
 
 class PlutusScriptEvaluatorTest extends AnyFunSuite {
-    private val params: ProtocolParams = read[ProtocolParams](
+    private val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
       this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-    )(using ProtocolParams.blockfrostParamsRW)
+    )
     private val costModels = CostModels.fromProtocolParams(params)
 
     test("TxEvaluator PlutusV2") {
@@ -197,7 +194,15 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
         import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 
-        val resourcesPath = Paths.get("bloxbean-cardano-client-lib/src/test/resources")
+        // this makes sure to download the utxos in the same directory that `resolveUtxoFromResources` is going to
+        // look for them in.
+        val blocksUrl = getClass.getResource("/blocks")
+        val compiledResourcesPath = Paths.get(blocksUrl.toURI).getParent
+        val resourcesPath = compiledResourcesPath.getParent.getParent.getParent
+            .resolve("src")
+            .resolve("test")
+            .resolve("resources")
+
         val backendService =
             new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, BlocksValidation.apiKey)
         val utxoSupplier = CachedUtxoSupplier(

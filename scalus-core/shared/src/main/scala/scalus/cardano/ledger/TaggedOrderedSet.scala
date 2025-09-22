@@ -3,6 +3,11 @@ package scalus.cardano.ledger
 import scala.collection.immutable.SortedSet
 import io.bullet.borer.{DataItem, Decoder, Encoder, Reader, Tag, Writer}
 
+/** Represents a tagged ordered set, which is a sorted set of elements with a tag.
+  *
+  * Under the hood it's a `SortedSet` because we need to preserve the order of elements. Also, it
+  * allows make right CBOR serialization with tag 258.
+  */
 opaque type TaggedOrderedSet[A] = SortedSet[A]
 object TaggedOrderedSet {
     inline def empty[A: Ordering]: TaggedOrderedSet[A] = SortedSet.empty[A]

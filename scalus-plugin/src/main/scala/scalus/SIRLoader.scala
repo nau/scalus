@@ -1,7 +1,8 @@
 package scalus
 
-import scalus.flat.DecoderState
-import scalus.flat.FlatInstantces.given
+import scalus.serialization.flat
+import scalus.serialization.flat.DecoderState
+import scalus.serialization.flat.FlatInstances.given
 import scalus.sir.Module
 
 import java.io.InputStream
