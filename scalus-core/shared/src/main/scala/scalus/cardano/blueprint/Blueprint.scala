@@ -68,10 +68,8 @@ object Blueprint {
 
     private def mkValidator(validatorScript: Script) = {
         val cbor = validatorScript match {
-            case Script.PlutusV1(script) => script.toHex
-            case Script.PlutusV2(script) => script.toHex
-            case Script.PlutusV3(script) => script.toHex
-            case Script.Native(script)   => script.toCbor.toHex
+            case s: PlutusScript       => s.script.toHex
+            case Script.Native(script) => script.toCbor.toHex
         }
         Validator(
           "validator",

@@ -52,10 +52,8 @@ object MinTransactionFee {
 
             val refScriptsSize = scripts.foldLeft(0) { case (length, script) =>
                 val scripLength = script match
-                    case _: Script.Native        => 0 // Native scripts do not contribute to fees
-                    case Script.PlutusV1(script) => script.size
-                    case Script.PlutusV2(script) => script.size
-                    case Script.PlutusV3(script) => script.size
+                    case _: Script.Native => 0 // Native scripts do not contribute to fees
+                    case s: PlutusScript  => s.script.size
 
                 length + scripLength
             }
