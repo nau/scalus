@@ -776,7 +776,8 @@ extension (t: TransactionOutput) {
     }
 }
 def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody): Transaction = {
-    tx.focus(_.body.value).modify(f)
+    val newBody = f(tx.body.value)
+    tx.copy(body = KeepRaw(newBody))
 }
 
 /*
@@ -909,9 +910,10 @@ object LowLevelTxBuilder {
                   TxBalancingError.InsufficientFunds(diff, minAda.value - updatedLovelaceChange)
                 )
 
-            val t = tx
-                .focus(_.body.value.outputs.index(changeOutputIdx))
+            val tb = tx.body.value
+                .focus(_.outputs.index(changeOutputIdx))
                 .replace(newChangeOut)
+            val t = tx.copy(body = KeepRaw(tb))
             Right(t)
         }
     }
