@@ -2,8 +2,7 @@ package scalus.cardano.ledger
 package rules
 
 import scala.collection.View
-import scalus.cardano.ledger.utils.AllResolvedScripts
-import scalus.uplc.DeBruijnedProgram
+import scalus.cardano.ledger.utils.{AllResolvedScripts, PlutusScript}
 
 // It's Babbage.validateScriptsWellFormed in cardano-ledger
 object ScriptsWellFormedValidator extends STS.Validator {
@@ -17,8 +16,9 @@ object ScriptsWellFormedValidator extends STS.Validator {
 
         val allWitnessesPlutusScripts = AllResolvedScripts.allWitnessesPlutusScriptsView(event)
 
-        val allOutputs = (body.outputs.view ++ body.collateralReturnOutput).map(_.value)
         val allPlutusScriptsFromAllOutputs =
+            val allOutputs = (body.outputs.view ++ body.collateralReturnOutput).map(_.value)
+
             for
                 output <- allOutputs
                 scriptRef <- output.scriptRef
@@ -55,31 +55,8 @@ object ScriptsWellFormedValidator extends STS.Validator {
         majorProtocolVersion: MajorProtocolVersion
     ): Set[ScriptHash] = {
         plutusScripts
-            .filterNot(isWellFormedPlutusScript(_, majorProtocolVersion))
+            .filterNot(PlutusScript.isWellFormed(_, majorProtocolVersion))
             .map(_.scriptHash)
             .toSet
-    }
-
-    private def isWellFormedPlutusScript(
-        plutusScript: PlutusScript,
-        majorProtocolVersion: MajorProtocolVersion
-    ): Boolean = {
-        val language = plutusScript.language
-
-        if majorProtocolVersion < language.majorProtocolVersion then return false
-
-        val decoded = DeBruijnedProgram.fromCborWithRemainingBytes(plutusScript.script.bytes)
-        decoded match
-            case Right((DeBruijnedProgram(_, term), remaining)) =>
-                if language != Language.PlutusV1 && language != Language.PlutusV2 && remaining.nonEmpty
-                then false
-                else
-                    val collectedBuiltins = term.collectBuiltins
-                    val foundBuiltinsIntroducedIn =
-                        Builtins.findBuiltinsIntroducedIn(language, majorProtocolVersion)
-
-                    collectedBuiltins.subsetOf(foundBuiltinsIntroducedIn)
-
-            case Left(_) => false
     }
 }

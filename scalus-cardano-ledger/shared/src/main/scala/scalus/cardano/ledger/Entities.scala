@@ -247,6 +247,42 @@ object TransactionException {
           s"Wrong networkId $wrongNetworkId in body of transaction $transactionId"
         )
 
+    sealed class MetadataException(message: String) extends TransactionException(message)
+    object MetadataException {
+        // It's Shelley.MissingTxMetadata in cardano-ledger
+        final case class MissingAuxiliaryDataException(
+            transactionId: TransactionHash,
+            auxiliaryDataHash: AuxiliaryDataHash
+        ) extends MetadataException(
+              s"Missing auxiliary data for transactionId $transactionId, auxiliary data hash: $auxiliaryDataHash"
+            )
+
+        // It's Shelley.MissingTxBodyMetadataHash in cardano-ledger
+        final case class MissingAuxiliaryDataHashException(
+            transactionId: TransactionHash,
+            auxiliaryData: AuxiliaryData
+        ) extends MetadataException(
+              s"Missing auxiliary data hash for transactionId $transactionId, auxiliary data: $auxiliaryData"
+            )
+
+        // It's Shelley.ConflictingMetadataHash in cardano-ledger
+        final case class InvalidAuxiliaryDataHashException(
+            transactionId: TransactionHash,
+            actual: AuxiliaryDataHash,
+            expected: AuxiliaryDataHash
+        ) extends MetadataException(
+              s"Invalid auxiliary data hash for transactionId $transactionId, expected: $expected, actual: $actual"
+            )
+
+        // It's Shelley.InvalidMetadata in cardano-ledger
+        final case class InvalidAuxiliaryDataException(
+            transactionId: TransactionHash,
+            auxiliaryData: AuxiliaryData
+        ) extends MetadataException(
+              s"Invalid auxiliary data for transactionId $transactionId, auxiliary data: $auxiliaryData"
+            )
+    }
+
     // TODO: placeholder for general exception, remove after finishing development
     final case class IllegalArgumentException(message: String) extends TransactionException(message)
 }
