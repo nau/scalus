@@ -247,10 +247,42 @@ object Ord:
     given Ord[BigInt] = (x: BigInt, y: BigInt) =>
         if lessThanInteger(x, y) then Less else if lessThanInteger(y, x) then Greater else Equal
 
+    // TODO it's not truly overriding and doesn't work in generic function,
+    //  see extension methods <, <=, >, >=, equiv, nonEquiv for [A: Ord]
+    //  Don't accidentally mixed with standard scala math.Ordering.BigInt
+    extension (self: BigInt)
+        inline def <(other: BigInt): Boolean = lessThanInteger(self, other)
+        inline def <=(other: BigInt): Boolean = lessThanEqualsInteger(self, other)
+        inline def >(other: BigInt): Boolean = lessThanInteger(other, self)
+        inline def >=(other: BigInt): Boolean = lessThanEqualsInteger(other, self)
+        inline def equiv(other: BigInt): Boolean = equalsInteger(self, other)
+        inline def nonEquiv(other: BigInt): Boolean = !equalsInteger(self, other)
+
+    end extension
+
     given Ord[Boolean] = (x: Boolean, y: Boolean) =>
         if x then if y then Equal else Greater
         else if y then Less
         else Equal
+
+    // TODO it's not truly overriding and doesn't work in generic function,
+    //  see extension methods <, <=, >, >=, equiv, nonEquiv for [A: Ord]
+    //  Don't accidentally mixed with standard scala math.Ordering.BigInt
+    extension (self: Boolean)
+        inline def <(other: Boolean): Boolean =
+            if self then false else other
+        inline def <=(other: Boolean): Boolean =
+            if self then other else true
+        inline def >(other: Boolean): Boolean =
+            if self then if other then false else true else false
+        inline def >=(other: Boolean): Boolean =
+            if self then true else if other then false else true
+        inline def equiv(other: Boolean): Boolean =
+            if self then other else if other then false else true
+        inline def nonEquiv(other: Boolean): Boolean =
+            if self then if other then false else true else other
+
+    end extension
 
     given Ord[Data] = (x: Data, y: Data) => {
         import scalus.builtin
