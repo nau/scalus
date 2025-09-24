@@ -284,93 +284,85 @@ object Ord:
 
     end extension
 
-    given Ord[Data] = (x: Data, y: Data) => {
-        import scalus.builtin
-        import Ord.Order.*
+    given Ord[Data] = {
+        val yLess = () => Less
+        val yGreater = () => Greater
 
-        def compareBuiltinList(
-            xs: builtin.BuiltinList[Data],
-            ys: builtin.BuiltinList[Data]
-        ): Order = {
-            if xs.isEmpty && ys.isEmpty then Equal
-            else if xs.isEmpty then Less
-            else if ys.isEmpty then Greater
-            else (xs.head <=> ys.head) ifEqualThen compareBuiltinList(xs.tail, ys.tail)
-        }
+        (x: Data, y: Data) => {
+            import scalus.builtin
+            import Ord.Order.*
 
-        val xConstr = () => {
-            val yConstr = () => {
-                val px = unConstrData(x)
-                val py = unConstrData(y)
-                (px.fst <=> py.fst) ifEqualThen compareBuiltinList(px.snd, py.snd)
+            def compareBuiltinList(
+                xs: builtin.BuiltinList[Data],
+                ys: builtin.BuiltinList[Data]
+            ): Order = {
+                if xs.isEmpty && ys.isEmpty then Equal
+                else if xs.isEmpty then Less
+                else if ys.isEmpty then Greater
+                else (xs.head <=> ys.head) ifEqualThen compareBuiltinList(xs.tail, ys.tail)
             }
 
-            val yLess = () => Less
-
-            chooseData(y, yConstr, yLess, yLess, yLess, yLess)()
-        }
-
-        val xMap = () => {
-            val yGreater = () => Greater
-
-            val yMap = () => {
-                val lstx = unMapData(x)
-                val lsty = unMapData(y)
-
-                def compareDataPair(
-                    px: BuiltinPair[Data, Data],
-                    py: BuiltinPair[Data, Data]
-                ): Order =
-                    (px.fst <=> py.fst) ifEqualThen (px.snd <=> py.snd)
-
-                def go(
-                    xs: builtin.BuiltinList[BuiltinPair[Data, Data]],
-                    ys: builtin.BuiltinList[BuiltinPair[Data, Data]]
-                ): Order = {
-                    if xs.isEmpty && ys.isEmpty then Equal
-                    else if xs.isEmpty then Less
-                    else if ys.isEmpty then Greater
-                    else compareDataPair(xs.head, ys.head) ifEqualThen go(xs.tail, ys.tail)
+            val xConstr = () => {
+                val yConstr = () => {
+                    val px = unConstrData(x)
+                    val py = unConstrData(y)
+                    (px.fst <=> py.fst) ifEqualThen compareBuiltinList(px.snd, py.snd)
                 }
 
-                go(lstx, lsty)
+                chooseData(y, yConstr, yLess, yLess, yLess, yLess)()
             }
 
-            val yLess = () => Less
+            val xMap = () => {
+                val yMap = () => {
+                    val lstx = unMapData(x)
+                    val lsty = unMapData(y)
 
-            chooseData(y, yGreater, yMap, yLess, yLess, yLess)()
-        }
+                    def compareDataPair(
+                        px: BuiltinPair[Data, Data],
+                        py: BuiltinPair[Data, Data]
+                    ): Order =
+                        (px.fst <=> py.fst) ifEqualThen (px.snd <=> py.snd)
 
-        val xList = () => {
-            val yGreater = () => Greater
+                    def go(
+                        xs: builtin.BuiltinList[BuiltinPair[Data, Data]],
+                        ys: builtin.BuiltinList[BuiltinPair[Data, Data]]
+                    ): Order = {
+                        if xs.isEmpty && ys.isEmpty then Equal
+                        else if xs.isEmpty then Less
+                        else if ys.isEmpty then Greater
+                        else compareDataPair(xs.head, ys.head) ifEqualThen go(xs.tail, ys.tail)
+                    }
 
-            val yList = () => {
-                val lstx = unListData(x)
-                val lsty = unListData(y)
-                compareBuiltinList(lstx, lsty)
+                    go(lstx, lsty)
+                }
+
+                chooseData(y, yGreater, yMap, yLess, yLess, yLess)()
             }
 
-            val yLess = () => Less
+            val xList = () => {
+                val yList = () => {
+                    val lstx = unListData(x)
+                    val lsty = unListData(y)
+                    compareBuiltinList(lstx, lsty)
+                }
 
-            chooseData(y, yGreater, yGreater, yList, yLess, yLess)()
+                chooseData(y, yGreater, yGreater, yList, yLess, yLess)()
+            }
+
+            val xI = () => {
+                val yI = () => unIData(x) <=> unIData(y)
+
+                chooseData(y, yGreater, yGreater, yGreater, yI, yLess)()
+            }
+
+            val xB = () => {
+                val yB = () => unBData(x) <=> unBData(y)
+
+                chooseData(y, yGreater, yGreater, yGreater, yGreater, yB)()
+            }
+
+            chooseData(x, xConstr, xMap, xList, xI, xB)()
         }
-
-        val xI = () => {
-            val yGreater = () => Greater
-            val yI = () => unIData(x) <=> unIData(y)
-            val yLess = () => Less
-
-            chooseData(y, yGreater, yGreater, yGreater, yI, yLess)()
-        }
-
-        val xB = () => {
-            val yGreater = () => Greater
-            val yB = () => unBData(x) <=> unBData(y)
-
-            chooseData(y, yGreater, yGreater, yGreater, yGreater, yB)()
-        }
-
-        chooseData(x, xConstr, xMap, xList, xI, xB)()
     }
 
     given Ord[Unit] = (_: Unit, _: Unit) => Equal
