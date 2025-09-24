@@ -23,6 +23,8 @@ trait Party {
     def approve(tx: Transaction): Transaction
     def diffHandlerFor(input: TransactionInput): DiffHandler
     def getCollateralUtxo: ResolvedUtxo
+
+    def getUtxo(min: Coin): ResolvedUtxo
 }
 
 enum ResolvedUtxo:
@@ -86,6 +88,19 @@ case class TransactionContribution(
          */
         ???
     }
+
+    def toTransaction = Transaction(
+      KeepRaw(
+        TransactionBody(
+          inputs = TaggedOrderedSet.from(inputs),
+          outputs = outputs.map(Sized.apply),
+          fee = fee,
+          collateralInputs = TaggedOrderedSet.from(collateralInputs),
+          collateralReturnOutput = collateralReturn.map(Sized.apply)
+        )
+      ),
+      witnesses
+    )
 }
 
 case class Pay(from: Address, to: Address, value: Value) extends Intention {
@@ -143,6 +158,13 @@ case class IntentionInterpreter(context: TxBuilderContext) {
         // turn it into a tx, pass it to the low lever builder.
         ???
     }
+
+    def interpretOne(intention: Intention) = {
+        val contribution = intention.contributeToTransaction(context)
+        val tx = contribution.map(_.toTransaction).right.get
+        tx
+    }
+
 }
 
 trait RequirementGatheringError extends Exception
