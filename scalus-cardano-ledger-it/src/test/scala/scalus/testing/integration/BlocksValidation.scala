@@ -53,12 +53,16 @@ class BlocksValidation extends AnyFunSuite {
       "BLOCKFROST_API_KEY is not set, please set it before running the test"
     )
 
+    private lazy val dataPath = System.getenv("SCALUS_IT_DATA_PATH") ?? sys.error(
+      "SCALUS_IT_DATA_PATH is not set, please set it before running the test"
+    )
+
     private def validateBlocksOfEpoch(epoch: Int): Unit = {
         import com.bloxbean.cardano.yaci.core.config.YaciConfig
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
         YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
 
-        val resourcesPath = Paths.get(".")
+        val resourcesPath = Paths.get(dataPath)
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
           resourcesPath.resolve("utxos"),
@@ -92,7 +96,7 @@ class BlocksValidation extends AnyFunSuite {
         var v3ScriptsExecuted = 0
 
         println(s"Validating blocks of epoch $epoch...")
-        for blockNum <- 11544518 to 11660768 do
+        for blockNum <- 11544518 to 11662495 do
             try
                 val txs = readTransactionsFromBlockCbor(
                   resourcesPath.resolve(s"blocks/block-$blockNum.cbor")
@@ -111,7 +115,7 @@ class BlocksValidation extends AnyFunSuite {
                                 errors += ((e.getMessage, blockNum, txhash))
                                 println(s"Error in block $blockNum, tx $txhash: ${e.getMessage}")
                     r.toSeq
-                print(s"\rBlock $blockNum, num txs to validate: ${txsWithScripts.size}")
+                println(s"\rBlock $blockNum, num txs to validate: ${txsWithScripts.size}")
 //            println(s"Block txs:\n${txsWithScripts.map(_._3).sorted.mkString("\n")}")
 
                 for (tx, datums, txhash, scripts) <- txsWithScripts do {
@@ -126,7 +130,7 @@ class BlocksValidation extends AnyFunSuite {
                         if !result.isSuccessful then
                             errors += ((result.getResponse, blockNum, txhash))
                             println(
-                              s"${Console.RED}AAAA!!!! block $blockNum $txhash ${result.getResponse}${Console.RESET}"
+                              s"${Console.RED}[error# ${errors.size}] AAAA!!!! block $blockNum $txhash ${result.getResponse}${Console.RESET}"
                             )
                         else
 //                        println(result.getResponse)
@@ -143,17 +147,19 @@ class BlocksValidation extends AnyFunSuite {
                                         v3ScriptsExecuted += 1
                                     case _ =>
                     else
-                        println(s"${Console.RED}AAAAA invalid!!! $txhash ${Console.RESET}")
+                        println(
+                          s"${Console.RED}[error# ${errors.size}] AAAAA invalid!!! $txhash ${Console.RESET}"
+                        )
                         errors += (("Invalid tx", blockNum, txhash))
                 }
             catch {
-                case e: Exception =>
+                case e: Exception => errors += (("Missed block", blockNum, ""))
             }
 
 //                println("----------------------------------------------------")
 //            println(s"=======================================")
         println(s"""Total txs: $totalTx,
-               |errors: $errors,
+               |errors: ${errors.size},
                |v1: $v1ScriptsExecuted of ${v1Scripts.size},
                |v2: $v2ScriptsExecuted of ${v2Scripts.size}
                |v3: $v3ScriptsExecuted of ${v3Scripts.size}
@@ -201,7 +207,7 @@ class BlocksValidation extends AnyFunSuite {
             val block = BlockFile.fromCborArray(blockBytes).block
             val txs =
                 block.transactions.filter(t => t.witnessSet.redeemers.nonEmpty && t.isValid)
-            print(
+            println(
               s"\rBlock ${Console.YELLOW}$path${Console.RESET}, num txs to validate: ${txs.size}"
             )
             for tx <- txs do
@@ -213,16 +219,20 @@ class BlocksValidation extends AnyFunSuite {
                         val expectedRedeemers = tx.witnessSet.redeemers.get.value.toMap
                         for (key, (_, actualExUnits)) <- actualRedeemers do
                             val expectedExUnits = expectedRedeemers(key)._2
-                            if actualExUnits > expectedExUnits then
-                                errors +=
-                                    s"\n${Console.RED}AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits ${Console.RESET}"
+                            if actualExUnits > expectedExUnits then {
+                                val error = s"AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits"
+                                errors += error
+                                println(s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}")
+                            }
                     }
                 catch
                     case e: Exception =>
-                        errors += s"Error in block $path, tx ${tx.id}: ${e.getMessage}"
+                        val error = s"Error in block $path, tx ${tx.id}: ${e.getMessage}"
+                        errors += error
+                        println(s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}")
                 totalTx += 1
         println(
-          s"\n${Console.GREEN}Total txs: $totalTx, blocks: ${blocks.size}, epoch: $epoch${Console.RESET}"
+          s"\n${Console.GREEN}Total txs: $totalTx, errors ${errors.size}, blocks: ${blocks.size}, epoch: $epoch${Console.RESET}"
         )
         assert(errors.isEmpty, errors)
     }
