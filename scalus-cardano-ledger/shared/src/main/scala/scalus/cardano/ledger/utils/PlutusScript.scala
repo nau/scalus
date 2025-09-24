@@ -23,13 +23,13 @@ object PlutusScript {
         decoded match
             case Right((DeBruijnedProgram(_, term), remaining)) =>
                 if language != Language.PlutusV1 && language != Language.PlutusV2 && remaining.nonEmpty
-                then false
-                else
-                    val collectedBuiltins = term.collectBuiltins
-                    val foundBuiltinsIntroducedIn =
-                        Builtins.findBuiltinsIntroducedIn(language, majorProtocolVersion)
+                then return false
 
-                    collectedBuiltins.subsetOf(foundBuiltinsIntroducedIn)
+                val collectedBuiltins = term.collectBuiltins
+                val foundBuiltinsIntroducedIn =
+                    Builtins.findBuiltinsIntroducedIn(language, majorProtocolVersion)
+
+                collectedBuiltins.subsetOf(foundBuiltinsIntroducedIn)
 
             case Left(_) => false
     }
