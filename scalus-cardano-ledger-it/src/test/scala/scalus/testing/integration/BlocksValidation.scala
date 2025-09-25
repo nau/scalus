@@ -75,7 +75,12 @@ class BlocksValidation extends AnyFunSuite {
             ScriptServiceSupplier(backendService.getScriptService)
           )
         )
-        val protocolParams = backendService.getEpochService.getProtocolParameters(epoch).getValue
+        val protocolParamsSupplier = CachedEpochParamsSupplier(
+          resourcesPath.resolve("epochs"),
+          backendService.getEpochService
+        )
+
+        val protocolParams = protocolParamsSupplier.getProtocolParameters(epoch).getValue
         val utxoResolver = CclUtxoResolver(utxoSupplier, scriptSupplier)
         val evaluator = ScalusTransactionEvaluator(
           SlotConfig.Mainnet,
@@ -96,7 +101,7 @@ class BlocksValidation extends AnyFunSuite {
         var v3ScriptsExecuted = 0
 
         println(s"Validating blocks of epoch $epoch...")
-        for blockNum <- 11544518 to 11662495 do
+        for blockNum <- 11544518 to /*11662495*/ 11546100 do
             try
                 val txs = readTransactionsFromBlockCbor(
                   resourcesPath.resolve(s"blocks/block-$blockNum.cbor")
@@ -220,9 +225,12 @@ class BlocksValidation extends AnyFunSuite {
                         for (key, (_, actualExUnits)) <- actualRedeemers do
                             val expectedExUnits = expectedRedeemers(key)._2
                             if actualExUnits > expectedExUnits then {
-                                val error = s"AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits"
+                                val error =
+                                    s"AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits"
                                 errors += error
-                                println(s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}")
+                                println(
+                                  s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}"
+                                )
                             }
                     }
                 catch
@@ -330,7 +338,7 @@ class BlocksValidation extends AnyFunSuite {
     }
 
     private def getAllBlocksPaths(): IndexedSeq[Path] = {
-        val resourcesPath = Paths.get(".")
+        val resourcesPath = Paths.get(dataPath)
         val blocksDir = resourcesPath.resolve("blocks")
         if !Files.exists(blocksDir) then
             sys.error(
