@@ -7,8 +7,8 @@ import scalus.builtin.Data
 import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
-import scalus.prelude.{===, Eq, List, Option, Ord, SortedMap}
-import scalus.prelude.Ord.{<=>, ifEqualThen, given}
+import scalus.prelude.{===, Eq, List, Option, Ord, Order, SortedMap}
+import scalus.prelude.Ord.<=>
 import scalus.builtin.ByteString.*
 
 enum OutputDatum:
@@ -39,19 +39,19 @@ object OutputDatum {
             x match
                 case NoOutputDatum =>
                     y match
-                        case NoOutputDatum => Ord.Order.Equal
-                        case _             => Ord.Order.Less
+                        case NoOutputDatum => Order.Equal
+                        case _             => Order.Less
 
                 case OutputDatumHash(hash1) =>
                     y match
-                        case NoOutputDatum          => Ord.Order.Greater
+                        case NoOutputDatum          => Order.Greater
                         case OutputDatumHash(hash2) => hash1 <=> hash2
-                        case _                      => Ord.Order.Less
+                        case _                      => Order.Less
 
                 case OutputDatum(datum1) =>
                     y match
                         case OutputDatum(datum2) => datum1 <=> datum2
-                        case _                   => Ord.Order.Greater
+                        case _                   => Order.Greater
 
     given ToData[scalus.ledger.api.v2.OutputDatum] = ToData.derived
     given FromData[scalus.ledger.api.v2.OutputDatum] = FromData.derived

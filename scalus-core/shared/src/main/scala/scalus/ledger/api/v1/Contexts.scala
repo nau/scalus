@@ -3,9 +3,8 @@ package scalus.ledger.api.v1
 import scalus.Compile
 import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
-import scalus.prelude.{===, Eq, List, Option, Ord}
-import scalus.prelude.Eq.given
-import scalus.prelude.Ord.{<=>, ifEqualThen, given}
+import scalus.prelude.{===, Eq, List, Option, Ord, Order}
+import scalus.prelude.Ord.<=>
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.v1.IntervalBoundType.{Finite, NegInf}
 
@@ -56,17 +55,17 @@ object IntervalBoundType {
         x match
             case NegInf =>
                 y match
-                    case NegInf => Ord.Order.Equal
-                    case _      => Ord.Order.Less
+                    case NegInf => Order.Equal
+                    case _      => Order.Less
             case Finite(a) =>
                 y match
-                    case NegInf    => Ord.Order.Greater
+                    case NegInf    => Order.Greater
                     case Finite(b) => a <=> b
-                    case PosInf    => Ord.Order.Less
+                    case PosInf    => Order.Less
             case PosInf =>
                 y match
-                    case PosInf => Ord.Order.Equal
-                    case _      => Ord.Order.Greater
+                    case PosInf => Order.Equal
+                    case _      => Order.Greater
 
     given ToData[IntervalBoundType] = ToData.derived
 
@@ -275,55 +274,55 @@ object DCert {
             case DCert.DelegRegKey(cred1) =>
                 y match
                     case DCert.DelegRegKey(cred2) => cred1 <=> cred2
-                    case _                        => Ord.Order.Less
+                    case _                        => Order.Less
 
             case DCert.DelegDeRegKey(cred1) =>
                 y match
-                    case DCert.DelegRegKey(_)       => Ord.Order.Greater
+                    case DCert.DelegRegKey(_)       => Order.Greater
                     case DCert.DelegDeRegKey(cred2) => cred1 <=> cred2
-                    case _                          => Ord.Order.Less
+                    case _                          => Order.Less
 
             case DCert.DelegDelegate(cred1, del1) =>
                 y match
-                    case DCert.DelegRegKey(_)   => Ord.Order.Greater
-                    case DCert.DelegDeRegKey(_) => Ord.Order.Greater
+                    case DCert.DelegRegKey(_)   => Order.Greater
+                    case DCert.DelegDeRegKey(_) => Order.Greater
                     case DCert.DelegDelegate(cred2, del2) =>
                         (cred1 <=> cred2) ifEqualThen (del1 <=> del2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case DCert.PoolRegister(id1, vrf1) =>
                 y match
-                    case DCert.DelegRegKey(_)      => Ord.Order.Greater
-                    case DCert.DelegDeRegKey(_)    => Ord.Order.Greater
-                    case DCert.DelegDelegate(_, _) => Ord.Order.Greater
+                    case DCert.DelegRegKey(_)      => Order.Greater
+                    case DCert.DelegDeRegKey(_)    => Order.Greater
+                    case DCert.DelegDelegate(_, _) => Order.Greater
                     case DCert.PoolRegister(id2, vrf2) =>
                         (id1 <=> id2) ifEqualThen (vrf1 <=> vrf2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case DCert.PoolRetire(id1, epoch1) =>
                 y match
-                    case DCert.DelegRegKey(_)      => Ord.Order.Greater
-                    case DCert.DelegDeRegKey(_)    => Ord.Order.Greater
-                    case DCert.DelegDelegate(_, _) => Ord.Order.Greater
-                    case DCert.PoolRegister(_, _)  => Ord.Order.Greater
+                    case DCert.DelegRegKey(_)      => Order.Greater
+                    case DCert.DelegDeRegKey(_)    => Order.Greater
+                    case DCert.DelegDelegate(_, _) => Order.Greater
+                    case DCert.PoolRegister(_, _)  => Order.Greater
                     case DCert.PoolRetire(id2, epoch2) =>
                         (id1 <=> id2) ifEqualThen (epoch1 <=> epoch2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case DCert.Genesis =>
                 y match
-                    case DCert.DelegRegKey(_)      => Ord.Order.Greater
-                    case DCert.DelegDeRegKey(_)    => Ord.Order.Greater
-                    case DCert.DelegDelegate(_, _) => Ord.Order.Greater
-                    case DCert.PoolRegister(_, _)  => Ord.Order.Greater
-                    case DCert.PoolRetire(_, _)    => Ord.Order.Greater
-                    case DCert.Genesis             => Ord.Order.Equal
-                    case DCert.Mir                 => Ord.Order.Less
+                    case DCert.DelegRegKey(_)      => Order.Greater
+                    case DCert.DelegDeRegKey(_)    => Order.Greater
+                    case DCert.DelegDelegate(_, _) => Order.Greater
+                    case DCert.PoolRegister(_, _)  => Order.Greater
+                    case DCert.PoolRetire(_, _)    => Order.Greater
+                    case DCert.Genesis             => Order.Equal
+                    case DCert.Mir                 => Order.Less
 
             case DCert.Mir =>
                 y match
-                    case DCert.Mir => Ord.Order.Equal
-                    case _         => Ord.Order.Greater
+                    case DCert.Mir => Order.Equal
+                    case _         => Order.Greater
 
     given ToData[DCert] = ToData.derived
 
@@ -401,10 +400,10 @@ object Credential {
             case Credential.PubKeyCredential(hash) =>
                 b match
                     case Credential.PubKeyCredential(hash2) => hash <=> hash2
-                    case Credential.ScriptCredential(_)     => Ord.Order.Less
+                    case Credential.ScriptCredential(_)     => Order.Less
             case Credential.ScriptCredential(hash) =>
                 b match
-                    case Credential.PubKeyCredential(_)     => Ord.Order.Greater
+                    case Credential.PubKeyCredential(_)     => Order.Greater
                     case Credential.ScriptCredential(hash2) => hash <=> hash2
 
     given FromData[Credential] = FromData.derived
@@ -435,10 +434,10 @@ object StakingCredential {
             case StakingCredential.StakingHash(cred) =>
                 rhs match
                     case StakingCredential.StakingHash(cred2)  => cred <=> cred2
-                    case StakingCredential.StakingPtr(_, _, _) => Ord.Order.Less
+                    case StakingCredential.StakingPtr(_, _, _) => Order.Less
             case StakingCredential.StakingPtr(a, b, c) =>
                 rhs match
-                    case StakingCredential.StakingHash(_) => Ord.Order.Greater
+                    case StakingCredential.StakingHash(_) => Order.Greater
                     case StakingCredential.StakingPtr(a2, b2, c2) =>
                         (a <=> a2) ifEqualThen (b <=> b2) ifEqualThen (c <=> c2)
 
@@ -666,25 +665,25 @@ object ScriptPurpose {
             case ScriptPurpose.Minting(sym1) =>
                 y match
                     case ScriptPurpose.Minting(sym2) => sym1 <=> sym2
-                    case _                           => Ord.Order.Less
+                    case _                           => Order.Less
 
             case ScriptPurpose.Spending(ref1) =>
                 y match
-                    case ScriptPurpose.Minting(_)     => Ord.Order.Greater
+                    case ScriptPurpose.Minting(_)     => Order.Greater
                     case ScriptPurpose.Spending(ref2) => ref1 <=> ref2
-                    case _                            => Ord.Order.Less
+                    case _                            => Order.Less
 
             case ScriptPurpose.Rewarding(cred1) =>
                 y match
-                    case ScriptPurpose.Minting(_)       => Ord.Order.Greater
-                    case ScriptPurpose.Spending(_)      => Ord.Order.Greater
+                    case ScriptPurpose.Minting(_)       => Order.Greater
+                    case ScriptPurpose.Spending(_)      => Order.Greater
                     case ScriptPurpose.Rewarding(cred2) => cred1 <=> cred2
-                    case _                              => Ord.Order.Less
+                    case _                              => Order.Less
 
             case ScriptPurpose.Certifying(cert1) =>
                 y match
                     case ScriptPurpose.Certifying(cert2) => cert1 <=> cert2
-                    case _                               => Ord.Order.Greater
+                    case _                               => Order.Greater
 
     given ToData[ScriptPurpose] = ToData.derived
 

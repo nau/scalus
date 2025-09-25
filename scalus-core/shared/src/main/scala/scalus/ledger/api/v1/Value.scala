@@ -7,9 +7,8 @@ import scalus.builtin.Data.{fromData, toData}
 import scalus.builtin.{Data, FromData, ToData}
 import scalus.prelude
 import scalus.prelude.{List, Option, SortedMap}
-import scalus.prelude.{Eq, Ord}
-import scalus.prelude.Ord.{<=>, Order}
-import scalus.prelude.Eq.given
+import scalus.prelude.{Eq, Ord, Order}
+import scalus.prelude.Ord.<=>
 import scalus.prelude.{!==, ===}
 
 import scala.annotation.tailrec

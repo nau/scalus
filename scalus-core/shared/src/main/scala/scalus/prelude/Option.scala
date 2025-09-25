@@ -5,7 +5,7 @@ import scalus.Ignore
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data.{fromData, toData}
 import scalus.builtin.{Data, FromData, ToData}
-import Ord.{<=>, Order}
+import Ord.<=>
 
 /** Alternative to `scala.Option` in onchain code.
   *

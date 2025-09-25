@@ -4,7 +4,7 @@ import scalus.Compile
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data.fromData
 import scalus.builtin.{Data, FromData, ToData}
-import Ord.{<=>, Order}
+import Ord.<=>
 import scalus.cardano.onchain.RequirementError
 import scala.annotation.tailrec
 
@@ -263,9 +263,7 @@ object SortedMap {
       * of `Eq`.
       */
     given sortedMapEq[A: Eq, B: Eq]: Eq[SortedMap[A, B]] =
-        (lhs: SortedMap[A, B], rhs: SortedMap[A, B]) =>
-            import Eq.given
-            lhs.toList === rhs.toList
+        (lhs: SortedMap[A, B], rhs: SortedMap[A, B]) => lhs.toList === rhs.toList
 
     /** Provides an `Ord` instance for `SortedMap[A, B]` where both key and value types are
       * instances of `Ord`.
