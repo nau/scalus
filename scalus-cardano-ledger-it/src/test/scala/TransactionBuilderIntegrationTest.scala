@@ -235,7 +235,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("simple pay to address") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
 
         val paymentAmount = Value.ada(5)
         val ctx = BuilderContext(
@@ -256,7 +256,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("pay from a native script") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
         val keyBytes = account.publicKeyBytes()
         val keyHash = AddrKeyHash(platform.blake2b_224(ByteString.fromArray(keyBytes)))
 
@@ -301,7 +301,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("mint using a native policy") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
         val keyBytes = account.publicKeyBytes()
         val keyHash = AddrKeyHash(platform.blake2b_224(ByteString.fromArray(keyBytes)))
 
@@ -381,7 +381,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         )
 
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
 
         val paymentAmount = Value.ada(10)
         val context = BuilderContext(
@@ -457,7 +457,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("register stake address") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
 
         // Create a stake address from the same account
         val stakeKeyHash = AddrKeyHash(
@@ -486,7 +486,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("withdraw staking rewards") {
         val network = Networks.testnet()
-        val account = new Account(
+        val account = Account.createFromMnemonic(
           network,
           MNEMONIC,
           DerivationPath.createExternalAddressDerivationPathForAccount(6)
@@ -545,7 +545,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val BLOCKFROST_PROJECT_ID = "preprod9cHsFFm9r39J6L9BCcrCCZAUk56GXMMY"
         val blockfrostUrl = "https://cardano-preprod.blockfrost.io/api/v0/"
         val backend = new BFBackendService(blockfrostUrl, BLOCKFROST_PROJECT_ID)
-        val account = new Account(Networks.preprod(), mnemonic)
+        val account = Account.createFromMnemonic(Networks.preprod(), mnemonic)
 
         val context = BuilderContext(
           environment.protocolParams,
@@ -568,7 +568,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val BLOCKFROST_PROJECT_ID = "preprod9cHsFFm9r39J6L9BCcrCCZAUk56GXMMY"
         val blockfrostUrl = "https://cardano-preprod.blockfrost.io/api/v0/"
         val backend = new BFBackendService(blockfrostUrl, BLOCKFROST_PROJECT_ID)
-        val account = new Account(Networks.preprod, mnemonic)
+        val account = Account.createFromMnemonic(Networks.preprod, mnemonic)
 
         val context = BuilderContext(
           environment.protocolParams,
@@ -598,7 +598,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .role(new Segment(derivationPieces(3), false))
             .index(new Segment(derivationPieces(4), false))
             .build()
-        val account = new Account(Networks.testnet(), mnemonic, derivationPath)
+        val account = Account.createFromMnemonic(Networks.testnet(), mnemonic, derivationPath)
         val pairs = keyPairToUse(account)
         new TxSigner {
             override def signTx(unsigned: Transaction): Transaction = {

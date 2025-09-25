@@ -31,8 +31,8 @@ object EscrowOffChain:
     private val sellerMnemonic = sys.env("SELLER_MNEMONIC")
     private val buyerMnemonic = sys.env("BUYER_MNEMONIC")
 
-    private val seller = Account(network, sellerMnemonic)
-    private val buyerAccount = Account(network, buyerMnemonic)
+    private val seller = Account.createFromMnemonic(network, sellerMnemonic)
+    private val buyerAccount = Account.createFromMnemonic(network, buyerMnemonic)
 
     private val backendService =
         BFBackendService(Constants.BLOCKFROST_PREVIEW_URL, blockfrostApiKey)

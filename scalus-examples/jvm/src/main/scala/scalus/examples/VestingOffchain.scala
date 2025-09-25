@@ -28,7 +28,7 @@ object VestingOffChain:
     private val blockfrostApiKey = sys.env("BLOCKFROST_API_KEY")
 
     private val network = Networks.preview()
-    private val sender = Account(network, mnemonic)
+    private val sender = Account.createFromMnemonic(network, mnemonic)
 
     private val backendService =
         BFBackendService(Constants.BLOCKFROST_PREVIEW_URL, blockfrostApiKey)
