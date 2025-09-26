@@ -574,6 +574,7 @@ final class SIRCompiler(
         )
 
     }
+    
 
     private def compileNewConstructor(
         env: Env,
