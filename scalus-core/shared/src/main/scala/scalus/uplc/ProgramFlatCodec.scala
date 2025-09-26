@@ -32,10 +32,13 @@ object ProgramFlatCodec:
 
     case class DecodeResult(program: DeBruijnedProgram, remainder: Array[Byte])
 
-    /** Decodes Flat-encoded [[DeBruijnedProgram]] from bytes with remaining bytes */
+    /** Decodes Flat-encoded [[DeBruijnedProgram]] from bytes, returning any remaining bytes that
+      * were not part of the program.
+      */
     def decodeFlatWithRemainingBytes(
         encoded: Array[Byte]
-    ): Either[IllegalStateException, (DeBruijnedProgram, Array[Byte])] =
+    ): DecodeResult =
         val decoderState = DecoderState(encoded)
-        val p = flatCodec.decode(decoderState)
-        decoderState.remainingBytes().map(remaining => (p, remaining))
+        val deBruijnedProgram = flatCodec.decode(decoderState)
+        decoderState.filler()
+        DecodeResult(deBruijnedProgram, decoderState.remainingBytes())

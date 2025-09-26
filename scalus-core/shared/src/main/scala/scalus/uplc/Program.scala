@@ -232,11 +232,11 @@ object DeBruijnedProgram {
       * @param flatEncoded
       *   the flat-encoded byte array
       * @return
-      *   a tuple containing the program and any remaining bytes or an error if decoding fails
+      *   ProgramFlatCodec.DecodeResult
       */
     def fromFlatEncodedWithRemainingBytes(
         flatEncoded: Array[Byte]
-    ): Either[IllegalStateException, (DeBruijnedProgram, Array[Byte])] =
+    ): ProgramFlatCodec.DecodeResult =
         ProgramFlatCodec.decodeFlatWithRemainingBytes(flatEncoded)
 
     /** Deserializes a program from a CBOR-encoded byte array.
@@ -253,11 +253,11 @@ object DeBruijnedProgram {
       * @param cbor
       *   the CBOR-encoded byte array
       * @return
-      *   a tuple containing the program and any remaining bytes or an error if decoding fails
+      *   ProgramFlatCodec.DecodeResult
       */
     def fromCborWithRemainingBytes(
         cbor: Array[Byte]
-    ): Either[IllegalStateException, (DeBruijnedProgram, Array[Byte])] =
+    ): ProgramFlatCodec.DecodeResult =
         fromFlatEncodedWithRemainingBytes(Cbor.decode(cbor).to[Array[Byte]].value)
 
     /** Deserializes a program from a double CBOR-encoded byte array.

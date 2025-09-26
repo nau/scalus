@@ -2,7 +2,9 @@ package scalus.cardano.ledger
 package utils
 
 import scalus.builtin.ByteString
-import scalus.uplc.DeBruijnedProgram
+import scalus.uplc.{DeBruijnedProgram, ProgramFlatCodec}
+
+import scala.util.control.NonFatal
 
 object PlutusScript {
     def isWellFormed(
@@ -19,18 +21,17 @@ object PlutusScript {
     ): Boolean = {
         if majorProtocolVersion < language.majorProtocolVersion then return false
 
-        val decoded = DeBruijnedProgram.fromCborWithRemainingBytes(script.bytes)
-        decoded match
-            case Right((DeBruijnedProgram(_, term), remaining)) =>
-                if language != Language.PlutusV1 && language != Language.PlutusV2 && remaining.nonEmpty
-                then return false
+        val ProgramFlatCodec.DecodeResult(DeBruijnedProgram(_, term), remaining) =
+            try DeBruijnedProgram.fromCborWithRemainingBytes(script.bytes)
+            catch case NonFatal(_) => return false
 
-                val collectedBuiltins = term.collectBuiltins
-                val foundBuiltinsIntroducedIn =
-                    Builtins.findBuiltinsIntroducedIn(language, majorProtocolVersion)
+        if language != Language.PlutusV1 && language != Language.PlutusV2 && remaining.nonEmpty
+        then return false
 
-                collectedBuiltins.subsetOf(foundBuiltinsIntroducedIn)
+        val collectedBuiltins = term.collectBuiltins
+        val foundBuiltinsIntroducedIn =
+            Builtins.findBuiltinsIntroducedIn(language, majorProtocolVersion)
 
-            case Left(_) => false
+        collectedBuiltins.subsetOf(foundBuiltinsIntroducedIn)
     }
 }
