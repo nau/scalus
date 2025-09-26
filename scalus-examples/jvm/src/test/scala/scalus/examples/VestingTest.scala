@@ -24,10 +24,10 @@ import org.scalatest.funsuite.AnyFunSuite
 
 object Mock {
     val rootKeyHash: ByteString =
-        ByteString.fromHex("a2c20c77887ace1cd986193e4e75babd8993cfd56995cd5cfce609c2")
+        hex"a2c20c77887ace1cd986193e4e75babd8993cfd56995cd5cfce609c2"
 
     val rootTxHash: ByteString =
-        ByteString.fromHex("5a077cbcdffb88b104f292aacb9687ce93e2191e103a30a0cc5505c18b719f98")
+        hex"5a077cbcdffb88b104f292aacb9687ce93e2191e103a30a0cc5505c18b719f98"
 
     private def mockHash(variation: BigInt, root: ByteString): ByteString =
         val variationBytes = ByteString.fromArray(variation.toByteArray)
@@ -37,7 +37,7 @@ object Mock {
         mockHash(variation, rootKeyHash)
 
     private def mockTxHash(variation: BigInt): TxId =
-        TxId(mockHash(variation, rootKeyHash))
+        TxId(mockHash(variation, rootTxHash))
 
     def mockPubKeyHash(variation: BigInt): PubKeyHash = PubKeyHash(mockKeyHash(variation))
 

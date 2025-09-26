@@ -34,7 +34,7 @@ class ByteString private[builtin] (val bytes: Array[Byte]) {
       *
       * Offchain operation, not available onchain.
       */
-    @threadUnsafe val toHex: String = Hex.bytesToHex(bytes)
+    @threadUnsafe val toHex: String = if bytes.isEmpty then "" else Hex.bytesToHex(bytes)
 
     /** Converts the ByteString to a binary string representation
       *
@@ -199,6 +199,9 @@ object ByteString extends ByteStringOffchainApi {
         /** Returns the length of the ByteString */
         inline def length: BigInt = Builtins.lengthOfByteString(self)
 
+        /** Checks if the ByteString is empty */
+        inline def isNull: Boolean = self.length == BigInt(0)
+
         /** Concatenates two ByteStrings and returns a new ByteString */
         inline infix def ++(that: ByteString): ByteString =
             Builtins.appendByteString(self, that)
@@ -206,5 +209,9 @@ object ByteString extends ByteStringOffchainApi {
     extension (b: BigInt)
         /** Prepends a BigInt to a ByteString and returns a new ByteString */
         inline infix def +:(bs: ByteString): ByteString = Builtins.consByteString(b, bs)
+
+    extension (sc: StringContext)
+        inline def b(args: Any*): ByteString =
+            fromString(sc.s(args*))
 
 }

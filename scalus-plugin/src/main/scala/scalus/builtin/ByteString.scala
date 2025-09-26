@@ -19,7 +19,8 @@ object ByteString {
 
     def unsafeFromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
 
-    def fromHex(bytes: String): ByteString = new ByteString(bytes.hexToBytes)
+    def fromHex(bytes: String): ByteString =
+        if bytes.isEmpty then ByteString.empty else new ByteString(bytes.hexToBytes)
 
     def fromString(s: String): ByteString = new ByteString(s.getBytes("UTF-8"))
 

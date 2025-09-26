@@ -3,11 +3,13 @@ package scalus.examples
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.builtin.ByteString
+import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.toData
 import scalus.ledger.api.v1.Address
 import scalus.ledger.api.v1.IntervalBoundType.*
 import scalus.ledger.api.v1.PubKeyHash
+import scalus.ledger.api.v1.PubKeyHash.*
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
@@ -31,7 +33,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
         val initialBetDatum = BetDatum(
           player1,
           // No second player yet
-          player2 = PubKeyHash(ByteString.empty),
+          player2 = pkh"",
           oracle = Mock.mockPubKeyHash(3),
           // 31th of July 2025
           expiration = 1753939940,
@@ -45,7 +47,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
               // 3 ADA initial bet
               value = Value.lovelace(3_000_000) + Value(
                 cs = policyId,
-                tn = ByteString.fromString("lucky_number_slevin"),
+                tn = b"lucky_number_slevin",
                 v = 1
               ),
               datum = OutputDatum.OutputDatum(initialBetDatum.toData)
@@ -53,10 +55,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
           ),
           signatories = List(player1),
           // 20th of July 2025 - for 5 minutes
-          validRange = Interval(
-            from = IntervalBound(Finite(1752989540), true),
-            to = IntervalBound(Finite(1752990020), true),
-          )
+          validRange = Interval.between(1752989540, 1752990020)
         )
         val result = BettingContract.compiled.runScript(
           ScriptContext(
@@ -99,7 +98,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
                 // Original 3 ADA bet
                 value = Value.lovelace(3_000_000) + Value(
                   cs = policyId,
-                  tn = ByteString.fromString("lucky_number_slevin"),
+                  tn = b"lucky_number_slevin",
                   v = 1
                 ),
                 datum = OutputDatum.OutputDatum(initialBetDatum.toData)
@@ -112,7 +111,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
               // Doubled to 6 ADA
               value = Value.lovelace(6_000_000) + Value(
                 cs = policyId,
-                tn = ByteString.fromString("lucky_number_slevin"),
+                tn = b"lucky_number_slevin",
                 v = 1
               ),
               datum = OutputDatum.OutputDatum(updatedBetDatum.toData)
@@ -120,10 +119,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
           ),
           signatories = List(player2),
           // 22th of July 2025 - for 5 minutes
-          validRange = Interval(
-            from = IntervalBound(Finite(1753162820), true),
-            to = IntervalBound(Finite(1753163120), true),
-          )
+          validRange = Interval.between(1753162820, 1753163120)
         )
         val joinAction: Action = Action.Join
         val result = BettingContract.compiled.runScript(
@@ -162,7 +158,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
                 // Total pot: 6 ADA
                 value = Value.lovelace(6_000_000) + Value(
                   cs = policyId,
-                  tn = ByteString.fromString("lucky_number_slevin"),
+                  tn = b"lucky_number_slevin",
                   v = 1
                 ),
                 datum = OutputDatum.OutputDatum(finalBetDatum.toData)
@@ -176,7 +172,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
               // Winner takes all
               value = Value.lovelace(6_000_000) + Value(
                 cs = policyId,
-                tn = ByteString.fromString("lucky_number_slevin"),
+                tn = b"lucky_number_slevin",
                 v = 1
               )
             )
@@ -184,10 +180,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
           // Oracle signs to announce the winner
           signatories = List(oracle),
           // 1st of August 2025 - for 5 minutes
-          validRange = Interval(
-            from = IntervalBound(Finite(1754027120), true),
-            to = IntervalBound(Finite(1754027420), true),
-          )
+          validRange = Interval.between(1754027120, 1754027420)
         )
         val announceWinnerAction: Action = Action.AnnounceWinner(player2)
         val result = BettingContract.compiled.runScript(

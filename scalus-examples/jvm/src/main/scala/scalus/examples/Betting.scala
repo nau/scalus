@@ -212,8 +212,7 @@ object Betting extends Validator:
                                   "Player1 must sign the transaction (they're creating the bet)"
                                 )
                                 require(
-                                  player2.hash.length === BigInt(0), // ???:
-                                  // player2.hash.isEmpty: Error: Module not found during linking: scalus.builtin.ByteString
+                                  player2.hash.isNull,
                                   "Player2 must be empty (no one has joined yet)"
                                 )
                                 require(
