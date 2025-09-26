@@ -4,7 +4,6 @@ import scala.language.implicitConversions
 import scala.annotation.nowarn
 import scalus.*
 import scalus.prelude.*
-import scalus.prelude.Ord.<=>
 import scalus.uplc.*
 import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite

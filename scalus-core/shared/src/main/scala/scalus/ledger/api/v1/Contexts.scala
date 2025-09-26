@@ -3,8 +3,7 @@ package scalus.ledger.api.v1
 import scalus.Compile
 import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
-import scalus.prelude.{===, Eq, List, Option, Ord, Order}
-import scalus.prelude.Ord.<=>
+import scalus.prelude.{<=>, ===, Eq, List, Option, Ord, Order}
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.v1.IntervalBoundType.{Finite, NegInf}
 

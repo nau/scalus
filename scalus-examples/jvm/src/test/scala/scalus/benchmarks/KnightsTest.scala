@@ -3,7 +3,6 @@ package scalus.benchmarks
 import scalus.*
 import scalus.builtin.Builtins.{multiplyInteger, remainderInteger}
 import scalus.prelude.*
-import scalus.prelude.Ord.<=>
 import scalus.uplc.*
 import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite

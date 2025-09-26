@@ -4,7 +4,6 @@ import scalus.{Compile, CompileDerivations, Ignore}
 import scalus.builtin.Builtins.*
 import scalus.builtin.{BuiltinPair, ByteString, Data, FromData, ToData}
 import scalus.macros.Macros
-import Ord.<=>
 
 import scalus.cardano.onchain.{ImpossibleLedgerStateError, OnchainError, RequirementError}
 
@@ -150,6 +149,9 @@ trait Ord[-A] extends ((A, A) => Order) with scalus.CompileDerivations {
     override def apply(lhs: A, rhs: A): Order
 }
 
+extension [A: Ord](self: A)
+    inline infix def <=>(inline other: A): Order = Ord[A].compare(self, other)
+
 @Compile
 object Ord:
     inline def apply[A: Ord]: Ord[A] = summon[Ord[A]]
@@ -285,7 +287,6 @@ object Ord:
         (lhs._1 <=> rhs._1) ifEqualThen (lhs._2 <=> rhs._2) ifEqualThen (lhs._3 <=> rhs._3)
 
     extension [A: Ord](self: A)
-        inline infix def <=>(inline other: A): Order = Ord[A].compare(self, other)
         inline infix def <(inline other: A): Boolean = Ord[A].lt(self, other)
         inline infix def <=(inline other: A): Boolean = Ord[A].lteq(self, other)
         inline infix def >(inline other: A): Boolean = Ord[A].gt(self, other)

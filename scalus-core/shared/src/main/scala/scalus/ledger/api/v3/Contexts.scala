@@ -39,7 +39,6 @@ export scalus.ledger.api.v1.ValidatorHash
 export scalus.ledger.api.v2.TxOut
 //type Value = scalus.ledger.api.v1.Value
 export scalus.ledger.api.v1.Value
-import scalus.prelude.Ord.<=>
 import scalus.builtin.Builtins
 
 case class TxId(hash: ByteString)

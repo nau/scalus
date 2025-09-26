@@ -7,7 +7,6 @@ import scalus.builtin.Data.fromData
 import scalus.builtin.{BuiltinPair, Data, FromData, ToData}
 import scala.annotation.tailrec
 import scala.collection.mutable
-import Ord.<=>
 
 enum List[+A]:
     case Nil extends List[Nothing]

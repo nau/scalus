@@ -7,8 +7,7 @@ import scalus.builtin.Data
 import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.ledger.api.v2.OutputDatum.NoOutputDatum
-import scalus.prelude.{===, Eq, List, Option, Ord, Order, SortedMap}
-import scalus.prelude.Ord.<=>
+import scalus.prelude.{<=>, ===, Eq, List, Option, Ord, Order, SortedMap}
 import scalus.builtin.ByteString.*
 
 enum OutputDatum:
