@@ -90,8 +90,7 @@ private trait ByteStringOffchainApi {
           *   to be in the @Compile module.
           */
         def hex(args: Any*): ByteString =
-            val hexString = sc.s(args*).replace(" ", "")
-            fromHex(hexString)
+            fromHex(sc.s(args*))
 
     given Encoder[ByteString] with
         def write(w: Writer, value: ByteString): Writer =

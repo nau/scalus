@@ -557,7 +557,7 @@ object Address {
         // Try bech32 first (most common for modern addresses)
         Try(fromBech32(str))
             .orElse(
-              Try(ByronAddress(ByteString.fromString(str)))
+              Try(ByronAddress(ByteString.fromString(str))) // TODO: test Byron
             )
             .get
     }
