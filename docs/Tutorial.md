@@ -362,7 +362,7 @@ like `Hex(CborEncode(CborEncode(FlatEncode(Program(version, uplc)))))`.
 ```scala mdoc:compile-only
 import scalus.*
 import scalus.builtin.ByteString.*
-import scalus.ledger.api.PlutusLedgerLanguage
+import scalus.cardano.ledger.Language
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v3.*
 import scalus.prelude.List
@@ -386,9 +386,9 @@ val serializeToDoubleCborHex = {
     program.doubleCborHex
     // also you can produce a pubKeyValidator.plutus file for use with cardano-cli
     import scalus.utils.Utils
-    Utils.writePlutusFile("pubKeyValidator.plutus", program, PlutusLedgerLanguage.PlutusV2)
+    Utils.writePlutusFile("pubKeyValidator.plutus", program, Language.PlutusV2)
     // or simply
-    program.writePlutusFile("pubKeyValidator.plutus", PlutusLedgerLanguage.PlutusV2)
+    program.writePlutusFile("pubKeyValidator.plutus", Language.PlutusV2)
 }
 
 ```
@@ -407,6 +407,7 @@ You can also use the low-level API to evaluate scripts.
 
 ```scala mdoc:compile-only
 import scalus.builtin.*
+import scalus.cardano.ledger.Language
 import scalus.ledger.api.*
 import scalus.uplc.*, eval.*
 
@@ -426,12 +427,12 @@ def evaluation() = {
     // you can get the actual execution costs from protocol parameters JSON from cardano-cli
     lazy val machineParams = MachineParams.fromCardanoCliProtocolParamsJson(
       "JSON with protocol parameters",
-      PlutusLedgerLanguage.PlutusV3
+      Language.PlutusV3
     )
     // or from blockfrost API
     lazy val machineParams2 = MachineParams.fromBlockfrostProtocolParamsJson(
       "JSON with protocol parameters",
-      PlutusLedgerLanguage.PlutusV3
+      Language.PlutusV3
     )
     // use latest PlutusV3 VM with explicit machine parameters
     val v3vm: PlutusVM = PlutusVM.makePlutusV3VM(machineParams)

@@ -3,7 +3,7 @@ package scalus.sir
 import scala.language.implicitConversions
 import org.scalatest.funsuite.AnyFunSuite
 
-import scalus.flat.*
+import scalus.serialization.flat.*
 
 class SirToExprTest extends AnyFunSuite {
 

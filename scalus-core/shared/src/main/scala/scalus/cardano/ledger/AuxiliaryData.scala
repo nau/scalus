@@ -3,7 +3,7 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.builtin.ByteString
-import scalus.ledger.api.Timelock
+import scalus.serialization.cbor.Cbor as ScalusCbor
 
 import scala.collection.immutable
 
@@ -27,16 +27,11 @@ object TransactionMetadatum:
     /** Integer metadata */
     final case class Int(value: Long) extends TransactionMetadatum
 
-    /** Bytes metadata (max 64 bytes) */
-    final case class Bytes(value: ByteString) extends TransactionMetadatum:
-        require(value.size <= 64)
+    /** Bytes metadata */
+    final case class Bytes(value: ByteString) extends TransactionMetadatum
 
-    /** Text metadata (max 64 chars) */
-    final case class Text(value: String) extends TransactionMetadatum:
-        require(value.length <= 64)
-
-    /** Maximum allowed size for bytes and text */
-    private val MaxSize = 64
+    /** Text metadata */
+    final case class Text(value: String) extends TransactionMetadatum
 
     /** CBOR encoder for TransactionMetadatum */
     given Encoder[TransactionMetadatum] with
@@ -56,17 +51,9 @@ object TransactionMetadatum:
                 w.writeLong(value)
 
             case TransactionMetadatum.Bytes(value) =>
-                if value.size > MaxSize then
-                    throw new IllegalArgumentException(
-                      s"Bytes size exceeds maximum ($MaxSize), got ${value.size}"
-                    )
                 w.writeBytes(value.bytes)
 
             case TransactionMetadatum.Text(value) =>
-                if value.length > MaxSize then
-                    throw new IllegalArgumentException(
-                      s"Text length exceeds maximum ($MaxSize), got ${value.length}"
-                    )
                 w.writeString(value)
 
     /** CBOR decoder for TransactionMetadatum */
@@ -89,18 +76,10 @@ object TransactionMetadatum:
 
                 case DI.Bytes | DI.BytesStart =>
                     val bytes = r.read[ByteString]()
-                    if bytes.size > MaxSize then
-                        r.validationFailure(
-                          s"Bytes size exceeds maximum ($MaxSize), got ${bytes.size}"
-                        )
                     TransactionMetadatum.Bytes(bytes)
 
                 case DI.Text | DI.TextStart =>
                     val text = r.readString()
-                    if text.length > MaxSize then
-                        r.validationFailure(
-                          s"Text length exceeds maximum ($MaxSize), got ${text.length}"
-                        )
                     TransactionMetadatum.Text(text)
 
                 case other =>
@@ -114,7 +93,7 @@ enum AuxiliaryData:
     /** Shelley-MA era combined metadata and scripts */
     case MetadataWithScripts(
         metadata: Map[TransactionMetadatumLabel, TransactionMetadatum],
-        scripts: IndexedSeq[Timelock]
+        nativeScripts: IndexedSeq[Timelock]
     )
 
     /** Alonzo-era and later metadata format with optional components */
@@ -126,6 +105,31 @@ enum AuxiliaryData:
         plutusV3Scripts: IndexedSeq[ByteString] = IndexedSeq.empty
     )
 
+    def getMetadata: Map[TransactionMetadatumLabel, TransactionMetadatum] = this match
+        case data: AuxiliaryData.Metadata            => data.metadata
+        case data: AuxiliaryData.MetadataWithScripts => data.metadata
+        case data: AuxiliaryData.AlonzoFormat        => data.metadata.getOrElse(Map.empty)
+
+    def getNativeScripts: IndexedSeq[Timelock] = this match
+        case _: AuxiliaryData.Metadata               => IndexedSeq.empty
+        case data: AuxiliaryData.MetadataWithScripts => data.nativeScripts
+        case data: AuxiliaryData.AlonzoFormat        => data.nativeScripts
+
+    def getPlutusV1Scripts: IndexedSeq[ByteString] = this match
+        case _: AuxiliaryData.Metadata            => IndexedSeq.empty
+        case _: AuxiliaryData.MetadataWithScripts => IndexedSeq.empty
+        case data: AuxiliaryData.AlonzoFormat     => data.plutusV1Scripts
+
+    def getPlutusV2Scripts: IndexedSeq[ByteString] = this match
+        case _: AuxiliaryData.Metadata            => IndexedSeq.empty
+        case _: AuxiliaryData.MetadataWithScripts => IndexedSeq.empty
+        case data: AuxiliaryData.AlonzoFormat     => data.plutusV2Scripts
+
+    def getPlutusV3Scripts: IndexedSeq[ByteString] = this match
+        case _: AuxiliaryData.Metadata            => IndexedSeq.empty
+        case _: AuxiliaryData.MetadataWithScripts => IndexedSeq.empty
+        case data: AuxiliaryData.AlonzoFormat     => data.plutusV3Scripts
+
 object AuxiliaryData:
     /** CBOR encoder for AuxiliaryData */
     given Encoder[AuxiliaryData] with
@@ -134,14 +138,14 @@ object AuxiliaryData:
                 // Metadata is encoded directly
                 w.write(metadata)
 
-            case AuxiliaryData.MetadataWithScripts(metadata, scripts) =>
+            case AuxiliaryData.MetadataWithScripts(metadata, nativeScripts) =>
                 // Array of [metadata, scripts]
                 w.writeArrayHeader(2)
                 w.write(metadata)
 
                 // Write scripts array
-                w.writeArrayHeader(scripts.size)
-                scripts.foreach(script => w.write(script))
+                w.writeArrayHeader(nativeScripts.size)
+                nativeScripts.foreach(nativeScript => w.write(nativeScript))
                 w
 
             case AuxiliaryData.AlonzoFormat(

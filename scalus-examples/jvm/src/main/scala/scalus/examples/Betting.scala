@@ -5,8 +5,7 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.ToData
-import scalus.cardano.plutus.contract.blueprint.Application
-import scalus.cardano.plutus.contract.blueprint.Blueprint
+import scalus.cardano.blueprint.{Application, Blueprint}
 import scalus.ledger.api.v1.Address
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
@@ -70,7 +69,7 @@ object Betting extends Validator:
                     // Handle player2 joining the bet
                     case Action.Join =>
                         // Verify the input contains the bet token (proves it's a valid bet UTXO)
-                        val hasBetToken = input.value.currencySymbols
+                        val hasBetToken = input.value.policyIds
                             .map(Address.fromScriptHash)
                             .contains(input.address)
                         // Find the continuing output (bet UTXO with updated datum)
@@ -196,11 +195,11 @@ object Betting extends Validator:
       */
     override def mint(
         @annotation.unused redeemer: Data,
-        currencySymbol: CurrencySymbol,
+        policyId: PolicyId,
         tx: TxInfo
     ): Unit =
         // Find all outputs going to this script's address
-        tx.outputs.filter(_.address === Address.fromScriptHash(currencySymbol)) match
+        tx.outputs.filter(_.address === Address.fromScriptHash(policyId)) match
             case List.Cons(betOutput, tail) =>
                 tail match // ???: headOrFail or matchOrFail
                     case List.Nil =>

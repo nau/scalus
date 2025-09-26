@@ -8,7 +8,7 @@ import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{Native, PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger.txbuilder.Intention.Stake
 import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, MinTransactionFee, TxBalance}
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.ProtocolParams
 import monocle.syntax.all.*
 
 import scala.annotation.tailrec
@@ -776,7 +776,8 @@ extension (t: TransactionOutput) {
     }
 }
 def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody): Transaction = {
-    tx.focus(_.body.value).modify(f)
+    val newBody = f(tx.body.value)
+    tx.copy(body = KeepRaw(newBody))
 }
 
 /*
@@ -909,9 +910,10 @@ object LowLevelTxBuilder {
                   TxBalancingError.InsufficientFunds(diff, minAda.value - updatedLovelaceChange)
                 )
 
-            val t = tx
-                .focus(_.body.value.outputs.index(changeOutputIdx))
+            val tb = tx.body.value
+                .focus(_.outputs.index(changeOutputIdx))
                 .replace(newChangeOut)
+            val t = tx.copy(body = KeepRaw(tb))
             Right(t)
         }
     }

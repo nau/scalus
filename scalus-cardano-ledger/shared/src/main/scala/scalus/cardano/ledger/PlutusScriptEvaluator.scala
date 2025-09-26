@@ -9,7 +9,7 @@ import scalus.cardano.ledger.LedgerToPlutusTranslation.*
 import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllResolvedScripts}
 import scalus.ledger
 import scalus.ledger.api
-import scalus.ledger.api.{v1, v2, v3, MajorProtocolVersion}
+import scalus.ledger.api.{v1, v2, v3}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
@@ -378,7 +378,7 @@ class PlutusScriptEvaluator(
 
         // Optional debug dumping
         if debugDumpFilesForTesting then
-            dumpScriptForDebugging(applied, redeemer, txhash, vm.language.toLanguage)
+            dumpScriptForDebugging(applied, redeemer, txhash, vm.language)
 
         // Create budget spender based on evaluation mode
         val spender = mode match

@@ -7,34 +7,32 @@ import scalus.builtin.Data.{fromData, toData}
 import scalus.builtin.{Data, FromData, ToData}
 import scalus.prelude
 import scalus.prelude.{List, Option, SortedMap}
-import scalus.prelude.{Eq, Ord}
-import scalus.prelude.Ord.{<=>, Order}
-import scalus.prelude.Eq.given
-import scalus.prelude.{!==, ===}
+import scalus.prelude.{Eq, Ord, Order}
+import scalus.prelude.{!==, <=>, ===}
 
 import scala.annotation.tailrec
 
-case class Value private (toSortedMap: SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]])
+case class Value private (toSortedMap: SortedMap[PolicyId, SortedMap[TokenName, BigInt]])
 
 @Compile
 object Value {
 
-    /** A value representing zero units of any currency or token.
+    /** A value representing zero units of any policy id or token.
       *
       * @example
       *   {{{
       *   Value.zero.isZero === true
-      *   Value.zero.quantityOf(ByteString.fromString("currencySymbol"), ByteString.fromString("tokenName")) === BigInt(0)
+      *   Value.zero.quantityOf(ByteString.fromString("policyId"), ByteString.fromString("tokenName")) === BigInt(0)
       *   Value.zero.getLovelace === BigInt(0)
       *   }}}
       */
     val zero: Value = Value(SortedMap.empty)
 
-    /** Creates a `Value` containing the specified amount of a specific currency and token. If the
+    /** Creates a `Value` containing the specified amount of a specific policy id and token. If the
       * amount is zero, it returns `Value.zero`.
       *
       * @param cs
-      *   The currency symbol
+      *   The policy id
       * @param tn
       *   The token name
       * @param v
@@ -44,9 +42,9 @@ object Value {
       *   is zero
       * @example
       *   {{{
-      *   Value(Value.adaCurrencySymbol, Value.adaTokenName, BigInt(1000000)) === Value.lovelace(BigInt(1000000))
+      *   Value(Value.adaPolicyId, Value.adaTokenName, BigInt(1000000)) === Value.lovelace(BigInt(1000000))
       *
-      *   val policyId: CurrencySymbol = ByteString.fromString("currencySymbol")
+      *   val policyId: PolicyId = ByteString.fromString("policyId")
       *   val tokenName: TokenName = ByteString.fromString("tokenName")
       *   val value = Value(policyId, tokenName, BigInt(100))
       *   value.quantityOf(policyId, tokenName) === BigInt(100)
@@ -56,13 +54,13 @@ object Value {
       *   Value(policyId, tokenName, BigInt(0)) === Value.zero
       *   }}}
       */
-    def apply(cs: CurrencySymbol, tn: TokenName, v: BigInt): Value =
+    def apply(cs: PolicyId, tn: TokenName, v: BigInt): Value =
         if v !== BigInt(0) then Value(SortedMap.singleton(cs, SortedMap.singleton(tn, v))) else zero
 
     /** Creates a `Value` representing a specific amount of ADA in lovelace.
       *
-      * This is a convenience method for creating a `Value` with the ADA currency symbol and token
-      * name, where the amount is specified in lovelace (1 ADA = 1,000,000 lovelace).
+      * This is a convenience method for creating a `Value` with the ADA policy id and token name,
+      * where the amount is specified in lovelace (1 ADA = 1,000,000 lovelace).
       *
       * @param v
       *   The amount of Lovelace
@@ -70,28 +68,28 @@ object Value {
       *   A new `Value` containing only the specified amount of Lovelace
       * @example
       *   {{{
-      *   Value.lovelace(BigInt(1000000)) === Value(Value.adaCurrencySymbol, Value.adaTokenName, BigInt(1000000))
+      *   Value.lovelace(BigInt(1000000)) === Value(Value.adaPolicyId, Value.adaTokenName, BigInt(1000000))
       *   Value.lovelace(BigInt(1000000)).getLovelace === BigInt(1000000)
-      *   Value.lovelace(BigInt(1000000)).quantityOf(ByteString.fromString("currencySymbol"), ByteString.fromString("tokenName")) === BigInt(0)
+      *   Value.lovelace(BigInt(1000000)).quantityOf(ByteString.fromString("policyId"), ByteString.fromString("tokenName")) === BigInt(0)
       *   Value.lovelace(BigInt(0)) === Value.zero
       *   }}}
       */
-    def lovelace(v: BigInt): Value = apply(adaCurrencySymbol, adaTokenName, v)
+    def lovelace(v: BigInt): Value = apply(adaPolicyId, adaTokenName, v)
 
-    /** Creates a `Value` from a list of currency symbols paired with their token amounts, without
+    /** Creates a `Value` from a list of policy ids paired with their token amounts, without
       * validation.
       *
       * This method directly constructs a `Value` from the input list without checking for zero
       * amounts or empty token lists. Use with caution as it may create invalid states.
       *
       * @param list
-      *   A list of tuples containing currency symbols and their associated token amounts
+      *   A list of tuples containing policy ids and their associated token amounts
       * @return
       *   A `Value` constructed directly from the input list
       * @example
       *   {{{
       *   val tokens = List.Cons(
-      *     (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *     (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
       *     Cons(
       *       (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
       *       List.Nil
@@ -104,28 +102,28 @@ object Value {
       *   [[fromList]] or [[fromStrictlyAscendingListWithNonZeroAmounts]] for safe versions
       */
     def unsafeFromList(
-        list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
+        list: List[(PolicyId, List[(TokenName, BigInt)])]
     ): Value = Value(
       SortedMap.unsafeFromList(
         list.map { pair => (pair._1, SortedMap.unsafeFromList(pair._2)) }
       )
     )
 
-    /** Creates a `Value` from a list of currency symbols paired with their token amounts, filtering
-      * out zero amounts.
+    /** Creates a `Value` from a list of policy ids paired with their token amounts, filtering out
+      * zero amounts.
       *
       * This method safely constructs a `Value` by:
       *   - Removing all tokens with zero amounts
-      *   - Removing currency symbols that have no remaining tokens after filtering
+      *   - Removing policy ids that have no remaining tokens after filtering
       *
       * @param list
-      *   A list of tuples containing currency symbols and their associated token amounts
+      *   A list of tuples containing policy ids and their associated token amounts
       * @return
       *   A `Value` with zero amounts filtered out
       * @example
       *   {{{
       *   val tokens = List.Cons(
-      *     (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *     (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
       *     Cons(
       *       (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(0)), List.Nil)),
       *       List.Nil
@@ -140,7 +138,7 @@ object Value {
       *   [[fromStrictlyAscendingListWithNonZeroAmounts]] for a faster stricter version
       */
     def fromList(
-        list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
+        list: List[(PolicyId, List[(TokenName, BigInt)])]
     ): Value = Value(
       SortedMap.fromList(
         list.filterMap { pair =>
@@ -152,17 +150,17 @@ object Value {
       )
     )
 
-    /** Creates a `Value` from a strictly ascending list of currency symbols and token amounts,
-      * requiring non-zero amounts.
+    /** Creates a `Value` from a strictly ascending list of policy ids and token amounts, requiring
+      * non-zero amounts.
       *
       * This method enforces stricter requirements than [[fromList]]:
-      *   - The input list must be strictly ascending by currency symbol
+      *   - The input list must be strictly ascending by policy id
       *   - Each token list must be strictly ascending by token name
       *   - All token amounts must be non-zero
       *   - Token lists cannot be empty
       *
       * @param list
-      *   A strictly ascending list of tuples containing currency symbols and their associated token
+      *   A strictly ascending list of tuples containing policy ids and their associated token
       *   amounts
       * @return
       *   A `Value` constructed from the strictly ascending lists
@@ -172,7 +170,7 @@ object Value {
       *   {{{
       *   // Successful case - ascending order and non-zero amounts
       *   val validTokens = List.Cons(
-      *     (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *     (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
       *     Cons(
       *       (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
       *       List.Nil
@@ -182,7 +180,7 @@ object Value {
       *
       *   // Error case - contains zero amount
       *   val invalidTokens = List.Cons(
-      *     (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(0)), List.Nil)),
+      *     (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(0)), List.Nil)),
       *     List.Nil
       *   )
       *   Value.fromStrictlyAscendingListWithNonZeroAmounts(invalidTokens) // Throws RequirementError
@@ -192,28 +190,32 @@ object Value {
       *   version that filters invalid entries
       */
     def fromStrictlyAscendingListWithNonZeroAmounts(
-        list: List[(CurrencySymbol, List[(TokenName, BigInt)])]
+        list: List[(PolicyId, List[(TokenName, BigInt)])]
     ): Value = Value(
       SortedMap.fromStrictlyAscendingList(
-        list.map { case (currencySymbol, tokens) =>
+        list.map { case (policyId, tokens) =>
             scalus.prelude.require(
               tokens.nonEmpty && tokens.forall { case (_, v) => v !== BigInt(0) },
               "Token amounts must be non-zero and token lists must not be empty"
             )
 
-            (currencySymbol, SortedMap.fromStrictlyAscendingList(tokens))
+            (policyId, SortedMap.fromStrictlyAscendingList(tokens))
         }
       )
     )
 
-    /** The currency symbol for ADA, represented as an empty `ByteString`.
+    /** The policy id for ADA, represented as an empty `ByteString`.
       *
       * @example
       *   {{{
-      *   Value.adaCurrencySymbol === ByteString.empty
+      *   Value.adaPolicyId === ByteString.empty
       *   }}}
       */
-    val adaCurrencySymbol: CurrencySymbol = ByteString.empty
+    val adaPolicyId: PolicyId = ByteString.empty
+
+    /** @deprecated Use adaPolicyId instead. */
+    @deprecated("Use adaPolicyId instead", "0.12.0")
+    val adaCurrencySymbol: PolicyId = adaPolicyId
 
     /** The token name for ADA, represented as an empty `ByteString`.
       *
@@ -283,8 +285,8 @@ object Value {
 
     /** Tests if two `Value` instances are equal.
       *
-      * Compares two `Value` instances by checking if they contain the same currency symbols and
-      * tokens with equal amounts, treating absent tokens as having zero amount.
+      * Compares two `Value` instances by checking if they contain the same policy ids and tokens
+      * with equal amounts, treating absent tokens as having zero amount.
       *
       * @param a
       *   First `Value` instance
@@ -306,8 +308,8 @@ object Value {
 
     /** Tests if two `Value` instances are not equal.
       *
-      * Compares two `Value` instances by checking if they contain different currency symbols or
-      * tokens with unequal amounts, treating absent tokens as having zero amount.
+      * Compares two `Value` instances by checking if they contain different policy ids or tokens
+      * with unequal amounts, treating absent tokens as having zero amount.
       *
       * @param a
       *   First `Value` instance
@@ -339,7 +341,7 @@ object Value {
       *   {{{
       *   val value1 = Value.fromList(
       *     List.Cons(
-      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
       *       List.Cons(
       *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
       *         List.Nil
@@ -349,7 +351,7 @@ object Value {
       *
       *   val value2 = Value.fromList(
       *     List.Cons(
-      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(-1000000)), List.Nil)),
+      *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(-1000000)), List.Nil)),
       *       List.Cons(
       *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(-100)), List.Nil)),
       *         List.Nil
@@ -421,7 +423,7 @@ object Value {
       *   {{{
       *   val value = Value.fromList(
       *     List.Cons(
-      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
       *       List.Cons(
       *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
       *         List.Nil
@@ -431,7 +433,7 @@ object Value {
       *
       *   Value.multiply(value, BigInt(2)) === Value.fromList(
       *     List.Cons(
-      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(2000000)), List.Nil)),
+      *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(2000000)), List.Nil)),
       *       List.Cons(
       *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(200)), List.Nil)),
       *         List.Nil
@@ -452,8 +454,8 @@ object Value {
     /** Converts a `Value` to a debug string representation.
       *
       * Formats the `Value` as a string showing policy IDs and token amounts in a human-readable
-      * format. Each currency symbol (policy ID) and its associated tokens are displayed with their
-      * hex representations and amounts.
+      * format. Each policy ID and its associated tokens are displayed with their hex
+      * representations and amounts.
       *
       * @param v
       *   The `Value` to convert to string
@@ -463,7 +465,7 @@ object Value {
       *   {{{
       *   val value = Value.fromList(
       *     List.Cons(
-      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
       *       List.Cons(
       *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
       *         List.Nil
@@ -489,21 +491,21 @@ object Value {
     /** Implementation of the [[prelude.Eq]] type class for `Value`.
       *
       * Provides equality comparison between two `Value` instances by delegating to [[Value.eq]].
-      * Two `Value` instances are considered equal if they contain exactly the same currency symbols
-      * and tokens with equal amounts.
+      * Two `Value` instances are considered equal if they contain exactly the same policy ids and
+      * tokens with equal amounts.
       *
       * @example
       *   {{{
       *   val value1 = Value.fromList(
       *     List.Cons(
-      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
       *       List.Nil
       *     )
       *   )
       *
       *   val value2 = Value.fromList(
       *     List.Cons(
-      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
       *       List.Nil
       *     )
       *   )
@@ -518,8 +520,8 @@ object Value {
       *
       * Provides total ordering for `Value` instances by comparing their underlying sorted maps. The
       * ordering is determined by:
-      *   1. First comparing currency symbols
-      *   2. For equal currency symbols, comparing their token maps
+      *   1. First comparing policy ids
+      *   2. For equal policy ids, comparing their token maps
       *   3. For equal token names, comparing their amounts
       *
       * @example
@@ -540,7 +542,7 @@ object Value {
       *   {{{
       *   val value = Value.fromList(
       *     List.Cons(
-      *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+      *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
       *       List.Nil
       *     )
       *   )
@@ -564,7 +566,7 @@ object Value {
     given valueFromData: FromData[Value] =
         (data: Data) => {
             Value(
-              fromData[SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]]](data)
+              fromData[SortedMap[PolicyId, SortedMap[TokenName, BigInt]]](data)
             )
         }
 
@@ -586,7 +588,7 @@ object Value {
             given [A: FromData: Ord, B: FromData]: FromData[SortedMap[A, B]] =
                 SortedMap.sortedMapFromDataWithValidation
 
-            val payload = fromData[SortedMap[CurrencySymbol, SortedMap[TokenName, BigInt]]](data)
+            val payload = fromData[SortedMap[PolicyId, SortedMap[TokenName, BigInt]]](data)
 
             scalus.prelude.require(
               payload.forall { case (_, tokens) =>
@@ -630,7 +632,7 @@ object Value {
           *   emptyValue.getLovelace === BigInt(0)
           *   }}}
           */
-        def getLovelace: BigInt = quantityOf(adaCurrencySymbol, adaTokenName)
+        def getLovelace: BigInt = quantityOf(adaPolicyId, adaTokenName)
 
         /** Checks if this `Value` is zero, meaning it contains no tokens or currency symbols.
           *
@@ -672,22 +674,22 @@ object Value {
         inline def isPositive: Boolean =
             nonZero && v.toSortedMap.forall(_._2.forall(_._2 > BigInt(0)))
 
-        /** Gets the amount of a specific token in a currency symbol from a `Value`.
+        /** Gets the amount of a specific token in a policy id from a `Value`.
           *
-          * Returns the token amount for the given currency symbol and token name pair. If either
-          * the currency symbol or token name is not found, returns zero.
+          * Returns the token amount for the given policy id and token name pair. If either the
+          * policy id or token name is not found, returns zero.
           *
           * @param cs
-          *   The currency symbol to look up
+          *   The policy id to look up
           * @param tn
-          *   The token name to look up within that currency symbol
+          *   The token name to look up within that policy id
           * @return
           *   The amount of the specified token, or zero if not found
           * @example
           *   {{{
           *   val value = Value.fromList(
           *     List.Cons(
-          *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+          *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
           *       List.Cons(
           *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
           *         List.Nil
@@ -695,13 +697,13 @@ object Value {
           *     )
           *   )
           *
-          *   value.quantityOf(Value.adaCurrencySymbol, Value.adaTokenName) === BigInt(1000000)
+          *   value.quantityOf(Value.adaPolicyId, Value.adaTokenName) === BigInt(1000000)
           *   value.quantityOf(ByteString.fromString("ff"), ByteString.fromString("TOKEN")) === BigInt(100)
           *   value.quantityOf(ByteString.fromString("missing"), ByteString.fromString("TOKEN")) === BigInt(0)
           *   }}}
           */
         def quantityOf(
-            cs: CurrencySymbol,
+            cs: PolicyId,
             tn: TokenName
         ): BigInt = v.toSortedMap.get(cs) match
             case Option.Some(tokens) => tokens.get(tn).getOrElse(0)
@@ -709,8 +711,8 @@ object Value {
 
         /** Returns a new `Value` with all ADA/Lovelace tokens removed.
           *
-          * This method creates a copy of the value with the ADA currency symbol removed,
-          * effectively removing all Lovelace tokens while preserving other tokens.
+          * This method creates a copy of the value with the ADA policy id removed, effectively
+          * removing all Lovelace tokens while preserving other tokens.
           *
           * @return
           *   A new `Value` without any Lovelace tokens
@@ -718,7 +720,7 @@ object Value {
           *   {{{
           *   val value = Value.fromList(
           *     List.Cons(
-          *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+          *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
           *       List.Cons(
           *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
           *         List.Nil
@@ -736,20 +738,20 @@ object Value {
           *   value.withoutLovelace === withoutAda
           *   }}}
           */
-        def withoutLovelace: Value = Value(v.toSortedMap.delete(adaCurrencySymbol))
+        def withoutLovelace: Value = Value(v.toSortedMap.delete(adaPolicyId))
 
-        /** Flattens the `Value` into a list of currency symbol, token name, and amount triples.
+        /** Flattens the `Value` into a list of policy id, token name, and amount triples.
           *
           * Converts the nested map structure into a flat list representation where each element
-          * contains the currency symbol, token name, and corresponding amount.
+          * contains the policy id, token name, and corresponding amount.
           *
           * @return
-          *   A flattened list of tuples containing (currencySymbol, tokenName, amount)
+          *   A flattened list of tuples containing (policyId, tokenName, amount)
           * @example
           *   {{{
           *   val value = Value.fromList(
           *     List.Cons(
-          *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+          *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
           *       List.Cons(
           *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
           *         List.Nil
@@ -759,7 +761,7 @@ object Value {
           *
           *   value.flatten ===
           *   List.Cons(
-          *      (Value.adaCurrencySymbol, Value.adaTokenName, BigInt(1000000)),
+          *      (Value.adaPolicyId, Value.adaTokenName, BigInt(1000000)),
           *      List.Cons(
           *        (ByteString.fromString("ff"), ByteString.fromString("TOKEN"), BigInt(100)),
           *        List.Nil
@@ -767,23 +769,22 @@ object Value {
           *   )
           *   }}}
           */
-        def flatten: List[(CurrencySymbol, TokenName, BigInt)] =
+        def flatten: List[(PolicyId, TokenName, BigInt)] =
             v.toSortedMap.foldRight(List.empty) { case (pair1, acc1) =>
                 pair1._2.foldRight(acc1) { case (pair2, acc2) =>
                     List.Cons((pair1._1, pair2._1, pair2._2), acc2)
                 }
             }
 
-        /** A list of all currency symbols in that [[scalus.ledger.api.v1.Value]] with non-zero
-          * tokens.
+        /** A list of all policy ids in that [[scalus.ledger.api.v1.Value]] with non-zero tokens.
           *
           * @return
-          *   A list of sorted [[scalus.ledger.api.v1.CurrencySymbol]]
+          *   A list of sorted [[scalus.ledger.api.v1.PolicyId]]
           * @example
           *   {{{
           *   val value = Value.fromList(
           *     List.Cons(
-          *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+          *       (Value.adaPolicyId, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
           *       List.Cons(
           *         (ByteString.fromString("ff"), List.Cons((ByteString.fromString("TOKEN"), BigInt(100)), List.Nil)),
           *         List.Nil
@@ -791,9 +792,9 @@ object Value {
           *     )
           *   )
           *
-          *   value.currencySymbols ===
+          *   value.policyIds ===
           *   List.Cons(
-          *      Value.adaCurrencySymbol,
+          *      Value.adaPolicyId,
           *      List.Cons(
           *        ByteString.fromString("ff"),
           *        List.Nil
@@ -801,7 +802,11 @@ object Value {
           *   )
           *   }}}
           */
-        def currencySymbols: List[CurrencySymbol] = v.toSortedMap.keys
+        def policyIds: List[PolicyId] = v.toSortedMap.keys
+
+        /** @deprecated Use policyIds instead. */
+        @deprecated("Use policyIds instead", "0.12.0")
+        def currencySymbols: List[PolicyId] = policyIds
 
     private def binaryOpTokens(
         a: SortedMap[TokenName, BigInt],
@@ -853,9 +858,9 @@ object Value {
         op: (BigInt, BigInt) => BigInt
     ): Value = {
         def go(
-            lhs: List[(CurrencySymbol, SortedMap[TokenName, BigInt])],
-            rhs: List[(CurrencySymbol, SortedMap[TokenName, BigInt])]
-        ): List[(CurrencySymbol, List[(TokenName, BigInt)])] = {
+            lhs: List[(PolicyId, SortedMap[TokenName, BigInt])],
+            rhs: List[(PolicyId, SortedMap[TokenName, BigInt])]
+        ): List[(PolicyId, List[(TokenName, BigInt)])] = {
             lhs match
                 case List.Nil =>
                     rhs.map { case (cs, tokens) =>

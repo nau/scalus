@@ -14,7 +14,7 @@ class Ed25591KeyCompabilityTest extends AnyFunSuite {
             "test test test test test test test test test test test test test test test test test test test test test test test sauce"
         val derivation = "m/1852'/1815'/0'/0/0"
         val derivationPath = DerivationPath.createExternalAddressDerivationPath()
-        val account = new Account(Networks.testnet, mnemonic, derivationPath)
+        val account = Account.createFromMnemonic(Networks.testnet, mnemonic, derivationPath)
         val keyPair = account.hdKeyPair()
         val publicKeyData = keyPair.getPublicKey().getKeyData()
 

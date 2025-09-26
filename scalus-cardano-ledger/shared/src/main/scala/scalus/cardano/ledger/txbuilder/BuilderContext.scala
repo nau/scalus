@@ -7,7 +7,7 @@ import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger.rules.{Context, State, UtxoEnv}
 import scalus.cardano.ledger.rules.STS.Validator
 import scalus.cardano.ledger.{CertState, Coin, PlutusScriptEvaluator, Sized, Transaction, TransactionException, TransactionInput, TransactionOutput, UTxO, Value}
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.ProtocolParams
 
 /** A context for transaction builders.
   *

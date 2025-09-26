@@ -6,7 +6,7 @@ import com.bloxbean.cardano.client.transaction.spec.Asset
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{Native, PlutusV3}
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.ProtocolParams
 
 import java.math.BigInteger
 import scala.collection.immutable.TreeSet
@@ -58,7 +58,7 @@ case class MintTransactionBuilder(
             .validFrom(0)
             .feePayer(payer.encode.get)
             .collateralPayer(collateralPayer.encode.get)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         val r = Transaction.fromCbor(cclTx.serialize())
@@ -83,7 +83,7 @@ case class MintTransactionBuilder(
             })
             .validTo(Long.MaxValue)
             .validFrom(0)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         Transaction.fromCbor(cclTx.serialize())

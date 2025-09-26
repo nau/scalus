@@ -10,7 +10,7 @@ import scalus.ledger.api.v2.OutputDatum
 class SIRTypeSerializationTest extends AnyFunSuite {
 
     def encodeDecodeSIR(sir: SIR): SIR = {
-        import scalus.flat.*
+        import scalus.serialization.flat.*
         val bitSize = ToExprHSSIRFlat.bitSize(sir)
         val encoded = EncoderState(bitSize / 8 + 1)
         try ToExprHSSIRFlat.encode(sir, encoded)
@@ -28,7 +28,7 @@ class SIRTypeSerializationTest extends AnyFunSuite {
     }
 
     def encodeDecodeSIRType(sirType: SIRType): SIRType = {
-        import scalus.flat.*
+        import scalus.serialization.flat.*
         val bitSize = ToExprHSSIRTypeFlat.bitSize(sirType)
         val encoded = EncoderState(bitSize / 8 + 1)
         ToExprHSSIRTypeFlat.encode(sirType, encoded)

@@ -4,7 +4,6 @@ import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.derivation.key
 import scalus.builtin.{platform, ByteString}
-import scalus.ledger.api.Timelock
 
 /** Represents a script in Cardano */
 sealed trait Script {
@@ -48,6 +47,7 @@ object Script {
         @transient lazy val scriptHash: ScriptHash = Hash(
           platform.blake2b_224(ByteString.unsafeFromArray(2 +: script.bytes))
         )
+
         def language: Language = Language.PlutusV2
     }
 
@@ -59,6 +59,7 @@ object Script {
         @transient lazy val scriptHash: ScriptHash = Hash(
           platform.blake2b_224(ByteString.unsafeFromArray(3 +: script.bytes))
         )
+
         def language: Language = Language.PlutusV3
     }
 

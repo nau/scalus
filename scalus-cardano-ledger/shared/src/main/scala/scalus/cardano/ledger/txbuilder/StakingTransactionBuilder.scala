@@ -26,7 +26,7 @@ case class StakingTransactionBuilder(
                   .from(baseAddress.encode.get)
             )
             .validFrom(0)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         Transaction.fromCbor(cclTx.serialize())
@@ -40,7 +40,7 @@ case class StakingTransactionBuilder(
                   .from(baseAddress.encode.get)
             )
             .validFrom(0)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         Transaction.fromCbor(cclTx.serialize())
@@ -54,7 +54,7 @@ case class StakingTransactionBuilder(
                   .from(baseAddress.encode.get)
             )
             .validFrom(0)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         Transaction.fromCbor(cclTx.serialize())
@@ -99,7 +99,7 @@ case class StakingTransactionBuilder(
                   .from(baseAddress.encode.get)
             )
             .validFrom(0)
-            .withSigner(t => t)
+            .withSigner((c, t) => t)
             .build()
 
         Transaction.fromCbor(cclTx.serialize())

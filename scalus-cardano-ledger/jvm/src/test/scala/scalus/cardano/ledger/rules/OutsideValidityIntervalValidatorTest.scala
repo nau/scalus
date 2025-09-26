@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.ledger.api.ValidityInterval
+import scalus.cardano.ledger.ValidityInterval
 import org.scalatest.funsuite.AnyFunSuite
 
 class OutsideValidityIntervalValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {

@@ -16,10 +16,10 @@ import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder, TxSigner}
 import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
+import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
-import scalus.ledger.api.{MajorProtocolVersion, Timelock}
-import scalus.ledger.babbage.ProtocolParams
 import scalus.prelude.orFail
+import scalus.serialization.cbor.Cbor
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
 import scalus.{plutusV3, toUplc, Compiler}
@@ -181,8 +181,6 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
     }
 
     def fetchProtocolParams(): ProtocolParams = {
-        import upickle.default.*
-
         val httpClient = HttpClient.newBuilder().build()
         val request = HttpRequest
             .newBuilder()
@@ -195,7 +193,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         if response.statusCode() == 200 then {
-            read[ProtocolParams](response.body())(using ProtocolParams.blockfrostParamsRW)
+            ProtocolParams.fromBlockfrostJson(response.body())
         } else {
             throw new Exception(response.body())
         }
@@ -240,7 +238,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         context: BuilderContext,
         transaction: scalus.cardano.ledger.Transaction
     ) = {
-        val cborBytes = scalus.Cbor.encode(transaction)
+        val cborBytes = Cbor.encode(transaction)
         val result = context.backendService.getTransactionService.submitTransaction(cborBytes)
         if result.isSuccessful then succeed
         else fail(s"Error during tx submission: ${result.getResponse}")
@@ -248,9 +246,9 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("simple pay to address") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
 
-        val paymentAmount = Value.lovelace(5_000_000L)
+        val paymentAmount = Value.ada(5)
         val ctx = BuilderContext(
           environment.protocolParams,
           environment.evaluator,
@@ -269,7 +267,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("pay from a native script") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
         val keyBytes = account.publicKeyBytes()
         val keyHash = AddrKeyHash(platform.blake2b_224(ByteString.fromArray(keyBytes)))
 
@@ -282,7 +280,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
           ShelleyDelegationPart.Null
         )
 
-        val paymentAmount = Value.lovelace(5_000_000L)
+        val paymentAmount = Value.ada(5)
         val ctx = BuilderContext(
           environment.protocolParams,
           environment.evaluator,
@@ -305,7 +303,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val tx2 = ctx.buildNewTx
             .withPayer(scriptAddress)
             .withAttachedNativeScript(nativeScript)
-            .payTo(account2.address, Value.lovelace(3_000_000L))
+            .payTo(account2.address, Value.ada(3))
             .buildAndSign(account0.signer())
 
         submitTransactionToCardano(ctx, tx2)
@@ -314,7 +312,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("mint using a native policy") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
         val keyBytes = account.publicKeyBytes()
         val keyHash = AddrKeyHash(platform.blake2b_224(ByteString.fromArray(keyBytes)))
 
@@ -373,7 +371,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
                 val context = scriptContext.to[ScriptContext]
 
                 val outs: scalus.prelude.SortedMap[
-                  CurrencySymbol,
+                  PolicyId,
                   scalus.prelude.SortedMap[TokenName, BigInt]
                 ] =
                     context.txInfo.outputs.head.value.toSortedMap
@@ -394,9 +392,9 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         )
 
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
 
-        val paymentAmount = Value.lovelace(10_000_000L)
+        val paymentAmount = Value.ada(10)
         val context = BuilderContext(
           environment.protocolParams,
           environment.evaluator,
@@ -470,7 +468,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("register stake address") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
 
         // Create a stake address from the same account
         val stakeKeyHash = AddrKeyHash(
@@ -499,7 +497,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("withdraw staking rewards") {
         val network = Networks.testnet()
-        val account = new Account(
+        val account = Account.createFromMnemonic(
           network,
           MNEMONIC,
           DerivationPath.createExternalAddressDerivationPathForAccount(6)
@@ -547,7 +545,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .validFrom(0)
             .feePayer(account.baseAddress())
             .withSigner(SignerProviders.signerFrom(account.stakeHdKeyPair()))
-            .withSigner(account.sign)
+            .withSigner((c, t) => account.sign(t))
             .completeAndWait()
     }
 
@@ -558,7 +556,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val BLOCKFROST_PROJECT_ID = "preprod9cHsFFm9r39J6L9BCcrCCZAUk56GXMMY"
         val blockfrostUrl = "https://cardano-preprod.blockfrost.io/api/v0/"
         val backend = new BFBackendService(blockfrostUrl, BLOCKFROST_PROJECT_ID)
-        val account = new Account(Networks.preprod(), mnemonic)
+        val account = Account.createFromMnemonic(Networks.preprod(), mnemonic)
 
         val context = BuilderContext(
           environment.protocolParams,
@@ -581,7 +579,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val BLOCKFROST_PROJECT_ID = "preprod9cHsFFm9r39J6L9BCcrCCZAUk56GXMMY"
         val blockfrostUrl = "https://cardano-preprod.blockfrost.io/api/v0/"
         val backend = new BFBackendService(blockfrostUrl, BLOCKFROST_PROJECT_ID)
-        val account = new Account(Networks.preprod, mnemonic)
+        val account = Account.createFromMnemonic(Networks.preprod, mnemonic)
 
         val context = BuilderContext(
           environment.protocolParams,
@@ -611,7 +609,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .role(new Segment(derivationPieces(3), false))
             .index(new Segment(derivationPieces(4), false))
             .build()
-        val account = new Account(Networks.testnet(), mnemonic, derivationPath)
+        val account = Account.createFromMnemonic(Networks.testnet(), mnemonic, derivationPath)
         val pairs = keyPairToUse(account)
         new TxSigner {
             override def signTx(unsigned: Transaction): Transaction = {

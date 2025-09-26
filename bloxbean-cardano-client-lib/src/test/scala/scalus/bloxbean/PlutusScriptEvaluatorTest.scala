@@ -10,19 +10,16 @@ import scalus.cardano.address.ShelleyDelegationPart.Null
 import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
 import scalus.examples.PubKeyValidator
-import scalus.ledger.api.MajorProtocolVersion
-import scalus.ledger.babbage.ProtocolParams
 import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
-import upickle.default.read
 
 import java.nio.file.Paths
 import scala.collection.immutable.SortedSet
 
 class PlutusScriptEvaluatorTest extends AnyFunSuite {
-    private val params: ProtocolParams = read[ProtocolParams](
+    private val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
       this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-    )(using ProtocolParams.blockfrostParamsRW)
+    )
     private val costModels = CostModels.fromProtocolParams(params)
 
     lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(

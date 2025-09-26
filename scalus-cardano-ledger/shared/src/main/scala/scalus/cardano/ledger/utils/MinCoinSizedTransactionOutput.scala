@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package utils
 
-import scalus.ledger.babbage.ProtocolParams
+import scalus.cardano.ledger.ProtocolParams
 
 object MinCoinSizedTransactionOutput {
     def apply(

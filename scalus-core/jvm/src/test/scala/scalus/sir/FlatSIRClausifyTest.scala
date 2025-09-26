@@ -3,9 +3,8 @@ package scalus.sir
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.flat.FlatInstantces.{*, given}
-import scalus.flat.{DecoderState, EncoderState}
-import scalus.utils.{HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState}
+import scalus.serialization.flat.FlatInstances.{*, given}
+import scalus.serialization.flat.{DecoderState, EncoderState, HSRIdentityHashMap, HashConsed, HashConsedDecoderState, HashConsedEncoderState}
 
 import java.io.{BufferedInputStream, File, FileInputStream}
 
@@ -55,16 +54,15 @@ class FlatSIRClausifyTest extends AnyFunSuite {
 
         val myDeclTp = myDecl.get.tp
 
-        val hcBitSizeState = scalus.utils.HashConsed.State.empty
+        val hcBitSizeState = scalus.serialization.flat.HashConsed.State.empty
         val hcBitSize = SIRTypeHashConsedFlat.bitSizeHC(myDeclTp, hcBitSizeState)
         val byteSize = (hcBitSize / 8) + 1
         val hcEncodeState = new HashConsedEncoderState(
           new EncoderState(byteSize),
-          scalus.utils.HashConsed.State.empty,
+          scalus.serialization.flat.HashConsed.State.empty,
           debug = false
         )
-        val flat =
-            scalus.flat.FlatInstantces.SIRTypeHashConsedFlat.encodeHC(myDeclTp, hcEncodeState)
+        serialization.flat.FlatInstances.SIRTypeHashConsedFlat.encodeHC(myDeclTp, hcEncodeState)
 
         val hcDecodeState =
             new HashConsedDecoderState(
@@ -73,7 +71,7 @@ class FlatSIRClausifyTest extends AnyFunSuite {
               debug = true
             )
         val decodedTpRef =
-            scalus.flat.FlatInstantces.SIRTypeHashConsedFlat.decodeHC(hcDecodeState)
+            serialization.flat.FlatInstances.SIRTypeHashConsedFlat.decodeHC(hcDecodeState)
         val decodedTp = decodedTpRef.finValue(hcDecodeState.hashConsed, 0, new HSRIdentityHashMap)
 
         SIRUnify.topLevelUnifyType(decodedTp, myDeclTp, SIRUnify.Env.empty) match {
@@ -97,7 +95,7 @@ class FlatSIRClausifyTest extends AnyFunSuite {
         }
         val fileReader = new BufferedInputStream(new FileInputStream(file))
         val data = fileReader.readAllBytes()
-        val module = summon[scalus.flat.Flat[Module]].decode(new DecoderState(data))
+        val module = summon[serialization.flat.Flat[Module]].decode(new DecoderState(data))
         val toPrint = false
         if toPrint then
             println(s"module.version = ${module.version}")

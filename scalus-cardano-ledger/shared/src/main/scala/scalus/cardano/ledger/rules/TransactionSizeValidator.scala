@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.Cbor
+import scalus.serialization.cbor.Cbor
 
 // It's Shelley.validateMaxTxSizeUTxO in cardano-ledger
 object TransactionSizeValidator extends STS.Validator {

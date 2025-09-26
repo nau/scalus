@@ -28,7 +28,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
               .isEmpty
         )
 
-        // TODO: UPLC error
+        // TODO: UPLC error -- need support to copy in case class
 //        assertEvalEq(
 //          TxInfo.placeholder
 //              .copy(
@@ -64,12 +64,11 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
     }
 
     test("findOwnDatum") {
-        // TODO: UPLC error
-//        checkEval { (datumHash: DatumHash) =>
-//            TxInfo.placeholder.findOwnDatum(datumHash).isEmpty
-//        }
+        checkEval { (datumHash: DatumHash) =>
+            TxInfo.placeholder.findOwnDatum(datumHash).isEmpty
+        }
 
-        // TODO: UPLC error
+        // TODO: UPLC error -- need support to copy in case class
 //        checkEval { (txInfo: TxInfo, datum: Datum) =>
 //            val newTxInfo = txInfo.copy(
 //              data = SortedMap.singleton(datum.dataHash, datum),
@@ -79,7 +78,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
 //            newTxInfo.findOwnDatum(datum.dataHash) === Option.Some(datum)
 //        }
 
-        // TODO: UPLC error
+        // TODO: UPLC error -- need support to copy in case class
 //        checkEval { (txInfo: TxInfo, datum: Datum) =>
 //            val newTxInfo = txInfo.copy(
 //              data = SortedMap.empty,
@@ -103,7 +102,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
 //          TxInfo.placeholder.findOwnDatum(Data.unit.dataHash).isEmpty
 //        )
 
-        // TODO: UPLC error
+        // TODO: UPLC error -- need support to copy in case class
 //        assertEvalEq(
 //          TxInfo.placeholder
 //              .copy(
@@ -114,7 +113,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
 //          Option.Some(Data.unit)
 //        )
 
-        // TODO: UPLC error
+        // TODO: UPLC error -- need support to copy in case class
 //        assertEvalEq(
 //          TxInfo.placeholder
 //              .copy(
@@ -140,7 +139,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
             TxInfo.placeholder.findOwnScriptOutputs(validatorHash).isEmpty
         }
 
-        // TODO: UPLC error
+        // TODO: UPLC error -- need support to copy in case class
 //        checkEval { (txInfo: TxInfo, validatorHash: ValidatorHash) =>
 //            val newTxInfo = txInfo.copy(
 //              outputs = List(
@@ -178,7 +177,7 @@ class TxInfoTest extends StdlibTestKit with ArbitraryInstances {
               .isEmpty
         )
 
-        // TODO: UPLC error
+        // TODO: UPLC error -- need support to copy in case class
 //        assertEvalEq(
 //          TxInfo.placeholder
 //              .copy(

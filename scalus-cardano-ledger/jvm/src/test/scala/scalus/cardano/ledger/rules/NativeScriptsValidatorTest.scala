@@ -3,7 +3,7 @@ package rules
 
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
 import org.scalacheck.Arbitrary
-import scalus.ledger.api.Timelock
+import scalus.cardano.ledger.Timelock
 import scalus.builtin.platform
 import org.scalatest.funsuite.AnyFunSuite
 

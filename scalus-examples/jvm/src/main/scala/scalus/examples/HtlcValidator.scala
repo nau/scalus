@@ -5,7 +5,7 @@ import scalus.Compiler.compile
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.builtin.{ByteString, Data, FromData, ToData}
-import scalus.cardano.plutus.contract.blueprint.{Application, Blueprint}
+import scalus.cardano.blueprint.{Application, Blueprint}
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.uplc.Program

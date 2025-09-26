@@ -1,9 +1,9 @@
 package scalus.uplc
 
 import scalus.*
-import scalus.flat.DecoderState
-import scalus.flat.EncoderState
-import scalus.flat.Flat
+import scalus.serialization.flat.DecoderState
+import scalus.serialization.flat.EncoderState
+import scalus.serialization.flat.Flat
 
 object ProgramFlatCodec:
     import FlatInstantces.given
@@ -27,14 +27,18 @@ object ProgramFlatCodec:
 
     /** Decodes Flat-encoded [[DeBruijnedProgram]] from bytes */
     def decodeFlat(encoded: Array[Byte]): DeBruijnedProgram =
-        val decoderState = new DecoderState(encoded)
+        val decoderState = DecoderState(encoded)
         flatCodec.decode(decoderState)
 
     case class DecodeResult(program: DeBruijnedProgram, remainder: Array[Byte])
 
-    /** Decodes Flat-encoded [[DeBruijnedProgram]] from bytes */
-    def decodeFlat2(encoded: Array[Byte]): (DeBruijnedProgram, Array[Byte]) =
-        val decoderState = new DecoderState(encoded)
-        val p = flatCodec.decode(decoderState)
-        val remaining = decoderState.remainingBytes()
-        (p, remaining)
+    /** Decodes Flat-encoded [[DeBruijnedProgram]] from bytes, returning any remaining bytes that
+      * were not part of the program.
+      */
+    def decodeFlatWithRemainingBytes(
+        encoded: Array[Byte]
+    ): DecodeResult =
+        val decoderState = DecoderState(encoded)
+        val deBruijnedProgram = flatCodec.decode(decoderState)
+        decoderState.filler()
+        DecodeResult(deBruijnedProgram, decoderState.remainingBytes())
