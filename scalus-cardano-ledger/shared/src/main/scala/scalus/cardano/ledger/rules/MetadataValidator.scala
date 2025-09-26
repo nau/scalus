@@ -29,17 +29,20 @@ object MetadataValidator extends STS.Validator {
                   )
                 )
 
-            case (None, Some(auxiliaryData)) =>
+            case (None, Some(keepRawAuxiliaryData)) =>
                 failure(
                   TransactionException.MetadataException.MissingAuxiliaryDataHashException(
                     transactionId,
-                    auxiliaryData.value
+                    keepRawAuxiliaryData.value
                   )
                 )
 
-            case (Some(expectedAuxiliaryDataHash), Some(auxiliaryData)) =>
+            case (Some(expectedAuxiliaryDataHash), Some(keepRawAuxiliaryData)) =>
+                val auxiliaryData = keepRawAuxiliaryData.value
+                val cborAuxiliaryData = keepRawAuxiliaryData.raw
+
                 val actualAuxiliaryDataHash = AuxiliaryDataHash.fromByteString(
-                  platform.blake2b_256(ByteString.unsafeFromArray(auxiliaryData.raw))
+                  platform.blake2b_256(ByteString.unsafeFromArray(cborAuxiliaryData))
                 )
 
                 if actualAuxiliaryDataHash != expectedAuxiliaryDataHash then
@@ -53,12 +56,12 @@ object MetadataValidator extends STS.Validator {
 
                 if majorProtocolVersion <= MajorProtocolVersion.shelleyPV then return success
 
-                if isValidAuxiliaryData(auxiliaryData.value, majorProtocolVersion) then success
+                if isValidAuxiliaryData(auxiliaryData, majorProtocolVersion) then success
                 else
                     failure(
                       TransactionException.MetadataException.InvalidAuxiliaryDataException(
                         transactionId,
-                        auxiliaryData.value
+                        auxiliaryData
                       )
                     )
     }
