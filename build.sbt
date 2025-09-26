@@ -549,6 +549,10 @@ addCommandAlias(
   "ci",
   "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc;mima"
 )
+addCommandAlias(
+  "it",
+  "clean;scalusCardanoLedgerIt/Test/compile;scalusCardanoLedgerIt/test"
+)
 
 logo :=
     s"""

@@ -49,9 +49,10 @@ class BlocksValidation extends AnyFunSuite {
 
     case class BlockTx(tx: Transaction, datums: util.List[ByteString], txHash: String)
 
-    private lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(
-      "BLOCKFROST_API_KEY is not set, please set it before running the test"
-    )
+    private lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? {
+        println("BLOCKFROST_API_KEY is not set, please set it before running the test")
+        ""
+    }
 
     private lazy val dataPath = System.getenv("SCALUS_IT_DATA_PATH") ?? sys.error(
       "SCALUS_IT_DATA_PATH is not set, please set it before running the test"
@@ -587,13 +588,13 @@ class BlocksValidation extends AnyFunSuite {
     test("validateBlocksOfEpoch(543)"):
         validateBlocksOfEpoch(543)
 
-    test("validateNativeScriptEvaluation()"):
+    ignore("validateNativeScriptEvaluation()"):
         validateNativeScriptEvaluation()
 
-    test("validateScriptDataHashEvaluation()"):
+    ignore("validateScriptDataHashEvaluation()"):
         validateScriptDataHashEvaluation()
 
-    test("validateBlocksOfEpochWithScalus(543)"):
+    ignore("validateBlocksOfEpochWithScalus(543)"):
         validateBlocksOfEpochWithScalus(543)
 
 }

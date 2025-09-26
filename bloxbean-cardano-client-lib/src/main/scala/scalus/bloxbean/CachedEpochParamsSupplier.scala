@@ -29,7 +29,7 @@ class CachedEpochParamsSupplier(cachePath: Path, default: EpochService) extends 
 
     private def cache[K, V](id: K)(
         classOf: Class[V],
-        prefix:String,
+        prefix: String,
         cached: K => Option[V],
         store: (K, V) => Unit,
         read: K => Result[V]
