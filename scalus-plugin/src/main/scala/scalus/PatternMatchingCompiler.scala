@@ -5,7 +5,7 @@ import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.ast.tpd.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Contexts.{comparing, Context}
-import dotty.tools.dotc.core.NameKinds.{Scala2MethodNameKinds, UniqueNameKind}
+import dotty.tools.dotc.core.NameKinds.{Scala2MethodNameKinds, SkolemName, UniqueNameKind}
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.{nme, tpnme}
 import dotty.tools.dotc.core.Symbols.*
@@ -925,11 +925,80 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 }
                 SirParsedCase.Pattern.OrPattern(patterns.toList, pat.sourcePos)
             case _ =>
-                compiler.error(
-                  UnsupportedMatchExpression(pat, pat.srcPos),
-                  SirParsedCase.Pattern
-                      .Wildcard(sirScrutineeType, optBindingNameInfo, pos)
-                )
+                if pat.symbol.is(Flags.Case) then {
+                    println(s"case object pattern: ${pat.show} ${pat.tpe.show}")
+                    // no-arg constructor, it's a Val, so we use termSymbol
+                    val sirTp = compiler.sirTypeInEnv(pat.tpe, pat.srcPos, ctx.env)
+                    println(
+                      s"sirTp=${sirTp.show}, pat.tpe=${pat.tpe.show}, pat.tpe = ${pat.tpe}, widen: ${pat.tpe.widen.show}, pat.symbol.info: ${pat.symbol.info.show}"
+                    )
+                    val constrDecl = compiler.makeConstrDecl(ctx.env, pat.srcPos, pat.symbol)
+                    println(s"constrDecl = ${constrDecl}")
+                    println(s"scrutineeType = ${sirScrutineeType}")
+                    val adtTypeInfo = compiler.getAdtTypeInfo(pat.symbol.info)
+                    println(s"adtTypeInfo = ${adtTypeInfo}")
+                    val adtTypeSymbol = pat.symbol.info.widen.dealias.typeSymbol
+                    println(s"adtTypeSymbol = ${adtTypeSymbol.show}")
+                    val adtTypeSymbol1 = pat.tpe.widen.dealias.typeSymbol
+                    println(s"adtTypeSymbol1 = ${adtTypeSymbol1.show}")
+                    val constrTpe = pat.symbol.info.widen.dealias
+                    val optAdtBaseTypeSymbol = constrTpe.baseClasses.find(b =>
+                        // println(s"base class: ${b.show} ${b.flags.flagsString}")
+                        // TODO:  recheck.  Why ! trait ?
+                        b.flags.isAllOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
+                    )
+                    println("optAdtBaseTypeSymbol = " + optAdtBaseTypeSymbol)
+                    println(
+                      s"constrTpe=${constrTpe.show}, baseClasses(constrTpe)= ${constrTpe.baseClasses}"
+                    )
+                    constrTpe.match {
+                        case AppliedType(tycon, args) =>
+                            println(
+                              s"tycon=${tycon.show}, tycon base classes = ${tycon.baseClasses}"
+                            )
+                        case _ =>
+                    }
+                    SIRType.collectSumCaseClass(sirTp) match {
+                        case Some((typeVars, sumCaseClass)) =>
+                            val sirConstrTp = sumCaseClass.decl.constrType(constrDecl.name)
+                            SIRType.collectProdCaseClass(sirConstrTp) match
+                                case Some((freeTypeVars, constrCaseClass)) =>
+                                    SirParsedCase.Pattern.Constructor(
+                                      constrCaseClass,
+                                      freeTypeVars,
+                                      optBindingNameInfo,
+                                      // pat.symbol,
+                                      IndexedSeq.empty,
+                                      pos
+                                    )
+                                case None =>
+                                    // Impossible, because we just found it as constructor of sum type
+                                    SirParsedCase.Pattern.ErrorPattern(
+                                      s"Constructor type is not a product type: $sirConstrTp",
+                                      pat.srcPos
+                                    )
+                        case None =>
+                            // constructor without parent
+
+                            val plainCaseClass =
+                                SIRType.CaseClass(
+                                  constrDecl = constrDecl,
+                                  typeArgs = ???,
+                                  parent = None
+                                )
+                            ???
+
+                    }
+
+                    ???
+                } else
+                    println(s"Unsupported pattern: " + pat.show)
+                    println(s"tree: $pat")
+                    compiler.error(
+                      UnsupportedMatchExpression(pat, pat.srcPos),
+                      SirParsedCase.Pattern
+                          .Wildcard(sirScrutineeType, optBindingNameInfo, pos)
+                    )
 
     }
 
