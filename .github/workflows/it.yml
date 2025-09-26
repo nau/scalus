@@ -4,7 +4,6 @@ on:
   #  inputs:
   #    parameter:
   #      description: My Parameter
-  pull_request:
   schedule:
     - cron: '00 08,22 * * *'
 jobs:
