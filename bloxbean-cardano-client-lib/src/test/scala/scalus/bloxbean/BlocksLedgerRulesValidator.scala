@@ -2,10 +2,10 @@ package scalus.bloxbean
 
 import java.nio.file.{Files, Paths}
 import scala.jdk.CollectionConverters.*
-
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.rules.*
 import org.scalatest.funsuite.AnyFunSuite
+import scalus.bloxbean.Interop.??
 
 class BlocksLedgerRulesValidator(
     val sts: STS,
@@ -13,6 +13,10 @@ class BlocksLedgerRulesValidator(
     val state: State = State()
 ) extends AnyFunSuite {
     import BlocksLedgerRulesValidator.utxoResolver
+
+    private lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(
+      "BLOCKFROST_API_KEY is not set, please set it before running the test"
+    )
 
     test("check commited blocks") {
         val url = getClass.getResource("/blocks/")
@@ -60,7 +64,7 @@ class BlocksLedgerRulesValidator(
             .resolve("resources")
 
         val backendService =
-            new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, BlocksValidation.apiKey)
+            new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
           resourcesPath.resolve("utxos"),
           DefaultUtxoSupplier(backendService.getUtxoService)
