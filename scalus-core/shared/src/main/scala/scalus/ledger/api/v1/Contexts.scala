@@ -398,7 +398,7 @@ object DCert {
 }
 
 case class TxId(hash: Hash):
-    override def toString = s"TxId(${hash.toHex})"
+    override def toString = s"tx#${hash.toHex}"
 
 @Compile
 object TxId:
@@ -408,6 +408,10 @@ object TxId:
 
     given ToData[TxId] = ToData.derived
     given FromData[TxId] = FromData.derived
+
+    extension (sc: StringContext)
+        inline def tx(args: Any*): TxId =
+            TxId(sc.hex(args*))
 
 end TxId
 
@@ -428,7 +432,7 @@ object TxOutRef {
 }
 
 case class PubKeyHash(hash: Hash) {
-    override def toString = s"pkh#${hash}"
+    override def toString = s"pkh#${hash.toHex}"
 }
 
 @Compile
@@ -442,6 +446,9 @@ object PubKeyHash {
 
     given FromData[PubKeyHash] = (d: Data) => PubKeyHash(unBData(d))
 
+    extension (sc: StringContext)
+        inline def pkh(args: Any*): PubKeyHash =
+            PubKeyHash(sc.hex(args*))
 }
 
 enum Credential:
