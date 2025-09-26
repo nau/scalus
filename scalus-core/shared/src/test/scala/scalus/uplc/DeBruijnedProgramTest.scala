@@ -13,7 +13,6 @@ class DeBruijnedProgramTest extends AnyFunSuite {
         val cbor = Cbor.encode(flatEncoded ++ suffix)
         val result = DeBruijnedProgram.fromCborWithRemainingBytes(cbor)
 
-        assert(result.isRight)
-        assert(result.toOption.get._2 sameElements suffix)
+        assert(result._2 sameElements suffix)
     }
 }

@@ -19,7 +19,7 @@ case class Transaction(
     isValid: Boolean = true,
 
     /** Optional auxiliary data */
-    auxiliaryData: Option[AuxiliaryData] = None
+    auxiliaryData: Option[KeepRaw[AuxiliaryData]] = None
 ) {
     @transient lazy val id: TransactionHash = Hash(
       platform.blake2b_256(ByteString.unsafeFromArray(body.raw))
@@ -36,7 +36,7 @@ case class Transaction(
 object Transaction {
     def apply(
         body: TransactionBody,
-        witnessSet: TransactionWitnessSet,
+        witnessSet: TransactionWitnessSet
     ): Transaction =
         new Transaction(KeepRaw(body), witnessSet, isValid = true, auxiliaryData = None)
 

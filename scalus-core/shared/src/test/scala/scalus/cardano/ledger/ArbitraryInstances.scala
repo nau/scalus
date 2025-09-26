@@ -699,7 +699,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
                       for
                           key <- Gen.choose(0, transactionBodiesSize - 1)
                           value <- arbitrary[AuxiliaryData]
-                      yield (key, value)
+                      yield (key, KeepRaw(value))
                     )
                 yield result
             invalidTransactions <-
@@ -734,7 +734,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
             body <- arbitrary[KeepRaw[TransactionBody]]
             witnessSet <- arbitrary[TransactionWitnessSet]
             isValid <- arbitrary[Boolean]
-            auxiliaryData <- arbitrary[Option[AuxiliaryData]]
+            auxiliaryData <- arbitrary[Option[KeepRaw[AuxiliaryData]]]
         yield Transaction(body, witnessSet, isValid, auxiliaryData)
     }
 }

@@ -20,7 +20,7 @@ case class Block(
     transactionWitnessSets: IndexedSeq[TransactionWitnessSet],
 
     /** Auxiliary data associated with transactions by index */
-    auxiliaryDataSet: Map[Int, AuxiliaryData],
+    auxiliaryDataSet: Map[Int, KeepRaw[AuxiliaryData]],
 
     /** List of invalid transaction indices */
     invalidTransactions: IndexedSeq[Int]

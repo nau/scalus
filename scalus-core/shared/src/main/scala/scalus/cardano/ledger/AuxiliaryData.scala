@@ -3,7 +3,6 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.builtin.ByteString
-import scalus.builtin.platform
 import scalus.serialization.cbor.Cbor as ScalusCbor
 
 import scala.collection.immutable
@@ -130,10 +129,6 @@ enum AuxiliaryData:
         case _: AuxiliaryData.Metadata            => IndexedSeq.empty
         case _: AuxiliaryData.MetadataWithScripts => IndexedSeq.empty
         case data: AuxiliaryData.AlonzoFormat     => data.plutusV3Scripts
-
-    def hash: AuxiliaryDataHash = AuxiliaryDataHash.fromByteString(
-      platform.blake2b_256(ScalusCbor.encodeToByteString(this))
-    )
 
 object AuxiliaryData:
     /** CBOR encoder for AuxiliaryData */

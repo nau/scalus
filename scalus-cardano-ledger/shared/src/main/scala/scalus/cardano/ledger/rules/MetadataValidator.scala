@@ -2,6 +2,7 @@ package scalus.cardano.ledger
 package rules
 
 import scalus.cardano.ledger.utils.PlutusScript
+import scalus.builtin.{platform, ByteString}
 
 import java.nio.charset.StandardCharsets
 
@@ -32,12 +33,14 @@ object MetadataValidator extends STS.Validator {
                 failure(
                   TransactionException.MetadataException.MissingAuxiliaryDataHashException(
                     transactionId,
-                    auxiliaryData
+                    auxiliaryData.value
                   )
                 )
 
             case (Some(expectedAuxiliaryDataHash), Some(auxiliaryData)) =>
-                val actualAuxiliaryDataHash = auxiliaryData.hash
+                val actualAuxiliaryDataHash = AuxiliaryDataHash.fromByteString(
+                  platform.blake2b_256(ByteString.unsafeFromArray(auxiliaryData.raw))
+                )
 
                 if actualAuxiliaryDataHash != expectedAuxiliaryDataHash then
                     return failure(
@@ -50,12 +53,12 @@ object MetadataValidator extends STS.Validator {
 
                 if majorProtocolVersion <= MajorProtocolVersion.shelleyPV then return success
 
-                if isValidAuxiliaryData(auxiliaryData, majorProtocolVersion) then success
+                if isValidAuxiliaryData(auxiliaryData.value, majorProtocolVersion) then success
                 else
                     failure(
                       TransactionException.MetadataException.InvalidAuxiliaryDataException(
                         transactionId,
-                        auxiliaryData
+                        auxiliaryData.value
                       )
                     )
     }
