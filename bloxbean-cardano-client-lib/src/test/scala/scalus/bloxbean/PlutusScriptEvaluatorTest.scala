@@ -3,6 +3,7 @@ package scalus.bloxbean
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
+import scalus.bloxbean.Interop.??
 import scalus.builtin.ByteString.*
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.ShelleyDelegationPart.Null
@@ -20,6 +21,10 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
       this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
     )
     private val costModels = CostModels.fromProtocolParams(params)
+
+    lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(
+      "BLOCKFROST_API_KEY is not set, please set it before running the test"
+    )
 
     test("TxEvaluator PlutusV2") {
         val evaluator = PlutusScriptEvaluator(
@@ -204,7 +209,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             .resolve("resources")
 
         val backendService =
-            new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, BlocksValidation.apiKey)
+            new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
           resourcesPath.resolve("utxos"),
           DefaultUtxoSupplier(backendService.getUtxoService)
