@@ -3,7 +3,6 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.builtin.ByteString
-import scalus.serialization.cbor.Cbor as ScalusCbor
 
 import scala.collection.immutable
 

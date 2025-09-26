@@ -11,7 +11,7 @@ import upickle.default.ReadWriter as UpickleReadWriter
 import cats.kernel.CommutativeGroup
 
 import java.util
-import scala.annotation.targetName
+import scala.annotation.{targetName, threadUnsafe}
 import scala.collection.immutable.{ListMap, SortedMap, TreeMap}
 import scala.compiletime.asMatchable
 
@@ -485,7 +485,7 @@ object OriginalCborByteArray {
 }
 
 class KeepRaw[A] private (val value: A, rawBytes: () => Array[Byte]) {
-    lazy val raw: Array[Byte] = rawBytes()
+    @threadUnsafe lazy val raw: Array[Byte] = rawBytes()
     override def hashCode: Int =
         util.Arrays.hashCode(Array(value.hashCode(), util.Arrays.hashCode(raw)))
 
