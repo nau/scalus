@@ -119,7 +119,7 @@ class BlocksValidation extends AnyFunSuite {
                                 errors += ((e.getMessage, blockNum, txhash))
                                 println(s"Error in block $blockNum, tx $txhash: ${e.getMessage}")
                     r.toSeq
-                println(s"\rBlock $blockNum, num txs to validate: ${txsWithScripts.size}")
+//                println(s"\rBlock $blockNum, num txs to validate: ${txsWithScripts.size}")
 //            println(s"Block txs:\n${txsWithScripts.map(_._3).sorted.mkString("\n")}")
 
                 for (tx, datums, txhash, scripts) <- txsWithScripts do {
@@ -169,7 +169,7 @@ class BlocksValidation extends AnyFunSuite {
                |v3: $v3ScriptsExecuted of ${v3Scripts.size}
                |""".stripMargin)
 
-        assert(errors.isEmpty, errors)
+        assert(errors.size === 0)
     }
 
     private def validateBlocksOfEpochWithScalus(epoch: Int): Unit = {
