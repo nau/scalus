@@ -123,11 +123,11 @@ class CborSerializationTest extends AnyFunSuite, ScalaCheckPropertyChecks, Arbit
     test(s"BlockHeader should serialize and deserialize correctly"):
         testSerializationRoundTrip[BlockHeader]
 
-    test(s"TransactionMetadatumLabel should serialize and deserialize correctly"):
-        testSerializationRoundTrip[TransactionMetadatumLabel]
+    test(s"MetadatumLabel should serialize and deserialize correctly"):
+        testSerializationRoundTrip[MetadatumLabel]
 
-    test(s"TransactionMetadatum should serialize and deserialize correctly"):
-        testSerializationRoundTrip[TransactionMetadatum]
+    test(s"Metadatum should serialize and deserialize correctly"):
+        testSerializationRoundTrip[Metadatum]
 
     test(s"AuxiliaryData should serialize and deserialize correctly"):
         testSerializationRoundTrip[AuxiliaryData]

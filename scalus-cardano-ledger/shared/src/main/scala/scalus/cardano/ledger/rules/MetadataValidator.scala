@@ -77,19 +77,19 @@ object MetadataValidator extends STS.Validator {
     }
 
     private def isValidAuxiliaryMetadata(auxiliaryData: AuxiliaryData): Boolean = {
-        auxiliaryData.getMetadata.view.values.forall(isValidTransactionMetadatum)
+        auxiliaryData.getMetadata.view.values.forall(isValidMetadatum)
     }
 
-    private def isValidTransactionMetadatum(metadatum: TransactionMetadatum): Boolean = {
+    private def isValidMetadatum(metadatum: Metadatum): Boolean = {
         metadatum match {
-            case TransactionMetadatum.Int(_)       => true
-            case TransactionMetadatum.Bytes(bytes) => bytes.length <= MaxSize
-            case TransactionMetadatum.Text(str) =>
+            case Metadatum.Int(_)       => true
+            case Metadatum.Bytes(bytes) => bytes.length <= MaxSize
+            case Metadatum.Text(str) =>
                 str.getBytes(StandardCharsets.UTF_8).length <= MaxSize
-            case TransactionMetadatum.List(items) => items.forall(isValidTransactionMetadatum)
-            case TransactionMetadatum.Map(entries) =>
+            case Metadatum.List(items) => items.forall(isValidMetadatum)
+            case Metadatum.Map(entries) =>
                 entries.forall { (key, value) =>
-                    isValidTransactionMetadatum(key) && isValidTransactionMetadatum(value)
+                    isValidMetadatum(key) && isValidMetadatum(value)
                 }
         }
     }
