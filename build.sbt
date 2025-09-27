@@ -599,7 +599,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "ci",
-  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusPluginTests/Test/compile;test;docs/mdoc;mima"
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusPluginTests/Test/compile;Test/nativeLink;test;docs/mdoc;mima"
 )
 addCommandAlias("benchmark", "bench/jmh:run -i 1 -wi 1 -f 1 -t 1 .*")
 addCommandAlias(
