@@ -192,7 +192,6 @@
               packages = with pkgs; [
                 jdk
                 sbt
-                scalafmt
                 nodejs
                 uplc
                 llvm
