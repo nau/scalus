@@ -247,8 +247,8 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
       libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.3.2",
-      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-core" % "2.37.11",
-      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % "2.37.11" % "compile",
+      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-core" % "2.38.2",
+      libraryDependencies += "com.github.plokhotnyuk.jsoniter-scala" %%% "jsoniter-scala-macros" % "2.38.2" % "compile",
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.16.1",
         "io.bullet" %%% "borer-derivation" % "1.16.1"
@@ -472,7 +472,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.7.0" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.8" % "test",
       libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1",
-      libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.3" % "test",
+      libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.4" % "test",
       Test / fork := true, // needed for BlocksValidation to run in sbt
       inConfig(Test)(PluginDependency)
     )
@@ -531,11 +531,11 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
         "dev.optics" %%% "monocle-core" % "3.3.0",
         "dev.optics" %%% "monocle-macro" % "3.3.0",
       ),
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0" % "test",
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
-      libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.3" % "test",
+      libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.4" % "test",
       inConfig(Test)(PluginDependency),
       publish / skip := false
     )
@@ -563,7 +563,7 @@ lazy val scalusCardanoLedgerIt = project
       publish / skip := true,
       Test / fork := true,
       Test / testOptions += Tests.Argument("-oF"),
-      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.6.6" % "test",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.7.0" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.8" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci-cardano-test" % "0.1.0" % "test",
