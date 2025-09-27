@@ -378,10 +378,6 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
         yield BlockHeader(headerBody, bodySignature)
     }
 
-    given Arbitrary[MetadatumLabel] = Arbitrary(
-      Gen.choose(0L, Long.MaxValue).map(MetadatumLabel.apply)
-    )
-
     given Arbitrary[Metadatum] = {
         val genMetadatumInt =
             Gen.choose(Long.MinValue, Long.MaxValue).map(Metadatum.Int.apply)

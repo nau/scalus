@@ -7,16 +7,12 @@ import scalus.builtin.ByteString
 import scala.collection.immutable
 
 /** Metadata is a map from metadatum labels to metadatum values */
-type Metadata = Map[MetadatumLabel, Metadatum]
+type Metadata = Map[Word64, Metadatum]
 
-/** Represents a transaction metadatum label in Cardano */
-case class MetadatumLabel(value: Long) derives Codec:
-    require(value >= 0, s"Metadatum label must be non-negative, got $value")
-
-@deprecated("Use MetadatumLabel instead", "0.12")
-type TransactionMetadatumLabel = MetadatumLabel
-@deprecated("Use MetadatumLabel instead", "0.12")
-val TransactionMetadatumLabel = MetadatumLabel
+@deprecated("Use Word64 instead", "0.12")
+type TransactionMetadatumLabel = Word64
+@deprecated("Use Word64 instead", "0.12")
+val TransactionMetadatumLabel = Word64
 
 @deprecated("Use Metadatum instead", "0.12")
 type TransactionMetadatum = Metadatum
@@ -96,24 +92,24 @@ object Metadatum:
 /** Represents auxiliary data in a Cardano transaction */
 enum AuxiliaryData:
     /** Shelley-era metadata */
-    case Metadata(metadata: Map[MetadatumLabel, Metadatum])
+    case Metadata(metadata: Map[Word64, Metadatum])
 
     /** Shelley-MA era combined metadata and scripts */
     case MetadataWithScripts(
-        metadata: Map[MetadatumLabel, Metadatum],
+        metadata: Map[Word64, Metadatum],
         nativeScripts: IndexedSeq[Timelock]
     )
 
     /** Alonzo-era and later metadata format with optional components */
     case AlonzoFormat(
-        metadata: Option[Map[MetadatumLabel, Metadatum]] = None,
+        metadata: Option[Map[Word64, Metadatum]] = None,
         nativeScripts: IndexedSeq[Timelock] = IndexedSeq.empty,
         plutusV1Scripts: IndexedSeq[ByteString] = IndexedSeq.empty,
         plutusV2Scripts: IndexedSeq[ByteString] = IndexedSeq.empty,
         plutusV3Scripts: IndexedSeq[ByteString] = IndexedSeq.empty
     )
 
-    def getMetadata: Map[MetadatumLabel, Metadatum] = this match
+    def getMetadata: Map[Word64, Metadatum] = this match
         case data: AuxiliaryData.Metadata            => data.metadata
         case data: AuxiliaryData.MetadataWithScripts => data.metadata
         case data: AuxiliaryData.AlonzoFormat        => data.metadata.getOrElse(Map.empty)
@@ -215,7 +211,7 @@ object AuxiliaryData:
                     // Alonzo format with tag
                     // We've already consumed the tag, now read the map
                     val size = r.readMapHeader()
-                    var metadata: Option[Map[MetadatumLabel, Metadatum]] =
+                    var metadata: Option[Map[Word64, Metadatum]] =
                         None
                     var nativeScripts = IndexedSeq.empty[Timelock]
                     var plutusV1Scripts = IndexedSeq.empty[ByteString]

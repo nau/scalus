@@ -34,8 +34,6 @@ ThisBuild / homepage := Some(url("https://github.com/nau/scalus"))
 ThisBuild / versionScheme := Some("early-semver")
 Test / publishArtifact := false
 
-ThisBuild / javaOptions += "-Xss64m"
-
 // BSP and semantic features
 ThisBuild / semanticdbEnabled := true
 
