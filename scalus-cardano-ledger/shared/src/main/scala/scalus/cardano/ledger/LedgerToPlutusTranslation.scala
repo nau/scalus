@@ -10,6 +10,7 @@ import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.GovernanceActionId
 import scalus.prelude.{asScalus, List, SortedMap}
+import scalus.uplc.BuiltinSemanticsVariant
 import scalus.uplc.eval.*
 import scalus.uplc.{PlutusV1Params, PlutusV2Params, PlutusV3Params}
 import scalus.{builtin, ledger, prelude}
@@ -403,13 +404,19 @@ object LedgerToPlutusTranslation {
         wdwls
     }
 
-    /** Convert Certificate to DCert for Plutus V1 script contexts.
+    /** Convert Certificate to DCert for Plutus V1/V2 script contexts.
       *
-      * V1 script contexts use a simplified certificate representation that doesn't include all the
-      * Conway era governance features.
+      * V1/V2 script contexts use a simplified certificate representation that only includes
+      * pre-Conway era certificates. Conway-era governance certificates are not supported and will
+      * cause a translation error, which is correct behavior according to the Cardano Ledger
+      * specification.
+      *
+      * This function follows the same logic as `transTxCertV1V2` and `transTxCertCommon` in the
+      * Cardano Ledger Haskell implementation.
       */
     def getDCert(cert: Certificate): v1.DCert = {
         cert match
+            // Pre-Conway era certificates that are supported in V1/V2
             case Certificate.RegCert(credential, _) =>
                 v1.DCert.DelegRegKey(getStakingCredential(credential))
             case Certificate.UnregCert(credential, _) =>
@@ -429,7 +436,49 @@ object LedgerToPlutusTranslation {
                   v1.PubKeyHash(poolKeyHash),
                   BigInt(epochNo)
                 )
-        // FIXME: figure out what to do with the rest
+
+            // Conway-era governance certificates are not supported in Plutus V1/V2
+            // According to Cardano Ledger specification, these should cause translation errors
+            case _: Certificate.VoteDelegCert =>
+                throw new IllegalArgumentException(
+                  s"VoteDelegCert not supported in Plutus V1/V2 contexts. Use Plutus V3."
+                )
+            case _: Certificate.StakeVoteDelegCert =>
+                throw new IllegalArgumentException(
+                  s"StakeVoteDelegCert not supported in Plutus V1/V2 contexts. Use Plutus V3."
+                )
+            case _: Certificate.StakeRegDelegCert =>
+                throw new IllegalArgumentException(
+                  s"StakeRegDelegCert not supported in Plutus V1/V2 contexts. Use Plutus V3."
+                )
+            case _: Certificate.VoteRegDelegCert =>
+                throw new IllegalArgumentException(
+                  s"VoteRegDelegCert not supported in Plutus V1/V2 contexts. Use Plutus V3."
+                )
+            case _: Certificate.StakeVoteRegDelegCert =>
+                throw new IllegalArgumentException(
+                  s"StakeVoteRegDelegCert not supported in Plutus V1/V2 contexts. Use Plutus V3."
+                )
+            case _: Certificate.AuthCommitteeHotCert =>
+                throw new IllegalArgumentException(
+                  s"AuthCommitteeHotCert not supported in Plutus V1/V2 contexts. Use Plutus V3."
+                )
+            case _: Certificate.ResignCommitteeColdCert =>
+                throw new IllegalArgumentException(
+                  s"ResignCommitteeColdCert not supported in Plutus V1/V2 contexts. Use Plutus V3."
+                )
+            case _: Certificate.RegDRepCert =>
+                throw new IllegalArgumentException(
+                  s"RegDRepCert not supported in Plutus V1/V2 contexts. Use Plutus V3."
+                )
+            case _: Certificate.UnregDRepCert =>
+                throw new IllegalArgumentException(
+                  s"UnregDRepCert not supported in Plutus V1/V2 contexts. Use Plutus V3."
+                )
+            case _: Certificate.UpdateDRepCert =>
+                throw new IllegalArgumentException(
+                  s"UpdateDRepCert not supported in Plutus V1/V2 contexts. Use Plutus V3."
+                )
     }
 
     /** Convert Certificate to TxCert for Plutus V3 script contexts.
