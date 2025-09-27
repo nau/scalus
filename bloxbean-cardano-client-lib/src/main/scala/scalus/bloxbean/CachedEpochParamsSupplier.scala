@@ -1,18 +1,12 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.api.UtxoSupplier
-import com.bloxbean.cardano.client.api.common.OrderEnum
-import com.bloxbean.cardano.client.api.model.{ProtocolParams, Result, Utxo}
+import com.bloxbean.cardano.client.api.model.{ProtocolParams, Result}
+import com.bloxbean.cardano.client.backend.api.EpochService
+import com.bloxbean.cardano.client.backend.model.EpochContent
 import com.fasterxml.jackson.databind.ObjectMapper
 
 import java.nio.file.{Files, Path}
-import java.util
-import java.util.Optional
 import scala.collection.mutable
-import com.bloxbean.cardano.client.backend.api.EpochService
-import com.bloxbean.cardano.client.backend.model.EpochContent
-
-import scala.reflect.ClassTag
 
 class CachedEpochParamsSupplier(cachePath: Path, default: EpochService) extends EpochService {
     private val objectMapper = new ObjectMapper()
