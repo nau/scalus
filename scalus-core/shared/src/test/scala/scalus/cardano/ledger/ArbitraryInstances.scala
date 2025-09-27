@@ -442,6 +442,8 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
         Arbitrary(Gen.choose(0, 3).flatMap(genMetadatum))
     }
 
+    given Arbitrary[Word64] = Arbitrary(Arbitrary.arbitrary[Long].map(Word64(_)))
+
     given Arbitrary[AuxiliaryData] = {
         given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
           genMapOfSizeFromArbitrary(0, 4)
