@@ -97,6 +97,7 @@
                 # SBT-specific optimizations
                 "-Dsbt.boot.lock=false"             # Disable boot lock file (faster concurrent sbt instances)
                 "-Dsbt.cached.resolution.cache.limit=50"  # Limit dependency resolution cache size
+#                "-Dsbt.task.timings=true"          # Enable task timing reports for performance insights
               ];
             in
             pkgs.mkShell {

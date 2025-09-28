@@ -8,7 +8,7 @@ import scala.scalanative.build.*
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
-val scalusStableVersion = "0.10.0"
+val scalusStableVersion = "0.12.0"
 val scalusCompatibleVersion = scalusStableVersion
 //ThisBuild / scalaVersion := "3.8.0-RC1-bin-SNAPSHOT"
 //ThisBuild / scalaVersion := "3.3.7-RC1-bin-SNAPSHOT"
@@ -72,9 +72,20 @@ lazy val commonScalacOptions = Seq(
   "-Xcheck-macros"
   //  "-rewrite",
   //  "-source:future-migration"
+) // ++ profilingScalacOptions
+
+// Compilation profiling options for analyzing compilation time
+lazy val profilingScalacOptions = Seq(
+  "-Vprofile", // Basic compilation profiling with file complexity
+  "-Vprofile-sorted-by:complexity", // Sort by complexity to identify slow files
+  "-Vprofile-details:10",
+  //  "-Yprofile-enabled",             // Enable advanced profiling
+  //  "-Yprofile-trace:trace.log"                // Generate trace files for perfetto.dev visualization
+
 )
 
 lazy val copySharedFiles = taskKey[Unit]("Copy shared files")
+lazy val prepareNpmPackage = taskKey[Unit]("Make an copy scalus bundle.js to npm directory")
 
 lazy val root: Project = project
     .in(file("."))
@@ -244,8 +255,6 @@ lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
     Seq(s"-Xplugin:${jar.getAbsolutePath}")
 })
 
-lazy val prepareNpmPackage = taskKey[Unit]("Make an copy scalus bundle.js to npm directory")
-
 // Scalus Core and Standard Library for JVM and JS
 lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .in(file("scalus-core"))
@@ -266,7 +275,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       mimaPreviousArtifacts := Set(organization.value %%% name.value % scalusCompatibleVersion),
 
       // enable when debug compilation of tests
-      Test / scalacOptions += "-color:never",
+//      Test / scalacOptions += "-color:never",
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
@@ -383,7 +392,7 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
               .withRelationsDebug(false)
               .withRecompileOnMacroDef(false)
       },
-      Test / scalacOptions += "-color:never",
+//      Test / scalacOptions += "-color:never",
       copySharedFiles := {
           val sharedFiles = Seq(
             "scalus/testutil/ArbitraryDerivation.scala",
@@ -470,25 +479,7 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
       mimaPreviousArtifacts := Set(organization.value %% name.value % scalusCompatibleVersion),
-      mimaBinaryIssueFilters ++= Seq(
-        ProblemFilters
-            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getMintValue"),
-        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getValue"),
-        ProblemFilters
-            .exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.Interop.getVotingProcedures"),
-        ProblemFilters
-            .exclude[DirectMissingMethodProblem]("scalus.bloxbean.Interop.getScriptPurpose"),
-        ProblemFilters.exclude[DirectMissingMethodProblem]("scalus.bloxbean.SlotConfig.default"),
-        ProblemFilters
-            .exclude[DirectMissingMethodProblem]("scalus.bloxbean.Interop.slotToBeginPosixTime"),
-        ProblemFilters.exclude[DirectMissingMethodProblem](
-          "scalus.bloxbean.Interop.translateMachineParamsFromCostMdls"
-        ),
-        // Package migration from scalus.ledger.api to scalus.cardano.ledger
-        ProblemFilters.exclude[IncompatibleMethTypeProblem](
-          "scalus.bloxbean.Interop.translateMachineParamsFromCostMdls"
-        ),
-      ),
+      mimaBinaryIssueFilters ++= Seq(),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
@@ -543,6 +534,7 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-cardano-ledger",
+      scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
       libraryDependencies ++= Seq(
         "io.bullet" %%% "borer-core" % "1.16.1",
