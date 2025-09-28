@@ -1,15 +1,19 @@
-import com.typesafe.tools.mima.core.{DirectMissingMethodProblem, IncompatibleMethTypeProblem, IncompatibleResultTypeProblem, ProblemFilters}
 import sbt.internal.util.ManagedLogger
 import sbtwelcome.*
 
 import java.net.URI
 import scala.scalanative.build.*
 
+// =============================================================================
+// GLOBAL SETTINGS
+// =============================================================================
+
 Global / onChangedBuildSource := ReloadOnSourceChanges
 autoCompilerPlugins := true
 
 val scalusStableVersion = "0.12.0"
 val scalusCompatibleVersion = scalusStableVersion
+
 //ThisBuild / scalaVersion := "3.8.0-RC1-bin-SNAPSHOT"
 //ThisBuild / scalaVersion := "3.3.7-RC1-bin-SNAPSHOT"
 //ThisBuild / scalaVersion := "3.7.3-RC1-bin-SNAPSHOT"
@@ -63,6 +67,10 @@ Compile / doc / scalacOptions ++= Seq(
   "Lantr.io"
 )
 
+// =============================================================================
+// COMMON SETTINGS
+// =============================================================================
+
 lazy val commonScalacOptions = Seq(
   "-deprecation",
   "-feature",
@@ -86,6 +94,22 @@ lazy val profilingScalacOptions = Seq(
 
 lazy val copySharedFiles = taskKey[Unit]("Copy shared files")
 lazy val prepareNpmPackage = taskKey[Unit]("Make an copy scalus bundle.js to npm directory")
+
+// Scalus Compiler Plugin Dependency
+lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
+    val jar = (scalusPlugin / Compile / packageBin).value
+    // add plugin timestamp to compiler options to trigger recompile of
+    // main after editing the plugin. (Otherwise a 'clean' is needed.)
+
+    // NOTE: uncomment for faster Scalus Plugin development
+    // this will recompile the plugin when the jar is modified
+    //    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
+    Seq(s"-Xplugin:${jar.getAbsolutePath}")
+})
+
+// =============================================================================
+// AGGREGATE PROJECTS
+// =============================================================================
 
 lazy val root: Project = project
     .in(file("."))
@@ -153,6 +177,10 @@ lazy val native: Project = project
     .settings(
       publish / skip := true
     )
+
+// =============================================================================
+// PROJECTS
+// =============================================================================
 
 // Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project
@@ -243,18 +271,6 @@ lazy val scalusPluginTests = project
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test"
     )
 
-// Scalus Compiler Plugin Dependency
-lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
-    val jar = (scalusPlugin / Compile / packageBin).value
-    // add plugin timestamp to compiler options to trigger recompile of
-    // main after editing the plugin. (Otherwise a 'clean' is needed.)
-
-    // NOTE: uncomment for faster Scalus Plugin development
-    // this will recompile the plugin when the jar is modified
-//    Seq(s"-Xplugin:${jar.getAbsolutePath}", s"-Jdummy=${jar.lastModified}")
-    Seq(s"-Xplugin:${jar.getAbsolutePath}")
-})
-
 // Scalus Core and Standard Library for JVM and JS
 lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .in(file("scalus-core"))
@@ -276,6 +292,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
       // enable when debug compilation of tests
 //      Test / scalacOptions += "-color:never",
+      PluginDependency,
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
       libraryDependencies += "org.typelevel" %%% "paiges-core" % "0.4.4",
@@ -286,7 +303,6 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         "io.bullet" %%% "borer-core" % "1.16.1",
         "io.bullet" %%% "borer-derivation" % "1.16.1"
       ),
-      PluginDependency,
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18" % "test",
       libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19" % "test",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % "test",
@@ -358,22 +374,6 @@ lazy val scalusUplcJitCompiler = project
       inConfig(Test)(PluginDependency),
       publish / skip := true
     )
-
-def copyFiles(files: Seq[String], baseDir: File, targetDir: File, log: ManagedLogger): Unit = {
-    files.foreach { file =>
-        val source = baseDir / file
-        val target = targetDir / file
-        if (source.exists) {
-            if (!target.exists) {
-                IO.copyFile(source, target)
-            } else if (source.lastModified() > target.lastModified()) {
-                IO.copyFile(source, target)
-            }
-        } else {
-            log.error(s"Shared file $file does not exist in $baseDir")
-        }
-    }
-}
 
 // Scalus Testkit library for testing Scalus applications
 lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -579,6 +579,10 @@ lazy val scalusCardanoLedgerIt = project
       publish / skip := true,
       Test / fork := true,
       Test / testOptions += Tests.Argument("-oF"),
+      // needed for secp256k1jni. Otherwise, JVM loads secp256k1 library from LD_LIBRARY_PATH
+      // which doesn't export the secp256k1_ec_pubkey_decompress function
+      // that is needed by bitcoin-s-secp256k1jni, because it's an older fork of secp256k1
+      Test / javaOptions += "-Djava.library.path=",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-backend-blockfrost" % "0.7.0" % "test",
       libraryDependencies += "com.bloxbean.cardano" % "yaci" % "0.3.8" % "test",
@@ -587,15 +591,36 @@ lazy val scalusCardanoLedgerIt = project
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",
       libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.3.0" % "test",
       libraryDependencies += "org.bouncycastle" % "bcprov-jdk18on" % "1.81" % "test",
-      // needed for secp256k1jni. Otherwise, JVM loads secp256k1 library from LD_LIBRARY_PATH
-      // which doesn't export the secp256k1_ec_pubkey_decompress function
-      // that is needed by bitcoin-s-secp256k1jni, because it's an older fork of secp256k1
-      Test / javaOptions += "-Djava.library.path=",
       libraryDependencies += "foundation.icon" % "blst-java" % "0.3.2",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.11" % "test",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.11",
       inConfig(Test)(PluginDependency)
     )
+
+// =============================================================================
+// UTILS
+// =============================================================================
+
+def copyFiles(files: Seq[String], baseDir: File, targetDir: File, log: ManagedLogger): Unit = {
+    files.foreach { file =>
+        val source = baseDir / file
+        val target = targetDir / file
+        if (source.exists) {
+            if (!target.exists) {
+                IO.copyFile(source, target)
+            } else if (source.lastModified() > target.lastModified()) {
+                IO.copyFile(source, target)
+            }
+        } else {
+            log.error(s"Shared file $file does not exist in $baseDir")
+        }
+    }
+}
+
+// =============================================================================
+// COMMAND ALIASES
+// =============================================================================
+
 // We only check ABI compatibility for scalus-bloxbean-cardano-client-lib project for now
 // because it's used by CCL and we want to avoid breaking changes
 addCommandAlias(
@@ -635,6 +660,10 @@ addCommandAlias(
   "it",
   "clean;scalusCardanoLedgerIt/Test/compile;scalusCardanoLedgerIt/test"
 )
+
+// =============================================================================
+// WELCOME LOGO AND USEFUL TASKS
+// =============================================================================
 
 logo :=
     s"""
