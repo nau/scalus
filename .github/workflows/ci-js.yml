@@ -28,10 +28,10 @@ jobs:
         run: nix develop .#ci --accept-flake-config --command bash -c "sbt ci-js"
       - name: Report test results
         uses: sarisia/actions-status-discord@v1
-        if: always()
+        if: failure()
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
-          title: "CI-JS ${{ job.status == 'success' && '✅' || '❌' }} - ${{ github.actor }} on ${{ github.ref_name }}"
+          title: "CI-JS ❌ - ${{ github.actor }} on ${{ github.ref_name }}"
           description: "[${{ github.event.head_commit.message }}](${{ github.event.head_commit.url }})"
           url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           username: "GitHub Actions"
