@@ -1,11 +1,10 @@
-name: CI
+name: CI-Native
 on:
-  # Disabled - use ci-jvm, ci-js, or ci-native workflows instead
-  workflow_dispatch:
+  push:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     #continue-on-error: true
     permissions:
       contents: read
@@ -26,13 +25,13 @@ jobs:
             experimental-features = nix-command flakes
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Build and test in Nix devshell
-        run: nix develop .#ci --accept-flake-config --command bash -c "sbt ci"
+        run: nix develop .#ci --accept-flake-config --command bash -c "sbt ci-native"
       - name: Report test results
         uses: sarisia/actions-status-discord@v1
         if: always()
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
-          title: "CI ${{ job.status == 'success' && '✅' || '❌' }} - ${{ github.actor }} on ${{ github.ref_name }}"
+          title: "CI-Native ${{ job.status == 'success' && '✅' || '❌' }} - ${{ github.actor }} on ${{ github.ref_name }}"
           description: "[${{ github.event.head_commit.message }}](${{ github.event.head_commit.url }})"
           url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           username: "GitHub Actions"

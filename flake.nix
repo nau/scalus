@@ -21,13 +21,18 @@
         pkgs = import nixpkgs {
                 inherit system;
                 overlays = [ rust-overlay.overlays.default ];
+                config = {
+                  # Explicitly set WebKitGTK ABI version to avoid evaluation warning
+                  # WebKitGTK has multiple ABI versions (4.0, 4.1, 6.0) and Nix requires explicit selection
+                  webkitgtk.abi = "4.1";
+                };
         };
         uplc = plutus.cabalProject.${system}.hsPkgs.plutus-executables.components.exes.uplc;
         tiny_keccak_wrapper = pkgs.rustPlatform.buildRustPackage (finalAttrs: {
             name = "tiny_keccak_wrapper";
             src = ./scalus-core/native/lib/tiny_keccak_wrapper;  # directory with Rust code
             cargoHash = "sha256-S9NH9JqykVq2Qo/b5xSJJIH7LeGh4UFQ/glusW2EvsQ=";
-            useFetchCargoVendor = true;
+            # useFetchCargoVendor removed - became default and non-optional in Nixpkgs 25.05
         });
 
         # cardano-cli = cardano-node-flake.packages.${system}.cardano-cli;

@@ -119,6 +119,30 @@ lazy val jvm: Project = project
       publish / skip := true
     )
 
+// all JS projects are aggregated in the js project just for convenience
+lazy val js: Project = project
+    .in(file("js"))
+    .aggregate(
+      scalus.js,
+      scalusCardanoLedger.js,
+      scalusTestkit.js,
+      scalusExamples.js,
+    )
+    .settings(
+      publish / skip := true
+    )
+
+// all Native projects are aggregated in the native project just for convenience
+lazy val native: Project = project
+    .in(file("native"))
+    .aggregate(
+      scalus.native,
+      scalusTestkit.native,
+    )
+    .settings(
+      publish / skip := true
+    )
+
 // Scala 3 Compiler Plugin for Scalus
 lazy val scalusPlugin = project
     .in(file("scalus-plugin"))
@@ -580,7 +604,8 @@ lazy val scalusCardanoLedgerIt = project
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.11",
       inConfig(Test)(PluginDependency)
     )
-
+// We only check ABI compatibility for scalus-bloxbean-cardano-client-lib project for now
+// because it's used by CCL and we want to avoid breaking changes
 addCommandAlias(
   "mima",
   "scalus-bloxbean-cardano-client-lib/mimaReportBinaryIssues"
@@ -603,7 +628,15 @@ addCommandAlias(
 )
 addCommandAlias(
   "ci-jvm",
-  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusPluginTests/Test/compile;jvm/test;docs/mdoc;mima"
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;jvm/Test/compile;scalusPluginTests/Test/compile;jvm/test;docs/mdoc;mima"
+)
+addCommandAlias(
+  "ci-js",
+  "clean;js/Test/compile;js/test"
+)
+addCommandAlias(
+  "ci-native",
+  "clean;native/Test/compile;native/test"
 )
 addCommandAlias("benchmark", "bench/jmh:run -i 1 -wi 1 -f 1 -t 1 .*")
 addCommandAlias(
