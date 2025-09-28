@@ -291,7 +291,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       mimaPreviousArtifacts := Set(organization.value %%% name.value % scalusCompatibleVersion),
 
       // enable when debug compilation of tests
-//      Test / scalacOptions += "-color:never",
+      Test / scalacOptions += "-color:never",
       PluginDependency,
       libraryDependencies += "org.typelevel" %%% "cats-core" % "2.13.0",
       libraryDependencies += "org.typelevel" %%% "cats-parse" % "1.1.0",
@@ -392,7 +392,7 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
               .withRelationsDebug(false)
               .withRecompileOnMacroDef(false)
       },
-//      Test / scalacOptions += "-color:never",
+      Test / scalacOptions += "-color:never",
       copySharedFiles := {
           val sharedFiles = Seq(
             "scalus/testutil/ArbitraryDerivation.scala",

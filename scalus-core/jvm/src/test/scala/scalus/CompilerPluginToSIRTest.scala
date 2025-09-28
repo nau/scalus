@@ -326,8 +326,11 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
         // Compile message in the 1st Exception string literal argument to Error(message)
         assert(compile { throw new RuntimeException("foo") } ~=~ Error("foo", AnE))
         // Otherwise, compile Error(code.show)
+        val sir = compile {
+            throw new RuntimeException(s"Not a literal: ${1 + 1}"): @nowarn
+        }
         assert(
-          compile { throw new RuntimeException(s"Not a literal: ${1 + 1}"): @nowarn } ~=~
+          sir ~=~
               Error(
                 "new RuntimeException(\n  _root_.scala.StringContext.apply([\"Not a literal: \",\"\" : String]).s([2 : Any])\n  ):RuntimeException @nowarn()",
                 AnE

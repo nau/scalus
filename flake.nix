@@ -48,7 +48,6 @@
               # Common JVM options for both app and sbt JVM
               commonJvmOpts = [
                 # Memory settings - large heap for Scala compilation and IR processing
-                "-Xmx12G"                           # Maximum heap size
                 "-Xms4G"                            # Initial heap size (reduces early GC pressure)
                 "-Xss64m"                           # Stack size for deep recursive calls in compiler
 
