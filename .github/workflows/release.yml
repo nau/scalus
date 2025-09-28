@@ -3,6 +3,15 @@ on:
   push:
     branches: [ master ]
     tags: [ "*" ]
+    # Only trigger release when actual code or build configuration changes
+    # Avoids unnecessary releases for docs, CI, or formatting-only commits
+    paths:
+      - 'scalus-**/**'
+      - 'bloxbean-**/**'
+      - 'bench/**'
+      - 'build.sbt'
+      - 'project/**'
+  workflow_dispatch: # Manual trigger as fallback
 jobs:
   publish:
     runs-on: ubuntu-latest
