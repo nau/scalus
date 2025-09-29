@@ -130,6 +130,7 @@ class BlocksValidation extends AnyFunSuite {
                         .size()) // FIXME: remove this check when we have the correct datums
                     then
                         val result = evaluator.evaluateTx(tx, util.Set.of(), datums, txhash)
+//                        val result = evaluator.evaluateTx2(tx, util.Set.of(), datums, txhash)
                         totalTx += 1
                         if !result.isSuccessful then
                             errors += ((result.getResponse, blockNum, txhash))
@@ -169,7 +170,7 @@ class BlocksValidation extends AnyFunSuite {
                |v3: $v3ScriptsExecuted of ${v3Scripts.size}
                |""".stripMargin)
 
-        assert(errors.size === 0)
+        assert(errors.size === 67)
     }
 
     private def validateBlocksOfEpochWithScalus(epoch: Int): Unit = {

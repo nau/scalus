@@ -9,8 +9,10 @@ import com.bloxbean.cardano.client.transaction.spec.{Transaction, TransactionInp
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.client.util.JsonUtil
 import scalus.builtin.ByteString
+import scalus.cardano.ledger.{CostModels, MajorProtocolVersion, PlutusScriptEvaluator}
 import scalus.uplc.eval.ExBudget
 
+import java.math.BigInteger
 import java.util
 import java.util.List
 import scala.beans.BeanProperty
@@ -173,7 +175,21 @@ class ScalusTransactionEvaluator(
           debugDumpFilesForTesting
         )
 
+    private lazy val params = scalus.cardano.ledger.ProtocolParams.fromBlockfrostJson(
+      this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
+    )
+
+    private lazy val txEvaluator2 = PlutusScriptEvaluator(
+      scalus.cardano.ledger.SlotConfig.Mainnet,
+      initialBudget = ExBudget.fromCpuAndMemory(
+        protocolParams.getMaxTxExSteps.toLong,
+        protocolParams.getMaxTxExMem.toLong
+      ),
+      protocolMajorVersion = MajorProtocolVersion(protocolParams.getProtocolMajorVer.intValue()),
+      costModels = CostModels.fromProtocolParams(params)
+    )
     private val utxoResolver = CclUtxoResolver(utxoSupplier, scriptSupplier)
+    private lazy val utxoResolver2 = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
 
     override def evaluateTx(
         transaction: Transaction,
@@ -212,6 +228,56 @@ class ScalusTransactionEvaluator(
                         .redeemerTag(redeemer.getTag)
                         .index(redeemer.getIndex.intValue)
                         .exUnits(redeemer.getExUnits)
+                        .build
+                }.asJava
+
+                Result
+                    .success(JsonUtil.getPrettyJson(evaluationResults))
+                    .asInstanceOf[Result[util.List[EvaluationResult]]]
+                    .withValue(evaluationResults)
+                    .asInstanceOf[Result[util.List[EvaluationResult]]]
+            catch
+                case e: TxEvaluationException =>
+                    Result
+                        .error(s"""Error evaluating transaction: ${e.getMessage}
+                                  |Evaluation logs: ${e.logs.mkString("\n")}
+                                  |===========================
+                                  |""".stripMargin)
+                        .asInstanceOf[Result[util.List[EvaluationResult]]]
+                case e: Exception =>
+                    Result
+                        .error(s"Error evaluating transaction: ${e.getMessage}")
+                        .asInstanceOf[Result[util.List[EvaluationResult]]]
+        } catch {
+            case e: Exception => throw ApiException("Error evaluating transaction", e)
+        }
+    }
+
+    private[scalus] def evaluateTx2(
+        transaction: Transaction,
+        inputUtxos: util.Set[Utxo],
+        datums: util.List[scalus.builtin.ByteString],
+        txhash: String
+    ): Result[util.List[EvaluationResult]] = {
+        import scalus.cardano.ledger
+        try {
+            val tx = ledger.Transaction.fromCbor(transaction.serialize())
+            val resolvedUtxos: Map[ledger.TransactionInput, ledger.TransactionOutput] =
+                utxoResolver2.resolveUtxos(tx)
+
+            try
+                val redeemers =
+                    txEvaluator2.evalPlutusScripts(tx, resolvedUtxos)
+                val evaluationResults = redeemers.map { redeemer =>
+                    EvaluationResult.builder
+                        .redeemerTag(RedeemerTag.valueOf(redeemer.tag.toString))
+                        .index(redeemer.index)
+                        .exUnits(
+                          new ExUnits(
+                            BigInteger.valueOf(redeemer.exUnits.memory),
+                            BigInteger.valueOf(redeemer.exUnits.steps)
+                          )
+                        )
                         .build
                 }.asJava
 
