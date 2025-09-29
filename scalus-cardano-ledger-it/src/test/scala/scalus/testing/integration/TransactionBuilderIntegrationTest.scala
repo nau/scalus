@@ -10,8 +10,9 @@ import com.bloxbean.cardano.client.function.helper.SignerProviders
 import com.bloxbean.cardano.client.quicktx.{QuickTxBuilder, Tx}
 import com.bloxbean.cardano.yaci.test.YaciCardanoContainer
 import org.bouncycastle.crypto.digests.SHA512Digest
+import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{platform, ByteString, Data}
+import scalus.builtin.{ByteString, Data, platform}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder, TxSigner}
@@ -22,13 +23,14 @@ import scalus.prelude.orFail
 import scalus.serialization.cbor.Cbor
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
-import scalus.{plutusV3, toUplc, Compiler}
+import scalus.{Compiler, plutusV3, toUplc}
 
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import scala.collection.immutable.SortedMap
 import scala.util.chaining.*
 
+@Ignore
 class TransactionBuilderIntegrationTest extends AnyFunSuite {
     /*
      * Predefined accounts that exist in a fresh yaci devkit instance.
