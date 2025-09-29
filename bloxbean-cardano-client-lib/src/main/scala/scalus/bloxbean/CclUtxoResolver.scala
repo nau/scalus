@@ -7,6 +7,7 @@ import com.bloxbean.cardano.client.plutus.spec.PlutusData
 import com.bloxbean.cardano.client.spec.Script
 import com.bloxbean.cardano.client.transaction.spec.{Transaction, TransactionInput, TransactionOutput, TransactionWitnessSet}
 import scalus.utils.Utils
+import scalus.utils.Hex.hexToBytes
 
 import scala.jdk.CollectionConverters.*
 import java.util
@@ -102,10 +103,9 @@ private[scalus] class CclUtxoResolver(utxoSupplier: UtxoSupplier, scriptSupplier
               throw new IllegalStateException(s"Utxo not found for input $input")
             )
             val scriptOpt = plutusScripts.get(utxo.getReferenceScriptHash)
-            val inlineDatum = Option(utxo.getInlineDatum).map(hex =>
-                PlutusData.deserialize(Utils.hexToBytes(hex))
-            )
-            val datumHash = Option(utxo.getDataHash).map(Utils.hexToBytes)
+            val inlineDatum =
+                Option(utxo.getInlineDatum).map(hex => PlutusData.deserialize(hex.hexToBytes))
+            val datumHash = Option(utxo.getDataHash).map(_.hexToBytes)
             try
                 input -> TransactionOutput.builder
                     .address(utxo.getAddress)

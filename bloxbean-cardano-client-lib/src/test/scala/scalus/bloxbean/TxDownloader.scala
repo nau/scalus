@@ -5,7 +5,7 @@ import com.bloxbean.cardano.yaci.core.protocol.chainsync.messages.Point
 import com.bloxbean.cardano.yaci.helper.BlockRangeSync
 import com.bloxbean.cardano.yaci.helper.listener.BlockChainDataListener
 import com.bloxbean.cardano.yaci.helper.model.Transaction
-import scalus.utils.Utils
+import scalus.utils.Hex.hexToBytes
 
 import java.nio.file.{Files, Path, StandardOpenOption}
 import java.util
@@ -25,7 +25,7 @@ object TxDownloader {
             ): Unit = {
                 println(s"Block ${block.getHeader.getHeaderBody.getBlockNumber}")
                 try
-                    val cborBytes = Utils.hexToBytes(block.getCbor)
+                    val cborBytes = block.getCbor.hexToBytes
                     Files.createDirectories(Path.of("blocks"))
                     Files.write(
                       Path.of(

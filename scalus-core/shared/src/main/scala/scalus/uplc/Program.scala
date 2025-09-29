@@ -7,6 +7,7 @@ import scalus.builtin.Data.*
 import scalus.builtin.{ByteString, Data}
 import scalus.uplc.Term.Const
 import scalus.utils.Hex
+import scalus.utils.Hex.hexToBytes
 
 import scala.annotation.targetName
 
@@ -278,7 +279,7 @@ object DeBruijnedProgram {
       *   the program
       */
     def fromDoubleCborHex(doubleCborHex: String): DeBruijnedProgram =
-        fromDoubleCbor(Hex.hexToBytes(doubleCborHex))
+        fromDoubleCbor(doubleCborHex.hexToBytes)
 
     /** Deserializes a program from a CBOR-encoded hex string.
       *
@@ -288,5 +289,5 @@ object DeBruijnedProgram {
       *   the program
       */
     def fromCborHex(cborHex: String): DeBruijnedProgram =
-        fromCbor(Hex.hexToBytes(cborHex))
+        fromCbor(cborHex.hexToBytes)
 }

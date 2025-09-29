@@ -33,6 +33,7 @@ import scalus.uplc.{eval, Constant, DeBruijnedProgram, Term}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.utils.Hex
+import scalus.utils.Hex.hexToBytes
 import upickle.default.*
 
 import java.math.BigInteger
@@ -523,7 +524,7 @@ object TxEvaluator {
             def decodeToSingleCbor(script: PlutusScript) =
                 // unwrap the outer CBOR encoding
                 ByteString.unsafeFromArray(
-                  Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
+                  Cbor.decode(script.getCborHex.hexToBytes).to[Array[Byte]].value
                 )
 
             val native = tx.getWitnessSet.getNativeScripts.asScala
