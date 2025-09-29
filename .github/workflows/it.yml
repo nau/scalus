@@ -5,13 +5,13 @@ on:
   #    parameter:
   #      description: My Parameter
   schedule:
-    - cron: '00 08,22 * * *'
+    - cron: '* 07 * * *'
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    strategy:
-      fail-fast: false
+    #strategy:
+    #  fail-fast: false
     permissions:
       contents: read
       id-token: write
@@ -87,7 +87,7 @@ jobs:
         with:
           webhook: ${{ secrets.DISCORD_WEBHOOK }}
           title: "IT ${{ job.status == 'success' && '✅' || '❌' }} - ${{ github.ref_name }}"
-          description: "[${{ github.event_name }}](${{ github.event_path }})"
+          description: "[${{ github.event_name }}] - (${{ github.sha }})"
           url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           username: "GitHub Actions"
           avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
