@@ -4,7 +4,7 @@ import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.ast.tpd.*
 import dotty.tools.dotc.core.*
-import dotty.tools.dotc.core.Contexts.{comparing, Context}
+import dotty.tools.dotc.core.Contexts.{comparing, explore, Context}
 import dotty.tools.dotc.core.NameKinds.{Scala2MethodNameKinds, SkolemName, UniqueNameKind}
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.{nme, tpnme}
@@ -51,8 +51,8 @@ class PatternMatchingContext(
 
     private var tmpNameCounter: Int = 1
 
-    private var actionsUsageCount: Map[Int, Int] = Map.empty
-    private var guardsUsageCount: Map[Int, Int] = Map.empty
+    private var _actionsUsageCount: Map[Int, Int] = Map.empty
+    private var _guardsUsageCount: Map[Int, Int] = Map.empty
 
     def freshName(prefix: String = ""): String = {
         val localPrefix = prefix
@@ -61,24 +61,50 @@ class PatternMatchingContext(
         name
     }
 
+    def actionsUsageCount: Map[Int, Int] = _actionsUsageCount
+
     def countActionUsage(actionIndex: Int): Int = {
-        actionsUsageCount.get(actionIndex) match
+        _actionsUsageCount.get(actionIndex) match
             case Some(c) =>
-                actionsUsageCount = actionsUsageCount + (actionIndex -> (c + 1))
+                _actionsUsageCount = _actionsUsageCount + (actionIndex -> (c + 1))
                 c + 1
             case None =>
-                actionsUsageCount = actionsUsageCount + (actionIndex -> 1)
+                _actionsUsageCount = _actionsUsageCount + (actionIndex -> 1)
                 1
     }
 
+    def guardsUsageCount: Map[Int, Int] = _guardsUsageCount
+
     def countGuardUsage(guardIndex: Int): Int = {
-        guardsUsageCount.get(guardIndex) match
+        _guardsUsageCount.get(guardIndex) match
             case Some(c) =>
-                guardsUsageCount = guardsUsageCount + (guardIndex -> (c + 1))
+                _guardsUsageCount = _guardsUsageCount + (guardIndex -> (c + 1))
                 c + 1
             case None =>
-                guardsUsageCount = guardsUsageCount + (guardIndex -> 1)
+                _guardsUsageCount = _guardsUsageCount + (guardIndex -> 1)
                 1
+    }
+
+    def createLeaf(
+        columnBinding: IndexedSeq[SirParsedCase.BindingNameInfo],
+        row: SirParsedCase.GroupedTupleRow
+    ): Leaf = {
+        if columnBinding.size != row.patterns.size then
+            throw IllegalStateException("columnBinding.size != row.patterns.size")
+        row.actionRef match {
+            case SirParsedCase.ActionRef.Origin(i) =>
+                countActionUsage(i)
+            case _ =>
+        }
+        val binding = row.patterns.zip(columnBinding).foldLeft(Map.empty[String, String]) {
+            case (m, (p, cb)) =>
+                p.optNameInfo match {
+                    case None => m
+                    case Some(nameInfo) =>
+                        m + (nameInfo.name -> cb.name)
+                }
+        }
+        Leaf(binding, row.actionRef, row.pos)
     }
 
 }
@@ -392,16 +418,14 @@ object SirCaseDecisionTree:
     ) extends SirCaseDecisionTree
 
     case class CheckGuard(
+        bingingMap: Map[String, String],
         guard: Int,
         pos: SrcPos,
         nextTrue: SirCaseDecisionTree,
         nextFalse: SirCaseDecisionTree
     ) extends SirCaseDecisionTree
 
-    /** If first if fails, then try next, otherwise result is first resutl
-      * @param first
-      * @param next
-      */
+    /*
     case class SeqCheck(
         first: SirCaseDecisionTree,
         next: SirCaseDecisionTree
@@ -423,9 +447,10 @@ object SirCaseDecisionTree:
         scrutinee: SIR.Var,
         matchDecisionTree: SirCaseDecisionTree,
         actions: IndexedSeq[SirCaseDecisionTree]
-    )
+    )*/
 
     case class Leaf(
+        binding: Map[String, String],
         action: SirParsedCase.ActionRef,
         pos: SrcPos
     ) extends SirCaseDecisionTree
@@ -454,6 +479,14 @@ object SirCaseDecisionTree:
     enum SplitStrategy:
         case DuplicateChecks
         case DuplicateRows
+
+    /** Whe we compile decision tree, we can embed action or guard in two ways:
+      *   - inline (when we copy action each time)
+      *   - byReference (when we at first create a let-binding for action, and then use it by name)
+      */
+    enum EmbeddingType:
+        case Inline
+        case ByReference
 
 end SirCaseDecisionTree
 
@@ -855,13 +888,6 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         sirScrutineeType: SIRType
     ): SirParsedCase.Pattern = {
 
-        def addBindignName(m: Map[String, SIRType]): Map[String, SIRType] = {
-            optBindingNameInfo match {
-                case Some(b) => m + (b.name -> sirScrutineeType)
-                case None    => m
-            }
-        }
-
         pat match
             case u @ UnApply(fun, _, _) =>
                 parseConstructorPattern(
@@ -926,39 +952,9 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 SirParsedCase.Pattern.OrPattern(patterns.toList, pat.sourcePos)
             case _ =>
                 if pat.symbol.is(Flags.Case) then {
-                    println(s"case object pattern: ${pat.show} ${pat.tpe.show}")
-                    // no-arg constructor, it's a Val, so we use termSymbol
-                    val sirTp = compiler.sirTypeInEnv(pat.tpe, pat.srcPos, ctx.env)
-                    println(
-                      s"sirTp=${sirTp.show}, pat.tpe=${pat.tpe.show}, pat.tpe = ${pat.tpe}, widen: ${pat.tpe.widen.show}, pat.symbol.info: ${pat.symbol.info.show}"
-                    )
+                    val sirPatTp = compiler.sirTypeInEnv(pat.tpe, pat.srcPos, ctx.env)
                     val constrDecl = compiler.makeConstrDecl(ctx.env, pat.srcPos, pat.symbol)
-                    println(s"constrDecl = ${constrDecl}")
-                    println(s"scrutineeType = ${sirScrutineeType}")
-                    val adtTypeInfo = compiler.getAdtTypeInfo(pat.symbol.info)
-                    println(s"adtTypeInfo = ${adtTypeInfo}")
-                    val adtTypeSymbol = pat.symbol.info.widen.dealias.typeSymbol
-                    println(s"adtTypeSymbol = ${adtTypeSymbol.show}")
-                    val adtTypeSymbol1 = pat.tpe.widen.dealias.typeSymbol
-                    println(s"adtTypeSymbol1 = ${adtTypeSymbol1.show}")
-                    val constrTpe = pat.symbol.info.widen.dealias
-                    val optAdtBaseTypeSymbol = constrTpe.baseClasses.find(b =>
-                        // println(s"base class: ${b.show} ${b.flags.flagsString}")
-                        // TODO:  recheck.  Why ! trait ?
-                        b.flags.isAllOf(Flags.Sealed | Flags.Abstract) && !b.flags.is(Flags.Trait)
-                    )
-                    println("optAdtBaseTypeSymbol = " + optAdtBaseTypeSymbol)
-                    println(
-                      s"constrTpe=${constrTpe.show}, baseClasses(constrTpe)= ${constrTpe.baseClasses}"
-                    )
-                    constrTpe.match {
-                        case AppliedType(tycon, args) =>
-                            println(
-                              s"tycon=${tycon.show}, tycon base classes = ${tycon.baseClasses}"
-                            )
-                        case _ =>
-                    }
-                    SIRType.collectSumCaseClass(sirTp) match {
+                    SIRType.collectSumCaseClass(sirPatTp) match {
                         case Some((typeVars, sumCaseClass)) =>
                             val sirConstrTp = sumCaseClass.decl.constrType(constrDecl.name)
                             SIRType.collectProdCaseClass(sirConstrTp) match
@@ -979,18 +975,22 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                     )
                         case None =>
                             // constructor without parent
-
-                            val plainCaseClass =
-                                SIRType.CaseClass(
-                                  constrDecl = constrDecl,
-                                  typeArgs = ???,
-                                  parent = None
-                                )
-                            ???
-
+                            SIRType.collectProdCaseClass(sirPatTp) match
+                                case Some((freeTypeVars, constrCaseClass)) =>
+                                    SirParsedCase.Pattern.Constructor(
+                                      constrCaseClass,
+                                      freeTypeVars,
+                                      optBindingNameInfo,
+                                      // pat.symbol,
+                                      IndexedSeq.empty,
+                                      pos
+                                    )
+                                case None =>
+                                    SirParsedCase.Pattern.ErrorPattern(
+                                      s"Strange pattern: type is not a aum or product type: ${sirPatTp.show}",
+                                      pat.srcPos
+                                    )
                     }
-
-                    ???
                 } else
                     println(s"Unsupported pattern: " + pat.show)
                     println(s"tree: $pat")
@@ -1054,7 +1054,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 val optCompiledGuard = optGuard.map { g =>
                     val sirG = compiler.compileExpr(nEnv, g)
                     val (usedNames, unusedNames) =
-                        SIRNameOperations.partitionUsedFreeNamesFrom(sirG, patNames.keys.toSet)
+                        SIR.partitionUsedFreeVarsFrom(sirG, patNames.keys.toSet)
                     val typeBindings = usedNames.map { name =>
                         TypeBinding(name, patNames(name))
                     }.toList
@@ -1103,7 +1103,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
     ): SirParsedAction = {
         val sirRhs = compiler.compileExpr(env, rhs)
         val (usedNames, unusedNames) =
-            SIRNameOperations.partitionUsedFreeNamesFrom(sirRhs, patNames.keys.toSet)
+            SIR.partitionUsedFreeVarsFrom(sirRhs, patNames.keys.toSet)
         val typeBindings = usedNames.map { name =>
             TypeBinding(name, patNames(name))
         }.toList
@@ -1171,6 +1171,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
     }
 
+    /*
     def buildConstructorDecisionTree(
         ctx: PatternMatchingContext,
         constructorCases: SirParsedCase.JoinedConstructorCase,
@@ -1181,7 +1182,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         val nParams = constructorCases.tp.constrDecl.params.length
         if nParams == 0 then
             val firstCase = constructorCases.tuples.head
-            val leaf = SirCaseDecisionTree.Leaf(firstCase.actionRef, firstCase.pos)
+            val leaf = ctx.createLeaf( firstCase.actionRef, firstCase.pos)
             val entry = SirCaseDecisionTree.ConstructorEntry(
               constructorCases.tp,
               IndexedSeq.empty,
@@ -1215,6 +1216,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
               topLevelPos
             )
     }
+    
+     */
 
     def buildGroupedTuplesDecisionTree(
         ctx: PatternMatchingContext,
@@ -1223,7 +1226,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         val group1 = eliminateAlternativesInGroup(group)
         val group2 = eliminateTypeSelectorsInGroup(group1)
         if group2.rows.isEmpty then
-            SirCaseDecisionTree.Leaf(SirParsedCase.ActionRef.FailMatch, ctx.topLevelPos)
+            SirCaseDecisionTree.Leaf(Map.empty, SirParsedCase.ActionRef.FailMatch, ctx.topLevelPos)
         else
             val firstRow = group2.rows.head
             val nonWildcards = firstRow.patterns.zipWithIndex.filter { case (p, i) =>
@@ -1242,7 +1245,10 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                       group2
                     )
                 else
-                    val retval = Leaf(firstRow.actionRef, firstRow.pos)
+                    val retval = ctx.createLeaf(
+                      group.columnBindings,
+                      firstRow
+                    )
                     if group.rows.length > 1 then {
                         group.rows.tail.foreach(r =>
                             if r.actionRef != FailMatch then
@@ -1261,7 +1267,11 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                     case _ =>
                         compiler.error(
                           GenericError(s"Impossible pattern in specialization: ${p}", p.pos),
-                          SirCaseDecisionTree.Leaf(SirParsedCase.ActionRef.FailMatch, p.pos)
+                          SirCaseDecisionTree.Leaf(
+                            Map.empty,
+                            SirParsedCase.ActionRef.FailMatch,
+                            p.pos
+                          )
                         )
             }
     }
@@ -1276,10 +1286,17 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case head :: tail =>
                 buildGroupedTuplesDecisionTree(ctx, group.copy(rows = tail))
             case Nil =>
-                SirCaseDecisionTree.Leaf(SirParsedCase.ActionRef.FailMatch, ctx.topLevelPos)
+                SirCaseDecisionTree.Leaf(
+                  Map.empty,
+                  SirParsedCase.ActionRef.FailMatch,
+                  ctx.topLevelPos
+                )
         }
-        val actionTree = SirCaseDecisionTree.Leaf(currentRow.actionRef, currentRow.pos)
+        val actionTree =
+            ctx.createLeaf(group.columnBindings, currentRow)
+        ctx.countGuardUsage(guardRef)
         SirCaseDecisionTree.CheckGuard(
+          actionTree.binding,
           guardRef,
           currentRow.pos,
           actionTree,
@@ -1320,7 +1337,11 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         }.toMap
         val nextSubtree =
             if splittedRest.isEmpty then
-                SirCaseDecisionTree.Leaf(SirParsedCase.ActionRef.FailMatch, ctx.topLevelPos)
+                SirCaseDecisionTree.Leaf(
+                  Map.empty,
+                  SirParsedCase.ActionRef.FailMatch,
+                  ctx.topLevelPos
+                )
             else {
                 val newGroup = SirParsedCase.GroupedTuples(
                   group.columnBindings,
@@ -1461,19 +1482,15 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case _           => true
         }
         val nextIndex = prevGroup.columnBindings.length
-        val constructorBindings = {
-            if rowsMoreThanOne then
-                cc.constrDecl.params.map(b =>
-                    BindingNameInfo(
-                      ctx.freshName(b.name),
-                      None,
-                      b.tp,
-                      Symbols.NoSymbol,
-                      Set.empty
-                    )
-                )
-            else ???
-        }
+        val constructorBindings = cc.constrDecl.params.map(b =>
+            BindingNameInfo(
+              ctx.freshName(b.name),
+              None,
+              b.tp,
+              Symbols.NoSymbol,
+              Set.empty
+            )
+        )
         val newColumnBindings = prevGroup.columnBindings ++ constructorBindings
         val newActiveColumns =
             (prevGroup.activeColumns - colindex) ++ (nextIndex until nextIndex + constructorBindings.length)
@@ -1788,7 +1805,130 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         tree: SirCaseDecisionTree,
         parsedMatch: SirParsedMatch
     ): AnnotatedSIR = {
+        // now we build SIR in form:
+        // Let (action = compile(action)
+        //  in ......
+        //   in Let( = compile(action2)
+        val actionsRecords = ctx.parsedActions.zipWithIndex.map((a, i) =>
+            val count = ctx.actionsUsageCount.getOrElse(i, 0)
+            val embedding =
+                if count <= 1 then SirCaseDecisionTree.EmbeddingType.Inline
+                else
+                    val actionSize = SIR.size(a.sir)
+                    if actionSize * i <= 3 * a.bindedVariables.size + 4 then
+                        // ApplyN(LamN(x1...xn, action(x1,..xn)) b1...bn),
+                        SirCaseDecisionTree.EmbeddingType.Inline
+                    else SirCaseDecisionTree.EmbeddingType.ByReference
+            val name = ctx.freshName(s"caseAction$i")
+            (a.sir, embedding, name)
+        )
+        val guardsRecords = ctx.parsedGuards.zipWithIndex.map { (og, i) =>
+            val count = ctx.guardsUsageCount.getOrElse(i, 0)
+            val embedding = og match {
+                case None => SirCaseDecisionTree.EmbeddingType.Inline
+                case Some(g) =>
+                    if count <= 1 then SirCaseDecisionTree.EmbeddingType.Inline
+                    else
+                        val guardSize = SIR.size(g.sir)
+                        if guardSize * i <= 3 * g.bindedVariables.size + 4 then
+                            // ApplyN(LamN(x1...xn, guard(x1,..xn)) b1...bn),
+                            SirCaseDecisionTree.EmbeddingType.Inline
+                        else SirCaseDecisionTree.EmbeddingType.ByReference
+            }
+            og.map(g => (g.sir, embedding, ctx.freshName(s"caseGuard${i}_")))
+        }
+        val decisions = compileDecisions(ctx, tree, parsedMatch, actionsRecords, guardsRecords)
+        val sir = addActionsAndGuardsLet(ctx, decisions, actionsRecords, guardsRecords)
+        sir
+    }
+
+    private def compileDecisions(
+        ctx: PatternMatchingContext,
+        tree: SirCaseDecisionTree,
+        parsedMatch: SirParsedMatch,
+        actions: IndexedSeq[(AnnotatedSIR, SirCaseDecisionTree.EmbeddingType, String)],
+        guards: IndexedSeq[Option[(AnnotatedSIR, SirCaseDecisionTree.EmbeddingType, String)]]
+    ): AnnotatedSIR = {
+        tree match {
+            case Leaf(bindingMap, actionRef, pos) =>
+                val trueConst = SIR.Const.bool(true, AnnotationsDecl.empty)
+                actionRef match {
+                    case SirParsedCase.ActionRef.FailMatch =>
+                        val anns = AnnotationsDecl
+                            .fromSrcPos(pos) + ("sir.FailMatch" -> trueConst)
+                        SIR.Error("Match failure", anns)
+                    case SirParsedCase.ActionRef.Origin(index) =>
+                        val action = parsedMatch.compiledActions(index)
+                        val (sir, embedding, name) = actions(index)
+                        val applied = embedding match {
+                            case SirCaseDecisionTree.EmbeddingType.Inline =>
+                                val renamed = SIR.renameFreeVars(
+                                  sir,
+                                  bindingMap.filter((k, v) => action.bindedVariables.contains(k))
+                                )
+                                renamed
+                            case SirCaseDecisionTree.EmbeddingType.ByReference =>
+                                generateActionRefApply(
+                                  name,
+                                  action,
+                                  bindingMap,
+                                  pos
+                                )
+                        }
+                }
+        }
         ???
+    }
+
+    private def addActionsAndGuardsLet(
+        ctx: PatternMatchingContext,
+        decisions: AnnotatedSIR,
+        actions: IndexedSeq[(AnnotatedSIR, SirCaseDecisionTree.EmbeddingType, String)],
+        guards: IndexedSeq[Option[(AnnotatedSIR, SirCaseDecisionTree.EmbeddingType, String)]]
+    ): AnnotatedSIR = {
+        ???
+    }
+
+    /** generatee ''' Apply(....(Apply(name,b1), .. bName) '''
+      */
+    private def generateActionRefApply(
+        name: String,
+        action: SirParsedAction,
+        bingingMap: Map[String, String],
+        pos: SrcPos
+    ): AnnotatedSIR = {
+        if action.bindedVariables.isEmpty then
+            val actionVar = SIR.Var(
+              name,
+              SIRType.Fun(SIRType.Unit, action.sir.tp),
+              AnnotationsDecl.fromSrcPos(pos)
+            )
+            SIR.Apply(
+              actionVar,
+              SIR.Const.unit(AnnotationsDecl.fromSrcPos(pos)),
+              action.sir.tp,
+              AnnotationsDecl.fromSrcPos(pos)
+            )
+        else
+            val actionType = action.bindedVariables.foldRight(action.sir.tp) { (b, acc) =>
+                SIRType.Fun(b.tp, acc)
+            }
+            val actionVar = SIR.Var(name, actionType, AnnotationsDecl.fromSrcPos(pos))
+            val applySir = action.bindedVariables.foldLeft(actionVar: AnnotatedSIR) { (acc, b) =>
+                val bName = bingingMap.getOrElse(
+                  b.name,
+                  throw IllegalStateException(s"Binding ${b.name} not found")
+                )
+                val nextTp = acc.tp match
+                    case SIRType.Fun(_, retTp) => retTp
+                    case _ =>
+                        throw IllegalStateException(
+                          s"Expected function type in action reference application, but got ${acc.tp.show}"
+                        )
+                val bVar = SIR.Var(bName, b.tp, AnnotationsDecl.fromSrcPos(pos))
+                SIR.Apply(acc, bVar, nextTp, AnnotationsDecl.fromSrcPos(pos))
+            }
+            applySir
     }
 
 }

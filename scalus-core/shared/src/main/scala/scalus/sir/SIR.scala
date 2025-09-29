@@ -64,6 +64,14 @@ case class AnnotationsDecl(
         )
     }
 
+    def +(keyValue: (String, SIR)): AnnotationsDecl = {
+        AnnotationsDecl(
+          pos = pos,
+          comment = comment,
+          data = this.data + keyValue
+        )
+    }
+
 }
 
 case object AnnotationsDecl {
@@ -442,6 +450,149 @@ object SIR:
         override def tp: SIRType = term.tp
 
     }
+
+    def partitionUsedFreeVarsFrom(sir: SIR, vars: Set[String]): (Set[String], Set[String]) = {
+
+        scala.util.boundary[(Set[String], Set[String])] {
+
+            def f(
+                sir: SIR,
+                localNames: Set[String],
+                acc: (Set[String], Set[String])
+            ): (Set[String], Set[String]) =
+                sir match {
+                    case Var(name, _, _) =>
+                        if localNames.contains(name) then acc
+                        else if vars.contains(name) then {
+                            val nUsed = acc._1 + name
+                            val nUnused = acc._2 - name
+                            if nUnused.isEmpty then scala.util.boundary.break((nUsed, nUnused))
+                            else (nUsed, nUnused)
+                        } else acc
+                    case _ => acc
+                }
+
+            accumulate[(Set[String], Set[String]), Set[String]](
+              sir,
+              (Set.empty, vars),
+              Set.empty,
+              f
+            )
+
+        }
+
+    }
+
+    def renameFreeVars(sir: SIR, renames: Map[String, String]): SIR = {
+
+        def f(sir: SIR, localNames: Set[String], acc: SIR): SIR =
+            sir match {
+                case Var(name, tp, anns) =>
+                    val newName =
+                        if localNames.contains(name) then name else renames.getOrElse(name, name)
+                    if newName == name then acc
+                    else Var(newName, tp, anns)
+                case _ => acc
+            }
+
+        accumulate[SIR, Set[String]](sir, sir, Set.empty, f)
+
+    }
+
+    def accumulate[A, C](
+        sir: SIR,
+        a0: A,
+        localNames: Set[String],
+        f: (SIR, Set[String], A) => A
+    ): A = {
+
+        sir match {
+            case Var(_, _, anns)            => f(sir, localNames, a0)
+            case ExternalVar(_, _, _, anns) => f(sir, localNames, a0)
+            case Let(bindings, body, _, anns) =>
+                val (aN, lnN) = bindings.foldLeft((a0, localNames)) { case ((a, ln), b) =>
+                    val a1 = accumulate(b.value, a, ln, f)
+                    val ln1 = ln + b.name
+                    (a1, ln1)
+                }
+                val aBody = accumulate(body, aN, lnN, f)
+                f(sir, lnN, aBody)
+            case LamAbs(param, term, _, anns) =>
+                val ln1 = localNames + param.name
+                val a1 = accumulate(term, a0, ln1, f)
+                f(sir, ln1, a1)
+            case Apply(fun, arg, _, anns) =>
+                val a1 = accumulate(fun, a0, localNames, f)
+                val a2 = accumulate(arg, a1, localNames, f)
+                f(sir, localNames, a2)
+            case Select(scrutinee, _, _, anns) =>
+                val a1 = accumulate(scrutinee, a0, localNames, f)
+                f(sir, localNames, a1)
+            case Const(_, _, anns) => f(sir, localNames, a0)
+            case And(a, b, anns) =>
+                val a1 = accumulate(a, a0, localNames, f)
+                val a2 = accumulate(b, a1, localNames, f)
+                f(sir, localNames, a2)
+            case Or(a, b, anns) =>
+                val a1 = accumulate(a, a0, localNames, f)
+                val a2 = accumulate(b, a1, localNames, f)
+                f(sir, localNames, a2)
+            case Not(a, anns) =>
+                val a1 = accumulate(a, a0, localNames, f)
+                f(sir, localNames, a1)
+            case IfThenElse(cond, t, f1, _, anns) =>
+                val a1 = accumulate(cond, a0, localNames, f)
+                val a2 = accumulate(t, a1, localNames, f)
+                val a3 = accumulate(f1, a2, localNames, f)
+                f(sir, localNames, a3)
+            case Builtin(_, _, anns) => f(sir, localNames, a0)
+            case Error(msg, anns, _) =>
+                val a1 = accumulate(msg, a0, localNames, f)
+                f(sir, localNames, a1)
+            case Constr(_, _, args, _, anns) =>
+                val a1 = args.foldLeft(a0)((a, b) => accumulate(b, a, localNames, f))
+                f(sir, localNames, a1)
+            case Match(scrutinee, cases, _, anns) =>
+                val a1 = accumulate(scrutinee, a0, localNames, f)
+                val (a2, _) = cases.foldLeft((a1, localNames)) { case ((a, ln), c) =>
+                    val ln1 = c.pattern match {
+                        case Pattern.Wildcard               => ln
+                        case Pattern.Constr(_, bindings, _) => ln ++ bindings
+                    }
+                    val a1 = accumulate(c.body, a, ln1, f)
+                    (a1, ln)
+                }
+                f(sir, localNames, a2)
+            case Cast(term, _, anns) =>
+                val a1 = accumulate(term, a0, localNames, f)
+                f(sir, localNames, a1)
+            case Decl(_, term) =>
+                val a1 = accumulate(term, a0, localNames, f)
+                f(sir, localNames, a1)
+        }
+    }
+
+    // Compute size of SIR expression (number of nodes in the tree)
+    def size(sir: SIR): Int = sir match
+        case Var(_, _, _)                  => 1
+        case ExternalVar(_, _, _, _)       => 1
+        case Let(bindings, body, _, _)     => 1 + bindings.map(b => size(b.value)).sum + size(body)
+        case LamAbs(_, term, _, _)         => 1 + size(term)
+        case Apply(f, arg, _, _)           => 1 + size(f) + size(arg)
+        case Select(scrutinee, _, _, _)    => 1 + size(scrutinee)
+        case Const(_, _, _)                => 1
+        case And(a, b, _)                  => 1 + size(a) + size(b)
+        case Or(a, b, _)                   => 1 + size(a) + size(b)
+        case Not(a, _)                     => 1 + size(a)
+        case IfThenElse(cond, t, f, _, _)  => 1 + size(cond) + size(t) + size(f)
+        case Builtin(_, _, _)              => 1
+        case Error(msg, _, _)              => 1 + size(msg)
+        case Constr(_, _, args, _, _)      => 1 + args.map(a => size(a)).sum
+        case Match(scrutinee, cases, _, _) => 1 + size(scrutinee) + cases.map(c => size(c.body)).sum
+        case Cast(term, _, _)              => 1 + size(term)
+        case Decl(data, term)              => 1 + size(term)
+
+end SIR
 
 case class Program(version: (Int, Int, Int), term: SIR)
 
