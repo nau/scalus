@@ -74,9 +74,10 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             requiredSigners = TaggedOrderedSet.from(Set(Hash(requiredPubKeyHash))),
           ),
           witnessSet = TransactionWitnessSet(
-            redeemers = Some(KeepRaw(Redeemers(redeemer))),
-            plutusV2Scripts = Set(s),
-            plutusData = KeepRaw(TaggedSet(KeepRaw(datum))),
+            scripts = Seq(s),
+            redeemers = Redeemers(redeemer),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq(datum)
           ),
         )
         val redeemers = evaluator.evalPlutusScripts(tx, utxo)
@@ -134,9 +135,10 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             requiredSigners = TaggedOrderedSet.from(Set(Hash(requiredPubKeyHash))),
           ),
           witnessSet = TransactionWitnessSet(
-            redeemers = Some(KeepRaw(Redeemers(redeemer))),
-            plutusV3Scripts = Set(s),
-            plutusData = KeepRaw(TaggedSet(KeepRaw(datum))),
+            scripts = Seq(s),
+            redeemers = Redeemers(redeemer),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq(datum)
           ),
         )
         val redeemers = evaluator.evalPlutusScripts(tx, utxo)

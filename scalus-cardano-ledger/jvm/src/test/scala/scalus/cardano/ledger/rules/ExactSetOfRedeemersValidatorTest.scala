@@ -54,16 +54,10 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
             fee = Coin.zero,
           ),
           TransactionWitnessSet(
-            plutusV1Scripts = Set(plutusScript),
-            redeemers = Some(
-              KeepRaw(
-                Redeemers.from(
-                  Seq(
-                    Redeemer(RedeemerTag.Spend, 0, dummyData, dummyExUnits)
-                  )
-                )
-              )
-            )
+            scripts = Seq(plutusScript),
+            redeemers = Redeemers(Redeemer(RedeemerTag.Spend, 0, dummyData, dummyExUnits)),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq.empty
           )
         )
         val context = Context()
@@ -99,16 +93,10 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
             ),
           ),
           TransactionWitnessSet(
-            plutusV2Scripts = Set(plutusScript),
-            redeemers = Some(
-              KeepRaw(
-                Redeemers.from(
-                  Seq(
-                    Redeemer(RedeemerTag.Mint, 0, dummyData, dummyExUnits)
-                  )
-                )
-              )
-            )
+            scripts = Seq(plutusScript),
+            redeemers = Redeemers(Redeemer(RedeemerTag.Mint, 0, dummyData, dummyExUnits)),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq.empty
           )
         )
         val context = Context()
@@ -140,17 +128,13 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
             fee = Coin.zero,
           ),
           TransactionWitnessSet(
-            plutusV1Scripts = Set(plutusScript),
-            redeemers = Some(
-              KeepRaw(
-                Redeemers.from(
-                  Seq(
-                    Redeemer(RedeemerTag.Spend, 0, dummyData, dummyExUnits),
-                    Redeemer(RedeemerTag.Mint, 0, dummyData, dummyExUnits)
-                  )
-                )
-              )
-            )
+            scripts = Seq(plutusScript),
+            redeemers = Redeemers(
+              Redeemer(RedeemerTag.Spend, 0, dummyData, dummyExUnits),
+              Redeemer(RedeemerTag.Mint, 0, dummyData, dummyExUnits)
+            ),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq.empty
           )
         )
         val context = Context()
@@ -298,18 +282,13 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
             fee = Coin.zero,
           ),
           TransactionWitnessSet(
-            nativeScripts = Set(Script.Native(nativeScript)),
-            plutusV2Scripts = Set(plutusScript),
-            redeemers = Some(
-              KeepRaw(
-                Redeemers.from(
-                  Seq(
-                    // calculate the index manually for a tx where n of inputs > 1
-                    Redeemer(RedeemerTag.Spend, plutusInputIndex, dummyData, dummyExUnits)
-                  )
-                )
-              )
-            )
+            scripts = Seq(Script.Native(nativeScript), plutusScript),
+            redeemers = Redeemers(
+              // calculate the index manually for a tx where n of inputs > 1
+              Redeemer(RedeemerTag.Spend, plutusInputIndex, dummyData, dummyExUnits)
+            ),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq.empty
           )
         )
         val context = Context()

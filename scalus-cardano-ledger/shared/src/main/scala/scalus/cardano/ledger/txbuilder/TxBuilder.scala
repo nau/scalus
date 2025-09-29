@@ -230,7 +230,7 @@ case class TxBuilder(
                     existing.filterNot(r => r.tag == tag && r.index == index) :+ newRedeemer
                 Redeemers.from(updated)
             case None =>
-                Redeemers.from(Seq(newRedeemer))
+                Redeemers(newRedeemer)
         }
     }
 
