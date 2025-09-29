@@ -125,7 +125,8 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
         val utxo = Map(
           input -> TransactionOutput(
             address = Address.fromBech32(addr),
-            value = Value(in)
+            value = Value(in),
+            None
           )
         )
         val tx = Transaction(
@@ -135,7 +136,8 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
               Sized(
                 TransactionOutput(
                   address = Address.fromBech32(addr),
-                  value = Value(output)
+                  value = Value(output),
+                  None
                 )
               )
             ),

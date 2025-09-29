@@ -54,7 +54,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
               payment = ShelleyPaymentPart.Script(s.scriptHash),
               delegation = Null
             ),
-            datumOption = Some(DatumOption.Hash(dataHash)),
+            datumHash = dataHash,
             value = Value.lovelace(2)
           )
         )
@@ -114,7 +114,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
               payment = ShelleyPaymentPart.Script(s.scriptHash),
               delegation = Null
             ),
-            datumOption = Some(DatumOption.Hash(dataHash)),
+            datumHash = dataHash,
             value = Value.lovelace(2)
           )
         )

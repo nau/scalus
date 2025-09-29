@@ -111,7 +111,7 @@ private[scalus] class ScalusUtxoResolver(
                 case (Some(dataHash), None) =>
                     Some(DatumOption.Hash(Hash(ByteString.fromHex(dataHash))))
                 case (None, None) => None
-        TransactionOutput.Babbage(
+        TransactionOutput(
           address,
           output.toValue.toLedgerValue,
           datumOption,

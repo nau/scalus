@@ -47,7 +47,7 @@ class TxBuilderTest2
                 inputs = TaggedOrderedSet(input1),
                 outputs = IndexedSeq(
                   Sized(
-                    TransactionOutput.Shelley(
+                    TransactionOutput(
                       address,
                       Value(Coin(10000000L)),
                     )
@@ -63,7 +63,7 @@ class TxBuilderTest2
               changeOutputIdx = 0,
               protocolParams = params,
               resolvedUtxo = Map(
-                input1 -> TransactionOutput.Shelley(
+                input1 -> TransactionOutput(
                   address,
                   Value(Coin(20000000L))
                 )

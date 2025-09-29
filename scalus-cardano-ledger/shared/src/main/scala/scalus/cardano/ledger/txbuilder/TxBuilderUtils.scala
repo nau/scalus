@@ -94,7 +94,7 @@ object TxBuilderUtils {
                     Some(DatumOption.Hash(Hash(ByteString.fromHex(dataHash))))
                 case (None, None) => None
         val value = Value.lovelace(output.toValue.getCoin.longValue())
-        TransactionOutput.Babbage(
+        TransactionOutput(
           address,
           value,
           datumOption,

@@ -6,14 +6,12 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.Data
 import scalus.cardano.address.{Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 
-import scala.collection.immutable.SortedMap
-
 class MissingRequiredDatumsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
     test("MissingRequiredDatumsValidator success with no scripts") {
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             Arbitrary.arbitrary[ShelleyAddress].sample.get,
             Value(Coin(1000000L))
           )
@@ -42,14 +40,14 @@ class MissingRequiredDatumsValidatorTest extends AnyFunSuite, ValidatorRulesTest
         val datum = Arbitrary.arbitrary[Data].sample.get
         val datumHash = DataHash.fromByteString(datum.dataHash)
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             ShelleyAddress(
               Network.Testnet,
               ShelleyPaymentPart.Script(plutusScript.scriptHash),
               ShelleyDelegationPart.Null
             ),
             Value(Coin(1000000L)),
-            Some(datumHash)
+            datumHash
           )
         )
         val transaction = Transaction(
@@ -83,14 +81,14 @@ class MissingRequiredDatumsValidatorTest extends AnyFunSuite, ValidatorRulesTest
         val datum = Arbitrary.arbitrary[Data].sample.get
         val datumHash = DataHash.fromByteString(datum.dataHash)
         val utxo = Map(
-          input -> TransactionOutput.Babbage(
+          input -> TransactionOutput(
             ShelleyAddress(
               Network.Testnet,
               ShelleyPaymentPart.Script(plutusScript.scriptHash),
               ShelleyDelegationPart.Null
             ),
             Value(Coin(1000000L)),
-            Some(DatumOption.Hash(datumHash))
+            DatumOption.Hash(datumHash)
           )
         )
         val transaction = Transaction(
@@ -123,14 +121,14 @@ class MissingRequiredDatumsValidatorTest extends AnyFunSuite, ValidatorRulesTest
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val datumHash = Arbitrary.arbitrary[DataHash].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             ShelleyAddress(
               Network.Testnet,
               ShelleyPaymentPart.Script(plutusScript.scriptHash),
               ShelleyDelegationPart.Null
             ),
             Value(Coin(1000000L)),
-            Some(datumHash)
+            datumHash
           )
         )
         val transaction = Transaction(
@@ -157,7 +155,7 @@ class MissingRequiredDatumsValidatorTest extends AnyFunSuite, ValidatorRulesTest
         val plutusScript = Arbitrary.arbitrary[Script.PlutusV1].sample.get
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             ShelleyAddress(
               Network.Testnet,
               ShelleyPaymentPart.Script(plutusScript.scriptHash),
@@ -191,7 +189,7 @@ class MissingRequiredDatumsValidatorTest extends AnyFunSuite, ValidatorRulesTest
         val datum = Arbitrary.arbitrary[Data].sample.get
         val datumHash = DataHash.fromByteString(datum.dataHash)
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             Arbitrary.arbitrary[ShelleyAddress].sample.get,
             Value(Coin(1000000L))
           )
@@ -202,10 +200,10 @@ class MissingRequiredDatumsValidatorTest extends AnyFunSuite, ValidatorRulesTest
               inputs = TaggedOrderedSet.from(Set(input)),
               outputs = IndexedSeq(
                 Sized(
-                  TransactionOutput.Shelley(
+                  TransactionOutput(
                     Arbitrary.arbitrary[ShelleyAddress].sample.get,
                     Value(Coin(500000L)),
-                    Some(datumHash)
+                    datumHash
                   )
                 )
               ),
@@ -232,7 +230,7 @@ class MissingRequiredDatumsValidatorTest extends AnyFunSuite, ValidatorRulesTest
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val datum = Arbitrary.arbitrary[Data].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             Arbitrary.arbitrary[ShelleyAddress].sample.get,
             Value(Coin(1000000L))
           )
@@ -266,7 +264,7 @@ class MissingRequiredDatumsValidatorTest extends AnyFunSuite, ValidatorRulesTest
         val nativeScript = Timelock.Signature(Hash(scalus.builtin.platform.blake2b_224(publicKey)))
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             ShelleyAddress(
               Network.Testnet,
               ShelleyPaymentPart.Script(nativeScript.scriptHash),

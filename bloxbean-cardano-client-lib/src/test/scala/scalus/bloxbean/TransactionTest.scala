@@ -26,7 +26,7 @@ class TransactionTest extends AnyFunSuite {
                   ),
                   outputs = Vector(
                     Sized(
-                      TransactionOutput.Shelley(
+                      TransactionOutput(
                         address = Address.fromByteString(AddressBytes.fromBech32(addr)),
                         value = Value.lovelace(2)
                       )

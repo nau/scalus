@@ -68,16 +68,14 @@ case class InterpreterWithProvidedData(
             case Intention.Mint(mintValue, scriptInfo, targetAddress) =>
                 val tempOutput = TransactionOutput(
                   targetAddress,
-                  Value(Coin(1), MultiAsset(mintValue.assets)),
-                  None
+                  Value(Coin(1), MultiAsset(mintValue.assets))
                 )
                 val sizedTempOutput = Sized(tempOutput)
                 val minCoin =
                     MinCoinSizedTransactionOutput(sizedTempOutput, environment.protocolParams)
                 val correctedOutput = TransactionOutput(
                   targetAddress,
-                  Value(minCoin, MultiAsset(mintValue.assets)),
-                  None
+                  Value(minCoin, MultiAsset(mintValue.assets))
                 )
                 initialBody.copy(
                   outputs = IndexedSeq(Sized(correctedOutput)),

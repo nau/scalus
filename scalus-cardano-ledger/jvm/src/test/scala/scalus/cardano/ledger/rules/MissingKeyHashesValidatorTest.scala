@@ -42,7 +42,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State(
           utxo = Map(
-            input1 -> TransactionOutput.Shelley(
+            input1 -> TransactionOutput(
               Arbitrary
                   .arbitrary[StakeAddress]
                   .sample
@@ -50,7 +50,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   .copy(payload = StakePayload.Stake(Hash(platform.blake2b_224(publicKey1)))),
               Value(Coin(1000000L))
             ),
-            input2 -> TransactionOutput.Shelley(
+            input2 -> TransactionOutput(
               Arbitrary
                   .arbitrary[StakeAddress]
                   .sample
@@ -102,7 +102,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State(
           utxo = Map(
-            input1 -> TransactionOutput.Shelley(
+            input1 -> TransactionOutput(
               Arbitrary
                   .arbitrary[StakeAddress]
                   .sample
@@ -114,7 +114,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
               Value(Coin(1000000L))
             ),
-            input2 -> TransactionOutput.Shelley(
+            input2 -> TransactionOutput(
               Arbitrary
                   .arbitrary[StakeAddress]
                   .sample
@@ -167,7 +167,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State(
           utxo = Map(
-            collateralInput1 -> TransactionOutput.Shelley(
+            collateralInput1 -> TransactionOutput(
               Arbitrary
                   .arbitrary[StakeAddress]
                   .sample
@@ -179,7 +179,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
               Value(Coin(1000000L))
             ),
-            collateralInput2 -> TransactionOutput.Shelley(
+            collateralInput2 -> TransactionOutput(
               Arbitrary
                   .arbitrary[StakeAddress]
                   .sample
@@ -231,7 +231,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State(
           utxo = Map(
-            collateralInput1 -> TransactionOutput.Shelley(
+            collateralInput1 -> TransactionOutput(
               Arbitrary
                   .arbitrary[StakeAddress]
                   .sample
@@ -243,7 +243,7 @@ class MissingKeyHashesValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
               Value(Coin(1000000L))
             ),
-            collateralInput2 -> TransactionOutput.Shelley(
+            collateralInput2 -> TransactionOutput(
               Arbitrary
                   .arbitrary[StakeAddress]
                   .sample

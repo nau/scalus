@@ -32,7 +32,7 @@ class TransactionSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   referenceInputs = TaggedOrderedSet.empty,
                   outputs = IndexedSeq(
                     Sized(
-                      TransactionOutput.Shelley(
+                      TransactionOutput(
                         Arbitrary.arbitrary[ByronAddress].sample.get,
                         Value(Coin(1000000L))
                       )

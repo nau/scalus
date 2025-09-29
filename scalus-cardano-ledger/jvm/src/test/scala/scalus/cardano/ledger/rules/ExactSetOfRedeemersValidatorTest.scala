@@ -13,7 +13,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
     test("ExactSetOfRedeemersValidator success with no scripts") {
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             Arbitrary.arbitrary[ShelleyAddress].sample.get,
             Value(Coin(1000000L))
           )
@@ -38,7 +38,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val plutusScript = Arbitrary.arbitrary[Script.PlutusV1].sample.get
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             ShelleyAddress(
               Network.Testnet,
               ShelleyPaymentPart.Script(plutusScript.scriptHash),
@@ -80,7 +80,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val plutusScript = Arbitrary.arbitrary[Script.PlutusV2].sample.get
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             Arbitrary.arbitrary[ShelleyAddress].sample.get,
             Value(Coin(1000000L))
           )
@@ -128,7 +128,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val plutusScript = Arbitrary.arbitrary[Script.PlutusV1].sample.get
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             ShelleyAddress(
               Network.Testnet,
               ShelleyPaymentPart.Script(plutusScript.scriptHash),
@@ -173,7 +173,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val plutusScript = Arbitrary.arbitrary[Script.PlutusV2].sample.get
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             Arbitrary.arbitrary[ShelleyAddress].sample.get,
             Value(Coin(1000000L))
           )
@@ -215,7 +215,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val nativeScript = Timelock.Signature(Hash(scalus.builtin.platform.blake2b_224(publicKey)))
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             ShelleyAddress(
               Network.Testnet,
               ShelleyPaymentPart.Script(nativeScript.scriptHash),
@@ -272,7 +272,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         )
 
         val utxo = Map(
-          input1 -> TransactionOutput.Shelley(
+          input1 -> TransactionOutput(
             ShelleyAddress(
               Network.Testnet,
               ShelleyPaymentPart.Script(nativeScript.scriptHash),
@@ -280,7 +280,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
             ),
             Value(Coin(1000000L))
           ),
-          input2 -> TransactionOutput.Shelley(
+          input2 -> TransactionOutput(
             ShelleyAddress(
               Network.Testnet,
               ShelleyPaymentPart.Script(plutusScript.scriptHash),

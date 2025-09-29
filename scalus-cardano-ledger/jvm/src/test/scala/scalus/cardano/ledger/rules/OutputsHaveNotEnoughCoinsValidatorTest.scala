@@ -9,7 +9,7 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
     test("OutputsHaveNotEnoughCoinsValidator TransactionOutputs success") {
         val context = Context()
 
-        val output = TransactionOutput.Shelley(
+        val output = TransactionOutput(
           Arbitrary
               .arbitrary[ShelleyAddress]
               .sample
@@ -43,7 +43,7 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
     test("OutputsHaveNotEnoughCoinsValidator TransactionOutputs failure") {
         val context = Context()
 
-        val output = TransactionOutput.Shelley(
+        val output = TransactionOutput(
           Arbitrary
               .arbitrary[ShelleyAddress]
               .sample
@@ -77,7 +77,7 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
     test("OutputsHaveNotEnoughCoinsValidator CollateralReturnOutput success") {
         val context = Context()
 
-        val collateralReturnOutput = TransactionOutput.Shelley(
+        val collateralReturnOutput = TransactionOutput(
           Arbitrary
               .arbitrary[ShelleyAddress]
               .sample
@@ -111,7 +111,7 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
     test("OutputsHaveNotEnoughCoinsValidator CollateralReturnOutput failure") {
         val context = Context()
 
-        val collateralReturnOutput = TransactionOutput.Shelley(
+        val collateralReturnOutput = TransactionOutput(
           Arbitrary
               .arbitrary[ShelleyAddress]
               .sample
