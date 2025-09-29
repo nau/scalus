@@ -55,8 +55,7 @@ object Vesting extends Validator:
         txInfo: TxInfo,
         txOutRef: TxOutRef
     ): Unit = {
-        val Some(receivedData) = datum: @unchecked
-        val vestingDatum: VestingDatum = receivedData.to[VestingDatum]
+        val vestingDatum = datum.getOrFail("Datum not found").to[VestingDatum]
         val VestingRedeemer(requestedAmount) = redeemer.to[VestingRedeemer]
 
         require(requestedAmount > 0, "Withdrawal amount must be greater than 0")
@@ -117,7 +116,7 @@ object Vesting extends Validator:
         contractOutput.datum match
             case OutputDatum.OutputDatum(inlineData) =>
                 require(
-                  inlineData == receivedData,
+                  inlineData == datum.getOrFail("Datum not found"),
                   "VestingDatum mismatch"
                 )
             case _ => fail("Expected inline datum")
