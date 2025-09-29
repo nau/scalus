@@ -2,8 +2,8 @@ package scalus.cardano.blueprint
 
 import com.github.plokhotnyuk.jsoniter_scala.core.*
 import com.github.plokhotnyuk.jsoniter_scala.macros.JsonCodecMaker
-import scalus.buildinfo.BuildInfo
 import scalus.cardano.ledger.{Language, PlutusScript, Script}
+import scalus.utils.BuildInfo
 import scalus.utils.Hex.toHex
 
 import java.io.File

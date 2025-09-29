@@ -9,6 +9,7 @@ import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.BloxbeanToLedgerTranslation.*
 import scalus.utils.Hex
+import scalus.utils.Hex.hexToBytes
 
 import scala.collection.mutable
 import scala.jdk.OptionConverters.*
@@ -40,7 +41,7 @@ private[scalus] class ScalusUtxoResolver(
         def decodeToSingleCbor(script: PlutusScript) =
             // unwrap the outer CBOR encoding
             ByteString.unsafeFromArray(
-              Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
+              Cbor.decode(script.getCborHex.hexToBytes).to[Array[Byte]].value
             )
         // Initialize UTXOs with provided input UTXOs
         val utxos = mutable.HashMap[TransactionInput, TransactionOutput]()
@@ -106,7 +107,7 @@ private[scalus] class ScalusUtxoResolver(
         val datumOption: Option[DatumOption] =
             Option(output.getDataHash) -> Option(output.getInlineDatum) match
                 case (_, Some(inlineDatum)) =>
-                    Some(DatumOption.Inline(Data.fromCbor(Hex.hexToBytes(inlineDatum))))
+                    Some(DatumOption.Inline(Data.fromCbor(inlineDatum.hexToBytes)))
                 case (Some(dataHash), None) =>
                     Some(DatumOption.Hash(Hash(ByteString.fromHex(dataHash))))
                 case (None, None) => None

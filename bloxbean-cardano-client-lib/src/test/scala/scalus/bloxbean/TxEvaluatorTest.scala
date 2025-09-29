@@ -10,13 +10,12 @@ import com.bloxbean.cardano.client.transaction.spec.*
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
-import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
-import scalus.builtin.Data
+import scalus.builtin.{ByteString, Data}
 import scalus.examples.PubKeyValidator
 import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
-import scalus.utils.Utils
+import scalus.utils.Hex.hexToBytes
 
 import java.math.BigInteger
 import java.util
@@ -53,7 +52,7 @@ class TxEvaluatorTest extends AnyFunSuite:
               .builder()
               .value(Value.builder().coin(BigInteger.valueOf(20)).build())
               .address(pubKeyScriptAddress.getAddress)
-              .datumHash(Utils.hexToBytes(PlutusData.unit().getDatumHash))
+              .datumHash(PlutusData.unit().getDatumHash.hexToBytes)
               .build()
         )
         val redeemer = Redeemer
@@ -124,7 +123,7 @@ class TxEvaluatorTest extends AnyFunSuite:
               .builder()
               .value(Value.builder().coin(BigInteger.valueOf(20)).build())
               .address(pubKeyScriptAddress.getAddress)
-              .datumHash(Utils.hexToBytes(PlutusData.unit().getDatumHash))
+              .datumHash(PlutusData.unit().getDatumHash.hexToBytes)
               .build()
         )
         val redeemer = Redeemer

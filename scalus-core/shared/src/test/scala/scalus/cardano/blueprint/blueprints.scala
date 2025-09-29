@@ -1,13 +1,12 @@
 package scalus.cardano.blueprint
 
 import scalus.Compiler.compile
-import scalus.buildinfo.BuildInfo
 import scalus.builtin.{ByteString, Data}
+import scalus.cardano.blueprint.HtlcValidatorInputs.{Action, ContractDatum}
 import scalus.cardano.ledger.Script
-import HtlcValidatorInputs.{Action, ContractDatum}
 import scalus.ledger.api.v1.PosixTime
-import scalus.toUplc
-import scalus.plutusV3
+import scalus.{plutusV3, toUplc}
+import scalus.utils.BuildInfo
 
 private val bytes = compile((ctx: Data) => ()).toUplc().plutusV3.cborEncoded
 val emptyScript = Script.PlutusV3(ByteString.fromArray(bytes))

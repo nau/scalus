@@ -309,7 +309,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       buildInfoKeys ++= Seq[BuildInfoKey](
         "scalusVersion" -> scalusStableVersion
       ),
-      buildInfoPackage := "scalus.buildinfo"
+      buildInfoPackage := "scalus.utils"
     )
     .configure { project =>
         project.enablePlugins(BuildInfoPlugin)

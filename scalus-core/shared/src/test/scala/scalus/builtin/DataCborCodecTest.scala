@@ -8,13 +8,14 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.Data.*
 import scalus.uplc.test.ArbitraryInstances
 import scalus.utils.Hex.toHex
+import scalus.utils.Hex.hexToBytes
 import scalus.utils.Utils
 
 import scala.collection.immutable
 
 class DataCborCodecTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances:
     private def encodeHex(d: Data) = Utils.bytesToHex(Cbor.encode(d).toByteArray)
-    private def decodeHex(d: String) = Cbor.decode(Utils.hexToBytes(d)).to[Data].value
+    private def decodeHex(d: String) = Cbor.decode(d.hexToBytes).to[Data].value
 
     private def roundtrip(d: Data): Unit =
         val ba = d.toCbor
