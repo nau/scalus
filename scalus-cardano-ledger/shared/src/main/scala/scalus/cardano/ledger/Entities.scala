@@ -283,6 +283,15 @@ object TransactionException {
             )
     }
 
+    // It's Alonzo.ExtraRedeemers and Alonzo.MissingRedeemers in cardano-ledger
+    final case class ExactSetOfRedeemersException(
+        transactionId: TransactionHash,
+        extraRedeemers: Set[(RedeemerTag, Int)],
+        missingRedeemers: Set[(RedeemerTag, Int)]
+    ) extends TransactionException(
+          s"Exact set of redeemers validation failed for transactionId $transactionId, extra redeemers: $extraRedeemers, missing redeemers: $missingRedeemers"
+        )
+
     // TODO: placeholder for general exception, remove after finishing development
     final case class IllegalArgumentException(message: String) extends TransactionException(message)
 }
