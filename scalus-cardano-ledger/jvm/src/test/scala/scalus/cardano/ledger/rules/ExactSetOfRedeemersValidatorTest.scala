@@ -19,12 +19,10 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
           )
         )
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero
-            )
+          body = TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero
           ),
           witnessSet = TransactionWitnessSet()
         )
@@ -50,14 +48,12 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val dummyData = Arbitrary.arbitrary[Data].sample.get
         val dummyExUnits = Arbitrary.arbitrary[ExUnits].sample.get
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-            )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
           ),
-          witnessSet = TransactionWitnessSet(
+          TransactionWitnessSet(
             plutusV1Scripts = Set(plutusScript),
             redeemers = Some(
               KeepRaw(
@@ -88,23 +84,21 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val dummyData = Arbitrary.arbitrary[Data].sample.get
         val dummyExUnits = Arbitrary.arbitrary[ExUnits].sample.get
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-              mint = Some(
-                Mint(
-                  MultiAsset(
-                    SortedMap(
-                      plutusScript.scriptHash -> SortedMap.empty
-                    )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
+            mint = Some(
+              Mint(
+                MultiAsset(
+                  SortedMap(
+                    plutusScript.scriptHash -> SortedMap.empty
                   )
                 )
-              ),
-            )
+              )
+            ),
           ),
-          witnessSet = TransactionWitnessSet(
+          TransactionWitnessSet(
             plutusV2Scripts = Set(plutusScript),
             redeemers = Some(
               KeepRaw(
@@ -140,14 +134,12 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val dummyData = Arbitrary.arbitrary[Data].sample.get
         val dummyExUnits = Arbitrary.arbitrary[ExUnits].sample.get
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-            )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
           ),
-          witnessSet = TransactionWitnessSet(
+          TransactionWitnessSet(
             plutusV1Scripts = Set(plutusScript),
             redeemers = Some(
               KeepRaw(
@@ -181,23 +173,21 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val dummyData = Arbitrary.arbitrary[Data].sample.get
         val dummyExUnits = Arbitrary.arbitrary[ExUnits].sample.get
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-              mint = Some(
-                Mint(
-                  MultiAsset(
-                    SortedMap(
-                      plutusScript.scriptHash -> SortedMap.empty
-                    )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
+            mint = Some(
+              Mint(
+                MultiAsset(
+                  SortedMap(
+                    plutusScript.scriptHash -> SortedMap.empty
                   )
                 )
-              ),
-            )
+              )
+            ),
           ),
-          witnessSet = TransactionWitnessSet(
+          TransactionWitnessSet(
             plutusV2Scripts = Set(plutusScript),
             redeemers = None // no redeemer
           )
@@ -225,23 +215,21 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
           )
         )
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-              mint = Some(
-                Mint(
-                  MultiAsset(
-                    SortedMap(
-                      nativeScript.scriptHash -> SortedMap.empty
-                    )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
+            mint = Some(
+              Mint(
+                MultiAsset(
+                  SortedMap(
+                    nativeScript.scriptHash -> SortedMap.empty
                   )
                 )
-              ),
-            )
+              )
+            ),
           ),
-          witnessSet = TransactionWitnessSet(
+          TransactionWitnessSet(
             nativeScripts = Set(Script.Native(nativeScript)),
             redeemers = None
           ),
@@ -304,14 +292,12 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
             ._2
 
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(inputsSet),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-            )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(inputsSet),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
           ),
-          witnessSet = TransactionWitnessSet(
+          TransactionWitnessSet(
             nativeScripts = Set(Script.Native(nativeScript)),
             plutusV2Scripts = Set(plutusScript),
             redeemers = Some(

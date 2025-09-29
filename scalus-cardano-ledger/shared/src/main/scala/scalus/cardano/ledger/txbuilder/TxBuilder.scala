@@ -441,10 +441,7 @@ object TxBuilder {
         tx.copy(witnessSet = newWs)
     }
 
-    val emptyTx: Transaction = Transaction(
-      TransactionBody(TaggedOrderedSet.empty, IndexedSeq.empty, Coin.zero),
-      TransactionWitnessSet.empty
-    )
+    val emptyTx: Transaction = Transaction.empty
 
     def withInputsFromUtxos(utxo: UTxO) = Transaction(
       TransactionBody(TaggedOrderedSet.from(utxo.keySet), IndexedSeq.empty, Coin.zero),
