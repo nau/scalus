@@ -1,7 +1,13 @@
-# CLAUDE.md
+# Claude Code Guidelines for Scalus Project
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this
-repository.
+## Project Overview
+
+Scalus is a platform for developing decentralized applications (DApps) on the Cardano blockchain.
+The goal is to make a full-stack development experience for Cardano DApps as smooth as possible.
+Using the same language, tools and code for frontend, backend and smart contracts development.
+
+Scalus compiles a subset of Scala 3 code to Scalus Intermediate Representation (SIR) and then lowers
+in to Untyped Plutus Core (UPLC), the language of Cardano smart contracts.
 
 ## Quick Reference for Claude Code
 
@@ -16,13 +22,6 @@ repository.
 - Extend `Validator` trait for validator scripts
 - Place shared code in `shared/` directories for cross-platform support
 - Use modern Scala 3 features: `given`, `using`, extension methods
-
-## Project Overview
-
-Scalus is a DApps development platform for Cardano that enables developers to write smart contracts
-in Scala 3, which are then compiled to Plutus Core. The codebase supports multi-platform
-development (JVM, JavaScript, Native) and provides a complete toolchain for Cardano smart contract
-development.
 
 ## Key Principles for Claude Code
 
@@ -47,7 +46,7 @@ sbtn quick
 # Clean compile and test everything (recommended before commits)
 sbtn precommit
 
-# Continuous integration build (includes formatting checks)
+# Full Continuous integration build and testing (includes formatting checks)
 sbtn ci
 
 # Format all code
@@ -64,20 +63,9 @@ sbtn test
 sbtn scalus/test
 sbtn scalusExamples/test
 sbtn scalusTestkit/test
-sbtn jvm/test
-```
-
-### Platform-Specific Builds
-
-```bash
-# Build JavaScript library
-sbtn scalusJS/copyBundle
-
-# Build native library
-sbtn scalusNative/nativeLink
-
-# Prepare NPM package
-sbtn scalusJS/prepareNpmPackage
+sbtn jvm/test # all projects for JVM platform
+sbtn js/test  # all projects for JS platform
+sbtn native/test # all projects for Native platform
 ```
 
 ### Documentation
@@ -85,13 +73,6 @@ sbtn scalusJS/prepareNpmPackage
 ```bash
 # Generate documentation website
 sbtn docs/mdoc
-```
-
-### Debugging
-
-```bash
-# Debug Scalus plugin during compilation
-sbtn -J-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 compile
 ```
 
 ## Architecture Overview
@@ -142,11 +123,10 @@ sbtn -J-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 compil
 - Use `Compiler.compile()` to generate UPLC code
 - Test contracts using the built-in Plutus VM or ScalaTest integration
 
-### Plugin Development
+### Scalus Plugin Development
 
-- Shared sources are automatically copied from `scalus-core` to avoid circular dependencies
+- Shared sources are automatically copied from `scalus-core` to avoid code duplication
 - Enable faster plugin development by uncommenting the dummy timestamp argument in `build.sbt`
-- Use remote debugging for plugin development (see debugging commands above)
 
 ### Multi-Platform Development
 
@@ -185,8 +165,6 @@ For development, use Nix for reproducible builds:
 ```bash
 nix develop
 ```
-
-Requires Java 11+, sbtn 1.x, and optionally Cardano `uplc` CLI tool.
 
 ## Claude Code Specific Guidelines
 
@@ -227,12 +205,14 @@ Requires Java 11+, sbtn 1.x, and optionally Cardano `uplc` CLI tool.
 
 ### Before Submitting Changes
 
-```bash
-# Always run this before considering work complete
-sbtn quick
+When developing, use `sbtn quick` to ensure everything is formatted, compiles, and tests pass.
+If `quick` fails due to class-related issues, try running `sbtn clean` first.
 
-# If quick fails, investigate and fix issues:
-sbtn scalafmtAll scalafmtSbt  # Fix formatting
-sbtn compile                 # Check compilation
-sbtn test                    # Run tests
-```
+Run `sbtn precommit` before considering work complete.
+
+### Commit Messages
+
+- Use clear, descriptive commit messages
+- Follow conventional commit style
+- Never add yourself to the commit messages, no "Co-authored by Claude Code" or similar
+- Suggest a commit message when you complete a task.
