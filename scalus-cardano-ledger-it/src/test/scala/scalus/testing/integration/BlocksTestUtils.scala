@@ -1,6 +1,6 @@
 package scalus.testing.integration
 
-import co.nstant.in.cbor.{CborException, model as cbor}
+import co.nstant.in.cbor.{model as cbor, CborException}
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
@@ -22,6 +22,7 @@ import java.nio.file.*
 import java.util
 import java.util.stream.Collectors
 import scala.jdk.CollectionConverters.*
+import scala.util.Using
 
 object BlocksTestUtils {
 
@@ -136,6 +137,21 @@ object BlocksTestUtils {
             // because Cardano changed TxBody serialization in Conway era, hash(tx.serialized) != hash(txBodyBytes)
             val txHashFromBytes = Utils.bytesToHex(Blake2bUtil.blake2bHash256(txBodyBytes))
             BlockTx(transaction, datumsCbor, txHashFromBytes)
+    }
+
+    def getAllBlocksPaths(): IndexedSeq[Path] = {
+        val blocksDir = resourcesPath.resolve("blocks")
+        if !Files.exists(blocksDir) then
+            sys.error(
+              s"Blocks directory $blocksDir does not exist. Please run `sbt bloxbean-cardano-client-lib/test` first."
+            )
+        Using(Files.list(blocksDir)) {
+            _.filter(f => f.getFileName.toString.endsWith(".cbor"))
+                .iterator()
+                .asScala
+                .toIndexedSeq
+                .sorted
+        }.get
     }
 
 }

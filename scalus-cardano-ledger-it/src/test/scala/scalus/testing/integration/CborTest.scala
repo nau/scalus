@@ -12,7 +12,7 @@ import java.math.BigInteger
 import java.nio.file.Files
 import scala.jdk.CollectionConverters.*
 
-class BloxbeanWitnessUtilProblemTest extends AnyFunSuite {
+class CborTest extends AnyFunSuite {
 
     val badBlock = 11545396
 
@@ -39,6 +39,19 @@ class BloxbeanWitnessUtilProblemTest extends AnyFunSuite {
         do {
             println(ByteString.fromArray(data.raw))
             assert(data.value != null)
+        }
+    }
+
+    test(s"Scalus OK all") {
+        for path <- getAllBlocksPaths()
+        do {
+            val block = Files.readAllBytes(path)
+            given OriginalCborByteArray = OriginalCborByteArray(block)
+            val blockFile = BlockFile.fromCborArray(block)
+            for
+                tx <- blockFile.block.transactions
+                data <- tx.witnessSet.plutusData.value.toIndexedSeq
+            do assert(data.value != null)
         }
     }
 
