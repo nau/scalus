@@ -411,9 +411,10 @@ object SIR:
     object Pattern:
         case class Constr(
             constr: ConstrDecl,
-            bindings: List[String], // TODO: add wildcard as a special case.
+            bindings: List[String],
             typeParamsBindings: List[SIRType]
         ) extends Pattern
+        case class Const(value: SIR.Const) extends Pattern
         case object Wildcard extends Pattern
 
     case class Case(
