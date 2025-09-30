@@ -30,16 +30,16 @@ object BlocksTestUtils {
     YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
     YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
 
-    val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? {
+    val apiKey: String = System.getenv("BLOCKFROST_API_KEY") ?? {
         println("BLOCKFROST_API_KEY is not set, please set it before running the test")
         ""
     }
 
-    val resourcesPath = Paths.get(System.getenv("SCALUS_IT_DATA_PATH")) ?? sys.error(
+    val resourcesPath: Path = Paths.get(System.getenv("SCALUS_IT_DATA_PATH")) ?? sys.error(
       "SCALUS_IT_DATA_PATH is not set, please set it before running the test"
     )
 
-    val epochMagic = (System.getenv("SCALUS_IT_EPOCH") ?? "543").toInt
+    val epochMagic: Int = (System.getenv("SCALUS_IT_EPOCH") ?? "543").toInt
 
     val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
     val utxoSupplier = CachedUtxoSupplier(
@@ -68,10 +68,12 @@ object BlocksTestUtils {
       debugDumpFilesForTesting = false
     )
 
+    def blockPath(blockNum: Int): Path = resourcesPath.resolve(s"blocks/block-$blockNum.cbor")
+
     case class BlockTx(tx: Transaction, datums: java.util.List[ByteString], txHash: String)
 
     def readTransactionsFromBlockCbor(blockNum: Int): collection.Seq[BlockTx] =
-        readTransactionsFromBlockCbor(resourcesPath.resolve(s"blocks/block-$blockNum.cbor"))
+        readTransactionsFromBlockCbor(blockPath(blockNum))
 
     def readTransactionsFromBlockCbor(path: Path): collection.Seq[BlockTx] = {
         // read block cbor from file using mmap
@@ -112,7 +114,7 @@ object BlocksTestUtils {
                     else util.Collections.emptyList()
                 catch
                     case e: CborException =>
-                        e.printStackTrace();
+                        e.printStackTrace()
                         util.Collections.emptyList();
             }
         for ((tuple, datumsCbor), idx) <- txBodyTuples.asScala.zip(txBodyDatumsCbor).zipWithIndex
