@@ -191,7 +191,7 @@ class BlocksValidation extends AnyFunSuite {
         )
         val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
         val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
-          this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
+          this.getClass.getResourceAsStream(s"/blockfrost-params-epoch-$epoch.json")
         )
         val costModels = CostModels.fromProtocolParams(params)
         val evaluator = PlutusScriptEvaluator(
