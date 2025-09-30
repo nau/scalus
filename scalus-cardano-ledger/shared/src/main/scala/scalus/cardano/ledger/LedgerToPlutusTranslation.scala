@@ -345,14 +345,15 @@ object LedgerToPlutusTranslation {
                   v1.IntervalBoundType.Finite(BigInt(slotConfig.slotToTime(validTo))),
                   closure
                 )
-                v1.Interval(v1.Interval.negInf, upper)
+                v1.Interval(v1.IntervalBound.negInf, upper)
             case (validFrom, 0) =>
                 v1.Interval(
-                  v1.Interval.finite(BigInt(slotConfig.slotToTime(validFrom))),
-                  v1.Interval.posInf
+                  v1.IntervalBound.finiteInclusive(BigInt(slotConfig.slotToTime(validFrom))),
+                  v1.IntervalBound.posInf
                 )
             case (validFrom, validTo) =>
-                val lower = v1.Interval.finite(BigInt(slotConfig.slotToTime(validFrom)))
+                val lower =
+                    v1.IntervalBound.finiteInclusive(BigInt(slotConfig.slotToTime(validFrom)))
                 val upper = v1.IntervalBound(
                   v1.IntervalBoundType.Finite(BigInt(slotConfig.slotToTime(validTo))),
                   false

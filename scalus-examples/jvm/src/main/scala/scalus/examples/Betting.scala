@@ -132,7 +132,7 @@ object Betting extends Validator:
                                                           "The updated datum must have the same expiration as the current one"
                                                         )
                                                         require(
-                                                          txInfo.validRange.entirelyBefore(
+                                                          txInfo.validRange.isEntirelyBefore(
                                                             newBetDatum.expiration
                                                           ),
                                                           "Joining must happen before the bet expiration"
@@ -180,7 +180,7 @@ object Betting extends Validator:
                                                   "Oracle must sign the transaction"
                                                 )
                                                 require(
-                                                  txInfo.validRange.entirelyAfter(
+                                                  txInfo.validRange.isEntirelyAfter(
                                                     expiration
                                                   ),
                                                   "The bet must have been expired (no future bets allowed) before announcing"
@@ -221,7 +221,7 @@ object Betting extends Validator:
                                   "Oracle cannot be the same as player1 (conflict of interest)"
                                 )
                                 require(
-                                  tx.validRange.entirelyBefore(expiration),
+                                  tx.validRange.isEntirelyBefore(expiration),
                                   "The bet must have a valid expiration time (after the current time)"
                                 )
                             case _ => fail("Bet datum must be inline")
