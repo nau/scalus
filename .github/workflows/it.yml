@@ -5,7 +5,7 @@ on:
   #    parameter:
   #      description: My Parameter
   schedule:
-    - cron: '* 07 * * *'
+    - cron: '00 07 * * *'
 jobs:
   test:
     runs-on: ubuntu-latest
