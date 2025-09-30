@@ -12,11 +12,12 @@ import java.math.BigInteger
 import java.nio.file.Files
 import scala.jdk.CollectionConverters.*
 
-@org.scalatest.Ignore
-class BadDatumTest extends AnyFunSuite {
+class BloxbeanWitnessUtilProblemTest extends AnyFunSuite {
 
-    test("bad datum from block 11545396") {
-        val block = Files.readAllBytes(blockPath(11545396))
+    val badBlock = 11545396
+
+    ignore(s"bloxbean WitnessUtil has problem") {
+        val block = Files.readAllBytes(blockPath(badBlock))
         for
             witness <- WitnessUtil.getWitnessRawData(block).asScala
             field <- Option(WitnessUtil.getWitnessFields(witness).get(BigInteger.valueOf(4L))).toSeq
@@ -28,8 +29,8 @@ class BadDatumTest extends AnyFunSuite {
             assert(data != null)
     }
 
-    test("bad block 11545396") {
-        val block = Files.readAllBytes(blockPath(11545396))
+    test(s"Scalus OK") {
+        val block = Files.readAllBytes(blockPath(badBlock))
         given OriginalCborByteArray = OriginalCborByteArray(block)
         val blockFile = BlockFile.fromCborArray(block)
         for
