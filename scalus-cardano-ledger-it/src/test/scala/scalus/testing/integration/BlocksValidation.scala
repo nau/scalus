@@ -174,7 +174,7 @@ class BlocksValidation extends AnyFunSuite {
         assert(errors.size === 67)
     }
 
-    private def validateBlocksOfEpochWithScalus(epoch: Int): Unit = {
+    private def validateBlocksOfEpochWithScalus(epoch: Int): Int = {
         val errors = mutable.ArrayBuffer[String]()
 
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
@@ -234,17 +234,18 @@ class BlocksValidation extends AnyFunSuite {
                                 )
                             }
                     }
+                    totalTx += 1
                 catch {
                     case e: Exception =>
                     // val error = s"Error in block $path, tx ${tx.id}: ${e.getMessage}"
                     // errors += error
                     // println(s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}")
-                } finally totalTx += 1
+                }
         println(
           s"\n${Console.GREEN}Total txs: $totalTx, errors ${errors.size}, blocks: ${blocks.size}, epoch: $epoch${Console.RESET}"
         )
-        assert(errors.size <= 184)
-        if(errors.size < 184) println("Some errors were fixed!")
+        if errors.size < 184 then println("Some errors were fixed!")
+        errors.size
     }
 
     def readTransactionsFromBlockCbor(path: Path): collection.Seq[BlockTx] = {
@@ -593,7 +594,7 @@ class BlocksValidation extends AnyFunSuite {
     ignore("validateScriptDataHashEvaluation()"):
         validateScriptDataHashEvaluation()
 
-    test("validateBlocksOfEpochWithScalus(543)"):
-        validateBlocksOfEpochWithScalus(543)
+    test("validateBlocksOfEpochWithScalus(543) <= 184"):
+        assert(validateBlocksOfEpochWithScalus(543) <= 184)
 
 }
