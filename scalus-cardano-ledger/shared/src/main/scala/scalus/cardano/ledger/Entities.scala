@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 
 import scalus.cardano.address.{Address, Network}
-import scalus.cardano.ledger.ValidityInterval
 
 // TODO: maybe replace on enum
 sealed abstract class TransactionException(message: String, cause: Throwable)

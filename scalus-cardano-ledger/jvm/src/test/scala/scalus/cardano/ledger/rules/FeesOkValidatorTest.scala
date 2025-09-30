@@ -2,7 +2,7 @@ package scalus.cardano.ledger
 package rules
 
 import org.scalacheck.{Arbitrary, Gen}
-import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
+import scalus.cardano.address.{ShelleyAddress, ShelleyPaymentPart}
 import scalus.builtin.platform
 import org.scalatest.funsuite.AnyFunSuite
 

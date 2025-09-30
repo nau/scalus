@@ -1,8 +1,6 @@
 package scalus.cardano.ledger
 package utils
 
-import scalus.cardano.ledger.ProtocolParams
-
 object MinCoinSizedTransactionOutput {
     def apply(
         sizedTransactionOutput: Sized[TransactionOutput],

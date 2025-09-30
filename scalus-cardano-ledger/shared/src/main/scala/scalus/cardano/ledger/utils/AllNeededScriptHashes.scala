@@ -4,7 +4,6 @@ package utils
 import scala.collection.View
 import scala.util.boundary
 import scala.util.boundary.break
-import scalus.builtin.Data
 
 object AllNeededScriptHashes {
     def allNeededScriptHashes(

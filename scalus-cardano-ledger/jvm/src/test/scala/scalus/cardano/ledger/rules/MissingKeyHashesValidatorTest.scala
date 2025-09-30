@@ -3,7 +3,7 @@ package rules
 
 import org.scalacheck.Arbitrary
 import scalus.builtin.platform
-import scalus.cardano.address.{Address, StakeAddress, StakePayload}
+import scalus.cardano.address.{StakeAddress, StakePayload}
 import org.scalatest.funsuite.AnyFunSuite
 import scala.collection.immutable.SortedMap
 

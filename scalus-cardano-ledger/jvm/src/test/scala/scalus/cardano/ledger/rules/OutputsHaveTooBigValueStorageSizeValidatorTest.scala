@@ -2,7 +2,7 @@ package scalus.cardano.ledger
 package rules
 
 import org.scalacheck.Arbitrary
-import scalus.cardano.address.{Address, ShelleyAddress}
+import scalus.cardano.address.ShelleyAddress
 import org.scalatest.funsuite.AnyFunSuite
 
 class OutputsHaveTooBigValueStorageSizeValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
