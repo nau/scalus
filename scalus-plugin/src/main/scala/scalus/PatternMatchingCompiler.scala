@@ -402,6 +402,7 @@ object SirCaseDecisionTree:
         columnName: Option[String],
         byConstructors: Map[String, ConstructorEntry],
         defaultBranch: Option[SirCaseDecisionTree],
+        pos: SrcPos
     ) extends SirCaseDecisionTree
 
     case class ConstructorEntry(
@@ -412,9 +413,11 @@ object SirCaseDecisionTree:
     )
 
     case class ConstantChoice(
-        columnName: Option[String],
+        columnName: String,
+        tp: SIRType.Primitive,
         byConstants: Map[SIR.Const, SirCaseDecisionTree],
         defaultBranch: SirCaseDecisionTree,
+        pos: SrcPos,
     ) extends SirCaseDecisionTree
 
     case class CheckGuard(
@@ -1167,7 +1170,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
           tupleRows.toList
         )
 
-        buildGroupedTuplesDecisionTree(ctx, groupedTuples)
+        buildGroupedTuplesDecisionTree(ctx, groupedTuples, ctx.topLevelPos)
 
     }
 
@@ -1221,12 +1224,13 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
     def buildGroupedTuplesDecisionTree(
         ctx: PatternMatchingContext,
-        group: SirParsedCase.GroupedTuples
+        group: SirParsedCase.GroupedTuples,
+        pos: SrcPos
     ): SirCaseDecisionTree = {
         val group1 = eliminateAlternativesInGroup(group)
         val group2 = eliminateTypeSelectorsInGroup(group1)
         if group2.rows.isEmpty then
-            SirCaseDecisionTree.Leaf(Map.empty, SirParsedCase.ActionRef.FailMatch, ctx.topLevelPos)
+            SirCaseDecisionTree.Leaf(Map.empty, SirParsedCase.ActionRef.FailMatch, pos)
         else
             val firstRow = group2.rows.head
             val nonWildcards = firstRow.patterns.zipWithIndex.filter { case (p, i) =>
@@ -1263,7 +1267,16 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                     case constr: SirParsedCase.Pattern.Constructor =>
                         buildSpecializedConstr(ctx, group2, firstRow, i)
                     case const: SirParsedCase.Pattern.PrimitiveConstant =>
-                        buildSpecializedConst(ctx, group2, i)
+                        const.value.tp match
+                            case tp: SIRType.Primitive =>
+                                buildSpecializedConst(ctx, group2, i, tp, p.pos)
+                            case _ =>
+                                report.error("Constant pattern should be primitive", const.pos)
+                                SirCaseDecisionTree.Leaf(
+                                  Map.empty,
+                                  SirParsedCase.ActionRef.FailMatch,
+                                  p.pos
+                                )
                     case _ =>
                         compiler.error(
                           GenericError(s"Impossible pattern in specialization: ${p}", p.pos),
@@ -1284,7 +1297,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         val guardRef = currentRow.guardRef.get
         val nextTree = group.rows match {
             case head :: tail =>
-                buildGroupedTuplesDecisionTree(ctx, group.copy(rows = tail))
+                buildGroupedTuplesDecisionTree(ctx, group.copy(rows = tail), head.pos)
             case Nil =>
                 SirCaseDecisionTree.Leaf(
                   Map.empty,
@@ -1308,6 +1321,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         ctx: PatternMatchingContext,
         group: SirParsedCase.GroupedTuples,
         col: Int,
+        tp: SIRType.Primitive,
+        pos: SrcPos
     ): SirCaseDecisionTree = {
 
         def checkConstantPattern(
@@ -1332,7 +1347,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
               group.activeColumns - col,
               rows
             )
-            val subtree = buildGroupedTuplesDecisionTree(ctx, newGroup)
+            val subtree = buildGroupedTuplesDecisionTree(ctx, newGroup, pos)
             (const, subtree)
         }.toMap
         val nextSubtree =
@@ -1348,10 +1363,10 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                   group.activeColumns - col,
                   splittedRest
                 )
-                buildGroupedTuplesDecisionTree(ctx, newGroup)
+                buildGroupedTuplesDecisionTree(ctx, newGroup, splittedRest.head.pos)
             }
-        var columnName = group.columnBindings(col).name
-        SirCaseDecisionTree.ConstantChoice(Some(columnName), constEntries, nextSubtree)
+        val columnName = group.columnBindings(col).name
+        SirCaseDecisionTree.ConstantChoice(columnName, tp, constEntries, nextSubtree, pos)
     }
 
     /** Collect rows with specialized pattern in the given column according to checkPattern function
@@ -1442,10 +1457,10 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                   colIndex,
                   rows
                 )
-                val subtree = buildGroupedTuplesDecisionTree(ctx, newGroup)
                 val constrPos = rows match
                     case head :: _ => head.pos
                     case Nil       => ctx.topLevelPos
+                val subtree = buildGroupedTuplesDecisionTree(ctx, newGroup, constrPos)
                 val entry = SirCaseDecisionTree.ConstructorEntry(
                   sirCaseClass,
                   newGroup.columnBindings,
@@ -1462,10 +1477,15 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                   group.activeColumns - colIndex,
                   tail
                 )
-                val nextSubtree = buildGroupedTuplesDecisionTree(ctx, newGroup)
+                val nextSubtree = buildGroupedTuplesDecisionTree(ctx, newGroup, tail.head.pos)
                 Some(nextSubtree)
         val columnName = group.columnBindings(colIndex).name
-        SirCaseDecisionTree.ConstructorsChoice(Some(columnName), constructorEntries, optNextSubtree)
+        SirCaseDecisionTree.ConstructorsChoice(
+          Some(columnName),
+          constructorEntries,
+          optNextSubtree,
+          row.pos
+        )
     }
 
     private def insertConstructorPatternsIntoGroup(
@@ -1835,7 +1855,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                             SirCaseDecisionTree.EmbeddingType.Inline
                         else SirCaseDecisionTree.EmbeddingType.ByReference
             }
-            og.map(g => (g.sir, embedding, ctx.freshName(s"caseGuard${i}_")))
+            og.map(g => (g, embedding, ctx.freshName(s"caseGuard${i}_")))
         }
         val decisions = compileDecisions(ctx, tree, parsedMatch, actionsRecords, guardsRecords)
         val sir = addActionsAndGuardsLet(ctx, decisions, actionsRecords, guardsRecords)
@@ -1847,7 +1867,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         tree: SirCaseDecisionTree,
         parsedMatch: SirParsedMatch,
         actions: IndexedSeq[(AnnotatedSIR, SirCaseDecisionTree.EmbeddingType, String)],
-        guards: IndexedSeq[Option[(AnnotatedSIR, SirCaseDecisionTree.EmbeddingType, String)]]
+        guards: IndexedSeq[Option[(SirParsedGuard, SirCaseDecisionTree.EmbeddingType, String)]]
     ): AnnotatedSIR = {
         tree match {
             case Leaf(bindingMap, actionRef, pos) =>
@@ -1876,6 +1896,32 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                                 )
                         }
                 }
+            case SirCaseDecisionTree.CheckGuard(bindingMap, guardRef, pos, ifTrue, ifFalse) =>
+                val cond: AnnotatedSIR =
+                    generateGuardCondition(ctx, bindingMap, guardRef, guards, pos)
+                val thenBranch = compileDecisions(ctx, ifTrue, parsedMatch, actions, guards)
+                val elseBranch = compileDecisions(ctx, ifFalse, parsedMatch, actions, guards)
+                SIR.IfThenElse(
+                  cond,
+                  thenBranch,
+                  elseBranch,
+                  parsedMatch.resTp,
+                  AnnotationsDecl.fromSrcPos(pos)
+                )
+            case SirCaseDecisionTree.ConstantChoice(
+                  columnName,
+                  scrutineeTp,
+                  constEntries,
+                  optNext,
+                  pos
+                ) =>
+                // match on promitives will be available on plutus 4.
+                val caseDefs = constEntries.map { case (const, subtree) =>
+                    val caseBody = compileDecisions(ctx, subtree, parsedMatch, actions, guards)
+                    SIR.Case(SIR.Pattern.Const(const), caseBody, AnnotationsDecl.fromSrcPos(pos))
+                }.toList
+                val scrutinee = SIR.Var(columnName, scrutineeTp, AnnotationsDecl.fromSrcPos(pos))
+                SIR.Match(scrutinee, caseDefs, parsedMatch.resTp, AnnotationsDecl.fromSrcPos(pos))
         }
         ???
     }
@@ -1884,7 +1930,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         ctx: PatternMatchingContext,
         decisions: AnnotatedSIR,
         actions: IndexedSeq[(AnnotatedSIR, SirCaseDecisionTree.EmbeddingType, String)],
-        guards: IndexedSeq[Option[(AnnotatedSIR, SirCaseDecisionTree.EmbeddingType, String)]]
+        guards: IndexedSeq[Option[(SirParsedGuard, SirCaseDecisionTree.EmbeddingType, String)]]
     ): AnnotatedSIR = {
         ???
     }
@@ -1914,21 +1960,82 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 SIRType.Fun(b.tp, acc)
             }
             val actionVar = SIR.Var(name, actionType, AnnotationsDecl.fromSrcPos(pos))
-            val applySir = action.bindedVariables.foldLeft(actionVar: AnnotatedSIR) { (acc, b) =>
-                val bName = bingingMap.getOrElse(
-                  b.name,
-                  throw IllegalStateException(s"Binding ${b.name} not found")
-                )
-                val nextTp = acc.tp match
-                    case SIRType.Fun(_, retTp) => retTp
-                    case _ =>
-                        throw IllegalStateException(
-                          s"Expected function type in action reference application, but got ${acc.tp.show}"
-                        )
-                val bVar = SIR.Var(bName, b.tp, AnnotationsDecl.fromSrcPos(pos))
-                SIR.Apply(acc, bVar, nextTp, AnnotationsDecl.fromSrcPos(pos))
-            }
+            val applySir = buildApplySeq(actionVar, action.bindedVariables, pos)
             applySir
+    }
+
+    private def generateGuardCondition(
+        context: PatternMatchingContext,
+        bindingMap: Map[String, String],
+        guardIndex: Int,
+        guardRecords: IndexedSeq[
+          Option[(SirParsedGuard, SirCaseDecisionTree.EmbeddingType, String)]
+        ],
+        pos: SrcPos
+    ): AnnotatedSIR = {
+        guardRecords(guardIndex) match
+            case None =>
+                report.error("Internal error: guard reference is None", pos)
+                SIR.Const.bool(true, AnnotationsDecl.fromSrcPos(pos))
+            case Some((guard, embedding, name)) =>
+                embedding match {
+                    case SirCaseDecisionTree.EmbeddingType.Inline =>
+                        SIR.renameFreeVars(
+                          guard.sir,
+                          bindingMap
+                        ).asInstanceOf[AnnotatedSIR]
+                    case SirCaseDecisionTree.EmbeddingType.ByReference =>
+                        generateGuardApply(name, guard, bindingMap, pos)
+                }
+    }
+
+    private def generateGuardApply(
+        name: String,
+        guard: SirParsedGuard,
+        bindingMap: Map[String, String],
+        pos: SrcPos
+    ): AnnotatedSIR = {
+        if guard.bindedVariables.isEmpty then
+            val guardVar = SIR.Var(
+              name,
+              SIRType.Fun(SIRType.Unit, SIRType.Boolean),
+              AnnotationsDecl.fromSrcPos(pos)
+            )
+            SIR.Apply(
+              guardVar,
+              SIR.Const.unit(AnnotationsDecl.fromSrcPos(pos)),
+              SIRType.Boolean,
+              AnnotationsDecl.fromSrcPos(pos)
+            )
+        else
+            val guardType = guard.bindedVariables.foldRight(SIRType.Boolean: SIRType) { (b, acc) =>
+                SIRType.Fun(b.tp, acc)
+            }
+            val guardVar = SIR.Var(name, guardType, AnnotationsDecl.fromSrcPos(pos))
+            val applySir = buildApplySeq(guardVar, guard.bindedVariables, pos)
+            applySir
+    }
+
+    private def buildApplySeq(
+        s0: AnnotatedSIR,
+        args: List[TypeBinding],
+        pos: SrcPos
+    ): AnnotatedSIR = {
+        args.foldLeft(s0) { (acc, b) =>
+            val arg = SIR.Var(b.name, b.tp, AnnotationsDecl.fromSrcPos(pos))
+            SIR.Apply(
+              acc,
+              arg,
+              acc.tp match {
+                  case SIRType.Fun(_, retTp) => retTp
+                  case _ =>
+                      throw IllegalStateException(
+                        s"Expected function type in application, but got ${acc.tp.show}"
+                      )
+              },
+              AnnotationsDecl.fromSrcPos(pos)
+            )
+        }
     }
 
 }
