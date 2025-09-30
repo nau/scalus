@@ -5,13 +5,14 @@ import io.bullet.borer.Cbor
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.builtin.{ByteString, Data}
+import scalus.cardano.ledger.{BlockFile, OriginalCborByteArray}
 import scalus.testing.integration.BlocksTestUtils.*
 
 import java.math.BigInteger
 import java.nio.file.Files
 import scala.jdk.CollectionConverters.*
 
-//@org.scalatest.Ignore
+@org.scalatest.Ignore
 class BadDatumTest extends AnyFunSuite {
 
     test("bad datum from block 11545396") {
@@ -25,6 +26,19 @@ class BadDatumTest extends AnyFunSuite {
             val cbor = Cbor.decode(datum).to[Data]
             val data = cbor.value // throws "Expected End-of-Input but got Int (input position 1)"
             assert(data != null)
+    }
+
+    test("bad block 11545396") {
+        val block = Files.readAllBytes(blockPath(11545396))
+        given OriginalCborByteArray = OriginalCborByteArray(block)
+        val blockFile = BlockFile.fromCborArray(block)
+        for
+            tx <- blockFile.block.transactions
+            data <- tx.witnessSet.plutusData.value.toIndexedSeq
+        do {
+            println(ByteString.fromArray(data.raw))
+            assert(data.value != null)
+        }
     }
 
 }
