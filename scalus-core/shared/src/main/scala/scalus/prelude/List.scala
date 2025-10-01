@@ -813,31 +813,6 @@ object List {
             case Nil              => None
             case Cons(head, tail) => if predicate(head) then Some(head) else tail.find(predicate)
 
-        /** Determine if at least one element of the list satisfies the given predicate.
-          *
-          * Note: an empty list never satisfies the predicate.
-          *
-          * @param predicate
-          *   A function that takes an element of type `A` and returns `true` if the element matches
-          *   the condition.
-          * @return
-          *   A `True` if at least one element satisfies the predicate, or `False` if no such
-          *   element exists.
-          * @example
-          *   {{{
-          *   List.empty[BigInt].find(_ > 2) == false
-          *
-          *   val list: List[BigInt] = Cons(BigInt(1), Cons(BigInt(2), Cons(BigInt(3), Nil)))
-          *   list.find(_ > 0) == true
-          *   list.find(_ == 2) == true
-          *   list.find(_ < 0) == false
-          *   }}}
-          */
-        @tailrec
-        def any(predicate: A => Boolean): Boolean = self match
-            case Nil              => false
-            case Cons(head, tail) => predicate(head) || tail.any(predicate)
-
         /** Finds the first element in the list that, when passed to the provided mapper function
           * returns non-`None` or `None` otherwise.
           *
