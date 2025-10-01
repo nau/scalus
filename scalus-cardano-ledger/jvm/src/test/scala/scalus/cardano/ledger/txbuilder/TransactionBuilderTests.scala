@@ -11,10 +11,13 @@ import scalus.cardano.ledger.txbuilder.TransactionBuilder.{build, modify, Contex
 import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.*
 import scalus.cardano.ledger.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
 import scalus.cardano.ledger.txbuilder.TxBuildError.{IncorrectScriptHash, UnneededDeregisterWitness, WrongNetworkId, WrongOutputType}
+import scalus.cardano.ledger.txbuilder.TxBuilderLenses.txBodyL
 import io.bullet.borer.Cbor
 import monocle.syntax.all.*
 import monocle.{Focus, Lens}
 import org.scalacheck.Gen
+import org.scalacheck.Arbitrary.arbitrary
+import scalus.cardano.ledger.ArbitraryInstances.given
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.Network.{Mainnet, Testnet}
@@ -57,7 +60,7 @@ class TxBuilderTests extends AnyFunSuite, ScalaCheckPropertyChecks {
     ): Unit =
         test(label) {
             val res = TransactionBuilder.build(Mainnet, steps)
-            assertEquals(obtained = res, expected = Left(error))
+            assert(res == Left(error))
         }
 
     def testBuilderSteps(
@@ -70,27 +73,24 @@ class TxBuilderTests extends AnyFunSuite, ScalaCheckPropertyChecks {
             Set[ExpectedSigner],
             Set[TransactionUnspentOutput]
         )
-    )(implicit loc: munit.Location): Unit =
+    ): Unit =
         test(label) {
             val res = TransactionBuilder.build(Mainnet, steps)
-            assertEquals(
-              obtained = res.map(_.toTuple),
-              expected = Right(expected)
-            )
+            assert(res.map(_.toTuple) == Right(expected))
         }
 
     val pkhUtxo = TransactionUnspentOutput(input = input1, output = pkhOutput)
     val skhUtxo = TransactionUnspentOutput(input1, skhOutput)
     val ns: Script.Native = Script.Native(AllOf(IndexedSeq.empty))
-    val nsSigners: Set[AddrKeyHash] = Gen.listOf(genAddrKeyHash).sample.get.toSet
+    val nsSigners: Set[AddrKeyHash] = Gen.listOf(arbitrary[AddrKeyHash]).sample.get.toSet
     val nsWitness = NativeScriptOutput(ScriptValue(ns, nsSigners))
 
-    val psSignersOutput: Set[AddrKeyHash] = Gen.listOf(genAddrKeyHash).sample.get.toSet
+    val psSignersOutput: Set[AddrKeyHash] = Gen.listOf(arbitrary[AddrKeyHash]).sample.get.toSet
 
     val plutusScriptWitness =
         PlutusScriptOutput(ScriptValue(script2, psSignersOutput), Data.List(List()), None)
 
-    val psSignersRef: Set[AddrKeyHash] = Gen.listOf(genAddrKeyHash).sample.get.toSet
+    val psSignersRef: Set[AddrKeyHash] = Gen.listOf(arbitrary[AddrKeyHash]).sample.get.toSet
     val plutusScriptRefWitness = PlutusScriptOutput(
       ScriptWitness.ScriptReference(input1, SpendInput, psSignersRef),
       Data.List(List()),
@@ -165,7 +165,7 @@ class TxBuilderTests extends AnyFunSuite, ScalaCheckPropertyChecks {
           Context.empty(Mainnet),
           List(SpendOutput(pkhUtxo, None), SpendOutput(pkhUtxoTestNet, None))
         ) // Mainnet context with mixed network addresses
-        assertEquals(obtained = res, expected = Left(WrongNetworkId(pkhUtxoTestNet.output.address)))
+        assert(res == Left(WrongNetworkId(pkhUtxoTestNet.output.address)))
     }
 
     // ================================================================
@@ -175,9 +175,8 @@ class TxBuilderTests extends AnyFunSuite, ScalaCheckPropertyChecks {
     test("SpendOutput.additionalSignersUnsafe works for pubkey") {
 
         // Check that the additional signers are what we expect
-        assertEquals(
-          obtained = spendPkhUtxoStep.additionalSigners,
-          expected = Right(
+        assert(
+          spendPkhUtxoStep.additionalSigners == Right(
             Set(
               ExpectedSigner(
                 pkhOutputPaymentPart.asInstanceOf[ShelleyPaymentPart.Key].hash
@@ -188,15 +187,12 @@ class TxBuilderTests extends AnyFunSuite, ScalaCheckPropertyChecks {
 
         // Check that the transaction step adds the correct signer
         val tx = build(Mainnet, List(spendPkhUtxoStep))
-        assertEquals(
-          obtained = tx.map(_.expectedSigners),
-          expected = Right(fromRight(spendPkhUtxoStep.additionalSigners))
-        )
+        assert(tx.map(_.expectedSigners) == Right(fromRight(spendPkhUtxoStep.additionalSigners)))
 
     }
 
     test("Signers works for NS spend") {
-        val txInput = genTxId.sample.get
+        val txInput = arbitrary[TransactionInput].sample.get
 
         val step =
             TransactionBuilderStep.SpendOutput(
@@ -213,20 +209,18 @@ class TxBuilderTests extends AnyFunSuite, ScalaCheckPropertyChecks {
             )
 
         // Signers are what we expected for an NS spend
-        assertEquals(
-          obtained = step.additionalSigners,
-          expected = Right(nsSigners.map(ExpectedSigner(_)))
-        )
+        assert(step.additionalSigners == Right(nsSigners.map(ExpectedSigner(_))))
 
         // Signers are what we expect for a transaction built with this step
-        assertEquals(
-          obtained = build(Mainnet, List(step)).map(_.expectedSigners),
-          expected = Right(fromRight(step.additionalSigners))
+        assert(
+          build(Mainnet, List(step)).map(_.expectedSigners) == Right(
+            fromRight(step.additionalSigners)
+          )
         )
     }
 
     test("Signers work for PS spend") {
-        val txInput = genTxId.sample.get
+        val txInput = arbitrary[TransactionInput].sample.get
         val step =
             TransactionBuilderStep.SpendOutput(
               utxo = TransactionUnspentOutput(
@@ -243,15 +237,13 @@ class TxBuilderTests extends AnyFunSuite, ScalaCheckPropertyChecks {
             )
 
         // Signers are what we expected for an PS spend
-        assertEquals(
-          obtained = fromRight(step.additionalSigners),
-          expected = psSignersOutput.map(ExpectedSigner(_))
-        )
+        assert(fromRight(step.additionalSigners) == psSignersOutput.map(ExpectedSigner(_)))
 
         // Signers are what we expect for a transaction built with this step
-        assertEquals(
-          obtained = build(Mainnet, List(step)).map(_.expectedSigners),
-          expected = Right(fromRight(step.additionalSigners))
+        assert(
+          build(Mainnet, List(step)).map(_.expectedSigners) == Right(
+            fromRight(step.additionalSigners)
+          )
         )
     }
 

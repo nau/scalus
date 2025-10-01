@@ -3,7 +3,6 @@ package scalus.cardano.ledger.txbuilder
 import monocle.Lens
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.{Address, Network}
-import scalus.cardano.ledger
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{Native, PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger.txbuilder.Intention.Stake
@@ -28,7 +27,7 @@ import scala.util.Random
  */
 enum Intention {
     case Pay(address: Address, value: Value, data: Option[DatumOption] = None)
-    case Mint(value: ledger.Mint, scriptInfo: MintIntention, targetAddress: Address)
+    case Mint(value: scalus.cardano.ledger.Mint, scriptInfo: MintIntention, targetAddress: Address)
     case WithdrawRewards(withdrawals: SortedMap[RewardAccount, Coin])
     case Stake(credential: Credential, poolKeyHash: PoolKeyHash)
 }

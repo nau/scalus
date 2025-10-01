@@ -67,7 +67,7 @@ class TransactionEditorTests extends AnyFunSuite, ScalaCheckPropertyChecks {
     }
 
     test("do nothing") {
-        assertEquals(obtained = editTransaction(identity)(oneInput), expected = oneInput)
+        assert(editTransaction(identity)(oneInput) == oneInput)
     }
 
     test("attach one input to the end") {
@@ -88,8 +88,8 @@ class TransactionEditorTests extends AnyFunSuite, ScalaCheckPropertyChecks {
               )
             )
 
-        assertEquals(
-          obtained = editTransaction(
+        assert(
+          editTransaction(
             txBodyL
                 .refocus(_.inputs)
                 .modify((i: TaggedOrderedSet[TransactionInput]) =>
@@ -97,8 +97,7 @@ class TransactionEditorTests extends AnyFunSuite, ScalaCheckPropertyChecks {
                 )
           )(
             oneInput
-          ),
-          expected = expectedTx
+          ) == expectedTx
         )
     }
 
@@ -121,11 +120,10 @@ class TransactionEditorTests extends AnyFunSuite, ScalaCheckPropertyChecks {
             anyNetworkTx |> l1 |> l2
         }
 
-        assertEquals(
-          obtained = editTransactionSafe(
+        assert(
+          editTransactionSafe(
             txBodyL.refocus(_.inputs).replace(TaggedOrderedSet(input1))
-          )(tx1),
-          expected = Right(tx2)
+          )(tx1) == Right(tx2)
         )
     }
 
@@ -181,11 +179,10 @@ class TransactionEditorTests extends AnyFunSuite, ScalaCheckPropertyChecks {
 
             anyNetworkTx |> l1 |> l2
         }
-        assertEquals(
-          expected = Right(tx2),
-          obtained = editTransactionSafe(
+        assert(
+          editTransactionSafe(
             txBodyL.refocus(_.inputs).replace(TaggedOrderedSet(input1))
-          )(tx1)
+          )(tx1) == Right(tx2)
         )
     }
 
@@ -241,9 +238,8 @@ class TransactionEditorTests extends AnyFunSuite, ScalaCheckPropertyChecks {
                     .replace(TaggedOrderedSet(input0, input2))
             anyNetworkTx |> l1 |> l2
         }
-        assertEquals(
-          expected = Right(tx2),
-          obtained = tx1 |> editTransactionSafe(
+        assert(
+          (tx1 |> editTransactionSafe(
             txBodyL
                 .refocus(_.inputs)
                 .replace(TaggedOrderedSet(input0, input2))
@@ -264,7 +260,7 @@ class TransactionEditorTests extends AnyFunSuite, ScalaCheckPropertyChecks {
                         )
                       )
                 )
-          )
+          )) == Right(tx2)
         )
     }
 }
