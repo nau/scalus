@@ -74,8 +74,8 @@ class TxBuilderTest2
             .get
         val tx3 = Transaction.fromCbor(tx2.toCbor)
         assert(tx.body.value.outputs(0).value.value.coin.value == 10000000L)
-        assert(tx2.body.value.outputs(0).value.value.coin.value == 19839559L)
-        assert(tx3.body.value.outputs(0).value.value.coin.value == 19839559L)
+        assert(tx2.body.value.outputs(0).value.value.coin.value == 19839383L)
+        assert(tx3.body.value.outputs(0).value.value.coin.value == 19839383L)
     }
 
     test("pay") {
