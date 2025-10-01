@@ -200,6 +200,7 @@ final class SIRCompiler(
     }
 
     private val CompileAnnot = requiredClassRef("scalus.Compile").symbol.asClass
+    private val ScalusDebugAnnot = requiredClassRef("scalus.ScalusDebug").symbol.asClass
     private val IgnoreAnnot = requiredClassRef("scalus.Ignore").symbol.asClass
 
     private val uplcIntrinsicAnnot = Symbols.requiredClass("scalus.builtin.uplcIntrinsic")
@@ -244,12 +245,18 @@ final class SIRCompiler(
           * @param tree
           * @return
           */
-        def collectTypeDefs(tree: Tree): List[TypeDef] = {
+        def collectTypeDefs(tree: Tree): List[(TypeDef, Int)] = {
             tree match
                 case EmptyTree            => Nil
                 case PackageDef(_, stats) => stats.flatMap(collectTypeDefs)
                 case cd: TypeDef =>
-                    if cd.symbol.hasAnnotation(CompileAnnot) then List(cd)
+                    if cd.symbol.hasAnnotation(CompileAnnot)
+                    then
+                        val debugLevel = cd.symbol.getAnnotation(ScalusDebugAnnot) match
+                            case Some(annot) =>
+                                annot.argumentConstant(0).map(_.intValue).getOrElse(1)
+                            case None => 0
+                        List((cd, debugLevel))
                     else List.empty
                 case vd: ValDef =>
                     // println(s"valdef $vd")
@@ -262,10 +269,10 @@ final class SIRCompiler(
         //    s"${td.name} ${td.isClassDef}"
         // })
 
-        allTypeDefs.foreach(td => compileTypeDef(td))
+        allTypeDefs.foreach((td, debugLevel) => compileTypeDef(td, debugLevel))
     }
 
-    private def compileTypeDef(td: TypeDef): Unit = {
+    private def compileTypeDef(td: TypeDef, annotDebugLevel: Int): Unit = {
         val start = System.currentTimeMillis()
         val tpl = td.rhs.asInstanceOf[Template]
 
@@ -289,6 +296,7 @@ final class SIRCompiler(
         val baseEnv = Env.empty.copy(
           thisTypeSymbol = td.symbol,
           typeVars = sirTypeVars,
+          debug = options.debugLevel > 0 || annotDebugLevel > 0,
         )
 
         val bindings = tpl.body.flatMap { tree =>
@@ -574,7 +582,6 @@ final class SIRCompiler(
         )
 
     }
-    
 
     private def compileNewConstructor(
         env: Env,
@@ -1042,13 +1049,6 @@ final class SIRCompiler(
         typeFromDefMismatchWasFound: Boolean = false,
         debug: Boolean = false
     ): (SIRType, AnnotatedSIR) = {
-
-        if debug then {
-            println(
-              s"assembleMethodWithTypeFromBody: paramss = ${paramss.map(_.map(_.show))}, sirTypeParams = ${sirTypeParams.map(_.show)}, typeFromDef: ${typeFromDef.show}"
-            )
-            println("bodyExpr: " + bodyExpr)
-        }
 
         /** let we have SIR which depends on type parameters, with tyoe lile SIR.Let(x: T,
           * Apply(Apply(mkConst,x),mkNil) ) which have type depended from T. (i.e. List[T] in our
@@ -2154,7 +2154,9 @@ final class SIRCompiler(
     }
 
     def compileExpr[T](env: Env, tree: Tree)(using Context): AnnotatedSIR = {
-        if env.debug then println(s"compileExpr: ${tree.showIndented(2)}, env: $env")
+        if env.debug then {
+            println(s"compileExpr: ${tree.showIndented(2)}")
+        }
         if compileConstant.isDefinedAt(tree) then
             val const = compileConstant(tree)
             SIR.Const(

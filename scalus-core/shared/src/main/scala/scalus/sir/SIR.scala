@@ -473,7 +473,7 @@ object SIR:
                     case _ => acc
                 }
 
-            accumulate[(Set[String], Set[String]), Set[String]](
+            accumulate[(Set[String], Set[String])](
               sir,
               (Set.empty, vars),
               Set.empty,
@@ -488,19 +488,26 @@ object SIR:
 
         def f(sir: SIR, localNames: Set[String], acc: SIR): SIR =
             sir match {
-                case Var(name, tp, anns) =>
-                    val newName =
-                        if localNames.contains(name) then name else renames.getOrElse(name, name)
-                    if newName == name then acc
-                    else Var(newName, tp, anns)
+                case v @ Var(name, tp, anns) =>
+                    if localNames.contains(name) then v
+                    else
+                        renames.get(name) match {
+                            case None          => v
+                            case Some(newName) => Var(newName, tp, anns)
+                        }
                 case _ => acc
             }
 
-        accumulate[SIR, Set[String]](sir, sir, Set.empty, f)
+        accumulate(sir, sir, Set.empty, f)
 
     }
 
-    def accumulate[A, C](
+    def renameFreeVarsInExpr(sir: AnnotatedSIR, renames: Map[String, String]): AnnotatedSIR = {
+        renameFreeVars(sir, renames).asInstanceOf[AnnotatedSIR]
+
+    }
+
+    def accumulate[A](
         sir: SIR,
         a0: A,
         localNames: Set[String],

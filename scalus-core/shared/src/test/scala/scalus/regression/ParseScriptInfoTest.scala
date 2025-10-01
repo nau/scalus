@@ -1,7 +1,7 @@
-package scalus.bugtracking
+package scalus.regression
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.Compiler.compile
+import scalus.Compiler.{compile, compileDebug}
 import scalus.builtin.ByteString.hex
 import scalus.builtin.Data
 import scalus.builtin.Data.toData
@@ -15,10 +15,12 @@ import scalus.uplc.eval.PlutusVM
 import scala.language.implicitConversions
 
 @scalus.Compile
+@scalus.ScalusDebug(10)
 object ParseScriptInfo {
 
     def validate(scData: Data): Boolean = {
         val sc = scData.to[ScriptContext]
+        val x = BigInt(6)
         sc.scriptInfo match
             case ScriptInfo.MintingScript(policyId) =>
                 mint(sc.redeemer, policyId, sc.txInfo)
@@ -89,7 +91,7 @@ class ParseScriptInfoTest extends AnyFunSuite:
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,
-      debug = false
+      debug = true
     )
 
     test("ScriptInfo parsing") {
@@ -122,11 +124,11 @@ class ParseScriptInfoTest extends AnyFunSuite:
 
         val compiled = compile { ParseScriptInfo.validate }
 
-        // println(compiled.pretty.render(100))
-        // println(s"compiled type:  ${compiled.tp.show}")
+        println(compiled.pretty.render(100))
+        println(s"compiled type:  ${compiled.tp.show}")
         val term = compiled.toUplc()
 
-        // println(term.pretty.render(100))
+        println(term.pretty.render(100))
 
         val scriptContextData = scriptContext.toData
         val appliedValidator = term.plutusV3 $ scriptContextData
@@ -178,7 +180,7 @@ class ParseScriptInfoOldBackendTest extends AnyFunSuite:
 
         val compiled = compile { ParseScriptInfo.validate }
 
-        // println(compiled.pretty.render(100))
+        println(compiled.pretty.render(100))
         // println(s"compiled type:  ${compiled.tp.show}")
         val term = compiled.toUplc()
 
