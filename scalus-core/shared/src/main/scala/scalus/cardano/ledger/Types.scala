@@ -11,7 +11,7 @@ import upickle.default.ReadWriter as UpickleReadWriter
 import cats.kernel.CommutativeGroup
 
 import java.util
-import scala.annotation.targetName
+import scala.annotation.{targetName, threadUnsafe}
 import scala.collection.immutable.{ListMap, SortedMap, TreeMap}
 import scala.compiletime.asMatchable
 
@@ -484,7 +484,8 @@ object OriginalCborByteArray {
     def apply(bytes: Array[Byte]): OriginalCborByteArray = bytes
 }
 
-case class KeepRaw[A](value: A, raw: Array[Byte]) {
+case class KeepRaw[A] private (val value: A, rawBytes: () => Array[Byte]) {
+    @threadUnsafe lazy val raw: Array[Byte] = rawBytes()
     override def hashCode: Int =
         util.Arrays.hashCode(Array(value.hashCode(), util.Arrays.hashCode(raw)))
 
@@ -497,7 +498,18 @@ case class KeepRaw[A](value: A, raw: Array[Byte]) {
 }
 
 object KeepRaw {
-    def apply[A: Encoder](value: A): KeepRaw[A] = new KeepRaw(value, Cbor.encode(value))
+
+    /** Create a KeepRaw instance from a value and its raw CBOR bytes
+      *
+      * @note
+      *   This method creates a `KeepRaw` instance that may be CBOR encoded differently from the
+      *   original `raw` bytes. Use it only if you know what you are doing.
+      */
+    def unsafe[A](value: A, raw: => Array[Byte]): KeepRaw[A] =
+        new KeepRaw(value, () => raw)
+
+    /** Create a KeepRaw instance from a value, encoding it to CBOR to get the raw bytes */
+    def apply[A: Encoder](value: A): KeepRaw[A] = new KeepRaw(value, () => Cbor.encode(value))
 
     given [A: Decoder](using OriginalCborByteArray): Decoder[KeepRaw[A]] =
         Decoder { r =>
@@ -509,7 +521,7 @@ object KeepRaw {
             val di = r.dataItem()
             val end = if di == DataItem.EndOfInput then r.input.cursor else r.cursor
             val raw = summon[OriginalCborByteArray].slice(start.toInt, end.toInt)
-            KeepRaw(value, raw)
+            new KeepRaw(value, () => raw)
         }
 
     given [A: Encoder]: Encoder[KeepRaw[A]] = (w: Writer, value: KeepRaw[A]) => {

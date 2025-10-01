@@ -1,11 +1,10 @@
 package scalus.cardano.ledger
 package rules
 
-import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
 import org.scalacheck.Arbitrary
-import scalus.cardano.ledger.Timelock
-import scalus.builtin.platform
 import org.scalatest.funsuite.AnyFunSuite
+import scalus.builtin.platform
+import scalus.cardano.address.{ShelleyAddress, ShelleyPaymentPart}
 
 class NativeScriptsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
     test("NativeScriptsValidator rule success") {
@@ -124,50 +123,38 @@ class NativeScriptsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
             State(
               utxo = Map(
-                input1 -> TransactionOutput.Babbage(
+                input1 -> TransactionOutput(
                   signatureTimelock1Address,
                   Value(Coin(1000L)),
-                  None,
-                  None
                 ),
-                input2 -> TransactionOutput.Babbage(
+                input2 -> TransactionOutput(
                   signatureTimelock2Address,
                   Value(Coin(1000L)),
-                  None,
-                  None
                 ),
-                input3 -> TransactionOutput.Babbage(
+                input3 -> TransactionOutput(
                   allOfTimelockAddress,
                   Value(Coin(1000L)),
-                  None,
-                  None
                 ),
-                input4 -> TransactionOutput.Babbage(
+                input4 -> TransactionOutput(
                   anyOfTimelockAddress,
                   Value(Coin(1000L)),
-                  None,
-                  None
                 ),
-                input5 -> TransactionOutput.Babbage(
+                input5 -> TransactionOutput(
                   mOfTimelockAddress,
                   Value(Coin(1000L)),
-                  None,
-                  None
                 ),
-                referenceInput1 -> TransactionOutput
-                    .Babbage(
-                      timeStartTimelockAddress,
-                      Value(Coin(1000L)),
-                      None,
-                      Some(ScriptRef(Script.Native(timeStartTimelock)))
-                    ),
-                referenceInput2 -> TransactionOutput
-                    .Babbage(
-                      timeExpireTimelockAddress,
-                      Value(Coin(1000L)),
-                      None,
-                      Some(ScriptRef(Script.Native(timeExpireTimelock)))
-                    )
+                referenceInput1 -> TransactionOutput(
+                  timeStartTimelockAddress,
+                  Value(Coin(1000L)),
+                  None,
+                  Some(ScriptRef(Script.Native(timeStartTimelock)))
+                ),
+                referenceInput2 -> TransactionOutput(
+                  timeExpireTimelockAddress,
+                  Value(Coin(1000L)),
+                  None,
+                  Some(ScriptRef(Script.Native(timeExpireTimelock)))
+                )
               )
             )
         }
@@ -222,20 +209,16 @@ class NativeScriptsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
             State(
               utxo = Map(
-                input1 -> TransactionOutput
-                    .Babbage(
-                      timeStartTimelockAddress,
-                      Value(Coin(1000L)),
-                      None,
-                      Some(ScriptRef(Script.Native(timeStartTimelock)))
-                    ),
-                input2 -> TransactionOutput
-                    .Babbage(
-                      timeExpireTimelockAddress,
-                      Value(Coin(1000L)),
-                      None,
-                      None
-                    )
+                input1 -> TransactionOutput(
+                  timeStartTimelockAddress,
+                  Value(Coin(1000L)),
+                  None,
+                  Some(ScriptRef(Script.Native(timeStartTimelock)))
+                ),
+                input2 -> TransactionOutput(
+                  timeExpireTimelockAddress,
+                  Value(Coin(1000L)),
+                )
               )
             )
         }

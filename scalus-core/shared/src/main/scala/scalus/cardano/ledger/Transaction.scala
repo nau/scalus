@@ -19,7 +19,7 @@ case class Transaction(
     isValid: Boolean = true,
 
     /** Optional auxiliary data */
-    auxiliaryData: Option[AuxiliaryData] = None
+    auxiliaryData: Option[KeepRaw[AuxiliaryData]] = None
 ) {
     @transient lazy val id: TransactionHash = Hash(
       platform.blake2b_256(ByteString.unsafeFromArray(body.raw))
@@ -34,11 +34,36 @@ case class Transaction(
 }
 
 object Transaction {
+
+    /** Create a transaction with the given body and witness set, assuming it is valid and has no
+      * auxiliary data
+      */
+    def apply(
+        body: TransactionBody,
+        witnessSet: TransactionWitnessSet
+    ): Transaction =
+        new Transaction(KeepRaw(body), witnessSet, isValid = true, auxiliaryData = None)
+
+    /** Create a transaction with the given body, witness set, and auxiliary data, assuming it is
+      * valid
+      */
     def apply(
         body: TransactionBody,
         witnessSet: TransactionWitnessSet,
+        auxiliaryData: AuxiliaryData
     ): Transaction =
-        new Transaction(KeepRaw(body), witnessSet, isValid = true, auxiliaryData = None)
+        new Transaction(
+          KeepRaw(body),
+          witnessSet,
+          isValid = true,
+          auxiliaryData = Some(KeepRaw(auxiliaryData))
+        )
+
+    /** An empty transaction */
+    def empty: Transaction = Transaction(
+      TransactionBody(TaggedOrderedSet.empty, IndexedSeq.empty, Coin.zero),
+      TransactionWitnessSet.empty,
+    )
 
     def fromCbor(bytes: Array[Byte]): Transaction = {
         given OriginalCborByteArray = OriginalCborByteArray(bytes)

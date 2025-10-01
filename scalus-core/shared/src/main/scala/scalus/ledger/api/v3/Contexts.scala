@@ -20,6 +20,7 @@ export scalus.ledger.api.v1.Closure
 //export scalus.ledger.api.v1.Credential
 type Credential = scalus.ledger.api.v1.Credential
 val Credential = scalus.ledger.api.v1.Credential
+export scalus.ledger.api.v1.CurrencySymbol
 export scalus.ledger.api.v1.PolicyId
 export scalus.ledger.api.v1.DCert
 export scalus.ledger.api.v1.Datum
@@ -39,7 +40,6 @@ export scalus.ledger.api.v1.ValidatorHash
 export scalus.ledger.api.v2.TxOut
 //type Value = scalus.ledger.api.v1.Value
 export scalus.ledger.api.v1.Value
-import scalus.prelude.Ord.{<=>, ifEqualThen, given}
 import scalus.builtin.Builtins
 
 case class TxId(hash: ByteString)
@@ -98,18 +98,18 @@ object DRep:
                 case DRep(cred1) =>
                     y match
                         case DRep(cred2) => cred1 <=> cred2
-                        case _           => Ord.Order.Less
+                        case _           => Order.Less
 
                 case AlwaysAbstain =>
                     y match
-                        case DRep(_)       => Ord.Order.Greater
-                        case AlwaysAbstain => Ord.Order.Equal
-                        case _             => Ord.Order.Less
+                        case DRep(_)       => Order.Greater
+                        case AlwaysAbstain => Order.Equal
+                        case _             => Order.Less
 
                 case AlwaysNoConfidence =>
                     y match
-                        case AlwaysNoConfidence => Ord.Order.Equal
-                        case _                  => Ord.Order.Greater
+                        case AlwaysNoConfidence => Order.Equal
+                        case _                  => Order.Greater
 
     given FromData[scalus.ledger.api.v3.DRep] = FromData.derived
 
@@ -146,19 +146,19 @@ object Delegatee:
             case Delegatee.Stake(hash1) =>
                 y match
                     case Delegatee.Stake(hash2) => hash1 <=> hash2
-                    case _                      => Ord.Order.Less
+                    case _                      => Order.Less
 
             case Delegatee.Vote(drep1) =>
                 y match
-                    case Delegatee.Stake(_)    => Ord.Order.Greater
+                    case Delegatee.Stake(_)    => Order.Greater
                     case Delegatee.Vote(drep2) => drep1 <=> drep2
-                    case _                     => Ord.Order.Less
+                    case _                     => Order.Less
 
             case Delegatee.StakeVote(hash1, drep1) =>
                 y match
                     case Delegatee.StakeVote(hash2, drep2) =>
                         (hash1 <=> hash2) ifEqualThen (drep1 <=> drep2)
-                    case _ => Ord.Order.Greater
+                    case _ => Order.Greater
 
     given FromData[Delegatee] = FromData.derived
     given ToData[Delegatee] = ToData.derived
@@ -243,110 +243,110 @@ object TxCert:
                 y match
                     case RegStaking(cred2, dep2) =>
                         (cred1 <=> cred2) ifEqualThen (dep1 <=> dep2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case UnRegStaking(cred1, ref1) =>
                 y match
-                    case RegStaking(_, _) => Ord.Order.Greater
+                    case RegStaking(_, _) => Order.Greater
                     case UnRegStaking(cred2, ref2) =>
                         (cred1 <=> cred2) ifEqualThen (ref1 <=> ref2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case DelegStaking(cred1, del1) =>
                 y match
-                    case RegStaking(_, _)   => Ord.Order.Greater
-                    case UnRegStaking(_, _) => Ord.Order.Greater
+                    case RegStaking(_, _)   => Order.Greater
+                    case UnRegStaking(_, _) => Order.Greater
                     case DelegStaking(cred2, del2) =>
                         (cred1 <=> cred2) ifEqualThen (del1 <=> del2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case RegDeleg(cred1, del1, dep1) =>
                 y match
-                    case RegStaking(_, _)   => Ord.Order.Greater
-                    case UnRegStaking(_, _) => Ord.Order.Greater
-                    case DelegStaking(_, _) => Ord.Order.Greater
+                    case RegStaking(_, _)   => Order.Greater
+                    case UnRegStaking(_, _) => Order.Greater
+                    case DelegStaking(_, _) => Order.Greater
                     case RegDeleg(cred2, del2, dep2) =>
                         (cred1 <=> cred2) ifEqualThen (del1 <=> del2) ifEqualThen (dep1 <=> dep2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case RegDRep(cred1, dep1) =>
                 y match
-                    case RegStaking(_, _)   => Ord.Order.Greater
-                    case UnRegStaking(_, _) => Ord.Order.Greater
-                    case DelegStaking(_, _) => Ord.Order.Greater
-                    case RegDeleg(_, _, _)  => Ord.Order.Greater
+                    case RegStaking(_, _)   => Order.Greater
+                    case UnRegStaking(_, _) => Order.Greater
+                    case DelegStaking(_, _) => Order.Greater
+                    case RegDeleg(_, _, _)  => Order.Greater
                     case RegDRep(cred2, dep2) =>
                         (cred1 <=> cred2) ifEqualThen (dep1 <=> dep2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case UpdateDRep(cred1) =>
                 y match
-                    case RegStaking(_, _)   => Ord.Order.Greater
-                    case UnRegStaking(_, _) => Ord.Order.Greater
-                    case DelegStaking(_, _) => Ord.Order.Greater
-                    case RegDeleg(_, _, _)  => Ord.Order.Greater
-                    case RegDRep(_, _)      => Ord.Order.Greater
+                    case RegStaking(_, _)   => Order.Greater
+                    case UnRegStaking(_, _) => Order.Greater
+                    case DelegStaking(_, _) => Order.Greater
+                    case RegDeleg(_, _, _)  => Order.Greater
+                    case RegDRep(_, _)      => Order.Greater
                     case UpdateDRep(cred2)  => cred1 <=> cred2
-                    case _                  => Ord.Order.Less
+                    case _                  => Order.Less
 
             case UnRegDRep(cred1, ref1) =>
                 y match
-                    case RegStaking(_, _)   => Ord.Order.Greater
-                    case UnRegStaking(_, _) => Ord.Order.Greater
-                    case DelegStaking(_, _) => Ord.Order.Greater
-                    case RegDeleg(_, _, _)  => Ord.Order.Greater
-                    case RegDRep(_, _)      => Ord.Order.Greater
-                    case UpdateDRep(_)      => Ord.Order.Greater
+                    case RegStaking(_, _)   => Order.Greater
+                    case UnRegStaking(_, _) => Order.Greater
+                    case DelegStaking(_, _) => Order.Greater
+                    case RegDeleg(_, _, _)  => Order.Greater
+                    case RegDRep(_, _)      => Order.Greater
+                    case UpdateDRep(_)      => Order.Greater
                     case UnRegDRep(cred2, ref2) =>
                         (cred1 <=> cred2) ifEqualThen (ref1 <=> ref2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case PoolRegister(cred1, vfr1) =>
                 y match
-                    case RegStaking(_, _)   => Ord.Order.Greater
-                    case UnRegStaking(_, _) => Ord.Order.Greater
-                    case DelegStaking(_, _) => Ord.Order.Greater
-                    case RegDeleg(_, _, _)  => Ord.Order.Greater
-                    case RegDRep(_, _)      => Ord.Order.Greater
-                    case UpdateDRep(_)      => Ord.Order.Greater
-                    case UnRegDRep(_, _)    => Ord.Order.Greater
+                    case RegStaking(_, _)   => Order.Greater
+                    case UnRegStaking(_, _) => Order.Greater
+                    case DelegStaking(_, _) => Order.Greater
+                    case RegDeleg(_, _, _)  => Order.Greater
+                    case RegDRep(_, _)      => Order.Greater
+                    case UpdateDRep(_)      => Order.Greater
+                    case UnRegDRep(_, _)    => Order.Greater
                     case PoolRegister(cred2, vfr2) =>
                         (cred1 <=> cred2) ifEqualThen (vfr1 <=> vfr2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case PoolRetire(cred1, epoch1) =>
                 y match
-                    case RegStaking(_, _)   => Ord.Order.Greater
-                    case UnRegStaking(_, _) => Ord.Order.Greater
-                    case DelegStaking(_, _) => Ord.Order.Greater
-                    case RegDeleg(_, _, _)  => Ord.Order.Greater
-                    case RegDRep(_, _)      => Ord.Order.Greater
-                    case UpdateDRep(_)      => Ord.Order.Greater
-                    case UnRegDRep(_, _)    => Ord.Order.Greater
-                    case PoolRegister(_, _) => Ord.Order.Greater
+                    case RegStaking(_, _)   => Order.Greater
+                    case UnRegStaking(_, _) => Order.Greater
+                    case DelegStaking(_, _) => Order.Greater
+                    case RegDeleg(_, _, _)  => Order.Greater
+                    case RegDRep(_, _)      => Order.Greater
+                    case UpdateDRep(_)      => Order.Greater
+                    case UnRegDRep(_, _)    => Order.Greater
+                    case PoolRegister(_, _) => Order.Greater
                     case PoolRetire(cred2, epoch2) =>
                         (cred1 <=> cred2) ifEqualThen (epoch1 <=> epoch2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case AuthHotCommittee(cred1, hot1) =>
                 y match
-                    case RegStaking(_, _)   => Ord.Order.Greater
-                    case UnRegStaking(_, _) => Ord.Order.Greater
-                    case DelegStaking(_, _) => Ord.Order.Greater
-                    case RegDeleg(_, _, _)  => Ord.Order.Greater
-                    case RegDRep(_, _)      => Ord.Order.Greater
-                    case UpdateDRep(_)      => Ord.Order.Greater
-                    case UnRegDRep(_, _)    => Ord.Order.Greater
-                    case PoolRegister(_, _) => Ord.Order.Greater
-                    case PoolRetire(_, _)   => Ord.Order.Greater
+                    case RegStaking(_, _)   => Order.Greater
+                    case UnRegStaking(_, _) => Order.Greater
+                    case DelegStaking(_, _) => Order.Greater
+                    case RegDeleg(_, _, _)  => Order.Greater
+                    case RegDRep(_, _)      => Order.Greater
+                    case UpdateDRep(_)      => Order.Greater
+                    case UnRegDRep(_, _)    => Order.Greater
+                    case PoolRegister(_, _) => Order.Greater
+                    case PoolRetire(_, _)   => Order.Greater
                     case AuthHotCommittee(cred2, hot2) =>
                         (cred1 <=> cred2) ifEqualThen (hot1 <=> hot2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case ResignColdCommittee(cred1) =>
                 y match
                     case ResignColdCommittee(cred2) => cred1 <=> cred2
-                    case _                          => Ord.Order.Greater
+                    case _                          => Order.Greater
 
     given FromData[TxCert] = FromData.derived
     given ToData[TxCert] = ToData.derived
@@ -381,18 +381,18 @@ object Voter:
             case CommitteeVoter(cred1) =>
                 y match
                     case CommitteeVoter(cred2) => cred1 <=> cred2
-                    case _                     => Ord.Order.Less
+                    case _                     => Order.Less
 
             case DRepVoter(cred1) =>
                 y match
-                    case CommitteeVoter(_) => Ord.Order.Greater
+                    case CommitteeVoter(_) => Order.Greater
                     case DRepVoter(cred2)  => cred1 <=> cred2
-                    case _                 => Ord.Order.Less
+                    case _                 => Order.Less
 
             case StakePoolVoter(pub1) =>
                 y match
                     case StakePoolVoter(pub2) => pub1 <=> pub2
-                    case _                    => Ord.Order.Greater
+                    case _                    => Order.Greater
 
     given ToData[Voter] = ToData.derived
     given FromData[Voter] = FromData.derived
@@ -424,19 +424,19 @@ object Vote:
         x match
             case No =>
                 y match
-                    case No => Ord.Order.Equal
-                    case _  => Ord.Order.Less
+                    case No => Order.Equal
+                    case _  => Order.Less
 
             case Yes =>
                 y match
-                    case No  => Ord.Order.Greater
-                    case Yes => Ord.Order.Equal
-                    case _   => Ord.Order.Less
+                    case No  => Order.Greater
+                    case Yes => Order.Equal
+                    case _   => Order.Less
 
             case Abstain =>
                 y match
-                    case Abstain => Ord.Order.Equal
-                    case _       => Ord.Order.Greater
+                    case Abstain => Order.Equal
+                    case _       => Order.Greater
 
     given ToData[Vote] = ToData.derived
     given FromData[Vote] = FromData.derived
@@ -564,56 +564,56 @@ object GovernanceAction:
                 y match
                     case ParameterChange(id2, params2, const2) =>
                         (id1 <=> id2) ifEqualThen (params1 <=> params2) ifEqualThen (const1 <=> const2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case HardForkInitiation(id1, pv1) =>
                 y match
-                    case ParameterChange(_, _, _) => Ord.Order.Greater
+                    case ParameterChange(_, _, _) => Order.Greater
                     case HardForkInitiation(id2, pv2) =>
                         (id1 <=> id2) ifEqualThen (pv1 <=> pv2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case TreasuryWithdrawals(w1, c1) =>
                 y match
-                    case ParameterChange(_, _, _) => Ord.Order.Greater
-                    case HardForkInitiation(_, _) => Ord.Order.Greater
+                    case ParameterChange(_, _, _) => Order.Greater
+                    case HardForkInitiation(_, _) => Order.Greater
                     case TreasuryWithdrawals(w2, c2) =>
                         (w1 <=> w2) ifEqualThen (c1 <=> c2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case NoConfidence(id1) =>
                 y match
-                    case ParameterChange(_, _, _)  => Ord.Order.Greater
-                    case HardForkInitiation(_, _)  => Ord.Order.Greater
-                    case TreasuryWithdrawals(_, _) => Ord.Order.Greater
+                    case ParameterChange(_, _, _)  => Order.Greater
+                    case HardForkInitiation(_, _)  => Order.Greater
+                    case TreasuryWithdrawals(_, _) => Order.Greater
                     case NoConfidence(id2)         => id1 <=> id2
-                    case _                         => Ord.Order.Less
+                    case _                         => Order.Less
 
             case UpdateCommittee(id1, rm1, add1, q1) =>
                 y match
-                    case ParameterChange(_, _, _)  => Ord.Order.Greater
-                    case HardForkInitiation(_, _)  => Ord.Order.Greater
-                    case TreasuryWithdrawals(_, _) => Ord.Order.Greater
-                    case NoConfidence(_)           => Ord.Order.Greater
+                    case ParameterChange(_, _, _)  => Order.Greater
+                    case HardForkInitiation(_, _)  => Order.Greater
+                    case TreasuryWithdrawals(_, _) => Order.Greater
+                    case NoConfidence(_)           => Order.Greater
                     case UpdateCommittee(id2, rm2, add2, q2) =>
                         (id1 <=> id2) ifEqualThen (rm1 <=> rm2) ifEqualThen (add1 <=> add2) ifEqualThen (q1 <=> q2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case NewConstitution(id1, const1) =>
                 y match
-                    case ParameterChange(_, _, _)    => Ord.Order.Greater
-                    case HardForkInitiation(_, _)    => Ord.Order.Greater
-                    case TreasuryWithdrawals(_, _)   => Ord.Order.Greater
-                    case NoConfidence(_)             => Ord.Order.Greater
-                    case UpdateCommittee(_, _, _, _) => Ord.Order.Greater
+                    case ParameterChange(_, _, _)    => Order.Greater
+                    case HardForkInitiation(_, _)    => Order.Greater
+                    case TreasuryWithdrawals(_, _)   => Order.Greater
+                    case NoConfidence(_)             => Order.Greater
+                    case UpdateCommittee(_, _, _, _) => Order.Greater
                     case NewConstitution(id2, const2) =>
                         (id1 <=> id2) ifEqualThen (const1 <=> const2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case InfoAction =>
                 y match
-                    case InfoAction => Ord.Order.Equal
-                    case _          => Ord.Order.Greater
+                    case InfoAction => Order.Equal
+                    case _          => Order.Greater
 
     given FromData[GovernanceAction] = FromData.derived
     given ToData[GovernanceAction] = ToData.derived
@@ -687,44 +687,44 @@ object ScriptPurpose:
             case Minting(cs1) =>
                 y match
                     case Minting(cs2) => cs1 <=> cs2
-                    case _            => Ord.Order.Less
+                    case _            => Order.Less
 
             case Spending(ref1) =>
                 y match
-                    case Minting(_)     => Ord.Order.Greater
+                    case Minting(_)     => Order.Greater
                     case Spending(ref2) => ref1 <=> ref2
-                    case _              => Ord.Order.Less
+                    case _              => Order.Less
 
             case Rewarding(cred1) =>
                 y match
-                    case Minting(_)       => Ord.Order.Greater
-                    case Spending(_)      => Ord.Order.Greater
+                    case Minting(_)       => Order.Greater
+                    case Spending(_)      => Order.Greater
                     case Rewarding(cred2) => cred1 <=> cred2
-                    case _                => Ord.Order.Less
+                    case _                => Order.Less
 
             case Certifying(idx1, cert1) =>
                 y match
-                    case Minting(_)   => Ord.Order.Greater
-                    case Spending(_)  => Ord.Order.Greater
-                    case Rewarding(_) => Ord.Order.Greater
+                    case Minting(_)   => Order.Greater
+                    case Spending(_)  => Order.Greater
+                    case Rewarding(_) => Order.Greater
                     case Certifying(idx2, cert2) =>
                         (idx1 <=> idx2) ifEqualThen (cert1 <=> cert2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case Voting(voter1) =>
                 y match
-                    case Minting(_)       => Ord.Order.Greater
-                    case Spending(_)      => Ord.Order.Greater
-                    case Rewarding(_)     => Ord.Order.Greater
-                    case Certifying(_, _) => Ord.Order.Greater
+                    case Minting(_)       => Order.Greater
+                    case Spending(_)      => Order.Greater
+                    case Rewarding(_)     => Order.Greater
+                    case Certifying(_, _) => Order.Greater
                     case Voting(voter2)   => voter1 <=> voter2
-                    case _                => Ord.Order.Less
+                    case _                => Order.Less
 
             case Proposing(idx1, proc1) =>
                 y match
                     case Proposing(idx2, proc2) =>
                         (idx1 <=> idx2) ifEqualThen (proc1 <=> proc2)
-                    case _ => Ord.Order.Greater
+                    case _ => Order.Greater
 
     given FromData[ScriptPurpose] = FromData.derived
     given ToData[ScriptPurpose] = ToData.derived
@@ -776,45 +776,45 @@ object ScriptInfo:
             case MintingScript(cs1) =>
                 y match
                     case MintingScript(cs2) => cs1 <=> cs2
-                    case _                  => Ord.Order.Less
+                    case _                  => Order.Less
 
             case SpendingScript(ref1, dat1) =>
                 y match
-                    case MintingScript(_) => Ord.Order.Greater
+                    case MintingScript(_) => Order.Greater
                     case SpendingScript(ref2, dat2) =>
                         (ref1 <=> ref2) ifEqualThen (dat1 <=> dat2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case RewardingScript(cred1) =>
                 y match
-                    case MintingScript(_)       => Ord.Order.Greater
-                    case SpendingScript(_, _)   => Ord.Order.Greater
+                    case MintingScript(_)       => Order.Greater
+                    case SpendingScript(_, _)   => Order.Greater
                     case RewardingScript(cred2) => cred1 <=> cred2
-                    case _                      => Ord.Order.Less
+                    case _                      => Order.Less
 
             case CertifyingScript(idx1, cert1) =>
                 y match
-                    case MintingScript(_)     => Ord.Order.Greater
-                    case SpendingScript(_, _) => Ord.Order.Greater
-                    case RewardingScript(_)   => Ord.Order.Greater
+                    case MintingScript(_)     => Order.Greater
+                    case SpendingScript(_, _) => Order.Greater
+                    case RewardingScript(_)   => Order.Greater
                     case CertifyingScript(idx2, cert2) =>
                         (idx1 <=> idx2) ifEqualThen (cert1 <=> cert2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case VotingScript(voter1) =>
                 y match
-                    case MintingScript(_)       => Ord.Order.Greater
-                    case SpendingScript(_, _)   => Ord.Order.Greater
-                    case RewardingScript(_)     => Ord.Order.Greater
-                    case CertifyingScript(_, _) => Ord.Order.Greater
+                    case MintingScript(_)       => Order.Greater
+                    case SpendingScript(_, _)   => Order.Greater
+                    case RewardingScript(_)     => Order.Greater
+                    case CertifyingScript(_, _) => Order.Greater
                     case VotingScript(voter2)   => voter1 <=> voter2
-                    case _                      => Ord.Order.Less
+                    case _                      => Order.Less
 
             case ProposingScript(idx1, proc1) =>
                 y match
                     case ProposingScript(idx2, proc2) =>
                         (idx1 <=> idx2) ifEqualThen (proc1 <=> proc2)
-                    case _ => Ord.Order.Greater
+                    case _ => Order.Greater
 
     given FromData[ScriptInfo] = FromData.derived
     given ToData[ScriptInfo] = ToData.derived

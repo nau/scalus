@@ -217,7 +217,7 @@ class SirToUplc110Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                       Term.LamAbs(name, lowerInner(rhs))
                     )
                 Term.Apply(Term.LamAbs(name, lowerInner(body)), fixed)
-            case SIR.Let(bindings, body, flags, _) if flags.isRec =>
+            case SIR.Let(bindings, body, flags, _) =>
                 // TODO: implement mutual recursion
                 sys.error(s"Mutually recursive bindings are not supported: $bindings")
             case SIR.LamAbs(name, term, _, _)          => Term.LamAbs(name.name, lowerInner(term))

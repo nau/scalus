@@ -717,7 +717,6 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
             (value - Value.zero) === value && (Value.zero - value) === -value
         }
 
-        // TODO: UPLC error
         checkEval { (value1: Value, value2: Value) =>
             val diffValue = value1 - value2
             diffValue.flatten.forall { case (cs, token, value) =>
@@ -1160,60 +1159,56 @@ class ValueTest extends StdlibTestKit with ArbitraryInstances {
     }
 
     test("flatten") {
-        // TODO: UPLC error
-        //       checkEval { (value: Value) =>
-        //           value.flatten ===
-        //               value.toSortedMap.toList.flatMap { case (cs, tokens) =>
-        //                   tokens.toList.map { case (tn, amount) => (cs, tn, amount) }
-        //               }
-        //       }
+        checkEval { (value: Value) =>
+            value.flatten ===
+                value.toSortedMap.toList.flatMap { case (cs, tokens) =>
+                    tokens.toList.map { case (tn, amount) => (cs, tn, amount) }
+                }
+        }
 
         assertEvalEq(Value.zero.flatten, List.empty)
 
-        // TODO: UPLC error
-//        assertEvalEq(
-//          Value.lovelace(BigInt(1000)).flatten,
-//          List((Value.adaPolicyId, Value.adaTokenName, BigInt(1000)))
-//        )
+        assertEvalEq(
+          Value.lovelace(BigInt(1000)).flatten,
+          List((Value.adaPolicyId, Value.adaTokenName, BigInt(1000)))
+        )
 
-        // TODO: UPLC error
-//        assertEvalEq(
-//          Value(
-//            ByteString.fromString("PolicyId"),
-//            ByteString.fromString("TokenName"),
-//            BigInt(1000)
-//          ).flatten,
-//          List(
-//            (
-//              ByteString.fromString("PolicyId"),
-//              ByteString.fromString("TokenName"),
-//              BigInt(1000)
-//            )
-//          )
-//        )
+        assertEvalEq(
+          Value(
+            ByteString.fromString("PolicyId"),
+            ByteString.fromString("TokenName"),
+            BigInt(1000)
+          ).flatten,
+          List(
+            (
+              ByteString.fromString("PolicyId"),
+              ByteString.fromString("TokenName"),
+              BigInt(1000)
+            )
+          )
+        )
 
-        // TODO: UPLC error
-//        assertEvalEq(
-//          Value
-//              .fromList(
-//                List(
-//                  (
-//                    ByteString.fromString("PolicyId"),
-//                    List((ByteString.fromString("TokenName"), BigInt(1000)))
-//                  ),
-//                  (Value.adaPolicyId, List((Value.adaTokenName, BigInt(1000))))
-//                )
-//              )
-//              .flatten,
-//          List(
-//            (Value.adaPolicyId, Value.adaTokenName, BigInt(1000)),
-//            (
-//              ByteString.fromString("PolicyId"),
-//              ByteString.fromString("TokenName"),
-//              BigInt(1000)
-//            )
-//          )
-//        )
+        assertEvalEq(
+          Value
+              .fromList(
+                List(
+                  (
+                    ByteString.fromString("PolicyId"),
+                    List((ByteString.fromString("TokenName"), BigInt(1000)))
+                  ),
+                  (Value.adaPolicyId, List((Value.adaTokenName, BigInt(1000))))
+                )
+              )
+              .flatten,
+          List(
+            (Value.adaPolicyId, Value.adaTokenName, BigInt(1000)),
+            (
+              ByteString.fromString("PolicyId"),
+              ByteString.fromString("TokenName"),
+              BigInt(1000)
+            )
+          )
+        )
     }
 
 }

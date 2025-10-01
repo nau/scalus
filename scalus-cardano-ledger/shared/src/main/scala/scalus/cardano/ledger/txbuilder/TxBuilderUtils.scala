@@ -7,7 +7,7 @@ import io.bullet.borer.Cbor
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
-import scalus.utils.Hex
+import scalus.utils.Hex.hexToBytes
 
 import scala.collection.mutable
 
@@ -27,7 +27,7 @@ object TxBuilderUtils {
         def decodeToSingleCbor(script: PlutusScript) =
             // unwrap the outer CBOR encoding
             ByteString.unsafeFromArray(
-              Cbor.decode(Hex.hexToBytes(script.getCborHex)).to[Array[Byte]].value
+              Cbor.decode(script.getCborHex.hexToBytes).to[Array[Byte]].value
             )
 
         // Initialize UTXOs with provided input UTXOs
@@ -89,12 +89,12 @@ object TxBuilderUtils {
         val datumOption: Option[DatumOption] =
             Option(output.getDataHash) -> Option(output.getInlineDatum) match
                 case (_, Some(inlineDatum)) =>
-                    Some(DatumOption.Inline(Data.fromCbor(Hex.hexToBytes(inlineDatum))))
+                    Some(DatumOption.Inline(Data.fromCbor(inlineDatum.hexToBytes)))
                 case (Some(dataHash), None) =>
                     Some(DatumOption.Hash(Hash(ByteString.fromHex(dataHash))))
                 case (None, None) => None
         val value = Value.lovelace(output.toValue.getCoin.longValue())
-        TransactionOutput.Babbage(
+        TransactionOutput(
           address,
           value,
           datumOption,

@@ -28,7 +28,7 @@ object SendTx:
     private def blockfrostApiKey = System.getenv("BLOCKFROST_API_KEY")
 
     private val network: Network = Networks.preview()
-    private val sender = new Account(network, mnemonic)
+    private val sender = Account.createFromMnemonic(network, mnemonic)
 
     private val backendService =
         new BFBackendService(Constants.BLOCKFROST_PREVIEW_URL, blockfrostApiKey)

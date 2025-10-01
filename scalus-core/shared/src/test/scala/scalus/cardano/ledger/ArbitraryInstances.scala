@@ -378,35 +378,31 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
         yield BlockHeader(headerBody, bodySignature)
     }
 
-    given Arbitrary[TransactionMetadatumLabel] = Arbitrary(
-      Gen.choose(0L, Long.MaxValue).map(TransactionMetadatumLabel.apply)
-    )
+    given Arbitrary[Metadatum] = {
+        val genMetadatumInt =
+            Gen.choose(Long.MinValue, Long.MaxValue).map(Metadatum.Int.apply)
 
-    given Arbitrary[TransactionMetadatum] = {
-        val genTransactionMetadatumInt =
-            Gen.choose(Long.MinValue, Long.MaxValue).map(TransactionMetadatum.Int.apply)
+        val genMetadatumBytes =
+            Gen.choose(0, 64).flatMap(genByteStringOfN).map(Metadatum.Bytes.apply)
 
-        val genTransactionMetadatumBytes =
-            Gen.choose(0, 64).flatMap(genByteStringOfN).map(TransactionMetadatum.Bytes.apply)
-
-        val genTransactionMetadatumText = Gen
+        val genMetadatumText = Gen
             .choose(0, 64)
             .flatMap(Gen.listOfN(_, Gen.alphaNumChar))
             .map(_.mkString)
-            .map(TransactionMetadatum.Text.apply)
+            .map(Metadatum.Text.apply)
 
-        def genTransactionMetadatum(depth: Int): Gen[TransactionMetadatum] = {
+        def genMetadatum(depth: Int): Gen[Metadatum] = {
             if depth <= 0 then
                 Gen.oneOf(
                   Gen.const(
-                    TransactionMetadatum.Map(
-                      immutable.Map.empty[TransactionMetadatum, TransactionMetadatum]
+                    Metadatum.Map(
+                      immutable.Map.empty[Metadatum, Metadatum]
                     )
                   ),
-                  Gen.const(TransactionMetadatum.List(immutable.IndexedSeq.empty)),
-                  genTransactionMetadatumInt,
-                  genTransactionMetadatumBytes,
-                  genTransactionMetadatumText
+                  Gen.const(Metadatum.List(immutable.IndexedSeq.empty)),
+                  genMetadatumInt,
+                  genMetadatumBytes,
+                  genMetadatumText
                 )
             else
                 val reducedDepth = depth - 1
@@ -417,30 +413,32 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
                         result <- Gen.mapOfN(
                           size,
                           for
-                              key <- Gen.lzy(genTransactionMetadatum(reducedDepth))
-                              value <- Gen.lzy(genTransactionMetadatum(reducedDepth))
+                              key <- Gen.lzy(genMetadatum(reducedDepth))
+                              value <- Gen.lzy(genMetadatum(reducedDepth))
                           yield (key, value)
                         )
-                    yield TransactionMetadatum.Map(result)
+                    yield Metadatum.Map(result)
                   ),
                   2 -> (
                     for
                         size <- Gen.choose(0, 2)
-                        result <- Gen.containerOfN[IndexedSeq, TransactionMetadatum](
+                        result <- Gen.containerOfN[IndexedSeq, Metadatum](
                           size,
-                          Gen.lzy(genTransactionMetadatum(reducedDepth))
+                          Gen.lzy(genMetadatum(reducedDepth))
                         )
-                    yield TransactionMetadatum.List(result)
+                    yield Metadatum.List(result)
                   ),
-                  1 -> genTransactionMetadatumInt,
-                  1 -> genTransactionMetadatumBytes,
-                  1 -> genTransactionMetadatumText
+                  1 -> genMetadatumInt,
+                  1 -> genMetadatumBytes,
+                  1 -> genMetadatumText
                 )
 
         }
 
-        Arbitrary(Gen.choose(0, 3).flatMap(genTransactionMetadatum))
+        Arbitrary(Gen.choose(0, 3).flatMap(genMetadatum))
     }
+
+    given Arbitrary[Word64] = Arbitrary(Arbitrary.arbitrary[Long].map(Word64(_)))
 
     given Arbitrary[AuxiliaryData] = {
         given [A: Arbitrary, B: Arbitrary]: Arbitrary[immutable.Map[A, B]] = Arbitrary(
@@ -699,7 +697,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
                       for
                           key <- Gen.choose(0, transactionBodiesSize - 1)
                           value <- arbitrary[AuxiliaryData]
-                      yield (key, value)
+                      yield (key, KeepRaw(value))
                     )
                 yield result
             invalidTransactions <-
@@ -734,7 +732,7 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
             body <- arbitrary[KeepRaw[TransactionBody]]
             witnessSet <- arbitrary[TransactionWitnessSet]
             isValid <- arbitrary[Boolean]
-            auxiliaryData <- arbitrary[Option[AuxiliaryData]]
+            auxiliaryData <- arbitrary[Option[KeepRaw[AuxiliaryData]]]
         yield Transaction(body, witnessSet, isValid, auxiliaryData)
     }
 }

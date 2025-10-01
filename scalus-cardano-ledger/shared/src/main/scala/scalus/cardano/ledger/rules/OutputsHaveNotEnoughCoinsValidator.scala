@@ -2,7 +2,6 @@ package scalus.cardano.ledger
 package rules
 
 import scalus.cardano.ledger.utils.MinCoinSizedTransactionOutput
-import scalus.cardano.ledger.ProtocolParams
 
 // It's Babbage.validateOutputTooSmallUTxO in cardano-ledger
 object OutputsHaveNotEnoughCoinsValidator extends STS.Validator {

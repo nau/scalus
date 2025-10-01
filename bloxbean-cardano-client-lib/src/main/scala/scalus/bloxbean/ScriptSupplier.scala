@@ -3,6 +3,7 @@ import com.bloxbean.cardano.client.backend.api.ScriptService
 import com.bloxbean.cardano.client.plutus.spec.PlutusScript
 import com.bloxbean.cardano.client.plutus.util.PlutusUtil
 import scalus.utils.Utils
+import scalus.utils.Hex.hexToBytes
 
 import java.nio.file.Files
 import java.util
@@ -57,6 +58,6 @@ class FileScriptSupplier(scriptsDirectory: Path, scriptSupplier: ScriptSupplier)
         else
             val script = scriptSupplier.getScript(scriptHash)
             Files.createDirectories(scriptsDirectory)
-            Files.write(scriptsDirectory.resolve(scriptHash), Utils.hexToBytes(script.getCborHex))
+            Files.write(scriptsDirectory.resolve(scriptHash), script.getCborHex.hexToBytes)
             script
 }

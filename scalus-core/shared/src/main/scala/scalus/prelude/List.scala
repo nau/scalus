@@ -7,7 +7,6 @@ import scalus.builtin.Data.fromData
 import scalus.builtin.{BuiltinPair, Data, FromData, ToData}
 import scala.annotation.tailrec
 import scala.collection.mutable
-import Ord.{<=>, Order}
 
 enum List[+A]:
     case Nil extends List[Nothing]
@@ -275,6 +274,16 @@ object List {
                     case Cons(headRhs, tailRhs) =>
                         val order = headLhs <=> headRhs
                         if order.nonEqual then order else tailLhs <=> tailRhs
+
+    given showList[T: Show]: Show[List[T]] = (xs: List[T]) => {
+        @tailrec
+        def go(start: String, rest: List[T]): String = rest match {
+            case List.Nil => start
+            case List.Cons(head, tail) =>
+                go(appendString(appendString(start, head.show), ", "), tail)
+        }
+        appendString("[", appendString(go("", xs), "]"))
+    }
 
     extension [A](elem: A) {
 

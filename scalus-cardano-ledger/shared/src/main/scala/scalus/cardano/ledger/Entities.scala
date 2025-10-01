@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 
 import scalus.cardano.address.{Address, Network}
-import scalus.cardano.ledger.ValidityInterval
 
 // TODO: maybe replace on enum
 sealed abstract class TransactionException(message: String, cause: Throwable)
@@ -245,6 +244,51 @@ object TransactionException {
     final case class WrongNetworkInTxBody(transactionId: TransactionHash, wrongNetworkId: Int)
         extends TransactionException(
           s"Wrong networkId $wrongNetworkId in body of transaction $transactionId"
+        )
+
+    sealed class MetadataException(message: String) extends TransactionException(message)
+    object MetadataException {
+        // It's Shelley.MissingTxMetadata in cardano-ledger
+        final case class MissingAuxiliaryDataException(
+            transactionId: TransactionHash,
+            auxiliaryDataHash: AuxiliaryDataHash
+        ) extends MetadataException(
+              s"Missing auxiliary data for transactionId $transactionId, auxiliary data hash: $auxiliaryDataHash"
+            )
+
+        // It's Shelley.MissingTxBodyMetadataHash in cardano-ledger
+        final case class MissingAuxiliaryDataHashException(
+            transactionId: TransactionHash,
+            auxiliaryData: AuxiliaryData
+        ) extends MetadataException(
+              s"Missing auxiliary data hash for transactionId $transactionId, auxiliary data: $auxiliaryData"
+            )
+
+        // It's Shelley.ConflictingMetadataHash in cardano-ledger
+        final case class InvalidAuxiliaryDataHashException(
+            transactionId: TransactionHash,
+            actual: AuxiliaryDataHash,
+            expected: AuxiliaryDataHash
+        ) extends MetadataException(
+              s"Invalid auxiliary data hash for transactionId $transactionId, expected: $expected, actual: $actual"
+            )
+
+        // It's Shelley.InvalidMetadata in cardano-ledger
+        final case class InvalidAuxiliaryDataException(
+            transactionId: TransactionHash,
+            auxiliaryData: AuxiliaryData
+        ) extends MetadataException(
+              s"Invalid auxiliary data for transactionId $transactionId, auxiliary data: $auxiliaryData"
+            )
+    }
+
+    // It's Alonzo.ExtraRedeemers and Alonzo.MissingRedeemers in cardano-ledger
+    final case class ExactSetOfRedeemersException(
+        transactionId: TransactionHash,
+        extraRedeemers: Set[(RedeemerTag, Int)],
+        missingRedeemers: Set[(RedeemerTag, Int)]
+    ) extends TransactionException(
+          s"Exact set of redeemers validation failed for transactionId $transactionId, extra redeemers: $extraRedeemers, missing redeemers: $missingRedeemers"
         )
 
     // TODO: placeholder for general exception, remove after finishing development

@@ -17,6 +17,7 @@ import scalus.uplc.*
 import scalus.uplc.eval.MachineParams
 import scalus.uplc.eval.PlutusVM
 import scalus.utils.Utils
+import scalus.utils.Hex.hexToBytes
 
 import scala.language.implicitConversions
 
@@ -118,7 +119,7 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
 
         def encodeAsHexString(d: Data) = Utils.bytesToHex(Cbor.encode(d).toByteArray)
 
-        val plutusData = Cbor.decode(Utils.hexToBytes(plutusSerializedData)).to[Data].value
+        val plutusData = Cbor.decode(plutusSerializedData.hexToBytes).to[Data].value
         val plutusScriptContext = fromData[ScriptContext](plutusData)
         assert(plutusScriptContext == scriptContextV1)
         assert(plutusData == scriptContextV1.toData)

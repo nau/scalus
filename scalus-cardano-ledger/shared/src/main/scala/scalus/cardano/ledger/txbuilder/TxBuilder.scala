@@ -75,7 +75,7 @@ case class TxBuilder(
       * The output contains the specified data stored as inline datum.
       */
     def payToScript(address: Address, value: Value, datum: Data): TxBuilder = {
-        val out = Sized(TransactionOutput(address, value, Some(DatumOption.Inline(datum))))
+        val out = Sized(TransactionOutput(address, value, DatumOption.Inline(datum)))
         copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
     }
 
@@ -83,7 +83,7 @@ case class TxBuilder(
       * The output contains the specified data hash.
       */
     def payToScript(address: Address, value: Value, datumHash: DataHash): TxBuilder = {
-        val out = Sized(TransactionOutput(address, value, Some(DatumOption.Hash(datumHash))))
+        val out = Sized(TransactionOutput(address, value, DatumOption.Hash(datumHash)))
         copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
     }
 
@@ -230,7 +230,7 @@ case class TxBuilder(
                     existing.filterNot(r => r.tag == tag && r.index == index) :+ newRedeemer
                 Redeemers.from(updated)
             case None =>
-                Redeemers.from(Seq(newRedeemer))
+                Redeemers(newRedeemer)
         }
     }
 
@@ -441,10 +441,7 @@ object TxBuilder {
         tx.copy(witnessSet = newWs)
     }
 
-    val emptyTx: Transaction = Transaction(
-      TransactionBody(TaggedOrderedSet.empty, IndexedSeq.empty, Coin.zero),
-      TransactionWitnessSet.empty
-    )
+    val emptyTx: Transaction = Transaction.empty
 
     def withInputsFromUtxos(utxo: UTxO) = Transaction(
       TransactionBody(TaggedOrderedSet.from(utxo.keySet), IndexedSeq.empty, Coin.zero),

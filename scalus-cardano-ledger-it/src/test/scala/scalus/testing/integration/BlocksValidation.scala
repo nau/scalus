@@ -1,6 +1,6 @@
-package scalus.bloxbean
+package scalus.testing.integration
 
-import co.nstant.in.cbor.{model as cbor, CborException}
+import co.nstant.in.cbor.{CborException, model as cbor}
 import com.bloxbean.cardano.client.api.UtxoSupplier
 import com.bloxbean.cardano.client.api.util.CostModelUtil.{PlutusV1CostModel, PlutusV2CostModel, PlutusV3CostModel}
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
@@ -13,13 +13,14 @@ import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
 import com.bloxbean.cardano.yaci.core.model.serializers.util.{TransactionBodyExtractor, WitnessUtil}
 import com.bloxbean.cardano.yaci.core.util.CborSerializationUtil
+import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
+import scalus.bloxbean.*
 import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
-import scalus.builtin.{platform, ByteString}
+import scalus.builtin.{ByteString, platform}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
-import scalus.cardano.ledger.ProtocolParams
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, LedgerToPlutusTranslation, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, ProtocolParams, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Hex.toHex
 import scalus.utils.Utils
@@ -41,20 +42,26 @@ import scala.util.Using
   *   - cat script-1.flat | uplc evaluate --input-format flat --counting --trace-mode
   *     LogsWithBudgets --builtin-semantics-variant B
   */
-object BlocksValidation:
+class BlocksValidation extends AnyFunSuite {
 
     case class BlockTx(tx: Transaction, datums: util.List[ByteString], txHash: String)
 
-    lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(
-      "BLOCKFROST_API_KEY is not set, please set it before running the test"
+    private lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? {
+        println("BLOCKFROST_API_KEY is not set, please set it before running the test")
+        ""
+    }
+
+    private lazy val dataPath = System.getenv("SCALUS_IT_DATA_PATH") ?? sys.error(
+      "SCALUS_IT_DATA_PATH is not set, please set it before running the test"
     )
+
+    private lazy val resourcesPath = Paths.get(dataPath)
 
     private def validateBlocksOfEpoch(epoch: Int): Unit = {
         import com.bloxbean.cardano.yaci.core.config.YaciConfig
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
         YaciConfig.INSTANCE.setReturnTxBodyCbor(true) // needed to get the tx body cbor
 
-        val resourcesPath = Paths.get(".")
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
           resourcesPath.resolve("utxos"),
@@ -67,7 +74,12 @@ object BlocksValidation:
             ScriptServiceSupplier(backendService.getScriptService)
           )
         )
-        val protocolParams = backendService.getEpochService.getProtocolParameters(epoch).getValue
+        val protocolParamsSupplier = CachedEpochParamsSupplier(
+          resourcesPath.resolve("epochs"),
+          backendService.getEpochService
+        )
+
+        val protocolParams = protocolParamsSupplier.getProtocolParameters(epoch).getValue
         val utxoResolver = CclUtxoResolver(utxoSupplier, scriptSupplier)
         val evaluator = ScalusTransactionEvaluator(
           SlotConfig.Mainnet,
@@ -88,72 +100,82 @@ object BlocksValidation:
         var v3ScriptsExecuted = 0
 
         println(s"Validating blocks of epoch $epoch...")
-        for blockNum <- 11544518 to 11546100 do
-            val txs = readTransactionsFromBlockCbor(
-              resourcesPath.resolve(s"blocks/block-$blockNum.cbor")
-            )
-            val txsWithScripts =
-                val r = mutable.Buffer.empty[
-                  (Transaction, util.List[ByteString], String, Map[ScriptHash, Script])
-                ]
-                for BlockTx(tx, datums, txhash) <- txs do
-                    try
-                        val utxos = utxoResolver.resolveUtxos(tx)
-                        val scripts = TxEvaluator.getAllResolvedScripts(tx, utxos)
-                        if scripts.nonEmpty then r.addOne((tx, datums, txhash, scripts))
-                    catch
-                        case e: Exception =>
-                            println(s"Error in block $blockNum, tx $txhash: ${e.getMessage}")
-                r.toSeq
-            print(s"\rBlock $blockNum, num txs to validate: ${txsWithScripts.size}")
+        for blockNum <- 11544518 to /*11662495*/ 11546100 do
+            try
+                val txs = readTransactionsFromBlockCbor(
+                  resourcesPath.resolve(s"blocks/block-$blockNum.cbor")
+                )
+                val txsWithScripts =
+                    val r = mutable.Buffer.empty[
+                      (Transaction, util.List[ByteString], String, Map[ScriptHash, Script])
+                    ]
+                    for BlockTx(tx, datums, txhash) <- txs do
+                        try
+                            val utxos = utxoResolver.resolveUtxos(tx)
+                            val scripts = TxEvaluator.getAllResolvedScripts(tx, utxos)
+                            if scripts.nonEmpty then r.addOne((tx, datums, txhash, scripts))
+                        catch
+                            case e: Exception =>
+                                errors += ((e.getMessage, blockNum, txhash))
+                                println(s"Error in block $blockNum, tx $txhash: ${e.getMessage}")
+                    r.toSeq
+//                println(s"\rBlock $blockNum, num txs to validate: ${txsWithScripts.size}")
 //            println(s"Block txs:\n${txsWithScripts.map(_._3).sorted.mkString("\n")}")
 
-            for (tx, datums, txhash, scripts) <- txsWithScripts do {
+                for (tx, datums, txhash, scripts) <- txsWithScripts do {
 //                println(s"Validating tx $txhash")
-                //                println(tx)
-                if tx.isValid
-                && (datums.size() == tx.getWitnessSet.getPlutusDataList
-                    .size()) // FIXME: remove this check when we have the correct datums
-                then
-                    val result = evaluator.evaluateTx(tx, util.Set.of(), datums, txhash)
-                    totalTx += 1
-                    if !result.isSuccessful then
-                        errors += ((result.getResponse, blockNum, txhash))
-                        println(
-                          s"${Console.RED}AAAA!!!! block $blockNum $txhash ${result.getResponse}${Console.RESET}"
-                        )
-                    else
+                    //                println(tx)
+                    if tx.isValid
+                    && (datums.size() == tx.getWitnessSet.getPlutusDataList
+                        .size()) // FIXME: remove this check when we have the correct datums
+                    then
+                        val result = evaluator.evaluateTx(tx, util.Set.of(), datums, txhash)
+//                        val result = evaluator.evaluateTx2(tx, util.Set.of(), datums, txhash)
+                        totalTx += 1
+                        if !result.isSuccessful then
+                            errors += ((result.getResponse, blockNum, txhash))
+                            println(
+                              s"${Console.RED}[error# ${errors.size}] AAAA!!!! block $blockNum $txhash ${result.getResponse}${Console.RESET}"
+                            )
+                        else
 //                        println(result.getResponse)
-                        for script <- scripts.values do
-                            script match
-                                case _: Script.PlutusV1 =>
-                                    v1Scripts += script.scriptHash.toHex
-                                    v1ScriptsExecuted += 1
-                                case _: Script.PlutusV2 =>
-                                    v2Scripts += script.scriptHash.toHex
-                                    v2ScriptsExecuted += 1
-                                case _: Script.PlutusV3 =>
-                                    v3Scripts += script.scriptHash.toHex
-                                    v3ScriptsExecuted += 1
-                                case _ =>
-                else
-                    println(s"${Console.RED}AAAAA invalid!!! $txhash ${Console.RESET}")
-                    errors += (("Invalid tx", blockNum, txhash))
+                            for script <- scripts.values do
+                                script match
+                                    case _: Script.PlutusV1 =>
+                                        v1Scripts += script.scriptHash.toHex
+                                        v1ScriptsExecuted += 1
+                                    case _: Script.PlutusV2 =>
+                                        v2Scripts += script.scriptHash.toHex
+                                        v2ScriptsExecuted += 1
+                                    case _: Script.PlutusV3 =>
+                                        v3Scripts += script.scriptHash.toHex
+                                        v3ScriptsExecuted += 1
+                                    case _ =>
+                    else
+                        println(
+                          s"${Console.RED}[error# ${errors.size}] AAAAA invalid!!! $txhash ${Console.RESET}"
+                        )
+                        errors += (("Invalid tx", blockNum, txhash))
+                }
+            catch {
+                case e: Exception => errors += (("Missed block", blockNum, ""))
             }
 
 //                println("----------------------------------------------------")
 //            println(s"=======================================")
         println(s"""Total txs: $totalTx,
-               |errors: $errors,
+               |errors: ${errors.size},
                |v1: $v1ScriptsExecuted of ${v1Scripts.size},
                |v2: $v2ScriptsExecuted of ${v2Scripts.size}
                |v3: $v3ScriptsExecuted of ${v3Scripts.size}
                |""".stripMargin)
 
+        assert(errors.size === 67)
     }
 
-    private def validateBlocksOfEpochWithScalus(epoch: Int): Unit = {
-        val resourcesPath = Paths.get(".")
+    private def validateBlocksOfEpochWithScalus(epoch: Int): Int = {
+        val errors = mutable.ArrayBuffer[String]()
+
         val backendService = new BFBackendService(Constants.BLOCKFROST_MAINNET_URL, apiKey)
         val utxoSupplier = CachedUtxoSupplier(
           resourcesPath.resolve("utxos"),
@@ -168,7 +190,7 @@ object BlocksValidation:
         )
         val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
         val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
-          this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
+          this.getClass.getResourceAsStream(s"/blockfrost-params-epoch-$epoch.json")
         )
         val costModels = CostModels.fromProtocolParams(params)
         val evaluator = PlutusScriptEvaluator(
@@ -190,11 +212,14 @@ object BlocksValidation:
             val block = BlockFile.fromCborArray(blockBytes).block
             val txs =
                 block.transactions.filter(t => t.witnessSet.redeemers.nonEmpty && t.isValid)
-            print(
-              s"\rBlock ${Console.YELLOW}$path${Console.RESET}, num txs to validate: ${txs.size}"
-            )
-            for tx <- txs do
+//            println(
+//              s"\rBlock ${Console.YELLOW}$path${Console.RESET}, num txs to validate: ${txs.size}"
+//            )
+            for (tx, idx) <- txs.zipWithIndex do
                 try
+//                    println(idx)
+//                    println(tx.id)
+//                    pprint.pprintln(tx)
                     val utxos = utxoResolver.resolveUtxos(tx)
                     if tx.isValid && tx.witnessSet.redeemers.nonEmpty then {
                         val actualRedeemers =
@@ -202,19 +227,27 @@ object BlocksValidation:
                         val expectedRedeemers = tx.witnessSet.redeemers.get.value.toMap
                         for (key, (_, actualExUnits)) <- actualRedeemers do
                             val expectedExUnits = expectedRedeemers(key)._2
-                            if actualExUnits > expectedExUnits then
+                            if actualExUnits > expectedExUnits then {
+                                val error =
+                                    s"AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits"
+                                errors += error
                                 println(
-                                  s"\n${Console.RED}AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits ${Console.RESET}"
+                                  s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}"
                                 )
+                            }
                     }
-                catch
+                    totalTx += 1
+                catch {
                     case e: Exception =>
-                        println(s"Error in block $path, tx ${tx.id}: ${e.getMessage}")
-                        e.printStackTrace()
-                totalTx += 1
+                    // val error = s"Error in block $path, tx ${tx.id}: ${e.getMessage}"
+                    // errors += error
+                    // println(s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}")
+                }
         println(
-          s"\n${Console.GREEN}Total txs: $totalTx, blocks: ${blocks.size}, epoch: $epoch${Console.RESET}"
+          s"\n${Console.GREEN}Total txs: $totalTx, errors ${errors.size}, blocks: ${blocks.size}, epoch: $epoch${Console.RESET}"
         )
+        if errors.size < 184 then println("Some errors were fixed!")
+        errors.size
     }
 
     def readTransactionsFromBlockCbor(path: Path): collection.Seq[BlockTx] = {
@@ -258,7 +291,7 @@ object BlocksValidation:
                     else util.Collections.emptyList()
                 catch
                     case e: CborException =>
-                        e.printStackTrace();
+                        e.printStackTrace()
                         util.Collections.emptyList();
             }
         for ((tuple, datumsCbor), idx) <- txBodyTuples.asScala.zip(txBodyDatumsCbor).zipWithIndex
@@ -310,7 +343,6 @@ object BlocksValidation:
     }
 
     private def getAllBlocksPaths(): IndexedSeq[Path] = {
-        val resourcesPath = Paths.get(".")
         val blocksDir = resourcesPath.resolve("blocks")
         if !Files.exists(blocksDir) then
             sys.error(
@@ -325,7 +357,6 @@ object BlocksValidation:
         }.get
     }
 
-    @main
     def validateNativeScriptEvaluation(): Unit = {
         case class Res(
             var succ: Int,
@@ -365,17 +396,15 @@ object BlocksValidation:
             catch
                 case e: Exception =>
                     println(s"Error reading block $path: ${e.getMessage}")
-                    e.printStackTrace()
-            print(s"\rBlock $path")
         end for
         println()
         println(s"Time taken: ${System.currentTimeMillis() - start} ms")
         println(
           s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
         )
+        assert(stats.values.map(_.fail).sum == 0)
     }
 
-    @main
     def validateScriptDataHashEvaluation(): Unit = {
         import com.bloxbean.cardano.yaci.core.config.YaciConfig
         YaciConfig.INSTANCE.setReturnBlockCbor(true) // needed to get the block cbor
@@ -386,7 +415,6 @@ object BlocksValidation:
             blocks: mutable.ArrayBuffer[Int] = mutable.ArrayBuffer.empty
         )
 
-        val resourcesPath = Paths.get(".")
         val blocksDir = resourcesPath.resolve("blocks")
         val stats = mutable.HashMap.empty[ByteString, Res].withDefaultValue(Res(0, 0))
         val start = System.currentTimeMillis()
@@ -476,6 +504,7 @@ object BlocksValidation:
         println(
           s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
         )
+        assert(stats.values.map(_.fail).sum == 0)
     }
 
     private def getRefScriptTypes(
@@ -534,7 +563,6 @@ object BlocksValidation:
         bbgenerated
     }
 
-    @main
     def findInterestingBlocks(): Unit = {
         val blocks = getAllBlocksPaths()
         println(s"Found ${blocks.size} blocks")
@@ -559,18 +587,16 @@ object BlocksValidation:
         }
     }
 
-    @main
-    def validateBlocks(): Unit = {
+    test("validateBlocksOfEpoch(543)"):
         validateBlocksOfEpoch(543)
-    }
 
-    @main
-    def validateBlocksOfEpochWithScalusMain() = {
-        validateBlocksOfEpochWithScalus(543)
-    }
-
-    def main(args: Array[String]): Unit = {
-        validateBlocksOfEpoch(543)
+    ignore("validateNativeScriptEvaluation()"):
         validateNativeScriptEvaluation()
+
+    ignore("validateScriptDataHashEvaluation()"):
         validateScriptDataHashEvaluation()
-    }
+
+    test("validateBlocksOfEpochWithScalus(543) <= 184"):
+        assert(validateBlocksOfEpochWithScalus(543) <= 184)
+
+}

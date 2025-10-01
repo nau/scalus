@@ -1,6 +1,7 @@
 package scalus.builtin
 
 import scalus.utils.Hex
+import scalus.utils.Hex.hexToBytes
 
 import scala.compiletime.asMatchable
 
@@ -18,7 +19,7 @@ object ByteString {
 
     def unsafeFromArray(bytes: Array[Byte]): ByteString = new ByteString(bytes)
 
-    def fromHex(bytes: String): ByteString = new ByteString(Hex.hexToBytes(bytes))
+    def fromHex(bytes: String): ByteString = new ByteString(bytes.hexToBytes)
 
     def fromString(s: String): ByteString = new ByteString(s.getBytes("UTF-8"))
 

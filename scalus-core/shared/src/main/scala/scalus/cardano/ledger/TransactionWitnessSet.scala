@@ -49,6 +49,29 @@ object TransactionWitnessSet:
     /** Empty witness set */
     val empty: TransactionWitnessSet = TransactionWitnessSet()
 
+    /** Create a witness set from a set of scripts and redeemers, and optional VKey witnesses */
+    def apply(
+        scripts: Seq[Script],
+        redeemers: Redeemers,
+        vkeyWitnesses: Set[VKeyWitness],
+        plutusData: Seq[Data]
+    ): TransactionWitnessSet = {
+        val nativeScripts = scripts.collect { case s: Script.Native => s }.toSet
+        val plutusV1Scripts = scripts.collect { case s: Script.PlutusV1 => s }.toSet
+        val plutusV2Scripts = scripts.collect { case s: Script.PlutusV2 => s }.toSet
+        val plutusV3Scripts = scripts.collect { case s: Script.PlutusV3 => s }.toSet
+
+        TransactionWitnessSet(
+          vkeyWitnesses = vkeyWitnesses,
+          nativeScripts = nativeScripts,
+          plutusV1Scripts = plutusV1Scripts,
+          plutusV2Scripts = plutusV2Scripts,
+          plutusV3Scripts = plutusV3Scripts,
+          plutusData = KeepRaw(TaggedSet(plutusData.map(KeepRaw(_))*)),
+          redeemers = Some(KeepRaw(redeemers))
+        )
+    }
+
     /** CBOR encoder for TransactionWitnessSet */
     given Encoder[TransactionWitnessSet] with
         def write(w: Writer, value: TransactionWitnessSet): Writer =

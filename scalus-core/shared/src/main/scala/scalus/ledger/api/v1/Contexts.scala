@@ -3,11 +3,9 @@ package scalus.ledger.api.v1
 import scalus.Compile
 import scalus.builtin.{Builtins, ByteString, Data, FromData, ToData}
 import scalus.builtin.Builtins.*
-import scalus.prelude.{===, Eq, List, Option, Ord}
-import scalus.prelude.Eq.given
-import scalus.prelude.Ord.{<=>, ifEqualThen, given}
+import scalus.prelude.{<=>, ===, Eq, List, Option, Ord, Order}
 import scalus.builtin.ByteString.*
-import scalus.ledger.api.v1.IntervalBoundType.{Finite, NegInf}
+import scalus.ledger.api.v1.IntervalBoundType.Finite
 
 type Hash = ByteString
 type ValidatorHash = Hash
@@ -56,17 +54,17 @@ object IntervalBoundType {
         x match
             case NegInf =>
                 y match
-                    case NegInf => Ord.Order.Equal
-                    case _      => Ord.Order.Less
+                    case NegInf => Order.Equal
+                    case _      => Order.Less
             case Finite(a) =>
                 y match
-                    case NegInf    => Ord.Order.Greater
+                    case NegInf    => Order.Greater
                     case Finite(b) => a <=> b
-                    case PosInf    => Ord.Order.Less
+                    case PosInf    => Order.Less
             case PosInf =>
                 y match
-                    case PosInf => Ord.Order.Equal
-                    case _      => Ord.Order.Greater
+                    case PosInf => Order.Equal
+                    case _      => Order.Greater
 
     given ToData[IntervalBoundType] = ToData.derived
 
@@ -95,6 +93,38 @@ object IntervalBound:
 
     given FromData[IntervalBound] = FromData.derived
 
+    /** Inclusive -∞ interval bound */
+    val negInf: IntervalBound = IntervalBound(IntervalBoundType.NegInf, true)
+
+    /** Inclusive +∞ interval bound */
+    val posInf: IntervalBound = IntervalBound(IntervalBoundType.PosInf, true)
+
+    /** Create a finite inclusive interval bound */
+    def finiteInclusive(time: PosixTime): IntervalBound =
+        IntervalBound(IntervalBoundType.Finite(time), true)
+
+    /** Create a finite exclusive interval bound */
+    def finiteExclusive(time: PosixTime): IntervalBound =
+        IntervalBound(IntervalBoundType.Finite(time), false)
+
+    /** Returns the minimum of two interval bounds. If the bounds are equal, returns the left-hand
+      * side bound.
+      */
+    def min(lhs: IntervalBound, rhs: IntervalBound): IntervalBound =
+        lhs <=> rhs match
+            case Order.Less    => lhs
+            case Order.Equal   => lhs
+            case Order.Greater => rhs
+
+    /** Returns the maximum of two interval bounds. If the bounds are equal, returns the left-hand
+      * side bound.
+      */
+    def max(lhs: IntervalBound, rhs: IntervalBound): IntervalBound =
+        lhs <=> rhs match
+            case Order.Less    => rhs
+            case Order.Equal   => lhs
+            case Order.Greater => lhs
+
 end IntervalBound
 
 /** A type to represent time intervals.
@@ -117,49 +147,73 @@ object Interval:
 
     given FromData[Interval] = FromData.derived
 
-    /** Inclusive -∞ interval bound */
-    val negInf: IntervalBound = new IntervalBound(IntervalBoundType.NegInf, true)
-
-    /** Inclusive +∞ interval bound */
-    val posInf: IntervalBound = new IntervalBound(IntervalBoundType.PosInf, true)
-
     /** Inclusive -∞ to +∞ interval */
-    val always: Interval = new Interval(negInf, posInf)
+    val always: Interval = Interval(IntervalBound.negInf, IntervalBound.posInf)
 
-    /** Create a finite inclusive interval bound */
-    def finite(time: PosixTime): IntervalBound =
-        new IntervalBound(new IntervalBoundType.Finite(time), true)
+    /** An empty interval that contains no values, ∄ posixTime ∣ never.contains(posixTime)
+      * Invariants expressed in IntervalTest should hold regardless of the implementation
+      */
+    val never: Interval = Interval(IntervalBound.posInf, IntervalBound.negInf)
 
     /** Creates an interval that includes all values greater than the given bound. i.e
       * [lower_bound,+∞)
       */
     def after(time: PosixTime): Interval =
-        new Interval(finite(time), posInf)
+        Interval(IntervalBound.finiteInclusive(time), IntervalBound.posInf)
+
+    /** Creates an interval that includes all values after (and not including) the given bound. i.e
+      * (lower_bound,+∞)
+      */
+    def entirelyAfter(time: PosixTime): Interval =
+        Interval(IntervalBound.finiteExclusive(time), IntervalBound.posInf)
 
     /** Creates an interval that includes all values less than the given bound. i.e (-∞,upper_bound]
       */
     def before(time: PosixTime): Interval =
-        new Interval(negInf, finite(time))
+        Interval(IntervalBound.negInf, IntervalBound.finiteInclusive(time))
 
-    /** Creates an interval that includes all values between the given bounds. i.e [lower_bound,
-      * upper_bound]
+    /** Creates an interval that includes all values before (and not including) the given bound. i.e
+      * (-∞,upper_bound)
+      */
+    def entirelyBefore(time: PosixTime): Interval =
+        Interval(IntervalBound.negInf, IntervalBound.finiteExclusive(time))
+
+    /** Create an interval that includes all values between two bounds, including the bounds. i.e
+      * [lower_bound, upper_bound]
       */
     def between(from: PosixTime, to: PosixTime): Interval =
-        new Interval(finite(from), finite(to))
+        Interval(IntervalBound.finiteInclusive(from), IntervalBound.finiteInclusive(to))
 
-    /** An empty interval that contains no values, ∄ posixTime ∣ never.contains(posixTime)
+    /** Create an interval that includes all values between two bounds, excluding the bounds. i.e
+      * (lower_bound, upper_bound)
       */
-    val never: Interval = {
-        /*
-         * Not the biggest fan of using the sentinel neginf here, other options are using an enum to represent the
-         * `never`. Invariants expressed in IntervalTest should hold regardless of the implementation
-         */
-        val negInfExclusive = new IntervalBound(NegInf, false)
-        new Interval(negInfExclusive, negInfExclusive)
-    }
+    def entirelyBetween(from: PosixTime, to: PosixTime): Interval =
+        Interval(IntervalBound.finiteExclusive(from), IntervalBound.finiteExclusive(to))
+
+    /** Returns the hull of two intervals, i.e., the smallest interval that contains both input
+      * intervals, if any.
+      */
+    def hull(lhs: Interval, rhs: Interval): Interval =
+        Interval(
+          IntervalBound.min(lhs.from, rhs.from),
+          IntervalBound.max(lhs.to, rhs.to)
+        )
+
+    /** Returns the intersection of two intervals, i.e., the largest interval that is contained in
+      * both input intervals, if any.
+      */
+    def intersection(lhs: Interval, rhs: Interval): Interval =
+        Interval(
+          IntervalBound.max(lhs.from, rhs.from),
+          IntervalBound.min(lhs.to, rhs.to)
+        )
 
     extension (self: Interval)
 
+        /** Checks if a given time is contained in the interval. Returns true if the time is within
+          * the bounds of the interval, taking into account whether the bounds are inclusive or
+          * exclusive.
+          */
         def contains(time: PosixTime): Boolean = {
             val aboveFrom = {
                 self.from.boundType match {
@@ -184,42 +238,54 @@ object Interval:
         /** Checks if an interval is entirely after a given time. Returns true if all values in the
           * interval are greater than the given time.
           */
-        def entirelyAfter(time: PosixTime): Boolean =
-            self match
-                case Interval(from, to) =>
-                    val negInfExclusive = new IntervalBound(NegInf, false)
-                    if from === negInfExclusive && to === negInfExclusive then {
-                        false
-                    } else
-                        from.boundType match
-                            case IntervalBoundType.NegInf => false
-                            case IntervalBoundType.PosInf => true
-                            case IntervalBoundType.Finite(fromTime) =>
-                                if from.isInclusive then fromTime > time
-                                else fromTime >= time
+        def isEntirelyAfter(time: PosixTime): Boolean =
+            self.from.boundType match
+                case IntervalBoundType.Finite(fromTime) =>
+                    if self.from.isInclusive then time < fromTime
+                    else time <= fromTime
+
+                case _ => false
 
         /** Checks if an interval is entirely before a given time. Returns true if all values in the
           * interval are less than the given time.
           */
-        def entirelyBefore(time: PosixTime): Boolean =
-            self match
-                case Interval(from, to) =>
-                    val negInfExclusive = new IntervalBound(NegInf, false)
-                    if from === negInfExclusive && to === negInfExclusive then {
-                        false
-                    } else
-                        to.boundType match
-                            case IntervalBoundType.NegInf => true
-                            case IntervalBoundType.PosInf => false
-                            case IntervalBoundType.Finite(toTime) =>
-                                if to.isInclusive then toTime < time
-                                else toTime <= time
+        def isEntirelyBefore(time: PosixTime): Boolean =
+            self.to.boundType match
+                case IntervalBoundType.Finite(toTime) =>
+                    if self.to.isInclusive then toTime < time
+                    else toTime <= time
+
+                case _ => false
 
         /** Checks if an interval is entirely between two given times. Returns true if all values in
           * the interval are between the given times.
           */
-        def entirelyBetween(after: PosixTime, before: PosixTime): Boolean =
-            entirelyAfter(after) && entirelyBefore(before)
+        def isEntirelyBetween(after: PosixTime, before: PosixTime): Boolean =
+            isEntirelyAfter(after) && isEntirelyBefore(before)
+
+        /** Checks if the interval is never, i.e., contains no values. Invariants expressed in
+          * IntervalTest should hold regardless of the implementation.
+          */
+        def isNever: Boolean =
+            self.from <=> self.to match
+                case Order.Greater => true
+                case Order.Equal   => !(self.from.isInclusive && self.to.isInclusive)
+                case Order.Less =>
+                    val isOpenInterval = !self.from.isInclusive && !self.to.isInclusive
+                    if isOpenInterval then
+                        self.from.boundType match
+                            case IntervalBoundType.Finite(fromTime) =>
+                                self.to.boundType match
+                                    case IntervalBoundType.Finite(toTime) =>
+                                        fromTime + 1 === toTime
+                                    case _ => false
+                            case _ => false
+                    else false
+
+        /** Checks if the interval is non never, i.e., contains at least one value. Invariants
+          * expressed in IntervalTest should hold regardless of the implementation.
+          */
+        inline def nonNever: Boolean = !self.isNever
 
     end extension
 
@@ -275,55 +341,55 @@ object DCert {
             case DCert.DelegRegKey(cred1) =>
                 y match
                     case DCert.DelegRegKey(cred2) => cred1 <=> cred2
-                    case _                        => Ord.Order.Less
+                    case _                        => Order.Less
 
             case DCert.DelegDeRegKey(cred1) =>
                 y match
-                    case DCert.DelegRegKey(_)       => Ord.Order.Greater
+                    case DCert.DelegRegKey(_)       => Order.Greater
                     case DCert.DelegDeRegKey(cred2) => cred1 <=> cred2
-                    case _                          => Ord.Order.Less
+                    case _                          => Order.Less
 
             case DCert.DelegDelegate(cred1, del1) =>
                 y match
-                    case DCert.DelegRegKey(_)   => Ord.Order.Greater
-                    case DCert.DelegDeRegKey(_) => Ord.Order.Greater
+                    case DCert.DelegRegKey(_)   => Order.Greater
+                    case DCert.DelegDeRegKey(_) => Order.Greater
                     case DCert.DelegDelegate(cred2, del2) =>
                         (cred1 <=> cred2) ifEqualThen (del1 <=> del2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case DCert.PoolRegister(id1, vrf1) =>
                 y match
-                    case DCert.DelegRegKey(_)      => Ord.Order.Greater
-                    case DCert.DelegDeRegKey(_)    => Ord.Order.Greater
-                    case DCert.DelegDelegate(_, _) => Ord.Order.Greater
+                    case DCert.DelegRegKey(_)      => Order.Greater
+                    case DCert.DelegDeRegKey(_)    => Order.Greater
+                    case DCert.DelegDelegate(_, _) => Order.Greater
                     case DCert.PoolRegister(id2, vrf2) =>
                         (id1 <=> id2) ifEqualThen (vrf1 <=> vrf2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case DCert.PoolRetire(id1, epoch1) =>
                 y match
-                    case DCert.DelegRegKey(_)      => Ord.Order.Greater
-                    case DCert.DelegDeRegKey(_)    => Ord.Order.Greater
-                    case DCert.DelegDelegate(_, _) => Ord.Order.Greater
-                    case DCert.PoolRegister(_, _)  => Ord.Order.Greater
+                    case DCert.DelegRegKey(_)      => Order.Greater
+                    case DCert.DelegDeRegKey(_)    => Order.Greater
+                    case DCert.DelegDelegate(_, _) => Order.Greater
+                    case DCert.PoolRegister(_, _)  => Order.Greater
                     case DCert.PoolRetire(id2, epoch2) =>
                         (id1 <=> id2) ifEqualThen (epoch1 <=> epoch2)
-                    case _ => Ord.Order.Less
+                    case _ => Order.Less
 
             case DCert.Genesis =>
                 y match
-                    case DCert.DelegRegKey(_)      => Ord.Order.Greater
-                    case DCert.DelegDeRegKey(_)    => Ord.Order.Greater
-                    case DCert.DelegDelegate(_, _) => Ord.Order.Greater
-                    case DCert.PoolRegister(_, _)  => Ord.Order.Greater
-                    case DCert.PoolRetire(_, _)    => Ord.Order.Greater
-                    case DCert.Genesis             => Ord.Order.Equal
-                    case DCert.Mir                 => Ord.Order.Less
+                    case DCert.DelegRegKey(_)      => Order.Greater
+                    case DCert.DelegDeRegKey(_)    => Order.Greater
+                    case DCert.DelegDelegate(_, _) => Order.Greater
+                    case DCert.PoolRegister(_, _)  => Order.Greater
+                    case DCert.PoolRetire(_, _)    => Order.Greater
+                    case DCert.Genesis             => Order.Equal
+                    case DCert.Mir                 => Order.Less
 
             case DCert.Mir =>
                 y match
-                    case DCert.Mir => Ord.Order.Equal
-                    case _         => Ord.Order.Greater
+                    case DCert.Mir => Order.Equal
+                    case _         => Order.Greater
 
     given ToData[DCert] = ToData.derived
 
@@ -374,7 +440,7 @@ object PubKeyHash {
 
     given ToData[PubKeyHash] = (a: PubKeyHash) => summon[ToData[ByteString]](a.hash)
 
-    given FromData[PubKeyHash] = (d: Data) => new PubKeyHash(unBData(d))
+    given FromData[PubKeyHash] = (d: Data) => PubKeyHash(unBData(d))
 
 }
 
@@ -401,10 +467,10 @@ object Credential {
             case Credential.PubKeyCredential(hash) =>
                 b match
                     case Credential.PubKeyCredential(hash2) => hash <=> hash2
-                    case Credential.ScriptCredential(_)     => Ord.Order.Less
+                    case Credential.ScriptCredential(_)     => Order.Less
             case Credential.ScriptCredential(hash) =>
                 b match
-                    case Credential.PubKeyCredential(_)     => Ord.Order.Greater
+                    case Credential.PubKeyCredential(_)     => Order.Greater
                     case Credential.ScriptCredential(hash2) => hash <=> hash2
 
     given FromData[Credential] = FromData.derived
@@ -435,10 +501,10 @@ object StakingCredential {
             case StakingCredential.StakingHash(cred) =>
                 rhs match
                     case StakingCredential.StakingHash(cred2)  => cred <=> cred2
-                    case StakingCredential.StakingPtr(_, _, _) => Ord.Order.Less
+                    case StakingCredential.StakingPtr(_, _, _) => Order.Less
             case StakingCredential.StakingPtr(a, b, c) =>
                 rhs match
-                    case StakingCredential.StakingHash(_) => Ord.Order.Greater
+                    case StakingCredential.StakingHash(_) => Order.Greater
                     case StakingCredential.StakingPtr(a2, b2, c2) =>
                         (a <=> a2) ifEqualThen (b <=> b2) ifEqualThen (c <=> c2)
 
@@ -666,25 +732,25 @@ object ScriptPurpose {
             case ScriptPurpose.Minting(sym1) =>
                 y match
                     case ScriptPurpose.Minting(sym2) => sym1 <=> sym2
-                    case _                           => Ord.Order.Less
+                    case _                           => Order.Less
 
             case ScriptPurpose.Spending(ref1) =>
                 y match
-                    case ScriptPurpose.Minting(_)     => Ord.Order.Greater
+                    case ScriptPurpose.Minting(_)     => Order.Greater
                     case ScriptPurpose.Spending(ref2) => ref1 <=> ref2
-                    case _                            => Ord.Order.Less
+                    case _                            => Order.Less
 
             case ScriptPurpose.Rewarding(cred1) =>
                 y match
-                    case ScriptPurpose.Minting(_)       => Ord.Order.Greater
-                    case ScriptPurpose.Spending(_)      => Ord.Order.Greater
+                    case ScriptPurpose.Minting(_)       => Order.Greater
+                    case ScriptPurpose.Spending(_)      => Order.Greater
                     case ScriptPurpose.Rewarding(cred2) => cred1 <=> cred2
-                    case _                              => Ord.Order.Less
+                    case _                              => Order.Less
 
             case ScriptPurpose.Certifying(cert1) =>
                 y match
                     case ScriptPurpose.Certifying(cert2) => cert1 <=> cert2
-                    case _                               => Ord.Order.Greater
+                    case _                               => Order.Greater
 
     given ToData[ScriptPurpose] = ToData.derived
 

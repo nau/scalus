@@ -19,7 +19,7 @@ def makeSignerFrom(derivation: String, mnemonic: String) = {
         .role(new Segment(derivationPieces(3), false))
         .index(new Segment(derivationPieces(4), false))
         .build()
-    val account = new Account(Networks.testnet(), mnemonic, derivationPath)
+    val account = Account.createFromMnemonic(Networks.testnet(), mnemonic, derivationPath)
     val publicKeyData = account.publicKeyBytes()
     val privateKeyData = account.privateKeyBytes()
     new TxSigner {

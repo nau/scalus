@@ -2,7 +2,6 @@ package scalus.cardano.ledger
 package rules
 
 import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllResolvedScripts}
-import scalus.cardano.ledger.ValidityInterval
 
 // It's validateFailedBabbageScripts in cardano-ledger
 object NativeScriptsValidator extends STS.Validator {

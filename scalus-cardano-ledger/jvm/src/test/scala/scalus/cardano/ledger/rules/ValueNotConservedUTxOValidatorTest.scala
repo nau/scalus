@@ -30,11 +30,11 @@ class ValueNotConservedUTxOValidatorTest extends AnyFunSuite, ArbitraryInstances
           transactionId = randomValidTransaction.id,
           index = 0
         )
-        val resolvedOutput = TransactionOutput.Babbage(
+        val resolvedOutput = TransactionOutput(
           address = arbitrary[Address].sample.get,
           value = Value.lovelace(123),
         )
-        val output = TransactionOutput.Babbage(
+        val output = TransactionOutput(
           address = arbitrary[Address].sample.get,
           value = Value.ada(1), // 1 ADA
         )

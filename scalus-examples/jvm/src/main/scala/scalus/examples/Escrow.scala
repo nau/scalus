@@ -80,7 +80,7 @@ object Escrow extends Validator:
         txOutRef: TxOutRef
     ): Unit = {
         log("Escrow script started")
-        val Some(receivedData) = datum: @unchecked
+        val receivedData = datum.getOrFail("Datum not found")
         val escrowDatum: EscrowDatum = receivedData.to[EscrowDatum]
         val EscrowRedeemer(action) = redeemer.to[EscrowRedeemer]
 

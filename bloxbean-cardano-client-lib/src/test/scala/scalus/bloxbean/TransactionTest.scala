@@ -17,26 +17,23 @@ class TransactionTest extends AnyFunSuite {
     test("CCL and Scalus transaction hash match") {
         def scalusTransactionHash = {
             val tx = Transaction(
-              KeepRaw(
-                TransactionBody(
-                  inputs = TaggedOrderedSet.from(
-                    Set(
-                      TransactionInput(Hash(ByteString.fill(32, 0)), 0)
+              TransactionBody(
+                inputs = TaggedOrderedSet.from(
+                  Set(
+                    TransactionInput(Hash(ByteString.fill(32, 0)), 0)
+                  )
+                ),
+                outputs = Vector(
+                  Sized(
+                    TransactionOutput(
+                      address = Address.fromByteString(AddressBytes.fromBech32(addr)),
+                      value = Value.lovelace(2)
                     )
-                  ),
-                  outputs = Vector(
-                    Sized(
-                      TransactionOutput.Shelley(
-                        address = Address.fromByteString(AddressBytes.fromBech32(addr)),
-                        value = Value.lovelace(2)
-                      )
-                    )
-                  ),
-                  fee = Coin(0)
-                )
+                  )
+                ),
+                fee = Coin(0)
               ),
               witnessSet = TransactionWitnessSet(),
-              isValid = true
             )
             //        println(tx)
             //        println(AddressBytes.fromBech32(addr).toHex)

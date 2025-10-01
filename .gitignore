@@ -21,7 +21,8 @@ cardano-cli
 cardano-address
 scripts/
 bloxbean-cardano-client-lib/blocks
-utxos
+utxos/
+!bloxbean-cardano-client-lib/src/test/resources/utxos/
 package-lock.json
 website/static/api
 node_modules

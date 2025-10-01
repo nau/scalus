@@ -312,10 +312,10 @@ package object flat:
         val buffer: Uint8Array
     ):
 
-        /** Pointer to the current byte being decoded (0..buffer.byteLength-1) */
+        /** Pointer to the current byte being decoded [0..buffer.byteLength) */
         var currPtr: Int = 0
 
-        /** Number of already decoded bits in the current byte (0..7) */
+        /** Number of already decoded bits in the current byte [0..7] */
         var usedBits: Int = 0
 
         val hashConsed: HashConsed.State = HashConsed.State.empty
@@ -327,7 +327,7 @@ package object flat:
 
         /** Decode up to 8 bits
           * @param numBits
-          *   the Int of bits to decode (0..8)
+          *   the Int of bits to decode [0..8]
           */
         def lookupBits8(numBits: Int): Byte =
             if numBits < 0 || numBits > 8 then
@@ -369,8 +369,9 @@ package object flat:
         def availableBytes(): Int = this.buffer.length - this.currPtr
 
         def remainingBytes(): Array[Byte] = {
-            require(this.usedBits == 0, "remainBytes: usedBits must be 0")
-            val remaining = new Array[Byte](this.buffer.length - this.currPtr)
+            require(this.usedBits == 0, "DecoderState.remainingBytes: usedBits must be 0")
+
+            val remaining = new Array[Byte](this.availableBytes())
             System.arraycopy(this.buffer, this.currPtr, remaining, 0, remaining.length)
             remaining
         }

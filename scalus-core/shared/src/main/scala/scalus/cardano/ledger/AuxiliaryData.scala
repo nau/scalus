@@ -7,40 +7,40 @@ import scalus.builtin.ByteString
 import scala.collection.immutable
 
 /** Metadata is a map from metadatum labels to metadatum values */
-type Metadata = Map[TransactionMetadatumLabel, TransactionMetadatum]
+type Metadata = Map[Word64, Metadatum]
 
-/** Represents a transaction metadatum label in Cardano */
-case class TransactionMetadatumLabel(value: Long) derives Codec:
-    require(value >= 0, s"Metadatum label must be non-negative, got $value")
+@deprecated("Use Word64 instead", "0.12")
+type TransactionMetadatumLabel = Word64
+@deprecated("Use Word64 instead", "0.12")
+val TransactionMetadatumLabel = Word64
+
+@deprecated("Use Metadatum instead", "0.12")
+type TransactionMetadatum = Metadatum
+@deprecated("Use Metadatum instead", "0.12")
+val TransactionMetadatum = Metadatum
 
 /** Represents transaction metadata in Cardano */
-sealed trait TransactionMetadatum
-object TransactionMetadatum:
+sealed trait Metadatum
+object Metadatum:
     /** Map metadata */
-    final case class Map(entries: immutable.Map[TransactionMetadatum, TransactionMetadatum])
-        extends TransactionMetadatum
+    final case class Map(entries: immutable.Map[Metadatum, Metadatum]) extends Metadatum
 
     /** List metadata */
-    final case class List(items: IndexedSeq[TransactionMetadatum]) extends TransactionMetadatum
+    final case class List(items: IndexedSeq[Metadatum]) extends Metadatum
 
     /** Integer metadata */
-    final case class Int(value: Long) extends TransactionMetadatum
+    final case class Int(value: Long) extends Metadatum
 
-    /** Bytes metadata (max 64 bytes) */
-    final case class Bytes(value: ByteString) extends TransactionMetadatum:
-        require(value.size <= 64)
+    /** Bytes metadata */
+    final case class Bytes(value: ByteString) extends Metadatum
 
-    /** Text metadata (max 64 chars) */
-    final case class Text(value: String) extends TransactionMetadatum:
-        require(value.length <= 64)
-
-    /** Maximum allowed size for bytes and text */
-    private val MaxSize = 64
+    /** Text metadata */
+    final case class Text(value: String) extends Metadatum
 
     /** CBOR encoder for TransactionMetadatum */
-    given Encoder[TransactionMetadatum] with
-        def write(w: Writer, value: TransactionMetadatum): Writer = value match
-            case TransactionMetadatum.Map(entries) =>
+    given Encoder[Metadatum] with
+        def write(w: Writer, value: Metadatum): Writer = value match
+            case Metadatum.Map(entries) =>
                 w.writeMapHeader(entries.size)
                 entries.foreach { case (k, v) =>
                     write(w, k)
@@ -48,59 +48,43 @@ object TransactionMetadatum:
                 }
                 w
 
-            case TransactionMetadatum.List(items) =>
+            case Metadatum.List(items) =>
                 w.writeIndexedSeq(items)
 
-            case TransactionMetadatum.Int(value) =>
+            case Metadatum.Int(value) =>
                 w.writeLong(value)
 
-            case TransactionMetadatum.Bytes(value) =>
-                if value.size > MaxSize then
-                    throw new IllegalArgumentException(
-                      s"Bytes size exceeds maximum ($MaxSize), got ${value.size}"
-                    )
+            case Metadatum.Bytes(value) =>
                 w.writeBytes(value.bytes)
 
-            case TransactionMetadatum.Text(value) =>
-                if value.length > MaxSize then
-                    throw new IllegalArgumentException(
-                      s"Text length exceeds maximum ($MaxSize), got ${value.length}"
-                    )
+            case Metadatum.Text(value) =>
                 w.writeString(value)
 
     /** CBOR decoder for TransactionMetadatum */
-    given Decoder[TransactionMetadatum] with
-        def read(r: Reader): TransactionMetadatum =
+    given Decoder[Metadatum] with
+        def read(r: Reader): Metadatum =
             import io.bullet.borer.DataItem as DI
 
             r.dataItem() match
                 case DI.MapHeader | DI.MapStart =>
                     val entries =
-                        r.read[immutable.Map[TransactionMetadatum, TransactionMetadatum]]()
-                    TransactionMetadatum.Map(entries)
+                        r.read[immutable.Map[Metadatum, Metadatum]]()
+                    Metadatum.Map(entries)
 
                 case DI.ArrayHeader | DI.ArrayStart =>
-                    val items = r.read[IndexedSeq[TransactionMetadatum]]()
-                    TransactionMetadatum.List(items)
+                    val items = r.read[IndexedSeq[Metadatum]]()
+                    Metadatum.List(items)
 
                 case DI.Int | DI.Long | DI.OverLong =>
-                    TransactionMetadatum.Int(r.readLong())
+                    Metadatum.Int(r.readLong())
 
                 case DI.Bytes | DI.BytesStart =>
                     val bytes = r.read[ByteString]()
-                    if bytes.size > MaxSize then
-                        r.validationFailure(
-                          s"Bytes size exceeds maximum ($MaxSize), got ${bytes.size}"
-                        )
-                    TransactionMetadatum.Bytes(bytes)
+                    Metadatum.Bytes(bytes)
 
                 case DI.Text | DI.TextStart =>
                     val text = r.readString()
-                    if text.length > MaxSize then
-                        r.validationFailure(
-                          s"Text length exceeds maximum ($MaxSize), got ${text.length}"
-                        )
-                    TransactionMetadatum.Text(text)
+                    Metadatum.Text(text)
 
                 case other =>
                     r.validationFailure(s"Unexpected data item for TransactionMetadatum: $other")
@@ -108,22 +92,47 @@ object TransactionMetadatum:
 /** Represents auxiliary data in a Cardano transaction */
 enum AuxiliaryData:
     /** Shelley-era metadata */
-    case Metadata(metadata: Map[TransactionMetadatumLabel, TransactionMetadatum])
+    case Metadata(metadata: Map[Word64, Metadatum])
 
     /** Shelley-MA era combined metadata and scripts */
     case MetadataWithScripts(
-        metadata: Map[TransactionMetadatumLabel, TransactionMetadatum],
-        scripts: IndexedSeq[Timelock]
+        metadata: Map[Word64, Metadatum],
+        nativeScripts: IndexedSeq[Timelock]
     )
 
     /** Alonzo-era and later metadata format with optional components */
     case AlonzoFormat(
-        metadata: Option[Map[TransactionMetadatumLabel, TransactionMetadatum]] = None,
+        metadata: Option[Map[Word64, Metadatum]] = None,
         nativeScripts: IndexedSeq[Timelock] = IndexedSeq.empty,
         plutusV1Scripts: IndexedSeq[ByteString] = IndexedSeq.empty,
         plutusV2Scripts: IndexedSeq[ByteString] = IndexedSeq.empty,
         plutusV3Scripts: IndexedSeq[ByteString] = IndexedSeq.empty
     )
+
+    def getMetadata: Map[Word64, Metadatum] = this match
+        case data: AuxiliaryData.Metadata            => data.metadata
+        case data: AuxiliaryData.MetadataWithScripts => data.metadata
+        case data: AuxiliaryData.AlonzoFormat        => data.metadata.getOrElse(Map.empty)
+
+    def getNativeScripts: IndexedSeq[Timelock] = this match
+        case _: AuxiliaryData.Metadata               => IndexedSeq.empty
+        case data: AuxiliaryData.MetadataWithScripts => data.nativeScripts
+        case data: AuxiliaryData.AlonzoFormat        => data.nativeScripts
+
+    def getPlutusV1Scripts: IndexedSeq[ByteString] = this match
+        case _: AuxiliaryData.Metadata            => IndexedSeq.empty
+        case _: AuxiliaryData.MetadataWithScripts => IndexedSeq.empty
+        case data: AuxiliaryData.AlonzoFormat     => data.plutusV1Scripts
+
+    def getPlutusV2Scripts: IndexedSeq[ByteString] = this match
+        case _: AuxiliaryData.Metadata            => IndexedSeq.empty
+        case _: AuxiliaryData.MetadataWithScripts => IndexedSeq.empty
+        case data: AuxiliaryData.AlonzoFormat     => data.plutusV2Scripts
+
+    def getPlutusV3Scripts: IndexedSeq[ByteString] = this match
+        case _: AuxiliaryData.Metadata            => IndexedSeq.empty
+        case _: AuxiliaryData.MetadataWithScripts => IndexedSeq.empty
+        case data: AuxiliaryData.AlonzoFormat     => data.plutusV3Scripts
 
 object AuxiliaryData:
     /** CBOR encoder for AuxiliaryData */
@@ -133,14 +142,14 @@ object AuxiliaryData:
                 // Metadata is encoded directly
                 w.write(metadata)
 
-            case AuxiliaryData.MetadataWithScripts(metadata, scripts) =>
+            case AuxiliaryData.MetadataWithScripts(metadata, nativeScripts) =>
                 // Array of [metadata, scripts]
                 w.writeArrayHeader(2)
                 w.write(metadata)
 
                 // Write scripts array
-                w.writeArrayHeader(scripts.size)
-                scripts.foreach(script => w.write(script))
+                w.writeArrayHeader(nativeScripts.size)
+                nativeScripts.foreach(nativeScript => w.write(nativeScript))
                 w
 
             case AuxiliaryData.AlonzoFormat(
@@ -202,7 +211,7 @@ object AuxiliaryData:
                     // Alonzo format with tag
                     // We've already consumed the tag, now read the map
                     val size = r.readMapHeader()
-                    var metadata: Option[Map[TransactionMetadatumLabel, TransactionMetadatum]] =
+                    var metadata: Option[Map[Word64, Metadatum]] =
                         None
                     var nativeScripts = IndexedSeq.empty[Timelock]
                     var plutusV1Scripts = IndexedSeq.empty[ByteString]

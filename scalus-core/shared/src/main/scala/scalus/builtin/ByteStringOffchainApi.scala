@@ -2,6 +2,7 @@ package scalus.builtin
 
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 import scalus.utils.Hex
+import scalus.utils.Hex.hexToBytes
 
 private trait ByteStringOffchainApi {
     self: ByteString.type =>
@@ -59,7 +60,7 @@ private trait ByteStringOffchainApi {
       *   This method is specially treated by the Scalus compiler plugin, thus it's not required to
       *   be in the @Compile module.
       */
-    def fromHex(bytes: String): ByteString = new ByteString(Hex.hexToBytes(bytes))
+    def fromHex(bytes: String): ByteString = new ByteString(bytes.hexToBytes)
 
     /** Creates a ByteString from a UTF-8 encoded string
       *

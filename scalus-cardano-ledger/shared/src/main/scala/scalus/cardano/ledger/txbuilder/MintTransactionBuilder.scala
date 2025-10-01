@@ -28,6 +28,10 @@ case class MintTransactionBuilder(
         (script, attachedNativeScript) match {
             case (Some(plutusScript), _) => buildScriptTx(plutusScript)
             case (_, Some(nativeScript)) => buildNativeScriptTx(nativeScript)
+            case _ =>
+                throw new IllegalArgumentException(
+                  "Either Plutus script or Native script must be provided"
+                )
         }
     }
 

@@ -40,8 +40,7 @@ class KeepRawTest extends AnyFunSuite, ScalaCheckPropertyChecks {
 
     test(s"KeepRaw isomorphism should work correctly") {
         val duplicates = Cbor.encode(Vector(100, 100))
-        println(duplicates.toHex)
-        val set = new KeepRaw[Set[Int]](Set(100), raw = duplicates)
+        val set = KeepRaw.unsafe(Set(100), duplicates)
         val reencoded = Cbor.encode(set)
         val reencoded2 = cbor.Cbor.encode(set)
         assert(reencoded.toHex == duplicates.toHex)

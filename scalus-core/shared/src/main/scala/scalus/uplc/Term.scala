@@ -38,6 +38,20 @@ enum Term:
                 (f1, args :+ arg)
             case f => (f, Nil)
 
+    def collectBuiltins: Set[DefaultFun] = {
+        this match
+            case Term.Builtin(bn)                         => Set(bn)
+            case Term.Var(_) | Term.Const(_) | Term.Error => Set.empty
+            case Term.LamAbs(_, body)                     => body.collectBuiltins
+            case Term.Force(body)                         => body.collectBuiltins
+            case Term.Delay(body)                         => body.collectBuiltins
+            case Term.Apply(f, arg) => f.collectBuiltins ++ arg.collectBuiltins
+            case Term.Constr(_, args) =>
+                args.foldLeft(Set.empty[DefaultFun])((acc, x) => acc ++ x.collectBuiltins)
+            case Term.Case(arg, cases) =>
+                cases.foldLeft(arg.collectBuiltins)((acc, x) => acc ++ x.collectBuiltins)
+    }
+
     override def toString: String = this match
         case Var(name)          => s"Var(NamedDeBruijn(\"${name.name}\"))"
         case LamAbs(name, term) => s"LamAbs(\"$name\", $term)"

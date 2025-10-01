@@ -13,13 +13,7 @@ class ExUnitsTooBigValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             randomValidTransaction
                 .copy(
                   witnessSet = TransactionWitnessSet(
-                    redeemers = Some(
-                      KeepRaw(
-                        Redeemers.from(
-                          Seq(Redeemer(Spend, 0, Data.unit, exUnits))
-                        )
-                      )
-                    )
+                    redeemers = Some(KeepRaw(Redeemers(Redeemer(Spend, 0, Data.unit, exUnits))))
                   )
                 )
         val result = ExUnitsTooBigValidator.validate(context, state, tx)
@@ -33,13 +27,7 @@ class ExUnitsTooBigValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
             randomValidTransaction
                 .copy(
                   witnessSet = TransactionWitnessSet(
-                    redeemers = Some(
-                      KeepRaw(
-                        Redeemers.from(
-                          Seq(Redeemer(Spend, 0, Data.unit, exUnits))
-                        )
-                      )
-                    )
+                    redeemers = Some(KeepRaw(Redeemers(Redeemer(Spend, 0, Data.unit, exUnits))))
                   )
                 )
         val result = ExUnitsTooBigValidator.validate(context, state, tx)

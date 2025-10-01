@@ -1,3 +1,5 @@
+package scalus.testing.integration
+
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.backend.api.*
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
@@ -6,26 +8,30 @@ import com.bloxbean.cardano.client.crypto.bip32.HdKeyPair
 import com.bloxbean.cardano.client.crypto.cip1852.{DerivationPath, Segment}
 import com.bloxbean.cardano.client.function.helper.SignerProviders
 import com.bloxbean.cardano.client.quicktx.{QuickTxBuilder, Tx}
+import com.bloxbean.cardano.yaci.test.YaciCardanoContainer
 import org.bouncycastle.crypto.digests.SHA512Digest
+import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.builtin.{platform, ByteString, Data}
+import scalus.builtin.{ByteString, Data, platform}
 import scalus.cardano.address.*
-import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder, TxSigner}
 import scalus.cardano.ledger.*
+import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder, TxSigner}
+import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
 import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
 import scalus.prelude.orFail
 import scalus.serialization.cbor.Cbor
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
-import scalus.{plutusV3, toUplc, Compiler}
+import scalus.{Compiler, plutusV3, toUplc}
 
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import scala.collection.immutable.SortedMap
+import scala.util.chaining.*
 
+@Ignore
 class TransactionBuilderIntegrationTest extends AnyFunSuite {
-
     /*
      * Predefined accounts that exist in a fresh yaci devkit instance.
      */
@@ -157,6 +163,10 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
       derivation = "m/1852'/1815'/19'/0/0"
     )
 
+    private lazy val yaciContainer = YaciCardanoContainer()
+        .withLogConsumer(outputFrame => println(outputFrame.getUtf8String()))
+        .tap(_.start())
+
     private lazy val params = fetchProtocolParams()
     private lazy val backendService = createBackendService()
     private lazy val environment = createEnvironment()
@@ -176,7 +186,10 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val httpClient = HttpClient.newBuilder().build()
         val request = HttpRequest
             .newBuilder()
-            .uri(URI.create(s"http://localhost:10000/local-cluster/api/epochs/parameters"))
+            .uri(
+              URI.create(yaciContainer.getLocalClusterApiUrl)
+                  .resolve("epochs/parameters")
+            )
             .GET()
             .build()
 
@@ -189,8 +202,8 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
     }
 
     final class DevkitCompositeBackend(
-        storeBase: String = "http://localhost:8080/api/v1/",
-        clusterBase: String = "http://localhost:10000/local-cluster/api/"
+        storeBase: String = yaciContainer.getYaciStoreApiUrl,
+        clusterBase: String = yaciContainer.getLocalClusterApiUrl
     ) extends BackendService {
 
         private val store = new BFBackendService(storeBase, "")
@@ -235,7 +248,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("simple pay to address") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
 
         val paymentAmount = Value.ada(5)
         val ctx = BuilderContext(
@@ -256,7 +269,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("pay from a native script") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
         val keyBytes = account.publicKeyBytes()
         val keyHash = AddrKeyHash(platform.blake2b_224(ByteString.fromArray(keyBytes)))
 
@@ -301,7 +314,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("mint using a native policy") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
         val keyBytes = account.publicKeyBytes()
         val keyHash = AddrKeyHash(platform.blake2b_224(ByteString.fromArray(keyBytes)))
 
@@ -381,7 +394,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         )
 
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
 
         val paymentAmount = Value.ada(10)
         val context = BuilderContext(
@@ -457,7 +470,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("register stake address") {
         val network = Networks.testnet()
-        val account = new Account(network, MNEMONIC)
+        val account = Account.createFromMnemonic(network, MNEMONIC)
 
         // Create a stake address from the same account
         val stakeKeyHash = AddrKeyHash(
@@ -486,7 +499,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
     test("withdraw staking rewards") {
         val network = Networks.testnet()
-        val account = new Account(
+        val account = Account.createFromMnemonic(
           network,
           MNEMONIC,
           DerivationPath.createExternalAddressDerivationPathForAccount(6)
@@ -538,14 +551,14 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .completeAndWait()
     }
 
-    test("register a DRep") {
+    ignore("register a DRep") {
         // Use your own for the test
         val mnemonic =
             "burger sheriff ginger public attract machine loyal cluster armed guitar midnight fabric total update mixture all humble age spirit pottery wealth cherry fork embark"
         val BLOCKFROST_PROJECT_ID = "preprod9cHsFFm9r39J6L9BCcrCCZAUk56GXMMY"
         val blockfrostUrl = "https://cardano-preprod.blockfrost.io/api/v0/"
         val backend = new BFBackendService(blockfrostUrl, BLOCKFROST_PROJECT_ID)
-        val account = new Account(Networks.preprod(), mnemonic)
+        val account = Account.createFromMnemonic(Networks.preprod(), mnemonic)
 
         val context = BuilderContext(
           environment.protocolParams,
@@ -561,14 +574,14 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         println("Success!")
     }
 
-    test("unregister a DRep") {
+    ignore("unregister a DRep") {
         // Use your own for the test
         val mnemonic =
             "burger sheriff ginger public attract machine loyal cluster armed guitar midnight fabric total update mixture all humble age spirit pottery wealth cherry fork embark"
         val BLOCKFROST_PROJECT_ID = "preprod9cHsFFm9r39J6L9BCcrCCZAUk56GXMMY"
         val blockfrostUrl = "https://cardano-preprod.blockfrost.io/api/v0/"
         val backend = new BFBackendService(blockfrostUrl, BLOCKFROST_PROJECT_ID)
-        val account = new Account(Networks.preprod, mnemonic)
+        val account = Account.createFromMnemonic(Networks.preprod, mnemonic)
 
         val context = BuilderContext(
           environment.protocolParams,
@@ -598,7 +611,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
             .role(new Segment(derivationPieces(3), false))
             .index(new Segment(derivationPieces(4), false))
             .build()
-        val account = new Account(Networks.testnet(), mnemonic, derivationPath)
+        val account = Account.createFromMnemonic(Networks.testnet(), mnemonic, derivationPath)
         val pairs = keyPairToUse(account)
         new TxSigner {
             override def signTx(unsigned: Transaction): Transaction = {

@@ -7,6 +7,7 @@ import scalus.builtin.Data.*
 import scalus.builtin.{ByteString, Data}
 import scalus.uplc.Term.Const
 import scalus.utils.Hex
+import scalus.utils.Hex.hexToBytes
 
 import scala.annotation.targetName
 
@@ -227,6 +228,18 @@ object DeBruijnedProgram {
     def fromFlatEncoded(flatEncoded: Array[Byte]): DeBruijnedProgram =
         ProgramFlatCodec.decodeFlat(flatEncoded)
 
+    /** Deserializes a program from a flat-encoded byte array, returning any remaining bytes.
+      *
+      * @param flatEncoded
+      *   the flat-encoded byte array
+      * @return
+      *   ProgramFlatCodec.DecodeResult
+      */
+    def fromFlatEncodedWithRemainingBytes(
+        flatEncoded: Array[Byte]
+    ): ProgramFlatCodec.DecodeResult =
+        ProgramFlatCodec.decodeFlatWithRemainingBytes(flatEncoded)
+
     /** Deserializes a program from a CBOR-encoded byte array.
       *
       * @param cbor
@@ -235,6 +248,18 @@ object DeBruijnedProgram {
       */
     def fromCbor(cbor: Array[Byte]): DeBruijnedProgram =
         fromFlatEncoded(Cbor.decode(cbor).to[Array[Byte]].value)
+
+    /** Deserializes a program from a CBOR-encoded byte array, returning any remaining bytes.
+      *
+      * @param cbor
+      *   the CBOR-encoded byte array
+      * @return
+      *   ProgramFlatCodec.DecodeResult
+      */
+    def fromCborWithRemainingBytes(
+        cbor: Array[Byte]
+    ): ProgramFlatCodec.DecodeResult =
+        fromFlatEncodedWithRemainingBytes(Cbor.decode(cbor).to[Array[Byte]].value)
 
     /** Deserializes a program from a double CBOR-encoded byte array.
       *
@@ -254,7 +279,7 @@ object DeBruijnedProgram {
       *   the program
       */
     def fromDoubleCborHex(doubleCborHex: String): DeBruijnedProgram =
-        fromDoubleCbor(Hex.hexToBytes(doubleCborHex))
+        fromDoubleCbor(doubleCborHex.hexToBytes)
 
     /** Deserializes a program from a CBOR-encoded hex string.
       *
@@ -264,5 +289,5 @@ object DeBruijnedProgram {
       *   the program
       */
     def fromCborHex(cborHex: String): DeBruijnedProgram =
-        fromCbor(Hex.hexToBytes(cborHex))
+        fromCbor(cborHex.hexToBytes)
 }

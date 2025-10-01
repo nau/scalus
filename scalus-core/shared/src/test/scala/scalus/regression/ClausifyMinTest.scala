@@ -3,7 +3,6 @@ package scalus.bugtracking
 import scala.language.implicitConversions
 import scalus.*
 import scalus.prelude.*
-import scalus.prelude.Ord.{<=>, Order}
 import scalus.uplc.*
 import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite

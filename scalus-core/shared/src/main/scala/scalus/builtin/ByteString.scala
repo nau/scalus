@@ -2,6 +2,8 @@ package scalus.builtin
 
 import scalus.Compile
 import scalus.utils.Hex
+import scalus.prelude.{Eq, Ord, Order, Show}
+import scalus.prelude.Prelude
 
 import scala.annotation.threadUnsafe
 import scala.compiletime.asMatchable
@@ -63,6 +65,15 @@ class ByteString private[builtin] (val bytes: Array[Byte]) {
 
 @Compile
 object ByteString extends ByteStringOffchainApi {
+    given Show[ByteString] = (x: ByteString) =>
+        Builtins.appendString(Builtins.appendString("\"", Prelude.encodeHex(x)), "\"")
+
+    given Eq[ByteString] = (x: ByteString, y: ByteString) => Builtins.equalsByteString(x, y)
+
+    given Ord[ByteString] = (x: ByteString, y: ByteString) =>
+        if Builtins.lessThanByteString(x, y) then Order.Less
+        else if Builtins.equalsByteString(x, y) then Order.Equal
+        else Order.Greater
 
     /** Encodes a BigInt value as a Big-Endian (most-significant bytes first) `ByteString`.
       * @param value
@@ -100,23 +111,36 @@ object ByteString extends ByteStringOffchainApi {
     inline def fromBigIntLittleEndian(value: BigInt, size: BigInt): ByteString =
         Builtins.integerToByteString(false, value, size)
 
+    // TODO it's not truly overriding and doesn't work in generic function,
+    //  see extension methods <, <=, >, >=, equiv, nonEquiv for [A: Ord]
+
     // These methods are available onchain
     // Because we make them inline and those are builtins
     // we don't need to compile this module (so no @Compile on ByteString)
     extension (self: ByteString)
         /** Checks if one 'ByteString' is less than another */
-        inline infix def <(that: ByteString): Boolean = Builtins.lessThanByteString(self, that)
+        inline infix def <(inline that: ByteString): Boolean =
+            Builtins.lessThanByteString(self, that)
 
         /** Checks if one 'ByteString' is less than or equal to another */
-        inline infix def <=(that: ByteString): Boolean =
+        inline infix def <=(inline that: ByteString): Boolean =
             Builtins.lessThanEqualsByteString(self, that)
 
         /** Checks if one 'ByteString' is greater than another */
-        inline infix def >(that: ByteString): Boolean = Builtins.lessThanByteString(that, self)
+        inline infix def >(inline that: ByteString): Boolean =
+            Builtins.lessThanByteString(that, self)
 
         /** Checks if one 'ByteString' is greater than or equal to another */
-        inline infix def >=(that: ByteString): Boolean =
+        inline infix def >=(inline that: ByteString): Boolean =
             Builtins.lessThanEqualsByteString(that, self)
+
+        /** Checks if two 'ByteString's are equal */
+        inline infix def equiv(inline that: ByteString): Boolean =
+            Builtins.equalsByteString(self, that)
+
+        /** Checks if two 'ByteString's are not equal */
+        inline infix def nonEquiv(inline that: ByteString): Boolean =
+            !Builtins.equalsByteString(self, that)
 
         /** Returns a new ByteString that is a slice of the original ByteString
           *

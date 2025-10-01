@@ -4,11 +4,11 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.ShelleyDelegationPart.Null
-import scalus.cardano.address.{ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
+import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 import scalus.cardano.ledger.Script.PlutusV3
 import scalus.cardano.ledger.rules.*
 import scalus.cardano.ledger.utils.TxBalance
-import scalus.cardano.ledger.{AddrKeyHash, ArbitraryInstances as ArbLedger, CertState, CostModels, MajorProtocolVersion, PlutusScriptEvaluator, ProtocolParams, Script, SlotConfig, TransactionInput, TransactionOutput, Value}
+import scalus.cardano.ledger.{AddrKeyHash, ArbitraryInstances as ArbLedger, CertState, Coin, CostModels, MajorProtocolVersion, PlutusScriptEvaluator, ProtocolParams, Sized, SlotConfig, TaggedOrderedSet, Transaction, TransactionBody, TransactionInput, TransactionOutput, TransactionWitnessSet, Value, *}
 import scalus.uplc.eval.ExBudget
 
 class TxBuilderTest2
@@ -30,6 +30,53 @@ class TxBuilderTest2
     )
     private val env = Environment(params, evaluator, Network.Mainnet)
     private val alwaysOkValidator = ByteString.fromArray(Array(69, 1, 1, 0, 36, -103))
+
+    test("balancing correctly updates KeepRaw TransactionBody") {
+        val input1 = TransactionInput(
+          TransactionHash.fromHex(
+            "fab63a7fc360e82b33064f6a6a2bbee8c095fb18bfbe219be663aaf40aa950e0"
+          ),
+          0
+        )
+        val address = Address.fromBech32(
+          "addr_test1qzwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clq68fray"
+        )
+        val tx =
+            Transaction(
+              TransactionBody(
+                inputs = TaggedOrderedSet(input1),
+                outputs = IndexedSeq(
+                  Sized(
+                    TransactionOutput(
+                      address,
+                      Value(Coin(10000000L)),
+                    )
+                  )
+                ),
+                fee = Coin.zero
+              ),
+              TransactionWitnessSet.empty
+            )
+        val tx2 = LowLevelTxBuilder
+            .balanceFeeAndChange(
+              tx,
+              changeOutputIdx = 0,
+              protocolParams = params,
+              resolvedUtxo = Map(
+                input1 -> TransactionOutput(
+                  address,
+                  Value(Coin(20000000L))
+                )
+              ),
+              evaluator = evaluator
+            )
+            .toOption
+            .get
+        val tx3 = Transaction.fromCbor(tx2.toCbor)
+        assert(tx.body.value.outputs(0).value.value.coin.value == 10000000L)
+        assert(tx2.body.value.outputs(0).value.value.coin.value == 19839559L)
+        assert(tx3.body.value.outputs(0).value.value.coin.value == 19839559L)
+    }
 
     test("pay") {
         val utxoToSpend = ResolvedTxInput.Script(
