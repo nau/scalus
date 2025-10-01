@@ -30,8 +30,8 @@ object TransactionLevelMinterValidator:
         val tokens = txInfo.mint.toSortedMap.get(minterScriptHash).getOrElse(SortedMap.empty)
 
         val redeemer: Redeemer = txInfo.redeemers.get(scriptPurpose).getOrFail(MissingRedeemer)
-        minterRedeemerValidator(redeemer) orFail MinterRedeemerValidatorFailed
-        minterTokensValidator(tokens) orFail MinterTokensValidatorFailed
+        require(minterRedeemerValidator(redeemer), MinterRedeemerValidatorFailed)
+        require(minterTokensValidator(tokens), MinterTokensValidatorFailed)
 
     // A minimal version of [`spend`](#spend), where the only validation is
     // presence of at least one minting/burning action with the given policy ID.

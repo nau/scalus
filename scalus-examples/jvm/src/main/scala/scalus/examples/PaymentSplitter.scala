@@ -93,7 +93,7 @@ object PaymentSplitter extends DataParameterizedValidator {
                             (Some(split), optPayeeSumWithChange, nPayed + 1)
             }
 
-        require(payees.length == nPayed, "Not all payees were paid")
+        require(payees.length === nPayed, "Not all payees were paid")
         optSplit match
             case None => // one payee, no split
             case Some(split) =>

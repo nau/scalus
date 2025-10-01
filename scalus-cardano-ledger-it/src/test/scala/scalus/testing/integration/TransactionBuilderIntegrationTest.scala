@@ -19,7 +19,6 @@ import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTran
 import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
 import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
-import scalus.prelude.orFail
 import scalus.serialization.cbor.Cbor
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
@@ -380,7 +379,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
                 val l = outs.toList
                 val amount = outs.toList.head._2.toList.head._2
                 val isLucky = digitSum(amount) % 7 == BigInt(0)
-                isLucky.orFail("Lucky payments only.")
+                scalus.prelude.require(isLucky, "Lucky payments only.")
             })
             .toUplc()
             .plutusV3
@@ -430,11 +429,13 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
                 val mint = context.txInfo.mint.toSortedMap
 
-                mint.forall { case (policyId, tokens) =>
+                val isValid = mint.forall { case (policyId, tokens) =>
                     tokens.forall { case (tokenName, amount) =>
                         tokenName == ByteString.fromString("co2") && amount > BigInt(0)
                     }
-                }.orFail("Only co2 tokens can be minted")
+                }
+                
+                scalus.prelude.require(isValid, "Only co2 tokens can be minted")
             })
             .toUplc()
             .plutusV3

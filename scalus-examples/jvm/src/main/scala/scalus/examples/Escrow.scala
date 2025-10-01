@@ -24,7 +24,7 @@ case class EscrowDatum(
 object EscrowDatum {
     given Eq[EscrowDatum] = (x, y) =>
         x.buyer === y.buyer && x.seller === y.seller &&
-            x.escrowAmount == y.escrowAmount && x.initializationAmount == y.initializationAmount
+            x.escrowAmount === y.escrowAmount && x.initializationAmount === y.initializationAmount
 }
 
 enum EscrowAction derives FromData, ToData:
@@ -129,10 +129,10 @@ object Escrow extends Validator:
         val buyerOutputs = EscrowUtils.getOutputsByVkh(txInfo.outputs, escrowDatum.buyer)
         val contractOutputs = EscrowUtils.getOutputsByAddress(txInfo.outputs, contractAddress)
 
-        require(contractOutputs.length == BigInt(1), "Expected exactly one contract output")
+        require(contractOutputs.length === BigInt(1), "Expected exactly one contract output")
         val contractOutput = contractOutputs.head
 
-        require(buyerOutputs.length == BigInt(1), "Expected exactly one buyer output")
+        require(buyerOutputs.length === BigInt(1), "Expected exactly one buyer output")
 
         require(
           contractBalance != escrowDatum.escrowAmount,
@@ -142,14 +142,14 @@ object Escrow extends Validator:
         require(
           EscrowUtils.getAdaFromOutputs(
             contractOutputs
-          ) == escrowDatum.escrowAmount + escrowDatum.initializationAmount,
+          ) === escrowDatum.escrowAmount + escrowDatum.initializationAmount,
           "Contract output must contain exactly escrow amount plus initialization amount"
         )
 
         contractOutput.datum match {
             case OutputDatum.OutputDatum(inlineData) =>
                 require(
-                  inlineData == receivedData,
+                  inlineData === receivedData,
                   "EscrowDatum must be preserved"
                 )
             case _ => fail("Expected inline datum")
@@ -164,7 +164,7 @@ object Escrow extends Validator:
         log("Handling pay action")
 
         require(
-          contractBalance == escrowDatum.escrowAmount + escrowDatum.initializationAmount,
+          contractBalance === escrowDatum.escrowAmount + escrowDatum.initializationAmount,
           "Contract must be fully funded before payment"
         )
 
@@ -189,7 +189,7 @@ object Escrow extends Validator:
         require(
           EscrowUtils.getAdaFromOutputs(
             sellerOutputs
-          ) == escrowDatum.escrowAmount + escrowDatum.initializationAmount,
+          ) === escrowDatum.escrowAmount + escrowDatum.initializationAmount,
           "Seller must receive exactly escrow amount plus initialization amount"
         )
     }
@@ -202,7 +202,7 @@ object Escrow extends Validator:
         log("Handling refund action")
 
         require(
-          contractBalance == escrowDatum.escrowAmount + escrowDatum.initializationAmount,
+          contractBalance === escrowDatum.escrowAmount + escrowDatum.initializationAmount,
           "Contract must be fully funded before refund"
         )
 
@@ -225,7 +225,7 @@ object Escrow extends Validator:
         )
 
         require(
-          EscrowUtils.getAdaFromOutputs(buyerOutputs) == escrowDatum.escrowAmount,
+          EscrowUtils.getAdaFromOutputs(buyerOutputs) === escrowDatum.escrowAmount,
           "Buyer must receive exactly the escrow amount back"
         )
     }
