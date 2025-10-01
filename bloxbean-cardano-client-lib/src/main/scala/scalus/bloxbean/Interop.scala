@@ -685,16 +685,17 @@ object Interop {
                 .map(v1.PubKeyHash.apply)
                 .toSeq
           ),
-          redeemers = SortedMap.fromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-              val purpose = getScriptPurposeV2(
-                redeemer,
-                body.getInputs,
-                body.getMint,
-                body.getCerts,
-                body.getWithdrawals
-              )
-              purpose -> toScalusData(redeemer.getData)
-          })),
+          redeemers =
+              SortedMap.unsafeFromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
+                  val purpose = getScriptPurposeV2(
+                    redeemer,
+                    body.getInputs,
+                    body.getMint,
+                    body.getCerts,
+                    body.getWithdrawals
+                  )
+                  purpose -> toScalusData(redeemer.getData)
+              })),
           data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
           id = v1.TxId(ByteString.fromHex(txhash))
         )
@@ -1083,10 +1084,11 @@ object Interop {
                 .map(v1.PubKeyHash.apply)
                 .toSeq
           ),
-          redeemers = SortedMap.fromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-              val purpose = getScriptPurposeV3(tx, redeemer)
-              purpose -> toScalusData(redeemer.getData)
-          })),
+          redeemers =
+              SortedMap.unsafeFromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
+                  val purpose = getScriptPurposeV3(tx, redeemer)
+                  purpose -> toScalusData(redeemer.getData)
+              })),
           data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
           id = v3.TxId(ByteString.fromHex(txhash)),
           votes = getVotingProcedures(body.getVotingProcedures),

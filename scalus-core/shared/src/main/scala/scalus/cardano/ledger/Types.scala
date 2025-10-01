@@ -484,7 +484,7 @@ object OriginalCborByteArray {
     def apply(bytes: Array[Byte]): OriginalCborByteArray = bytes
 }
 
-class KeepRaw[A] private (val value: A, rawBytes: () => Array[Byte]) {
+case class KeepRaw[A] private (val value: A, rawBytes: () => Array[Byte]) {
     @threadUnsafe lazy val raw: Array[Byte] = rawBytes()
     override def hashCode: Int =
         util.Arrays.hashCode(Array(value.hashCode(), util.Arrays.hashCode(raw)))

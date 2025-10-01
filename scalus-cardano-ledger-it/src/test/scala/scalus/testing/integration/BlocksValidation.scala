@@ -1,6 +1,6 @@
 package scalus.testing.integration
 
-import co.nstant.in.cbor.{model as cbor, CborException}
+import co.nstant.in.cbor.{CborException, model as cbor}
 import com.bloxbean.cardano.client.api.UtxoSupplier
 import com.bloxbean.cardano.client.api.util.CostModelUtil.{PlutusV1CostModel, PlutusV2CostModel, PlutusV3CostModel}
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
@@ -18,10 +18,9 @@ import scalus.*
 import scalus.bloxbean.*
 import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
-import scalus.builtin.{platform, ByteString}
+import scalus.builtin.{ByteString, platform}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
-import scalus.cardano.ledger.ProtocolParams
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, LedgerToPlutusTranslation, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, ProtocolParams, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Hex.toHex
 import scalus.utils.Utils
@@ -216,8 +215,11 @@ class BlocksValidation extends AnyFunSuite {
 //            println(
 //              s"\rBlock ${Console.YELLOW}$path${Console.RESET}, num txs to validate: ${txs.size}"
 //            )
-            for tx <- txs do
+            for (tx, idx) <- txs.zipWithIndex do
                 try
+//                    println(idx)
+//                    println(tx.id)
+//                    pprint.pprintln(tx)
                     val utxos = utxoResolver.resolveUtxos(tx)
                     if tx.isValid && tx.witnessSet.redeemers.nonEmpty then {
                         val actualRedeemers =
@@ -585,7 +587,7 @@ class BlocksValidation extends AnyFunSuite {
         }
     }
 
-    ignore("validateBlocksOfEpoch(543)"):
+    test("validateBlocksOfEpoch(543)"):
         validateBlocksOfEpoch(543)
 
     ignore("validateNativeScriptEvaluation()"):
