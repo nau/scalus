@@ -47,7 +47,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
               // 3 ADA initial bet
               value = Value.lovelace(3_000_000) + Value(
                 cs = policyId,
-                tn = b"lucky_number_slevin",
+                tn = utf8"lucky_number_slevin",
                 v = 1
               ),
               datum = OutputDatum.OutputDatum(initialBetDatum.toData)
@@ -98,7 +98,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
                 // Original 3 ADA bet
                 value = Value.lovelace(3_000_000) + Value(
                   cs = policyId,
-                  tn = b"lucky_number_slevin",
+                  tn = utf8"lucky_number_slevin",
                   v = 1
                 ),
                 datum = OutputDatum.OutputDatum(initialBetDatum.toData)
@@ -111,7 +111,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
               // Doubled to 6 ADA
               value = Value.lovelace(6_000_000) + Value(
                 cs = policyId,
-                tn = b"lucky_number_slevin",
+                tn = utf8"lucky_number_slevin",
                 v = 1
               ),
               datum = OutputDatum.OutputDatum(updatedBetDatum.toData)
@@ -158,7 +158,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
                 // Total pot: 6 ADA
                 value = Value.lovelace(6_000_000) + Value(
                   cs = policyId,
-                  tn = b"lucky_number_slevin",
+                  tn = utf8"lucky_number_slevin",
                   v = 1
                 ),
                 datum = OutputDatum.OutputDatum(finalBetDatum.toData)
@@ -172,7 +172,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
               // Winner takes all
               value = Value.lovelace(6_000_000) + Value(
                 cs = policyId,
-                tn = b"lucky_number_slevin",
+                tn = utf8"lucky_number_slevin",
                 v = 1
               )
             )

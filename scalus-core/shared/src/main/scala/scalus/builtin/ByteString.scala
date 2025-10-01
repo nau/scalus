@@ -55,12 +55,6 @@ class ByteString private[builtin] (val bytes: Array[Byte]) {
       * Offchain operation, not available onchain.
       */
     def size: Int = bytes.length
-
-    /** Checks if the ByteString is empty
-      *
-      * Offchain operation, not available onchain.
-      */
-    def isEmpty: Boolean = bytes.isEmpty
 }
 
 @Compile
@@ -200,7 +194,7 @@ object ByteString extends ByteStringOffchainApi {
         inline def length: BigInt = Builtins.lengthOfByteString(self)
 
         /** Checks if the ByteString is empty */
-        inline def isNull: Boolean = self.length == BigInt(0)
+        inline def isEmpty: Boolean = self.length == BigInt(0)
 
         /** Concatenates two ByteStrings and returns a new ByteString */
         inline infix def ++(that: ByteString): ByteString =
@@ -211,7 +205,7 @@ object ByteString extends ByteStringOffchainApi {
         inline infix def +:(bs: ByteString): ByteString = Builtins.consByteString(b, bs)
 
     extension (sc: StringContext)
-        inline def b(args: Any*): ByteString =
+        inline def utf8(args: Any*): ByteString =
             fromString(sc.s(args*))
 
 }

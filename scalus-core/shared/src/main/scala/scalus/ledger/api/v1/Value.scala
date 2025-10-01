@@ -709,6 +709,35 @@ object Value {
             case Option.Some(tokens) => tokens.get(tn).getOrElse(0)
             case Option.None         => 0
 
+        /** Get all tokens associated with a given policy.
+          *
+          * Returns the token `SortedMap` for the given currency symbol. If the currency symbol is
+          * not found, returns an empty `SortedMap`.
+          *
+          * @param cs
+          *   The currency symbol to look up
+          * @return
+          *   The `SortedMap` of the specified token, or an empty `SortedMap` if not found
+          * @example
+          *   {{{
+          *   val value = Value.fromList(
+          *     List.Cons(
+          *       (Value.adaCurrencySymbol, List.Cons((Value.adaTokenName, BigInt(1000000)), List.Nil)),
+          *       List.Cons(
+          *         (utf8"ff", List.Cons((utf8"TOKEN", BigInt(100)), List.Nil)),
+          *         List.Nil
+          *       )
+          *     )
+          *   )
+          *
+          *   value.quantityOf(Value.adaCurrencySymbol) === SortedMap.singleton(Value.adaTokenName, BigInt(1000000))
+          *   value.quantityOf(utf8"ff") === SortedMap.singleton(utf8"TOKEN", BigInt(100))
+          *   value.quantityOf(utf8"missing") === SortedMap.empty
+          *   }}}
+          */
+        def tokens(cs: CurrencySymbol): SortedMap[TokenName, BigInt] =
+            v.toSortedMap.get(cs).getOrElse(SortedMap.empty)
+
         /** Returns a new `Value` with all ADA/Lovelace tokens removed.
           *
           * This method creates a copy of the value with the ADA policy id removed, effectively

@@ -1,14 +1,11 @@
 package scalus.examples
 
-import scalus.Compiler.compile
 import scalus.builtin.Builtins
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.ToData
-import scalus.cardano.plutus.contract.blueprint.Application
-import scalus.cardano.plutus.contract.blueprint.Blueprint
 import scalus.ledger.api.v1.Address
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
@@ -35,7 +32,7 @@ case class Config(
 @Compile
 object Config
 
-type NodeKey = Option[PubKeyHash]
+type NodeKey = Option[TokenName]
 
 /** Node key and reference:
   *
@@ -51,7 +48,8 @@ case class SetNode(
       ToData
 
 @Compile
-object SetNode
+object SetNode:
+    given Eq[SetNode] = (x, y) => x.key === y.key && x.link === y.link
 
 /** Every list node utxo:
   *
@@ -67,7 +65,8 @@ case class NodePair(
       ToData
 
 @Compile
-object NodePair
+object NodePair:
+    given Eq[NodePair] = (x, y) => x.value === y.value && x.node === y.node
 
 /** Common information shared between all redeemers:
   *
@@ -102,104 +101,204 @@ object NodeAction
 
 case class LinkedList(cfg: Config) extends Validator:
 
-    def mkCommon(tx: TxInfo): (Common, List[TxInInfo], List[TxOut], List[PubKeyHash], Interval) =
-        ???
+    val nodeToken: TokenName = utf8"LAN"
+
+    def mkCommon(
+        currencySymbol: CurrencySymbol,
+        tx: TxInfo
+    ): (Common, List[TxInInfo], List[TxOut], List[PubKeyHash], Interval) =
+        val fromNodeOutputs =
+            tx.inputs.map(_.resolved).filter(_.value.toSortedMap.contains(currencySymbol))
+        val toNodeOutputs = tx.outputs.filter(_.value.toSortedMap.contains(currencySymbol))
+        val allNodeOutputs = fromNodeOutputs ++ toNodeOutputs
+        // TODO: reduce computational complexity
+        allNodeOutputs.headOption match
+            case Some(head) =>
+                require(
+                  allNodeOutputs.forall(head.address === _.address),
+                  "All outputs must have same address"
+                )
+                val nodeInputs = fromNodeOutputs.map(out =>
+                    NodePair(
+                      out.value,
+                      out.datum match
+                          case OutputDatum.OutputDatum(nodeDatum) =>
+                              val node = nodeDatum.to[SetNode]
+                              node
+                          case _ => fail("Node datum must be inline")
+                    )
+                )
+                val nodeOutputs = toNodeOutputs.map(out =>
+                    NodePair(
+                      out.value,
+                      out.datum match
+                          case OutputDatum.OutputDatum(nodeDatum) =>
+                              val node = nodeDatum.to[SetNode]
+                              out.value.tokens(currencySymbol).toList match
+                                  case List.Cons(tokenAmount, tail) =>
+                                      tail match
+                                          case List.Nil =>
+                                              val (token, amount) = tokenAmount
+                                              val nodeKey = parseNodeKey(token)
+                                              require(
+                                                nodeKey === node.key &&
+                                                    out.value.flatten.length == BigInt(2) &&
+                                                    node.key.forall(key =>
+                                                        node.link.forall(key < _)
+                                                    ),
+                                                "validate node output utxo"
+                                              )
+                                              // TODO: secod pass over output
+                                              // values, can be done in single
+                                              require(
+                                                out.value.flatten.filterMap {
+                                                    case (currency, tokenName, _) =>
+                                                        if tokenName.take(nodeToken.length) ===
+                                                                nodeToken
+                                                        then Some(currency)
+                                                        else None
+                                                } === List.single(currencySymbol),
+                                                "There's must be exactly one output by token prefix, with expected currency"
+                                              )
+                                          case _ =>
+                                              fail(
+                                                "Token key output for the currency must be single"
+                                              )
+                                  case _ =>
+                                      fail("There's must be a token key for the currency output")
+                              node
+                          case _ => fail("Node datum must be inline")
+                    )
+                )
+                val common = Common(currencySymbol, tx.mint, nodeInputs, nodeOutputs)
+                (common, tx.inputs, tx.outputs, tx.signatories, tx.validRange)
+            case _ => fail("There's must be at least one output")
+
+    def parseNodeKey(token: TokenName): NodeKey =
+        require(
+          token.take(nodeToken.length) === nodeToken,
+          "validate node token prefix"
+        )
+        if nodeToken.length < token.length
+        then Some(token.drop(nodeToken.length))
+        else None
 
     override def mint(
         redeemer: Data,
         currencySymbol: CurrencySymbol,
         tx: TxInfo
     ): Unit =
-        val (common, inputs, _outputs, _sigs, range) = mkCommon(tx)
+        val (common, inputs, outputs, signatories, range) = mkCommon(currencySymbol, tx)
         redeemer.to[NodeAction] match
             case NodeAction.Init =>
                 require(
-                  inputs.any(cfg.init === _.outRef) && init(common),
+                  inputs.exists(cfg.init === _.outRef) && init(common),
                   "validate init"
                 )
-            case NodeAction.Deinit                => fail("unimplemented")
-            case NodeAction.Insert(key, covering) => fail("unimplemented")
-            case NodeAction.Remove(key, covering) => fail("unimplemented")
+            case NodeAction.Deinit =>
+                require(deinit(common), "validate deinit")
+            case NodeAction.Insert(key, covering) =>
+                require(range.entirelyBefore(cfg.deadline), "must be before the deadline")
+                require(signatories.contains(key), "must be signed by a node key")
+                require(insert(common, key, covering), "validate insert")
+            case NodeAction.Remove(key, covering) =>
+                require(range.entirelyBefore(cfg.deadline), "must be before the deadline")
+                require(
+                  remove(common, range, cfg, outputs, signatories, key, covering),
+                  "validate remove"
+                )
 
     // State transition handlers (used in list minting policy)
     // aka list natural transformations
-
-    /*
-    private def serializedKey(key: NodeKey = None): ByteString =
-        key.map(nodePrefix ++ _).getOrElse(nodePrefix)
-
-    /** Initialize an empty unordered list.
-     *
-      * Application code must ensure that this action can happen only once.
-     */
-    def init(
-        outputs: List[TxOut], // current Tx outputs
-        minted: SortedMap[TokenName, BigInt], // value minted in current Tx
-        currency: CurrencySymbol // state token (own) currency
-    ): Boolean =
-        // 1. The transaction's sole effect on the list is to add the root key.
-        require( // FIXME: can be done in a single pass
-          minted.size === BigInt(1) &&
-              minted.get(serializedKey()) === Some(BigInt(1)),
-          "Key added"
-        )
-        // 2. The list must be empty after the transaction, as proved by an output
-        // root_node that holds the minted root node NFT.
-        val rootNode = outputs.head
-        rootNode.datum match
-            case OutputDatum.OutputDatum(outputDatum) =>
-                Builtins.unConstrData(outputDatum)
-            case _ => fail("Node datum must be inline")
-
-        // 3. The root_node must not contain any other non-ADA tokens.
-        fail("unimplemented")
-     */
-
-    val nodeToken: CurrencySymbol = b"LAN"
-    val nodePrefix: PubKeyHash = PubKeyHash(nodeToken)
 
     /** Initialize an empty unordered list.
       *
       * Application code must ensure that this action can happen only once.
       */
     def init(common: Common): Boolean =
-        val mustSpendNodes = common.inputs.isEmpty
-        val mustExactlyOneNodeOutput = common.outputs.length === BigInt(1)
+        val mustSpendNodes = common.inputs.isEmpty // TODO: early exit
+        val mustExactlyOneNodeOutput = common.outputs.length == BigInt(1)
         val mustMintCorrectly =
             common.mint.flatten === List.single((common.currency, nodeToken, BigInt(1)))
         mustSpendNodes && mustExactlyOneNodeOutput && mustMintCorrectly
 
     /** Deinitialize an empty unordered list.
       */
-    def deinit: Boolean = fail("unimplemented")
+    def deinit(common: Common): Boolean =
+        common.inputs match
+            case List.Cons(headNode, tail) =>
+                tail match
+                    case List.Nil =>
+                        headNode.node.link match
+                            case None =>
+                                val mustNotProduceNodeOutput = common.outputs.isEmpty
+                                val mustBurnCorrectly = common.mint.flatten === List.single(
+                                  (common.currency, nodeToken, BigInt(-1))
+                                )
+                                mustNotProduceNodeOutput && mustBurnCorrectly
+                            case _ => false // Linked list must be empty
+                    case _ => false // Head node input must be single
+            case _ => false // There's must be a head node input
 
-    /** Prepend a new node to the beginning of the list.
+    /** Insert a node under for a key at an unordered list.
       *
       * WARNING: An application using a key-unordered list MUST only add nodes with unique keys to
       * the list. Duplicate keys break the linked list data structure.
-      *
-      * The index arguments in this function are relative to the node_inputs and node_outputs. They
-      * are NOT absolute.
       */
-    def prependUnsafe: Boolean = fail("unimplemented")
-
-    /** Append a new node to the end of the list.
-      *
-      * WARNING: An application using a key-unordered list MUST only add nodes with unique keys to
-      * the list. Duplicate keys break the linked list data structure.
-      *
-      * The index arguments in this function are relative to the node_inputs
-      */
-    def appendUnsafe: Boolean = fail("unimplemented")
+    def insert(common: Common, insertKey: PubKeyHash, node: SetNode): Boolean =
+        val PubKeyHash(key) = insertKey
+        val mustCoverInsertingKey = node.key.forall(_ < key) && node.link.forall(_ > key)
+        common.inputs match
+            case List.Cons(coveringNode, tail) =>
+                tail match
+                    case List.Nil =>
+                        val mustHasDatumInOutput =
+                            common.outputs.exists(SetNode(Some(key), node.link) === _.node)
+                        val mustCorrectNodeOutput = common.outputs.contains(
+                          NodePair(coveringNode.value, SetNode(node.key, Some(key)))
+                        )
+                        val mustMintCorrect = common.mint.flatten === List.single(
+                          (common.currency, nodeToken ++ key, BigInt(1)) // serializedKey
+                        )
+                        mustCoverInsertingKey && mustHasDatumInOutput && mustCorrectNodeOutput && mustMintCorrect
+                    case _ => false // Linked list must be empty
+            case _ => false // Covering node input must be single
 
     /** Remove a non-root node from the list.
-      *
-      * The index arguments in this function are relative to the node_inputs and node_outputs. They
-      * are NOT absolute.
       */
-    def remove: Boolean = fail("unimplemented")
-
-    // ???: insert
+    def remove(
+        common: Common,
+        range: Interval,
+        config: Config,
+        outputs: List[TxOut],
+        signatories: List[PubKeyHash],
+        removeKey: PubKeyHash,
+        node: SetNode
+    ): Boolean =
+        val PubKeyHash(key) = removeKey
+        val mustCoverRemoveKey = node.key.forall(_ < key) && node.link.forall(_ > key)
+        val mustSpendTwoNodes = common.inputs.length == BigInt(2)
+        common.inputs.find(SetNode(node.key, Some(key)) === _.node) match
+            case Some(stayNode) =>
+                val mustCorrectNodeOutput = common.outputs.contains(
+                  NodePair(stayNode.value, node)
+                )
+                val mustMintCorrect = common.mint.flatten === List.single(
+                  (common.currency, nodeToken ++ key, BigInt(-1)) // serializedKey
+                )
+                val mustSignByUser = signatories.contains(removeKey)
+                // TODO: both find in a single pass
+                common.inputs.find(SetNode(Some(key), node.link) === _.node) match
+                    case Some(removeNode) =>
+                        val fee = removeNode.value.getLovelace /% BigInt(4) match
+                            case (div, rem) => if rem == BigInt(0) then div else div + BigInt(1)
+                        val mustSatisfyRemovalBrokePhaseRules =
+                            range.entirelyBefore(config.deadline) || outputs.exists(out =>
+                                out.address === config.penalty && fee < out.value.getLovelace
+                            )
+                        mustCoverRemoveKey && mustSpendTwoNodes && mustCorrectNodeOutput && mustMintCorrect && mustSignByUser && mustSatisfyRemovalBrokePhaseRules
+                    case _ => false // There's must be a remove node input
+            case _ => false // There's must be a stay node input
 
 @Compile
 object LinkedList
