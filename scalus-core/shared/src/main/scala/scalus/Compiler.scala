@@ -7,7 +7,7 @@ import scalus.builtin.Data
 import scala.annotation.Annotation
 
 final class Compile extends Annotation
-final class ScalusDebug(debugLevel: Int) extends Annotation
+final class ScalusDebug(val debugLevel: Int) extends Annotation
 final class Ignore extends Annotation
 
 /** This is a marker trait for the compiler plugin to compile derivations of the instances of the
