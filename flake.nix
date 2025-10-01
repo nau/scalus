@@ -37,7 +37,10 @@
           default =
             let
               jdk = pkgs.openjdk23;
+              graalvm = pkgs.graalvmPackages.graalvm-ce;
               sbt = pkgs.sbt.override { jre = jdk; };
+              metals = pkgs.metals.override { jre = graalvm; };
+              bloop = pkgs.bloop.override { jre = graalvm; };
             in
             pkgs.mkShell {
               JAVA_HOME = "${jdk}";
@@ -57,6 +60,9 @@
                 scalafmt
                 scalafix
                 coursier
+                scala-cli
+                ammonite
+                bloop
                 niv
                 nixpkgs-fmt
                 nodejs
