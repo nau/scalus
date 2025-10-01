@@ -19,7 +19,6 @@ package scalus.cardano.ledger.txbuilder
  */
 
 import cats.implicits.*
-import hydrozoa.lib
 import monocle.Lens
 import monocle.Monocle.{focus, refocus}
 import scalus.builtin.Data

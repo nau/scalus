@@ -27,6 +27,9 @@ import scalus.cardano.ledger.RedeemerTag.{Cert, Spend}
 import scalus.cardano.ledger.Timelock.AllOf
 import scalus.cardano.ledger.TransactionOutput.Babbage
 import scalus.|>
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import TransactionBuilder.txBodyL
 
 import scala.collection.immutable.{SortedMap, SortedSet}
 
@@ -39,7 +42,7 @@ private def addInput(input: TransactionInput): Transaction => Transaction =
             )
         )
 
-class TxBuilderTests extends munit.ScalaCheckSuite {
+class TxBuilderTests extends AnyFunSuite, ScalaCheckPropertyChecks {
 
     /** Test that the builder steps fail with the expected error
       *
@@ -51,7 +54,7 @@ class TxBuilderTests extends munit.ScalaCheckSuite {
         label: String,
         steps: Seq[TransactionBuilderStep],
         error: TxBuildError
-    )(implicit loc: munit.Location): Unit =
+    ): Unit =
         test(label) {
             val res = TransactionBuilder.build(Mainnet, steps)
             assertEquals(obtained = res, expected = Left(error))
@@ -516,7 +519,7 @@ val script2: Script.PlutusV1 =
         .to[Script.PlutusV1]
         .value
 
-val anyNetworkTx: Transaction = emptyTransaction
+val anyNetworkTx: Transaction = Transaction.empty
 
 // See: https://github.com/mlabs-haskell/purescript-cardano-types/blob/348fbbefa8bec5050e8492f5a9201ac5bb17c9d9/test/CSLHex.purs#L109
 val testnetTransaction: Transaction =

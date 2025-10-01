@@ -1,7 +1,4 @@
 package scalus.cardano.ledger.txbuilder
-
-package scalus.cardano.ledger.txbuilder
-
 /*
  This module contains declarative transaction building types and utilities
  ported from purescript-cardano-transaction-builder.
@@ -13,8 +10,7 @@ import cats.implicits.*
 import scalus.cardano.ledger.txbuilder
 import scalus.cardano.ledger.txbuilder.InputAction.{ReferenceInput, SpendInput}
 import scalus.cardano.ledger.txbuilder.TxBuildError.{CannotExtractSignatures, RedeemerIndexingInternalError, Unimplemented}
-import hydrozoa.{datumOption, emptyTransaction, txBodyL}
-import io.bullet.borer.Cbor
+import io.bullet.borer.{Cbor, Encoder}
 import monocle.syntax.all.*
 import monocle.{Focus, Lens}
 import scalus.builtin.Builtins.{blake2b_224, serialiseData}
@@ -582,7 +578,7 @@ object TransactionBuilder:
 
     object Context:
         def empty(networkId: Network) = Context(
-          transaction = emptyTransaction,
+          transaction = Transaction.empty,
           redeemers = Seq.empty,
           network = networkId,
           expectedSigners = Set.empty,
@@ -590,6 +586,20 @@ object TransactionBuilder:
         )
 
     private type BuilderM[A] = StateT[[X] =>> Either[TxBuildError, X], Context, A]
+
+    def keepRawL[A: Encoder](): Lens[KeepRaw[A], A] = {
+        val get: KeepRaw[A] => A = kr => kr.value
+        val replace: A => KeepRaw[A] => KeepRaw[A] = a => kr => KeepRaw(a)
+        Lens[KeepRaw[A], A](get)(replace)
+    }
+
+    def txBodyL: Lens[Transaction, TransactionBody] = {
+        val get: Transaction => TransactionBody = tx =>
+            tx.focus(_.body).andThen(keepRawL[TransactionBody]()).get
+        val replace: TransactionBody => Transaction => Transaction = body =>
+            tx => tx.focus(_.body).andThen(keepRawL[TransactionBody]()).replace(body)
+        Lens(get)(replace)
+    }
 
     // Will drop signers silently
     private val unsafeCtxBodyL: Lens[Context, TransactionBody] =
@@ -762,7 +772,7 @@ object TransactionBuilder:
             StateT.modify[[X] =>> Either[TxBuildError, X], Context](
               Focus[Context](_.transaction)
                   .refocus(_.auxiliaryData)
-                  .modify(f(_))
+                  .modify(a => f(a.map(_.value)).map(KeepRaw(_)))
             )
     }
 
@@ -1402,3 +1412,15 @@ object TransactionBuilder:
                     StateT.pure[[X] =>> Either[TxBuildError, X], Context, Unit](())
             }
         } yield ()
+
+extension (self: TransactionOutput)
+    def datumOption: Option[DatumOption] =
+        self match {
+            case TransactionOutput.Shelley(_, _, datumHash) =>
+                datumHash.map(DatumOption.Hash(_))
+            case Babbage(_, _, datumOption, _) =>
+                datumOption match {
+                    case Some(value) => Some(value)
+                    case None        => None
+                }
+        }
