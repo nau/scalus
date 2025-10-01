@@ -639,7 +639,7 @@ object LedgerToPlutusTranslation {
             body.requiredSigners.toSortedSet.view
                 .map(hash => v1.PubKeyHash(hash))
           ),
-          redeemers = SortedMap.fromList(prelude.List.from(redeemers.sorted.map { redeemer =>
+          redeemers = SortedMap.unsafeFromList(prelude.List.from(redeemers.sorted.map { redeemer =>
               val purpose = getScriptPurposeV2(tx, redeemer)
               purpose -> redeemer.data
           })),
@@ -697,7 +697,7 @@ object LedgerToPlutusTranslation {
             body.requiredSigners.toSortedSet.view
                 .map(hash => v1.PubKeyHash(hash))
           ),
-          redeemers = SortedMap.fromList(prelude.List.from(redeemers.sorted.map { redeemer =>
+          redeemers = SortedMap.unsafeFromList(prelude.List.from(redeemers.sorted.map { redeemer =>
               val purpose = getScriptPurposeV3(tx, redeemer)
               purpose -> redeemer.data
           })),
