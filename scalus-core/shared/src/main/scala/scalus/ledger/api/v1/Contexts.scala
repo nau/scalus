@@ -399,7 +399,7 @@ object DCert {
 }
 
 case class TxId(hash: Hash):
-    override def toString = s"tx#${hash.toHex}"
+    override def toString = s"txid#${hash.toHex}"
 
 @Compile
 object TxId:
@@ -411,7 +411,7 @@ object TxId:
     given FromData[TxId] = FromData.derived
 
     extension (sc: StringContext)
-        inline def tx(args: Any*): TxId =
+        inline def txid(args: Any*): TxId =
             TxId(sc.hex(args*))
 
 end TxId
