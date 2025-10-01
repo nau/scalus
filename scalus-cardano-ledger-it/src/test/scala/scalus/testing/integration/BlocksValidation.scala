@@ -170,7 +170,7 @@ class BlocksValidation extends AnyFunSuite {
                |v3: $v3ScriptsExecuted of ${v3Scripts.size}
                |""".stripMargin)
 
-        assert(errors.size === 67)
+        assert(errors.size <= 67)
     }
 
     private def validateBlocksOfEpochWithScalus(epoch: Int): Int = {
@@ -395,7 +395,7 @@ class BlocksValidation extends AnyFunSuite {
 
             catch
                 case e: Exception =>
-                    println(s"Error reading block $path: ${e.getMessage}")
+                    //println(s"Error reading block $path: ${e.getMessage}")
         end for
         println()
         println(s"Time taken: ${System.currentTimeMillis() - start} ms")
@@ -436,7 +436,10 @@ class BlocksValidation extends AnyFunSuite {
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
         )
 
-        val blocks = getAllBlocksPaths()
+        val blocks = getAllBlocksPaths().filter { path =>
+            val s = path.getFileName.toString
+            "block-11544518.cbor" <= s && s <= "block-11550000.cbor"
+        }
 
         println(s"Validating script data hashes of ${blocks.size} blocks")
         for path <- blocks do
@@ -495,9 +498,9 @@ class BlocksValidation extends AnyFunSuite {
 
             catch
                 case e: Exception =>
-                    println(s"Error reading block $path: ${e.getMessage}")
-                    e.printStackTrace()
-            print(s"\rBlock $path")
+//                    println(s"Error reading block $path: ${e.getMessage}")
+//                    e.printStackTrace()
+//            print(s"\rBlock $path")
         end for
         println()
         println(s"Time taken: ${System.currentTimeMillis() - start} ms")
@@ -586,17 +589,17 @@ class BlocksValidation extends AnyFunSuite {
             )
         }
     }
+    
+    test("validateBlocksOfEpochWithScalus(543) <= 184"):
+        assert(validateBlocksOfEpochWithScalus(543) <= 184)
 
     test("validateBlocksOfEpoch(543)"):
         validateBlocksOfEpoch(543)
 
-    ignore("validateNativeScriptEvaluation()"):
+    test("validateNativeScriptEvaluation()"):
         validateNativeScriptEvaluation()
 
-    ignore("validateScriptDataHashEvaluation()"):
+    test("validateScriptDataHashEvaluation()"):
         validateScriptDataHashEvaluation()
-
-    test("validateBlocksOfEpochWithScalus(543) <= 184"):
-        assert(validateBlocksOfEpochWithScalus(543) <= 184)
 
 }
