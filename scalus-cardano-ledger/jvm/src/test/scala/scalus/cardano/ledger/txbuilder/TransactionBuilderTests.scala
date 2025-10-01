@@ -11,7 +11,7 @@ import scalus.cardano.ledger.txbuilder.TransactionBuilder.{build, modify, Contex
 import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.*
 import scalus.cardano.ledger.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
 import scalus.cardano.ledger.txbuilder.TxBuildError.{IncorrectScriptHash, UnneededDeregisterWitness, WrongNetworkId, WrongOutputType}
-import scalus.cardano.ledger.txbuilder.TxBuilderLenses.txBodyL
+import scalus.cardano.ledger.txbuilder.TransactionBuilder.txBodyL
 import io.bullet.borer.Cbor
 import monocle.syntax.all.*
 import monocle.{Focus, Lens}
