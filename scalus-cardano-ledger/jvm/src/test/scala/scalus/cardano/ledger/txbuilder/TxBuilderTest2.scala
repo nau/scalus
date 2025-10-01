@@ -3,8 +3,7 @@ package scalus.cardano.ledger.txbuilder
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, Data}
-import scalus.cardano.address.ShelleyDelegationPart.Null
-import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
+import scalus.cardano.address.{Address, ArbitraryInstances as ArbAddresses, Network}
 import scalus.cardano.ledger.Script.PlutusV3
 import scalus.cardano.ledger.rules.*
 import scalus.cardano.ledger.utils.TxBalance
@@ -91,16 +90,14 @@ class TxBuilderTest2
           collat = Set(ResolvedTxInput.Pubkey(makeUtxo(5_000_00L)))
         )
 
-        val targetAddress = ShelleyAddress(
+        val targetAddress = Address(
           Network.Testnet,
-          ShelleyPaymentPart.Key(arbitrary[AddrKeyHash].sample.get),
-          Null
+          Credential.KeyHash(arbitrary[AddrKeyHash].sample.get)
         )
 
-        val changeAddress = ShelleyAddress(
+        val changeAddress = Address(
           Network.Testnet,
-          ShelleyPaymentPart.Key(arbitrary[AddrKeyHash].sample.get),
-          Null
+          Credential.KeyHash(arbitrary[AddrKeyHash].sample.get)
         )
 
         val paymentAmount = Value.ada(1)
@@ -144,10 +141,9 @@ class TxBuilderTest2
         script: PlutusV3
     ): (TransactionInput, TransactionOutput) = {
         val in = arbitrary[TransactionInput].sample.get
-        val outAddress = ShelleyAddress(
+        val outAddress = Address(
           Network.Testnet,
-          ShelleyPaymentPart.Script(script.scriptHash),
-          Null
+          Credential.ScriptHash(script.scriptHash)
         )
         val out = TransactionOutput(outAddress, Value.lovelace(amount))
         in -> out
@@ -155,10 +151,9 @@ class TxBuilderTest2
 
     private def makeUtxo(amount: Long): (TransactionInput, TransactionOutput) = {
         val in = arbitrary[TransactionInput].sample.get
-        val outAddress = ShelleyAddress(
+        val outAddress = Address(
           Network.Testnet,
-          ShelleyPaymentPart.Key(arbitrary[AddrKeyHash].sample.get),
-          Null
+          Credential.KeyHash(arbitrary[AddrKeyHash].sample.get)
         )
         val out = TransactionOutput(outAddress, Value.lovelace(amount))
         in -> out

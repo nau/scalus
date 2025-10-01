@@ -275,11 +275,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
         val signatureTimelock = Timelock.Signature(keyHash)
         val nativeScript = Script.Native(signatureTimelock)
 
-        val scriptAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.scriptHash(nativeScript.scriptHash),
-          ShelleyDelegationPart.Null
-        )
+        val scriptAddress = Address(Network.Testnet, Credential.ScriptHash(nativeScript.scriptHash))
 
         val paymentAmount = Value.ada(5)
         val ctx = BuilderContext(
@@ -386,11 +382,7 @@ class TransactionBuilderIntegrationTest extends AnyFunSuite {
 
         val script = Script.PlutusV3(luckyPaymentsOnly.cborByteString)
 
-        val scriptAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.scriptHash(script.scriptHash),
-          ShelleyDelegationPart.Null
-        )
+        val scriptAddress = Address(Network.Testnet, Credential.ScriptHash(script.scriptHash))
 
         val network = Networks.testnet()
         val account = Account.createFromMnemonic(network, MNEMONIC)

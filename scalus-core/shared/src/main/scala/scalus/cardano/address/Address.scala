@@ -460,6 +460,31 @@ sealed trait Address {
 // Conversion utilities between address types
 object Address {
 
+    /** Create a Shelley address from payment and stake credentials */
+    def apply(network: Network, payment: Credential, delegation: Credential): Address = {
+        val paymentPart = payment match
+            case Credential.KeyHash(hash)    => ShelleyPaymentPart.Key(hash)
+            case Credential.ScriptHash(hash) => ShelleyPaymentPart.Script(hash)
+
+        val delegationPart = delegation match
+            case Credential.KeyHash(hash) =>
+                ShelleyDelegationPart.Key(hash.asInstanceOf[StakeKeyHash]) // This is fine
+            case Credential.ScriptHash(hash) => ShelleyDelegationPart.Script(hash)
+
+        ShelleyAddress(network, paymentPart, delegationPart)
+    }
+
+    /** Create a Shelley-era address from a payment credential with no delegation
+      *
+      * This is an enterprise address.
+      */
+    def apply(network: Network, payment: Credential): Address = {
+        val paymentPart = payment match
+            case Credential.KeyHash(hash)    => ShelleyPaymentPart.Key(hash)
+            case Credential.ScriptHash(hash) => ShelleyPaymentPart.Script(hash)
+        ShelleyAddress(network, paymentPart, ShelleyDelegationPart.Null)
+    }
+
     /** CBOR encoder for Address */
     given Encoder[Address] with
         def write(w: Writer, value: Address): Writer = {

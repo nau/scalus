@@ -153,11 +153,7 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
 
         val script = Script.PlutusV3(luckyPaymentsOnly.cborByteString)
 
-        val scriptAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.scriptHash(script.scriptHash),
-          ShelleyDelegationPart.Null
-        )
+        val scriptAddress = Address(Network.Testnet, Credential.ScriptHash(script.scriptHash))
 
         def transferToScript = {
             val input = resolvedTransaction(EXISTING_UTXO, SPENDER_ADDRESS)
