@@ -20,7 +20,7 @@ object ParseScriptInfo {
 
     def validate(scData: Data): Boolean = {
         val sc = scData.to[ScriptContext]
-        val x = BigInt(6)
+        val x = BigInt(10)
         sc.scriptInfo match
             case ScriptInfo.MintingScript(policyId) =>
                 mint(sc.redeemer, policyId, sc.txInfo)

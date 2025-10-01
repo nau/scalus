@@ -525,7 +525,8 @@ object SirCaseDecisionTree:
             sb.append(" " * level)
             tree match {
                 case leaf: Leaf =>
-                    sb.append(s"Leaf(${leaf.action}, ${leaf.pos.sourcePos.show})").append("\n")
+                    sb.append(s"Leaf(${leaf.binding} ${leaf.action}, ${leaf.pos.sourcePos.show})")
+                        .append("\n")
                 case cc: ConstructorsChoice =>
                     sb.append(s"ConstructorsChoice(${cc.columnName}, ${cc.scrutineeTp.show})\n")
                     cc.byConstructors.foreach { case (name, entry) =>
@@ -1335,11 +1336,11 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                     )
                 else
                     val retval = ctx.createLeaf(
-                      group.columnBindings,
+                      group2.columnBindings,
                       firstRow
                     )
-                    if group.rows.length > 1 then {
-                        group.rows.tail.foreach(r =>
+                    if group2.rows.length > 1 then {
+                        group2.rows.tail.foreach(r =>
                             if r.actionRef != FailMatch then
                                 report.warning("Unreachable case in pattern matching", r.pos)
                         )
@@ -1350,7 +1351,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 val (p, i) = prioritized.head
                 p match
                     case constr: SirParsedCase.Pattern.Constructor =>
-                        val stp = group.columnBindings(i).tp
+                        val stp = group2.columnBindings(i).tp
                         buildSpecializedConstr(ctx, group2, firstRow, i, stp)
                     case const: SirParsedCase.Pattern.PrimitiveConstant =>
                         const.value.tp match
@@ -1548,9 +1549,10 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                     case head :: _ => head.pos
                     case Nil       => ctx.topLevelPos
                 val subtree = buildGroupedTuplesDecisionTree(ctx, newGroup, constrPos)
+                val newGroupBindings = newGroup.columnBindings.drop(group.columnBindings.size)
                 val entry = SirCaseDecisionTree.ConstructorEntry(
                   sirCaseClass,
-                  newGroup.columnBindings,
+                  newGroupBindings,
                   subtree,
                   constrPos
                 )
@@ -1581,15 +1583,19 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         cc: SIRType.CaseClass,
         ccFreeTypeParams: List[SIRType.TypeVar],
         prevGroup: SirParsedCase.GroupedTuples,
-        colindex: Int,
+        colIndex: Int,
         rows: List[SirParsedCase.GroupedTupleRow]
     ): SirParsedCase.GroupedTuples = {
+        val nextIndex = prevGroup.columnBindings.length
+        if ctx.env.debug then
+            println(
+              s"insertConstructorPatternsIntoGroup: cc=${cc.constrDecl.name}, colIndex=${colIndex}, nextIndex=${nextIndex}"
+            )
         val rowsMoreThanOne = rows match {
             case Nil         => false
             case head :: Nil => false
             case _           => true
         }
-        val nextIndex = prevGroup.columnBindings.length
         val constructorBindings = cc.constrDecl.params.map(b =>
             BindingNameInfo(
               ctx.freshName(b.name),
@@ -1600,9 +1606,9 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         )
         val newColumnBindings = prevGroup.columnBindings ++ constructorBindings
         val newActiveColumns =
-            (prevGroup.activeColumns - colindex) ++ (nextIndex until nextIndex + constructorBindings.length)
+            (prevGroup.activeColumns - colIndex) ++ (nextIndex until nextIndex + constructorBindings.length)
         val newRows = rows.map { r =>
-            val constructorPattern = r.patterns(colindex) match
+            val constructorPattern = r.patterns(colIndex) match
                 case c: SirParsedCase.Pattern.Constructor => c
                 case w: SirParsedCase.Pattern.Wildcard =>
                     createWildcardConstructorPattern(cc, ccFreeTypeParams, w.pos)
@@ -2001,6 +2007,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
     ): AnnotatedSIR = {
         tree match {
             case SirCaseDecisionTree.Leaf(bindingMap, actionRef, pos) =>
+                if ctx.env.debug then
+                    println(s"compileDecisions: leaf ${SirCaseDecisionTree.show(tree)}")
                 val trueConst = SIR.Const.bool(true, AnnotationsDecl.empty)
                 actionRef match {
                     case SirParsedCase.ActionRef.FailMatch =>
