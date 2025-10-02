@@ -25,7 +25,7 @@ extension (x: Boolean)
       */
     inline def ? : Boolean = ${ Macros.questionMark('x) }
 
-    @deprecated("since 0.12.0")
+    @deprecated("Use prelude.require() instead", "0.13.0")
     inline infix def orFail(inline message: String): Unit =
         if x then () else fail(message)
 
