@@ -36,10 +36,11 @@ object StakeValidator:
         val redeemer = txInfo.redeemers.get(scriptPurpose).getOrFail(MissingRedeemer)
         val withdrawalAmount =
             txInfo.withdrawals.get(scriptCredential).getOrFail(MissingWithdrawal)
-        withdrawalRedeemerValidator(
-          redeemer,
-          withdrawalAmount
-        ) orFail WithdrawalRedeemerValidatorFailed
+
+        require(
+          withdrawalRedeemerValidator(redeemer, withdrawalAmount),
+          WithdrawalRedeemerValidatorFailed
+        )
 
     // A more minimal version of [`spend`](#spend), where only the `withdrawals`
     // field is traversed, and no other validations are performed.
@@ -60,7 +61,7 @@ object StakeValidator:
             case Credential.ScriptCredential(validatorHash) => validatorHash
             case Credential.PubKeyCredential(_)             => fail(PubKeyCredentialNotSupported)
 
-        withdrawalValidator(redeemer, validatorHash, txInfo) orFail WithdrawalValidatorFailed
+        require(withdrawalValidator(redeemer, validatorHash, txInfo), WithdrawalValidatorFailed)
 
     inline val MissingRedeemer = "There isn't a redeemer for the script purpose"
     inline val MissingWithdrawal = "There isn't a withdrawal for the script credential"

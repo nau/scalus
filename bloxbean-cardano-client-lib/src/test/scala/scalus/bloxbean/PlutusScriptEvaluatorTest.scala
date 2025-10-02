@@ -6,8 +6,7 @@ import scalus.Compiler.compile
 import scalus.bloxbean.Interop.??
 import scalus.builtin.ByteString.*
 import scalus.builtin.{platform, ByteString, Data}
-import scalus.cardano.address.ShelleyDelegationPart.Null
-import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyPaymentPart}
+import scalus.cardano.address.{Address, Network}
 import scalus.cardano.ledger.*
 import scalus.examples.PubKeyValidator
 import scalus.uplc.*
@@ -49,12 +48,8 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"
         val utxo = Map(
           input -> TransactionOutput(
-            address = ShelleyAddress(
-              Network.Mainnet,
-              payment = ShelleyPaymentPart.Script(s.scriptHash),
-              delegation = Null
-            ),
-            datumOption = Some(DatumOption.Hash(dataHash)),
+            address = Address(Network.Mainnet, Credential.ScriptHash(s.scriptHash)),
+            datumHash = dataHash,
             value = Value.lovelace(2)
           )
         )
@@ -74,9 +69,10 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             requiredSigners = TaggedOrderedSet.from(Set(Hash(requiredPubKeyHash))),
           ),
           witnessSet = TransactionWitnessSet(
-            redeemers = Some(KeepRaw(Redeemers(redeemer))),
-            plutusV2Scripts = Set(s),
-            plutusData = KeepRaw(TaggedSet(KeepRaw(datum))),
+            scripts = Seq(s),
+            redeemers = Redeemers(redeemer),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq(datum)
           ),
         )
         val redeemers = evaluator.evalPlutusScripts(tx, utxo)
@@ -109,12 +105,8 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             "addr1qxwg0u9fpl8dac9rkramkcgzerjsfdlqgkw0q8hy5vwk8tzk5pgcmdpe5jeh92guy4mke4zdmagv228nucldzxv95clqe35r3m"
         val utxo = Map(
           input -> TransactionOutput(
-            address = ShelleyAddress(
-              Network.Mainnet,
-              payment = ShelleyPaymentPart.Script(s.scriptHash),
-              delegation = Null
-            ),
-            datumOption = Some(DatumOption.Hash(dataHash)),
+            address = Address(Network.Mainnet, Credential.ScriptHash(s.scriptHash)),
+            datumHash = dataHash,
             value = Value.lovelace(2)
           )
         )
@@ -134,9 +126,10 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
             requiredSigners = TaggedOrderedSet.from(Set(Hash(requiredPubKeyHash))),
           ),
           witnessSet = TransactionWitnessSet(
-            redeemers = Some(KeepRaw(Redeemers(redeemer))),
-            plutusV3Scripts = Set(s),
-            plutusData = KeepRaw(TaggedSet(KeepRaw(datum))),
+            scripts = Seq(s),
+            redeemers = Redeemers(redeemer),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq(datum)
           ),
         )
         val redeemers = evaluator.evalPlutusScripts(tx, utxo)

@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 package utils
 
-import scalus.cardano.ledger.ProtocolParams
 import scalus.serialization.cbor.Cbor
 import scala.annotation.tailrec
 

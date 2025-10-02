@@ -89,6 +89,12 @@ object Redeemers:
     final case class Array(redeemers: IndexedSeq[Redeemer]) extends Redeemers:
         require(redeemers.nonEmpty, "Must have at least one redeemer")
 
+    /** Map-based representation (new format) Maps (tag, index) pairs to (data, exUnits) pairs
+      */
+    final case class Map(redeemers: immutable.Map[(RedeemerTag, Int), (Data, ExUnits)])
+        extends Redeemers:
+        require(redeemers.nonEmpty, "Must have at least one redeemer")
+
     def apply(redeemers: Redeemer*): Redeemers = from(redeemers)
 
     def from(redeemers: IterableOnce[Redeemer]): Redeemers =
@@ -98,12 +104,6 @@ object Redeemers:
             redeemers.iterator.map(r => ((r.tag, r.index), (r.data, r.exUnits)))
           )
         )
-
-    /** Map-based representation (new format) Maps (tag, index) pairs to (data, exUnits) pairs
-      */
-    final case class Map(redeemers: immutable.Map[(RedeemerTag, Int), (Data, ExUnits)])
-        extends Redeemers:
-        require(redeemers.nonEmpty, "Must have at least one redeemer")
 
     /** CBOR encoder for Redeemers */
     given Encoder[Redeemers] with

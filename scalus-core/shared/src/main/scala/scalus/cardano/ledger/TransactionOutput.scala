@@ -28,6 +28,35 @@ object TransactionOutput:
         override val scriptRef: Option[ScriptRef] = None
     ) extends TransactionOutput
 
+    /** Creates a Shelley-era transaction output with the specified address and value.
+      *
+      * @param address
+      *   the destination address for this output
+      * @param value
+      *   the value (ADA and native tokens) contained in this output
+      * @return
+      *   a new Shelley transaction output with no datum hash
+      */
+    def apply(address: Address, value: Value): TransactionOutput = Shelley(address, value, None)
+
+    /** Creates a Shelley-era transaction output with the specified address, value, and optional
+      * datum hash.
+      *
+      * @param address
+      *   the destination address for this output
+      * @param value
+      *   the value (ADA and native tokens) contained in this output
+      * @param datumHash
+      *   datum hash associated with this output
+      * @return
+      *   a new Shelley transaction output
+      */
+    def apply(
+        address: Address,
+        value: Value,
+        datumHash: DataHash
+    ): TransactionOutput = Shelley(address, value, Some(datumHash))
+
     /** Creates a Babbage-era transaction output with the specified address, value, and optional
       * datum.
       *
@@ -43,8 +72,46 @@ object TransactionOutput:
     def apply(
         address: Address,
         value: Value,
-        datumOption: Option[DatumOption] = None
+        datumOption: Option[DatumOption]
     ): TransactionOutput = Babbage(address, value, datumOption, None)
+
+    /** Creates a Babbage-era transaction output with the specified address, value, and optional
+      * datum.
+      *
+      * @param address
+      *   the destination address for this output
+      * @param value
+      *   the value (ADA and native tokens) contained in this output
+      * @param datumOption
+      *   datum associated with this output
+      * @return
+      *   a new Babbage transaction output with no script reference
+      */
+    def apply(
+        address: Address,
+        value: Value,
+        datumOption: DatumOption
+    ): TransactionOutput = Babbage(address, value, Some(datumOption), None)
+
+    /** Creates a Babbage-era transaction output with all optional parameters.
+      *
+      * @param address
+      *   the destination address for this output
+      * @param value
+      *   the value (ADA and native tokens) contained in this output
+      * @param datumOption
+      *   optional datum associated with this output
+      * @param scriptRef
+      *   optional script reference
+      * @return
+      *   a new Babbage transaction output
+      */
+    def apply(
+        address: Address,
+        value: Value,
+        datumOption: Option[DatumOption],
+        scriptRef: Option[ScriptRef]
+    ): TransactionOutput = Babbage(address, value, datumOption, scriptRef)
 
     /** CBOR encoder for TransactionOutput */
     given Encoder[TransactionOutput] with

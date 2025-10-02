@@ -14,7 +14,7 @@ import scalus.cardano.ledger.txbuilder.ResolvedTxInput.Pubkey
 import scalus.ledger.api
 import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
-import scalus.prelude.{orFail, SortedMap}
+import scalus.prelude.{require, SortedMap}
 import scalus.uplc.Program
 import scalus.uplc.eval.ExBudget
 
@@ -146,18 +146,14 @@ class TxBuilderIntegrationTest extends AnyFunSuite {
                 val l = outs.toList
                 val amount = outs.toList.head._2.toList.head._2
                 val isLucky = digitSum(amount) % 7 == BigInt(0)
-                isLucky.orFail("Lucky payments only.")
+                require(isLucky, "Lucky payments only.")
             })
             .toUplc()
             .plutusV3
 
         val script = Script.PlutusV3(luckyPaymentsOnly.cborByteString)
 
-        val scriptAddress = ShelleyAddress(
-          Network.Testnet,
-          ShelleyPaymentPart.scriptHash(script.scriptHash),
-          ShelleyDelegationPart.Null
-        )
+        val scriptAddress = Address(Network.Testnet, Credential.ScriptHash(script.scriptHash))
 
         def transferToScript = {
             val input = resolvedTransaction(EXISTING_UTXO, SPENDER_ADDRESS)

@@ -90,14 +90,12 @@ case class TransactionContribution(
     }
 
     def toTransaction = Transaction(
-      KeepRaw(
-        TransactionBody(
-          inputs = TaggedOrderedSet.from(inputs),
-          outputs = outputs.map(Sized.apply),
-          fee = fee,
-          collateralInputs = TaggedOrderedSet.from(collateralInputs),
-          collateralReturnOutput = collateralReturn.map(Sized.apply)
-        )
+      TransactionBody(
+        inputs = TaggedOrderedSet.from(inputs),
+        outputs = outputs.map(Sized.apply),
+        fee = fee,
+        collateralInputs = TaggedOrderedSet.from(collateralInputs),
+        collateralReturnOutput = collateralReturn.map(Sized.apply)
       ),
       witnesses
     )

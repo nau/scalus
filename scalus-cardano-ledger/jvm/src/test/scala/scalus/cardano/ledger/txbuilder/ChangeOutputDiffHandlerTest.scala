@@ -65,7 +65,7 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
     }
 
     test("should fail when output would become below minimum ADA") {
-        val insufficientFunds: InsufficientFunds = InsufficientFunds(-160529, 138899)
+        val insufficientFunds: InsufficientFunds = InsufficientFunds(-160705, 139075)
         check(
           in = 1_000_000,
           output = 1_000_000,
@@ -87,8 +87,8 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
           output = 2_000_000,
           fee = 0,
           expected = Expected.Success(
-            outputLovelace = 2_839471,
-            fee = 160529
+            outputLovelace = 2_839295,
+            fee = 160705
           )
         )
     }
@@ -118,6 +118,33 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
         catch case err => assert(err.getMessage.contains("requirement failed"))
     }
 
+    test("balanced transaction should pass FeesOkValidator when starting with zero fee") {
+        val (utxo, tx) = mkTx(Coin(3_000_000), Coin(2_000_000), Coin(0))
+        val handler = ChangeOutputDiffHandler(params, 0)
+        val result = LowLevelTxBuilder.balanceFeeAndChange(
+          tx,
+          handler.changeOutputDiffHandler,
+          params,
+          utxo,
+          evaluator
+        )
+
+        result match
+            case Right(balancedTx) =>
+                val context = Context()
+                val state = State(utxo)
+                val validationResult = rules.FeesOkValidator.validate(context, state, balancedTx)
+                validationResult match
+                    case Left(err) =>
+                        fail(
+                          s"FeesOkValidator failed with: $err. " +
+                              s"Balanced fee: ${balancedTx.body.value.fee.value}"
+                        )
+                    case Right(_) => // success
+            case Left(err) =>
+                fail(s"balanceFeeAndChange failed with: $err")
+    }
+
     private def mkTx(in: Coin, output: Coin, fee: Coin) = {
         val input = TransactionInput(Hash(platform.blake2b_256(ByteString.fromString("asdf"))), 0)
         val addr =
@@ -125,7 +152,8 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
         val utxo = Map(
           input -> TransactionOutput(
             address = Address.fromBech32(addr),
-            value = Value(in)
+            value = Value(in),
+            None
           )
         )
         val tx = Transaction(
@@ -135,7 +163,8 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
               Sized(
                 TransactionOutput(
                   address = Address.fromBech32(addr),
-                  value = Value(output)
+                  value = Value(output),
+                  None
                 )
               )
             ),

@@ -2,10 +2,9 @@ package scalus.cardano.ledger
 package rules
 
 import org.scalacheck.Arbitrary
-import scalus.cardano.ledger.Timelock
+import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.platform
 import scalus.cardano.address.{Address, StakeAddress, StakePayload}
-import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.immutable.SortedMap
 
@@ -172,7 +171,7 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
 
         val state = State(
           utxo = Map(
-            input -> TransactionOutput.Shelley(
+            input -> TransactionOutput(
               Arbitrary
                   .arbitrary[StakeAddress]
                   .sample
@@ -182,13 +181,12 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                   ),
               Value(Coin(1000000L))
             ),
-            referenceInput -> TransactionOutput
-                .Babbage(
-                  Arbitrary.arbitrary[Address].sample.get,
-                  Value(Coin(1000L)),
-                  None,
-                  Some(ScriptRef(Script.Native(nativeScript)))
-                )
+            referenceInput -> TransactionOutput(
+              Arbitrary.arbitrary[Address].sample.get,
+              Value(Coin(1000L)),
+              None,
+              Some(ScriptRef(Script.Native(nativeScript)))
+            )
           )
         )
 

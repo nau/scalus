@@ -2,7 +2,7 @@ package scalus.cardano.ledger
 package rules
 
 import org.scalacheck.{Arbitrary, Gen}
-import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
+import scalus.cardano.address.{ShelleyAddress, ShelleyPaymentPart}
 import scalus.builtin.platform
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -29,7 +29,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = Some(
                     Sized(
-                      TransactionOutput.Shelley(
+                      TransactionOutput(
                         Arbitrary.arbitrary[ShelleyAddress].sample.get,
                         Value(Coin(20000000L), Arbitrary.arbitrary[MultiAsset].sample.get)
                       )
@@ -76,7 +76,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State(
           utxo = Map(
-            collateralInput1 -> TransactionOutput.Shelley(
+            collateralInput1 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -88,7 +88,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
               Value(Coin(30000000L))
             ),
-            collateralInput2 -> TransactionOutput.Shelley(
+            collateralInput2 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -134,7 +134,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = Some(
                     Sized(
-                      TransactionOutput.Shelley(
+                      TransactionOutput(
                         Arbitrary.arbitrary[ShelleyAddress].sample.get,
                         Value(Coin(20000000L))
                       )
@@ -181,7 +181,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State(
           utxo = Map(
-            collateralInput1 -> TransactionOutput.Shelley(
+            collateralInput1 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -193,7 +193,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
               Value(Coin(30000000L))
             ),
-            collateralInput2 -> TransactionOutput.Shelley(
+            collateralInput2 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -274,7 +274,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State(
           utxo = Map(
-            collateralInput1 -> TransactionOutput.Shelley(
+            collateralInput1 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -286,7 +286,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
               Value(Coin(20000000L))
             ),
-            collateralInput2 -> TransactionOutput.Shelley(
+            collateralInput2 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -327,7 +327,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = Some(
                     Sized(
-                      TransactionOutput.Shelley(
+                      TransactionOutput(
                         Arbitrary.arbitrary[ShelleyAddress].sample.get,
                         Value(
                           Coin(20000000L),
@@ -382,7 +382,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State(
           utxo = Map(
-            collateralInput1 -> TransactionOutput.Shelley(
+            collateralInput1 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -394,7 +394,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
               Value(Coin(30000000L))
             ),
-            collateralInput2 -> TransactionOutput.Shelley(
+            collateralInput2 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -435,7 +435,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = Some(
                     Sized(
-                      TransactionOutput.Shelley(
+                      TransactionOutput(
                         Arbitrary.arbitrary[ShelleyAddress].sample.get,
                         Value(Coin(60000000L))
                       )
@@ -482,7 +482,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State(
           utxo = Map(
-            collateralInput1 -> TransactionOutput.Shelley(
+            collateralInput1 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -494,7 +494,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
               Value(Coin(30000000L))
             ),
-            collateralInput2 -> TransactionOutput.Shelley(
+            collateralInput2 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -535,7 +535,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   collateralInputs = TaggedOrderedSet.from(Set(collateralInput1, collateralInput2)),
                   collateralReturnOutput = Some(
                     Sized(
-                      TransactionOutput.Shelley(
+                      TransactionOutput(
                         Arbitrary.arbitrary[ShelleyAddress].sample.get,
                         Value(Coin(20000000L))
                       )
@@ -582,7 +582,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
 
         val state = State(
           utxo = Map(
-            collateralInput1 -> TransactionOutput.Shelley(
+            collateralInput1 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample
@@ -594,7 +594,7 @@ class FeesOkValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
                   ),
               Value(Coin(30000000L))
             ),
-            collateralInput2 -> TransactionOutput.Shelley(
+            collateralInput2 -> TransactionOutput(
               Arbitrary
                   .arbitrary[ShelleyAddress]
                   .sample

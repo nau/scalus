@@ -102,43 +102,6 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         assert(Term.alphaEq(codeTerm, trueTerm))
     }
 
-    protected final inline def checkEvalFails[E <: Throwable: ClassTag](inline code: Any): Unit = {
-        var isExceptionThrown = false
-
-        val _ =
-            try code
-            catch
-                case NonFatal(exception) =>
-                    assert(
-                      ClassTag(exception.getClass) == summon[ClassTag[E]],
-                      s"Expected exception of type ${summon[ClassTag[E]]}, but got $exception"
-                    )
-
-                    val result = Compiler.compileInline(code).toUplc(true).evaluateDebug
-                    result match
-                        case failure: Result.Failure =>
-                            result.logs.lastOption match {
-                                case Some(message) =>
-                                    assert(message.contains(exception.getMessage))
-                                case None =>
-                                    // if the error occurred due to an erroneously called builtin, e.g. / by zero,
-                                    // there won't be a respective log, but the CEK exception message is going to include
-                                    // the root error.
-                                    assert(
-                                      failure.exception.getMessage.contains(
-                                        exception.getClass.getName
-                                      )
-                                    )
-                            }
-                        case _ =>
-                            fail(s"Expected failure, but got success: $result")
-
-                    isExceptionThrown = true
-
-        if !isExceptionThrown then
-            fail(s"Expected exception of type ${summon[ClassTag[E]]}, but got success: $code")
-    }
-
     protected inline final def checkEval[A1](
         inline f: A1 => Boolean,
         configParams: org.scalatestplus.scalacheck.Checkers.PropertyCheckConfigParam*

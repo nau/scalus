@@ -90,7 +90,7 @@ object Betting extends Validator:
                                                         val joiningPlayer = newBetDatum.player2
                                                         // Validation rules for joining:
                                                         require(
-                                                          currentBetDatum.player2.hash.length == BigInt(
+                                                          currentBetDatum.player2.hash.length === BigInt(
                                                             0
                                                           ),
                                                           "Current bet must not have a player2 yet"
@@ -122,7 +122,7 @@ object Betting extends Validator:
                                                           "Player2 cannot be the same as oracle"
                                                         )
                                                         require(
-                                                          outputValue.getLovelace == BigInt(
+                                                          outputValue.getLovelace === BigInt(
                                                             2
                                                           ) * input.value.getLovelace,
                                                           "The bet amount must double (player2 matches player1's bet)"
@@ -132,7 +132,7 @@ object Betting extends Validator:
                                                           "The updated datum must have the same expiration as the current one"
                                                         )
                                                         require(
-                                                          txInfo.validRange.entirelyBefore(
+                                                          txInfo.validRange.isEntirelyBefore(
                                                             newBetDatum.expiration
                                                           ),
                                                           "Joining must happen before the bet expiration"
@@ -180,7 +180,7 @@ object Betting extends Validator:
                                                   "Oracle must sign the transaction"
                                                 )
                                                 require(
-                                                  txInfo.validRange.entirelyAfter(
+                                                  txInfo.validRange.isEntirelyAfter(
                                                     expiration
                                                   ),
                                                   "The bet must have been expired (no future bets allowed) before announcing"
@@ -212,7 +212,7 @@ object Betting extends Validator:
                                   "Player1 must sign the transaction (they're creating the bet)"
                                 )
                                 require(
-                                  player2.hash.length == BigInt(0), // ???:
+                                  player2.hash.length === BigInt(0), // ???:
                                   // player2.hash.isEmpty: Error: Module not found during linking: scalus.builtin.ByteString
                                   "Player2 must be empty (no one has joined yet)"
                                 )
@@ -221,7 +221,7 @@ object Betting extends Validator:
                                   "Oracle cannot be the same as player1 (conflict of interest)"
                                 )
                                 require(
-                                  tx.validRange.entirelyBefore(expiration),
+                                  tx.validRange.isEntirelyBefore(expiration),
                                   "The bet must have a valid expiration time (after the current time)"
                                 )
                             case _ => fail("Bet datum must be inline")

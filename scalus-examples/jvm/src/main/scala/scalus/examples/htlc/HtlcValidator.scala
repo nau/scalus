@@ -1,4 +1,4 @@
-package scalus.examples
+package scalus.examples.htlc
 
 import scalus.*
 import scalus.Compiler.compile
@@ -10,50 +10,41 @@ import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.uplc.Program
 
+type Preimage = ByteString
+type Image = ByteString
+type PubKeyHash = ByteString
+
+// Contract Datum
+case class ContractDatum(
+    committer: PubKeyHash,
+    receiver: PubKeyHash,
+    image: Image,
+    timeout: PosixTime
+) derives FromData,
+      ToData
+
+// Redeemer
+enum Action derives FromData, ToData:
+    case Timeout
+    case Reveal(preimage: Preimage)
+
 @Compile
 object HtlcValidator extends Validator:
-    private type Preimage = ByteString
-    private type Image = ByteString
-    private type PubKeyHash = ByteString
-
-    // Contract Datum
-    case class ContractDatum(
-        committer: PubKeyHash,
-        receiver: PubKeyHash,
-        image: Image,
-        timeout: PosixTime
-    )
-
-    // Redeemer
-    enum Action:
-        case Timeout
-        case Reveal(preimage: Preimage)
-
-    // Data converters for ContractDatum and Action
-    // used in test and transaction building offchain logic
-    given FromData[ContractDatum] = FromData.derived
-    given ToData[ContractDatum] = ToData.derived
-    given FromData[Action] = FromData.derived
-    given ToData[Action] = ToData.derived
-
-    // val d = Action.Timeout.toData
-
     /** Spending script purpose validation
       */
     override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit = {
-        // Read ContractDatum from datum
         val ContractDatum(committer, receiver, image, timeout) =
             datum.map(_.to[ContractDatum]).getOrFail(InvalidDatum)
 
         redeemer.to[Action] match
             case Action.Timeout =>
-                tx.isSignedBy(committer) orFail UnsignedCommitterTransaction
-                tx.validRange.isAfter(timeout) orFail InvalidCommitterTimePoint
+                require(tx.isSignedBy(committer), UnsignedCommitterTransaction)
+                require(tx.validRange.isAfter(timeout), InvalidCommitterTimePoint)
 
             case Action.Reveal(preimage) =>
-                tx.isSignedBy(receiver) orFail UnsignedReceiverTransaction
-                !tx.validRange.isAfter(timeout) orFail InvalidReceiverTimePoint
-                sha3_256(preimage) === image orFail InvalidReceiverPreimage
+                require(tx.isSignedBy(receiver), UnsignedReceiverTransaction)
+                require(!tx.validRange.isAfter(timeout), InvalidReceiverTimePoint)
+                require(sha3_256(preimage) === image, InvalidReceiverPreimage)
     }
 
     // Helper methods
@@ -98,8 +89,6 @@ object HtlcValidator extends Validator:
 end HtlcValidator
 
 object HtlcContract:
-
-    import scalus.examples.HtlcValidator.{Action, ContractDatum}
     val application: Application = {
         Application.ofSingleValidator[ContractDatum, Action](
           "Hashed timelocked contract",

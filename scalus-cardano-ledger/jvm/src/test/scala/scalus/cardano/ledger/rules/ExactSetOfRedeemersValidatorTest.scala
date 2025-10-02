@@ -4,7 +4,7 @@ package rules
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.Data
-import scalus.cardano.address.{Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
+import scalus.cardano.address.{Address, Network, ShelleyAddress}
 
 import scala.collection.immutable.SortedMap
 
@@ -13,18 +13,16 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
     test("ExactSetOfRedeemersValidator success with no scripts") {
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             Arbitrary.arbitrary[ShelleyAddress].sample.get,
             Value(Coin(1000000L))
           )
         )
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero
-            )
+          body = TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero
           ),
           witnessSet = TransactionWitnessSet()
         )
@@ -38,36 +36,24 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val plutusScript = Arbitrary.arbitrary[Script.PlutusV1].sample.get
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
-            ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(plutusScript.scriptHash),
-              ShelleyDelegationPart.Null
-            ),
+          input -> TransactionOutput(
+            Address(Network.Testnet, Credential.ScriptHash(plutusScript.scriptHash)),
             Value(Coin(1000000L))
           )
         )
         val dummyData = Arbitrary.arbitrary[Data].sample.get
         val dummyExUnits = Arbitrary.arbitrary[ExUnits].sample.get
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-            )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
           ),
-          witnessSet = TransactionWitnessSet(
-            plutusV1Scripts = Set(plutusScript),
-            redeemers = Some(
-              KeepRaw(
-                Redeemers.from(
-                  Seq(
-                    Redeemer(RedeemerTag.Spend, 0, dummyData, dummyExUnits)
-                  )
-                )
-              )
-            )
+          TransactionWitnessSet(
+            scripts = Seq(plutusScript),
+            redeemers = Redeemers(Redeemer(RedeemerTag.Spend, 0, dummyData, dummyExUnits)),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq.empty
           )
         )
         val context = Context()
@@ -80,7 +66,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val plutusScript = Arbitrary.arbitrary[Script.PlutusV2].sample.get
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             Arbitrary.arbitrary[ShelleyAddress].sample.get,
             Value(Coin(1000000L))
           )
@@ -88,33 +74,25 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val dummyData = Arbitrary.arbitrary[Data].sample.get
         val dummyExUnits = Arbitrary.arbitrary[ExUnits].sample.get
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-              mint = Some(
-                Mint(
-                  MultiAsset(
-                    SortedMap(
-                      plutusScript.scriptHash -> SortedMap.empty
-                    )
-                  )
-                )
-              ),
-            )
-          ),
-          witnessSet = TransactionWitnessSet(
-            plutusV2Scripts = Set(plutusScript),
-            redeemers = Some(
-              KeepRaw(
-                Redeemers.from(
-                  Seq(
-                    Redeemer(RedeemerTag.Mint, 0, dummyData, dummyExUnits)
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
+            mint = Some(
+              Mint(
+                MultiAsset(
+                  SortedMap(
+                    plutusScript.scriptHash -> SortedMap.empty
                   )
                 )
               )
-            )
+            ),
+          ),
+          TransactionWitnessSet(
+            scripts = Seq(plutusScript),
+            redeemers = Redeemers(Redeemer(RedeemerTag.Mint, 0, dummyData, dummyExUnits)),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq.empty
           )
         )
         val context = Context()
@@ -128,37 +106,27 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val plutusScript = Arbitrary.arbitrary[Script.PlutusV1].sample.get
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
-            ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(plutusScript.scriptHash),
-              ShelleyDelegationPart.Null
-            ),
+          input -> TransactionOutput(
+            Address(Network.Testnet, Credential.ScriptHash(plutusScript.scriptHash)),
             Value(Coin(1000000L))
           )
         )
         val dummyData = Arbitrary.arbitrary[Data].sample.get
         val dummyExUnits = Arbitrary.arbitrary[ExUnits].sample.get
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-            )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
           ),
-          witnessSet = TransactionWitnessSet(
-            plutusV1Scripts = Set(plutusScript),
-            redeemers = Some(
-              KeepRaw(
-                Redeemers.from(
-                  Seq(
-                    Redeemer(RedeemerTag.Spend, 0, dummyData, dummyExUnits),
-                    Redeemer(RedeemerTag.Mint, 0, dummyData, dummyExUnits)
-                  )
-                )
-              )
-            )
+          TransactionWitnessSet(
+            scripts = Seq(plutusScript),
+            redeemers = Redeemers(
+              Redeemer(RedeemerTag.Spend, 0, dummyData, dummyExUnits),
+              Redeemer(RedeemerTag.Mint, 0, dummyData, dummyExUnits)
+            ),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq.empty
           )
         )
         val context = Context()
@@ -173,7 +141,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val plutusScript = Arbitrary.arbitrary[Script.PlutusV2].sample.get
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
+          input -> TransactionOutput(
             Arbitrary.arbitrary[ShelleyAddress].sample.get,
             Value(Coin(1000000L))
           )
@@ -181,23 +149,21 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val dummyData = Arbitrary.arbitrary[Data].sample.get
         val dummyExUnits = Arbitrary.arbitrary[ExUnits].sample.get
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-              mint = Some(
-                Mint(
-                  MultiAsset(
-                    SortedMap(
-                      plutusScript.scriptHash -> SortedMap.empty
-                    )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
+            mint = Some(
+              Mint(
+                MultiAsset(
+                  SortedMap(
+                    plutusScript.scriptHash -> SortedMap.empty
                   )
                 )
-              ),
-            )
+              )
+            ),
           ),
-          witnessSet = TransactionWitnessSet(
+          TransactionWitnessSet(
             plutusV2Scripts = Set(plutusScript),
             redeemers = None // no redeemer
           )
@@ -215,33 +181,27 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val nativeScript = Timelock.Signature(Hash(scalus.builtin.platform.blake2b_224(publicKey)))
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
-          input -> TransactionOutput.Shelley(
-            ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(nativeScript.scriptHash),
-              ShelleyDelegationPart.Null
-            ),
+          input -> TransactionOutput(
+            Address(Network.Testnet, Credential.ScriptHash(nativeScript.scriptHash)),
             Value(Coin(1000000L))
           )
         )
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(Set(input)),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-              mint = Some(
-                Mint(
-                  MultiAsset(
-                    SortedMap(
-                      nativeScript.scriptHash -> SortedMap.empty
-                    )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(Set(input)),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
+            mint = Some(
+              Mint(
+                MultiAsset(
+                  SortedMap(
+                    nativeScript.scriptHash -> SortedMap.empty
                   )
                 )
-              ),
-            )
+              )
+            ),
           ),
-          witnessSet = TransactionWitnessSet(
+          TransactionWitnessSet(
             nativeScripts = Set(Script.Native(nativeScript)),
             redeemers = None
           ),
@@ -272,20 +232,12 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         )
 
         val utxo = Map(
-          input1 -> TransactionOutput.Shelley(
-            ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(nativeScript.scriptHash),
-              ShelleyDelegationPart.Null
-            ),
+          input1 -> TransactionOutput(
+            Address(Network.Testnet, Credential.ScriptHash(nativeScript.scriptHash)),
             Value(Coin(1000000L))
           ),
-          input2 -> TransactionOutput.Shelley(
-            ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(plutusScript.scriptHash),
-              ShelleyDelegationPart.Null
-            ),
+          input2 -> TransactionOutput(
+            Address(Network.Testnet, Credential.ScriptHash(plutusScript.scriptHash)),
             Value(Coin(1000000L))
           )
         )
@@ -304,26 +256,19 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
             ._2
 
         val transaction = Transaction(
-          body = KeepRaw(
-            TransactionBody(
-              inputs = TaggedOrderedSet.from(inputsSet),
-              outputs = IndexedSeq.empty,
-              fee = Coin.zero,
-            )
+          TransactionBody(
+            inputs = TaggedOrderedSet.from(inputsSet),
+            outputs = IndexedSeq.empty,
+            fee = Coin.zero,
           ),
-          witnessSet = TransactionWitnessSet(
-            nativeScripts = Set(Script.Native(nativeScript)),
-            plutusV2Scripts = Set(plutusScript),
-            redeemers = Some(
-              KeepRaw(
-                Redeemers.from(
-                  Seq(
-                    // calculate the index manually for a tx where n of inputs > 1
-                    Redeemer(RedeemerTag.Spend, plutusInputIndex, dummyData, dummyExUnits)
-                  )
-                )
-              )
-            )
+          TransactionWitnessSet(
+            scripts = Seq(Script.Native(nativeScript), plutusScript),
+            redeemers = Redeemers(
+              // calculate the index manually for a tx where n of inputs > 1
+              Redeemer(RedeemerTag.Spend, plutusInputIndex, dummyData, dummyExUnits)
+            ),
+            vkeyWitnesses = Set.empty,
+            plutusData = Seq.empty
           )
         )
         val context = Context()

@@ -1,4 +1,4 @@
-package scalus.examples
+package scalus.examples.htlc
 
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.address.AddressProvider
@@ -26,7 +26,6 @@ import java.util
 import scala.util.Try
 
 class HtlcValidatorTest extends AnyFunSuite with ScalusTest {
-    import HtlcValidator.{*, given}
     import Person.*
 
     test("committer successfully unlocks HTLC after timeout") {
@@ -79,8 +78,8 @@ class HtlcValidatorTest extends AnyFunSuite with ScalusTest {
         val preimage = genByteStringOfN(32).sample.get
         val image = sha3_256(preimage)
         val contractDatum = ContractDatum(
-          committer = Person.Committer.pkh,
-          receiver = Person.Receiver.pkh,
+          committer = Committer.pkh,
+          receiver = Receiver.pkh,
           image = image,
           timeout = 1745261347000L
         )
@@ -95,7 +94,7 @@ class HtlcValidatorTest extends AnyFunSuite with ScalusTest {
           scriptRefInput = scriptRefInput,
           startTimeMillis = 1745261346000L,
           action = Action.Reveal(preimage),
-          signatories = Seq(PubKeyHash(Person.Receiver.pkh))
+          signatories = Seq(PubKeyHash(Receiver.pkh))
         )
 
         val datum = contractDatum.toData
@@ -244,8 +243,8 @@ class HtlcValidatorTest extends AnyFunSuite with ScalusTest {
     ):
         def runWithDebug(): Unit = {
             val contractDatum = ContractDatum(
-              committer = Person.Committer.pkh,
-              receiver = Person.Receiver.pkh,
+              committer = Committer.pkh,
+              receiver = Receiver.pkh,
               image = sha3_256(preimage),
               timeout = timeout
             )

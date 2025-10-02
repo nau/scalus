@@ -439,14 +439,15 @@ object Interop {
                   v1.IntervalBoundType.Finite(BigInt(slotConfig.slotToTime(validTo))),
                   closure
                 )
-                v1.Interval(v1.Interval.negInf, upper)
+                v1.Interval(v1.IntervalBound.negInf, upper)
             case (validFrom, 0) =>
                 v1.Interval(
-                  v1.Interval.finite(BigInt(slotConfig.slotToTime(validFrom))),
-                  v1.Interval.posInf
+                  v1.IntervalBound.finiteInclusive(BigInt(slotConfig.slotToTime(validFrom))),
+                  v1.IntervalBound.posInf
                 )
             case (validFrom, validTo) =>
-                val lower = v1.Interval.finite(BigInt(slotConfig.slotToTime(validFrom)))
+                val lower =
+                    v1.IntervalBound.finiteInclusive(BigInt(slotConfig.slotToTime(validFrom)))
                 val upper = v1.IntervalBound(
                   v1.IntervalBoundType.Finite(BigInt(slotConfig.slotToTime(validTo))),
                   false // Closure is false here, this is how Cardano Ledger does it for upper bound
@@ -684,17 +685,18 @@ object Interop {
                 .map(v1.PubKeyHash.apply)
                 .toSeq
           ),
-          redeemers = SortedMap.fromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-              val purpose = getScriptPurposeV2(
-                redeemer,
-                body.getInputs,
-                body.getMint,
-                body.getCerts,
-                body.getWithdrawals
-              )
-              purpose -> toScalusData(redeemer.getData)
-          })),
-          data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
+          redeemers =
+              SortedMap.unsafeFromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
+                  val purpose = getScriptPurposeV2(
+                    redeemer,
+                    body.getInputs,
+                    body.getMint,
+                    body.getCerts,
+                    body.getWithdrawals
+                  )
+                  purpose -> toScalusData(redeemer.getData)
+              })),
+          data = SortedMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
           id = v1.TxId(ByteString.fromHex(txhash))
         )
     }
@@ -1003,12 +1005,12 @@ object Interop {
         voting: VotingProcedures
     ): SortedMap[v3.Voter, SortedMap[GovernanceActionId, v3.Vote]] = {
         if voting == null then return SortedMap.empty
-        SortedMap.fromList(
+        SortedMap.unsafeFromList(
           prelude.List.from(
             voting.getVoting.asScala.toSeq
                 .sortBy(_._1)
                 .map: (voter, procedures) =>
-                    getVoterV3(voter) -> SortedMap.fromList(
+                    getVoterV3(voter) -> SortedMap.unsafeFromList(
                       prelude.List.from(
                         procedures.asScala.toSeq
                             .sortBy(_._1)
@@ -1082,11 +1084,12 @@ object Interop {
                 .map(v1.PubKeyHash.apply)
                 .toSeq
           ),
-          redeemers = SortedMap.fromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
-              val purpose = getScriptPurposeV3(tx, redeemer)
-              purpose -> toScalusData(redeemer.getData)
-          })),
-          data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
+          redeemers =
+              SortedMap.unsafeFromList(prelude.List.from(rdmrs.asScala.sorted.map { redeemer =>
+                  val purpose = getScriptPurposeV3(tx, redeemer)
+                  purpose -> toScalusData(redeemer.getData)
+              })),
+          data = SortedMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
           id = v3.TxId(ByteString.fromHex(txhash)),
           votes = getVotingProcedures(body.getVotingProcedures),
           proposalProcedures = prelude.List

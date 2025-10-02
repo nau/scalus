@@ -345,14 +345,15 @@ object LedgerToPlutusTranslation {
                   v1.IntervalBoundType.Finite(BigInt(slotConfig.slotToTime(validTo))),
                   closure
                 )
-                v1.Interval(v1.Interval.negInf, upper)
+                v1.Interval(v1.IntervalBound.negInf, upper)
             case (validFrom, 0) =>
                 v1.Interval(
-                  v1.Interval.finite(BigInt(slotConfig.slotToTime(validFrom))),
-                  v1.Interval.posInf
+                  v1.IntervalBound.finiteInclusive(BigInt(slotConfig.slotToTime(validFrom))),
+                  v1.IntervalBound.posInf
                 )
             case (validFrom, validTo) =>
-                val lower = v1.Interval.finite(BigInt(slotConfig.slotToTime(validFrom)))
+                val lower =
+                    v1.IntervalBound.finiteInclusive(BigInt(slotConfig.slotToTime(validFrom)))
                 val upper = v1.IntervalBound(
                   v1.IntervalBoundType.Finite(BigInt(slotConfig.slotToTime(validTo))),
                   false
@@ -638,11 +639,11 @@ object LedgerToPlutusTranslation {
             body.requiredSigners.toSortedSet.view
                 .map(hash => v1.PubKeyHash(hash))
           ),
-          redeemers = SortedMap.fromList(prelude.List.from(redeemers.sorted.map { redeemer =>
+          redeemers = SortedMap.unsafeFromList(prelude.List.from(redeemers.sorted.map { redeemer =>
               val purpose = getScriptPurposeV2(tx, redeemer)
               purpose -> redeemer.data
           })),
-          data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
+          data = SortedMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
           id = v1.TxId(tx.id)
         )
     }
@@ -696,11 +697,11 @@ object LedgerToPlutusTranslation {
             body.requiredSigners.toSortedSet.view
                 .map(hash => v1.PubKeyHash(hash))
           ),
-          redeemers = SortedMap.fromList(prelude.List.from(redeemers.sorted.map { redeemer =>
+          redeemers = SortedMap.unsafeFromList(prelude.List.from(redeemers.sorted.map { redeemer =>
               val purpose = getScriptPurposeV3(tx, redeemer)
               purpose -> redeemer.data
           })),
-          data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
+          data = SortedMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
           id = v3.TxId(tx.id),
           votes = getVotingProcedures(body.votingProcedures),
           proposalProcedures = prelude.List.from(
@@ -956,10 +957,10 @@ object LedgerToPlutusTranslation {
         votingProcs match
             case None => SortedMap.empty
             case Some(vp) =>
-                SortedMap.fromList(
+                SortedMap.unsafeFromList(
                   prelude.List.from(
                     vp.procedures.toArray.sortBy(_._1.toString).map { case (voter, procedures) =>
-                        getVoterV3(voter) -> SortedMap.fromList(
+                        getVoterV3(voter) -> SortedMap.unsafeFromList(
                           prelude.List.from(
                             procedures.toSeq.sortBy(_._1.toString).map {
                                 case (govActionId, procedure) =>

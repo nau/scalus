@@ -2,14 +2,14 @@ package scalus.cardano.ledger
 package rules
 
 import org.scalacheck.Arbitrary
-import scalus.cardano.address.{Address, ShelleyAddress, ShelleyPaymentPart}
+import scalus.cardano.address.{ShelleyAddress, ShelleyPaymentPart}
 import org.scalatest.funsuite.AnyFunSuite
 
 class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {
     test("OutputsHaveNotEnoughCoinsValidator TransactionOutputs success") {
         val context = Context()
 
-        val output = TransactionOutput.Shelley(
+        val output = TransactionOutput(
           Arbitrary
               .arbitrary[ShelleyAddress]
               .sample
@@ -43,7 +43,7 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
     test("OutputsHaveNotEnoughCoinsValidator TransactionOutputs failure") {
         val context = Context()
 
-        val output = TransactionOutput.Shelley(
+        val output = TransactionOutput(
           Arbitrary
               .arbitrary[ShelleyAddress]
               .sample
@@ -77,7 +77,7 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
     test("OutputsHaveNotEnoughCoinsValidator CollateralReturnOutput success") {
         val context = Context()
 
-        val collateralReturnOutput = TransactionOutput.Shelley(
+        val collateralReturnOutput = TransactionOutput(
           Arbitrary
               .arbitrary[ShelleyAddress]
               .sample
@@ -111,7 +111,7 @@ class OutputsHaveNotEnoughCoinsValidatorTest extends AnyFunSuite, ValidatorRules
     test("OutputsHaveNotEnoughCoinsValidator CollateralReturnOutput failure") {
         val context = Context()
 
-        val collateralReturnOutput = TransactionOutput.Shelley(
+        val collateralReturnOutput = TransactionOutput(
           Arbitrary
               .arbitrary[ShelleyAddress]
               .sample

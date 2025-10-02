@@ -3,7 +3,6 @@ package scalus.cardano.ledger.txbuilder
 import monocle.Lens
 import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.{Address, Network}
-import scalus.cardano.ledger
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.{Native, PlutusV1, PlutusV2, PlutusV3}
 import scalus.cardano.ledger.txbuilder.Intention.Stake
@@ -28,7 +27,7 @@ import scala.util.Random
  */
 enum Intention {
     case Pay(address: Address, value: Value, data: Option[DatumOption] = None)
-    case Mint(value: ledger.Mint, scriptInfo: MintIntention, targetAddress: Address)
+    case Mint(value: scalus.cardano.ledger.Mint, scriptInfo: MintIntention, targetAddress: Address)
     case WithdrawRewards(withdrawals: SortedMap[RewardAccount, Coin])
     case Stake(credential: Credential, poolKeyHash: PoolKeyHash)
 }
@@ -68,16 +67,14 @@ case class InterpreterWithProvidedData(
             case Intention.Mint(mintValue, scriptInfo, targetAddress) =>
                 val tempOutput = TransactionOutput(
                   targetAddress,
-                  Value(Coin(1), MultiAsset(mintValue.assets)),
-                  None
+                  Value(Coin(1), MultiAsset(mintValue.assets))
                 )
                 val sizedTempOutput = Sized(tempOutput)
                 val minCoin =
                     MinCoinSizedTransactionOutput(sizedTempOutput, environment.protocolParams)
                 val correctedOutput = TransactionOutput(
                   targetAddress,
-                  Value(minCoin, MultiAsset(mintValue.assets)),
-                  None
+                  Value(minCoin, MultiAsset(mintValue.assets))
                 )
                 initialBody.copy(
                   outputs = IndexedSeq(Sized(correctedOutput)),
@@ -955,13 +952,26 @@ object LowLevelTxBuilder {
     ): Either[TxBalancingError, Transaction] = {
         var iteration = 0
         @tailrec def loop(tx: Transaction): Either[TxBalancingError, Transaction] = {
+            iteration += 1
+            if iteration > 20 then return Left(TxBalancingError.CantBalance(0))
+            val providedTxFee = tx.body.value.fee
             val txWithExUnits = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
 
             MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams) match
                 case Right(minFee) =>
                     // don't go below initial fee
-                    val fee = Coin(math.max(minFee.value, tx.body.value.fee.value))
+                    val fee = Coin(math.max(minFee.value, initial.body.value.fee.value))
                     val txWithFees = setFee(fee)(txWithExUnits)
+
+                    // if modifying the fee changed the transaction size - re-loop
+                    if providedTxFee != fee then
+                        MinTransactionFee(txWithFees, resolvedUtxo, protocolParams) match
+                            case Right(newMinFee) if newMinFee != minFee =>
+                                return loop(txWithFees)
+                            case Right(_) =>
+                            // Fee is still correct, continue
+                            case Left(error) => return Left(TxBalancingError.Failed(error))
+
                     // find the diff
                     val diff = calculateChangeLovelace(txWithFees, resolvedUtxo, protocolParams)
                     // try to balance it
@@ -969,12 +979,9 @@ object LowLevelTxBuilder {
                         case Right(balanced) =>
                             val balancedDiff =
                                 calculateChangeLovelace(balanced, resolvedUtxo, protocolParams)
-                            iteration += 1
                             // if diff is zero, we are done
                             if balancedDiff == 0 then Right(balanced)
-                            else if iteration > 20 then
-                                Left(TxBalancingError.CantBalance(balancedDiff))
-                            else loop(tx) // try again
+                            else loop(balanced) // try again with the balanced tx
                         case Left(error) => Left(error)
                 case Left(error) => Left(TxBalancingError.Failed(error))
         }
