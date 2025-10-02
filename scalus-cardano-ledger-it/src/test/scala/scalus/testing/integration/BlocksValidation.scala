@@ -1,6 +1,6 @@
 package scalus.testing.integration
 
-import co.nstant.in.cbor.{CborException, model as cbor}
+import co.nstant.in.cbor.{model as cbor, CborException}
 import com.bloxbean.cardano.client.api.UtxoSupplier
 import com.bloxbean.cardano.client.api.util.CostModelUtil.{PlutusV1CostModel, PlutusV2CostModel, PlutusV3CostModel}
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
@@ -18,7 +18,7 @@ import scalus.*
 import scalus.bloxbean.*
 import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
-import scalus.builtin.{ByteString, platform}
+import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
 import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, LedgerToPlutusTranslation, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, ProtocolParams, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
 import scalus.uplc.eval.ExBudget
@@ -201,10 +201,7 @@ class BlocksValidation extends AnyFunSuite {
         )
 
         var totalTx = 0
-        val blocks = getAllBlocksPaths().filter { path =>
-            val s = path.getFileName.toString
-            "block-11544518.cbor" <= s && s <= "block-11550000.cbor"
-        }
+        val blocks = filterBlocks()
         println(s"Validating native scripts of ${blocks.size} blocks")
         for path <- blocks do
             val blockBytes = Files.readAllBytes(path)
@@ -342,6 +339,18 @@ class BlocksValidation extends AnyFunSuite {
             BlockTx(transaction, datumsCbor, txHashFromBytes)
     }
 
+    private def filterBlocks(min: Int = 11544518, max: Int = 11550000): IndexedSeq[Path] = {
+        if min == max then IndexedSeq(resourcesPath.resolve("blocks").resolve(s"block-$min.cbor"))
+        else {
+            val from = s"block-${Math.min(min, max)}.cbor"
+            val to = s"block-${Math.max(min, max)}.cbor"
+
+            inline def f(s: String) = from <= s && s <= to
+
+            getAllBlocksPaths().filter(path => f(path.getFileName.toString))
+        }
+    }
+
     private def getAllBlocksPaths(): IndexedSeq[Path] = {
         val blocksDir = resourcesPath.resolve("blocks")
         if !Files.exists(blocksDir) then
@@ -395,7 +404,7 @@ class BlocksValidation extends AnyFunSuite {
 
             catch
                 case e: Exception =>
-                    //println(s"Error reading block $path: ${e.getMessage}")
+                // println(s"Error reading block $path: ${e.getMessage}")
         end for
         println()
         println(s"Time taken: ${System.currentTimeMillis() - start} ms")
@@ -436,11 +445,7 @@ class BlocksValidation extends AnyFunSuite {
           this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
         )
 
-        val blocks = getAllBlocksPaths().filter { path =>
-            val s = path.getFileName.toString
-            "block-11544518.cbor" <= s && s <= "block-11550000.cbor"
-        }
-
+        val blocks = filterBlocks()
         println(s"Validating script data hashes of ${blocks.size} blocks")
         for path <- blocks do
             try
@@ -589,7 +594,7 @@ class BlocksValidation extends AnyFunSuite {
             )
         }
     }
-    
+
     test("validateBlocksOfEpochWithScalus(543) <= 184"):
         assert(validateBlocksOfEpochWithScalus(543) <= 184)
 
