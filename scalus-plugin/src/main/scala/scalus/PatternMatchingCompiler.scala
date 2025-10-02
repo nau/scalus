@@ -1236,8 +1236,9 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             parsedMatch.cases.find(_.pattern.optNameInfo.isDefined).flatMap(_.pattern.optNameInfo)
 
         val scrutineeName = ctx.scrutineeName
-
+        
         val globalBindNameInfo = BindingNameInfo(scrutineeName, None, parsedMatch.scrutineeTp)
+        
 
         val groupedTuples = SirParsedCase.GroupedTuples(
           IndexedSeq(globalBindNameInfo),
@@ -2022,8 +2023,13 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                             case SirCaseDecisionTree.EmbeddingType.Inline =>
                                 val renamed = SIR.renameFreeVarsInExpr(
                                   sir,
-                                  bindingMap.filter((k, v) => action.bindedVariables.contains(k))
+                                  bindingMap
                                 )
+                                if ctx.env.debug then {
+                                    println(
+                                      s"compileDecisions: inlining action $index, bindedVariables: ${action.bindedVariables}"
+                                    )
+                                }
                                 renamed
                             case SirCaseDecisionTree.EmbeddingType.ByReference =>
                                 generateActionRefApply(
@@ -2095,6 +2101,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 )
         }
     }
+
 
     private def addActionsAndGuardsLet(
         ctx: PatternMatchingContext,
