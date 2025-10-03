@@ -65,6 +65,7 @@ enum Term:
         case Case(arg, cases)   => s"Case($arg, ${cases.mkString(", ")})"
 
 object Term:
+
     def alphaEq(t1: Term, t2: Term): Boolean =
 
         def eqName(n1: NamedDeBruijn, n2: NamedDeBruijn): Boolean =
@@ -86,7 +87,7 @@ object Term:
                     .zip(args2)
                     .forall((t1, t2) => equals(t1, t2))
             case (Case(arg1, cases1), Case(arg2, cases2)) =>
-                arg1 == arg2 && cases1.size == cases2.size && cases1
+                equals(arg1, arg2) && cases1.size == cases2.size && cases1
                     .zip(cases2)
                     .forall((t1, t2) => equals(t1, t2))
             case _ => false

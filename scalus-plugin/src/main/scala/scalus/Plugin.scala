@@ -26,6 +26,8 @@ class Plugin extends StandardPlugin {
 
     // val compiledSirs: mutable.Map[String, SIR] = mmutable.Map.empty
 
+    /** For enablind debg in scalus
+      */
     override def init(options: List[String]): List[PluginPhase] = {
         val debugLevel = options
             .find(_.startsWith("debugLevel="))
@@ -424,12 +426,10 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                         )
                     } else if name.toString == "debug" then
                         debug = parseBooleanValue("debug", value, vals).getOrElse(false)
-                    else if name.toString == "debugLevel" then
+                    else if name.toString == "debugLevel" then {
                         codeDebugLevel = parseIntValue("debugLevel", value, vals).getOrElse(0)
-                    // else if name.toString == "useUniversalDataConversion" then {
-                    //    useUniversalDataConversion = depend from the used backedm
-                    //    useUniversalDataConversion = parseBooleanValue(value).getOrElse(true)
-                    else if name.toString == "runtimeLinker" then
+                        if debug && codeDebugLevel == 0 then codeDebugLevel = 10
+                    } else if name.toString == "runtimeLinker" then
                         runtimeLinker = parseBooleanValue("runtimeLinker", value, vals).getOrElse(
                           SIRDefaultOptions.runtimeLinker
                         )

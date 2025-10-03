@@ -8,7 +8,7 @@ import scalus.builtin.ByteString.*
 import scalus.ledger.api.v3.TxId
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.{Constant, DefaultFun, Term}
+import scalus.uplc.{Constant, DeBruijn, DefaultFun, Term}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
 import scalus.uplc.test.ArbitraryInstances
@@ -17,8 +17,13 @@ import scala.language.implicitConversions
 
 class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, ArbitraryInstances {
     extension (sir: SIR)
-        infix def lowersTo(r: Term): Unit =
-            assert(SirToUplc110Lowering(sir, generateErrorTraces = false).lower() == r)
+
+        infix def lowersTo(r: Term): Unit = {
+            val r1 = SirToUplc110Lowering(sir, generateErrorTraces = false).lower()
+            val deBruijnR1 = DeBruijn.deBruijnTerm(r1)
+            val deBruijnR = DeBruijn.deBruijnTerm(r)
+            assert(alphaEq(deBruijnR1, deBruijnR))
+        }
 
     private val ae = AnnotationsDecl.empty
 
@@ -36,14 +41,16 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
         )
     }
 
-    test("lower Var") {
-        SIR.Var("x", SIRType.ByteString, ae) lowersTo vr"x"
-    }
+    // have no sence -- var is not scoped, will be error
+    // test("lower Var") {
+    //    SIR.Var("x", SIRType.ByteString, ae) lowersTo vr"x"
+    // }
 
     test("lower Lam/Apply") {
         import SIRType.{TypeLambda, TypeVar, Unit}
         val idType = TypeLambda(List(TypeVar("A", Some(1), false)), TypeVar("A", Some(1), false))
         val x = SIR.Var("x", TypeVar("X", Some(2), false), ae)
+
         SIR.Apply(
           SIR.LamAbs(x, x, List.empty, ae),
           SIR.Const(Constant.Unit, Unit, ae),
@@ -89,7 +96,11 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
 
     test("lower Constr") {
         val sir = compile { prelude.List.Nil: prelude.List[BigInt] }
-        sir lowersTo Term.Constr(0, List.empty)
+        val uplc = SirToUplc110Lowering(sir, generateErrorTraces = false).lower()
+        // println("compiled:" + uplc.pretty.render(100))
+        val expected = Term.Constr(0, List.empty)
+        // println("expected:" + expected.pretty.render(100))
+        sir lowersTo expected
     }
 
     test("lower newtype Constr") {
@@ -127,28 +138,60 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
                 case prelude.List.Cons(h, tl) => BigInt(2)
         }
 
-        sir lowersTo Term.Case(Term.Constr(0, List.empty), List(BigInt(1), λ("h", "tl")(BigInt(2))))
+        // TODO: eliminate the outer lambda
+        val compiled = SirToUplc110Lowering(sir, generateErrorTraces = false).lower()
+        val expected = {
+            Term.LamAbs(
+              "scrutinee",
+              Term.Case(
+                vr"scrutinee",
+                List(
+                  BigInt(1),
+                  λ("h", "tl")(BigInt(2))
+                )
+              )
+            ) $ Term.Constr(0, List.empty)
+        }
+
+        val djExpected = DeBruijn.deBruijnTerm(expected)
+        val djCompiled = DeBruijn.deBruijnTerm(compiled)
+
+        val isEq = Term.alphaEq(djCompiled, djExpected)
+
+        assert(isEq, "lowered term is not equal to expected term")
+
+        // sir lowersTo Term.Case(Term.Constr(0, List.empty), List(BigInt(1), λ("h", "tl")(BigInt(2))))
     }
 
     test("lower newtype Match") {
-        /* list match
-            case Nil -> error
-            case Cons(h, tl) -> 2
-
-            lowers to (case list [error, \h tl -> 2])
-
+        /*
             newtype match
-                case Newtype(a) -> error
+                case Newtype(a) -> 1
 
-            lowers to (\a -> error) newtype
+            lowers to (\a -> 1) newtype
          */
         val sir = compile {
             TxId(hex"DEADBEEF") match
                 case TxId(id) => BigInt(1)
         }
 
+        // Note, that we have an oyter lambda because of match and inner lambda because of newtype
+        val expected = {
+            Term.LamAbs(
+              "id0",
+              Term.Apply(
+                Term.LamAbs(
+                  "id",
+                  BigInt(1)
+                ),
+                vr"id0"
+              )
+            ) $ Term.Const(Constant.ByteString(hex"DEADBEEF"))
+        }
+
         // TODO: we can optimize this to just hex"DEADBEEF"
-        sir lowersTo (lam("id")(BigInt(1)) $ hex"DEADBEEF")
+        // sir lowersTo (lam("id")(BigInt(1)) $ hex"DEADBEEF")
+        sir lowersTo expected
     }
 
     test("lower newtype Match with wildcard pattern") {
@@ -157,7 +200,9 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
                 case _ => BigInt(1)
         }
 
-        sir lowersTo BigInt(1)
+        sir lowersTo (Term.LamAbs("scrutinee", BigInt(1)) $ Term.Const(
+          Constant.ByteString(hex"DEADBEEF")
+        ))
     }
 
     test("lower Select") {

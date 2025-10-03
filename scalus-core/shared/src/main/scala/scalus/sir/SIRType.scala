@@ -551,7 +551,7 @@ object SIRType {
 
     }
 
-    @scala.annotation.tailrec
+    @tailrec
     def isSum(tp: SIRType): Boolean = {
         tp match {
             case SIRType.SumCaseClass(_, _)  => true
@@ -561,6 +561,27 @@ object SIRType {
                 else isSum(ref)
             case _ => false
         }
+    }
+
+    def collectSumCaseClass(tp: SIRType): Option[(scala.List[SIRType.TypeVar], SumCaseClass)] = {
+
+        @tailrec
+        def go(
+            tp: SIRType,
+            acc: scala.List[SIRType.TypeVar]
+        ): Option[(scala.List[SIRType.TypeVar], SumCaseClass)] = {
+            tp match {
+                case cc: SumCaseClass                 => Some((acc, cc))
+                case SIRType.TypeLambda(params, body) => go(body, acc ++ params)
+                case SIRType.TypeProxy(ref) =>
+                    if ref == null then None
+                    else go(ref, acc)
+                case _ => None
+            }
+        }
+
+        go(tp, scala.List.empty)
+
     }
 
     @tailrec
@@ -573,6 +594,31 @@ object SIRType {
                 else isProd(ref)
             case _ => false
         }
+    }
+
+    /** Return CaseClass, leave free type-vars in type-lambda
+      * @param tp
+      * @return
+      */
+    def collectProdCaseClass(tp: SIRType): Option[(scala.List[SIRType.TypeVar], CaseClass)] = {
+
+        @tailrec
+        def go(
+            tp: SIRType,
+            acc: scala.List[SIRType.TypeVar]
+        ): Option[(scala.List[SIRType.TypeVar], CaseClass)] = {
+            tp match {
+                case cc: CaseClass                    => Some((acc, cc))
+                case SIRType.TypeLambda(params, body) => go(body, acc ++ params)
+                case SIRType.TypeProxy(ref) =>
+                    if ref == null then None
+                    else go(ref, acc)
+                case _ => None
+            }
+        }
+
+        go(tp, scala.List.empty)
+
     }
 
     /** Check if the type is a function or a polymorphic function  from unit without unfolding type arguments.
@@ -660,11 +706,13 @@ object SIRType {
     )
 
     /** Calculate the type of the application of function f to argument arg.
+      *
       * @param f
       * @param arg
       * @param ctx
       * @return
       */
+    @tailrec
     def calculateApplyTypeWithUnifyEnv(
         f: SIRType,
         arg: SIRType,

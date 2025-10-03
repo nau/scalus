@@ -1,4 +1,4 @@
-package scalus.bugtracking
+package scalus.regression
 
 import scalus.Compiler.compile
 import scalus.*
