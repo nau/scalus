@@ -4,7 +4,7 @@ package rules
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.Data
-import scalus.cardano.address.{Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
+import scalus.cardano.address.{Address, Network, ShelleyAddress}
 
 import scala.collection.immutable.SortedMap
 
@@ -37,11 +37,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
           input -> TransactionOutput(
-            ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(plutusScript.scriptHash),
-              ShelleyDelegationPart.Null
-            ),
+            Address(Network.Testnet, Credential.ScriptHash(plutusScript.scriptHash)),
             Value(Coin(1000000L))
           )
         )
@@ -111,11 +107,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
           input -> TransactionOutput(
-            ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(plutusScript.scriptHash),
-              ShelleyDelegationPart.Null
-            ),
+            Address(Network.Testnet, Credential.ScriptHash(plutusScript.scriptHash)),
             Value(Coin(1000000L))
           )
         )
@@ -190,11 +182,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
         val input = Arbitrary.arbitrary[TransactionInput].sample.get
         val utxo = Map(
           input -> TransactionOutput(
-            ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(nativeScript.scriptHash),
-              ShelleyDelegationPart.Null
-            ),
+            Address(Network.Testnet, Credential.ScriptHash(nativeScript.scriptHash)),
             Value(Coin(1000000L))
           )
         )
@@ -245,19 +233,11 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
 
         val utxo = Map(
           input1 -> TransactionOutput(
-            ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(nativeScript.scriptHash),
-              ShelleyDelegationPart.Null
-            ),
+            Address(Network.Testnet, Credential.ScriptHash(nativeScript.scriptHash)),
             Value(Coin(1000000L))
           ),
           input2 -> TransactionOutput(
-            ShelleyAddress(
-              Network.Testnet,
-              ShelleyPaymentPart.Script(plutusScript.scriptHash),
-              ShelleyDelegationPart.Null
-            ),
+            Address(Network.Testnet, Credential.ScriptHash(plutusScript.scriptHash)),
             Value(Coin(1000000L))
           )
         )

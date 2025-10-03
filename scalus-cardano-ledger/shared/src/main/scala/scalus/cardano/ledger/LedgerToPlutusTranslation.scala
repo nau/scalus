@@ -643,7 +643,7 @@ object LedgerToPlutusTranslation {
               val purpose = getScriptPurposeV2(tx, redeemer)
               purpose -> redeemer.data
           })),
-          data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
+          data = SortedMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
           id = v1.TxId(tx.id)
         )
     }
@@ -701,7 +701,7 @@ object LedgerToPlutusTranslation {
               val purpose = getScriptPurposeV3(tx, redeemer)
               purpose -> redeemer.data
           })),
-          data = SortedMap.fromList(prelude.List.from(datums.sortBy(_._1))),
+          data = SortedMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
           id = v3.TxId(tx.id),
           votes = getVotingProcedures(body.votingProcedures),
           proposalProcedures = prelude.List.from(
@@ -957,10 +957,10 @@ object LedgerToPlutusTranslation {
         votingProcs match
             case None => SortedMap.empty
             case Some(vp) =>
-                SortedMap.fromList(
+                SortedMap.unsafeFromList(
                   prelude.List.from(
                     vp.procedures.toArray.sortBy(_._1.toString).map { case (voter, procedures) =>
-                        getVoterV3(voter) -> SortedMap.fromList(
+                        getVoterV3(voter) -> SortedMap.unsafeFromList(
                           prelude.List.from(
                             procedures.toSeq.sortBy(_._1.toString).map {
                                 case (govActionId, procedure) =>

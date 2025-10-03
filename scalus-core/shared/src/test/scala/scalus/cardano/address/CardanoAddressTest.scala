@@ -155,10 +155,9 @@ class CardanoAddressTest extends AnyFunSuite {
         )
         assert(scriptAddr.typeId == 0x01)
 
-        val enterpriseAddr = ShelleyAddress(
+        val enterpriseAddr = Address(
           Network.Mainnet,
-          payment,
-          ShelleyDelegationPart.Null
+          Credential.KeyHash(samplePaymentHash)
         )
         assert(enterpriseAddr.typeId == 0x06)
         assert(enterpriseAddr.isEnterprise == true)
@@ -272,7 +271,7 @@ class CardanoAddressTest extends AnyFunSuite {
 
         val normalAddr = ShelleyAddress(Network.Mainnet, payment, delegation)
         val scriptAddr = ShelleyAddress(Network.Mainnet, scriptPayment, delegation)
-        val enterpriseAddr = ShelleyAddress(Network.Mainnet, payment, ShelleyDelegationPart.Null)
+        val enterpriseAddr = Address(Network.Mainnet, Credential.KeyHash(samplePaymentHash))
         val stakeAddr = StakeAddress(Network.Mainnet, StakePayload.Stake(sampleStakeHash))
 
         assert(normalAddr.hasScript == false)

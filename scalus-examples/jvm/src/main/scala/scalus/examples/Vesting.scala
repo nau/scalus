@@ -23,7 +23,7 @@ case class VestingDatum(
 @Compile
 object VestingDatum {
     given Eq[VestingDatum] = (x, y) =>
-        x.beneficiary === y.beneficiary && x.startTimestamp == y.startTimestamp && x.duration == y.duration && x.initialAmount == y.initialAmount
+        x.beneficiary === y.beneficiary && x.startTimestamp === y.startTimestamp && x.duration === y.duration && x.initialAmount === y.initialAmount
 }
 
 case class VestingRedeemer(amount: Lovelace) derives FromData, ToData
@@ -105,18 +105,18 @@ object Vesting extends Validator:
             requestedAmount + adaInInputs - txInfo.fee
 
         require(
-          adaInOutputs == expectedOutput,
+          adaInOutputs === expectedOutput,
           "Beneficiary output mismatch"
         )
 
-        if requestedAmount == contractAmount then ()
-        else require(contractOutputs.length == BigInt(1), "Expected exactly one contract output")
+        if requestedAmount === contractAmount then ()
+        else require(contractOutputs.length === BigInt(1), "Expected exactly one contract output")
 
         val contractOutput = contractOutputs.head
         contractOutput.datum match
             case OutputDatum.OutputDatum(inlineData) =>
                 require(
-                  inlineData == datum.getOrFail("Datum not found"),
+                  inlineData === datum.getOrFail("Datum not found"),
                   "VestingDatum mismatch"
                 )
             case _ => fail("Expected inline datum")

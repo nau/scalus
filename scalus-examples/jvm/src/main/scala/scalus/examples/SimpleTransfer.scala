@@ -57,7 +57,7 @@ object SimpleTransfer extends Validator {
         val balance = contract.value
 
         // eliminate double satisfaction by ensuring exactly one contract own input and at most one own output
-        require(contractInputs.size == BigInt(1), "Contract should have exactly one own input")
+        require(contractInputs.size === BigInt(1), "Contract should have exactly one own input")
         require(
           contractOutputs.size <= BigInt(1),
           "Contract should have at most one own output"
@@ -69,7 +69,7 @@ object SimpleTransfer extends Validator {
                 require(amount.isPositive, "Negative amount")
                 // eliminate double satisfaction by ensuring exactly one contract own input and one own output
                 require(
-                  contractOutputs.size == BigInt(1),
+                  contractOutputs.size === BigInt(1),
                   "Contract should have exactly one own output"
                 )
                 val contractOutput = contractOutputs.head
@@ -88,7 +88,7 @@ object SimpleTransfer extends Validator {
                 else if (balance - withdraw).isPositive then
                     // eliminate double satisfaction by ensuring exactly one contract own input and one own output
                     require(
-                      contractOutputs.size == BigInt(1),
+                      contractOutputs.size === BigInt(1),
                       "Contract should have exactly one own output"
                     )
                     val contractOutput = contractOutputs.head
