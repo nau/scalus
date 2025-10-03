@@ -516,9 +516,11 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
         val nilCase = optNilCase
             .orElse(optWildcardCase)
             .getOrElse(
-              if !isUnchecked then
+              if !isUnchecked then {
+                  println("debug: no Nil case in List match")
+                  println("annotation keys: " + matchData.anns.data.keys.mkString(", "))
                   throw LoweringException("No Nil case in match", matchData.anns.pos)
-              else {
+              } else {
                   SIR.Case(
                     SIR.Pattern.Wildcard,
                     SIR.Error(
