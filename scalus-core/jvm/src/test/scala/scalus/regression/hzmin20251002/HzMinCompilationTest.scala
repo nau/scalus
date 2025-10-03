@@ -16,7 +16,7 @@ class HzMinCompilationTest extends AnyFunSuite {
         import scalus.ledger.api.v1.Value
         import scalus.builtin.ByteString
 
-        val sir1 = compileDebug { (value: Value) =>
+        val sir1 = compile { (value: Value) =>
             val headMp = ByteString.fromHex("03")
             value.toSortedMap
                 .get(headMp)
