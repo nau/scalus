@@ -40,11 +40,12 @@ case class PatternInfo(
 
 class PatternMatchingContext(
     val globalPrefix: String,
-    val env: SIRCompiler.Env,
+    var env: SIRCompiler.Env,
     val topLevelPos: SrcPos,
     // should be set after parsing.
     var parsedActions: IndexedSeq[SirParsedAction] = IndexedSeq.empty,
-    var parsedGuards: IndexedSeq[Option[SirParsedGuard]] = IndexedSeq.empty
+    var parsedGuards: IndexedSeq[Option[SirParsedGuard]] = IndexedSeq.empty,
+    var isUnchecked: Boolean = false
 ) {
 
     private var tmpNameCounter: Int = 1
@@ -586,6 +587,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
     private val patternName = UniqueNameKind("$pat")
     private val bindingName = UniqueNameKind("$bind")
+
+    val trueConst = SIR.Const.bool(true, AnnotationsDecl.empty)
 
     def compileMatch(tree: Match, env: SIRCompiler.Env): AnnotatedSIR = {
         if env.debug then println(s"compileMatch: ${tree.show}")
@@ -1175,7 +1178,18 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         env: SIRCompiler.Env
     ): SirParsedMatch = {
         if env.debug then println(s"parsedMatch: ${tree.show}")
-        val Match(scrutinee, cases) = tree
+        val Match(scrutineeMbUnchecked, cases) = tree
+        // val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
+        // report.echo(s"Match: ${typeSymbol} ${typeSymbol.children} $adtInfo", tree.srcPos)
+        val (scrutinee, isUnchecked) = scrutineeMbUnchecked match
+            case Typed(selectorExpr, tp) =>
+                tp.tpe match
+                    case AnnotatedType(_, ann) =>
+                        if ann.symbol == defn.UncheckedAnnot then (selectorExpr, true)
+                        else (scrutineeMbUnchecked, false)
+                    case _ => (scrutineeMbUnchecked, false)
+            case _ => (scrutineeMbUnchecked, false)
+        if isUnchecked then ctx.isUnchecked = true
         val scrutineeType = scrutinee.tpe.dealias.widen
         val scrutineeSirType = compiler.sirTypeInEnv(scrutineeType, tree.srcPos, env)
         val sirCasesGuardActions = cases.zipWithIndex.map { case (cs, i) =>
@@ -1236,9 +1250,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             parsedMatch.cases.find(_.pattern.optNameInfo.isDefined).flatMap(_.pattern.optNameInfo)
 
         val scrutineeName = ctx.scrutineeName
-        
+
         val globalBindNameInfo = BindingNameInfo(scrutineeName, None, parsedMatch.scrutineeTp)
-        
 
         val groupedTuples = SirParsedCase.GroupedTuples(
           IndexedSeq(globalBindNameInfo),
@@ -1517,6 +1530,11 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         scrutineeTp: SIRType
     ): SirCaseDecisionTree = {
 
+        if ctx.env.debug then
+            println(
+              s"buildSpecializedConstr: colIndex=${colIndex}, scrutineeTp=${scrutineeTp.show}"
+            )
+
         def checkPattern(
             p: SirParsedCase.Pattern
         ): Option[
@@ -1538,6 +1556,10 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
         val constructorEntries = constructorCases.map {
             case (constrName, ((sirCaseClass, freeTypeParams), rows)) =>
+                if ctx.env.debug then
+                    println(
+                      s"buildSpecializedConstr: constrName=${constrName}, sirCaseClass=${sirCaseClass.show} nRows=${rows.length}"
+                    )
                 val newGroup = insertConstructorPatternsIntoGroup(
                   ctx,
                   sirCaseClass,
@@ -1598,10 +1620,12 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case _           => true
         }
         val constructorBindings = cc.constrDecl.params.map(b =>
+            val tp =
+                SIRType.substitute(b.tp, cc.constrDecl.typeParams.zip(cc.typeArgs).toMap, Map.empty)
             BindingNameInfo(
               ctx.freshName(b.name),
               None,
-              b.tp,
+              tp,
               Set.empty
             )
         )
@@ -2010,7 +2034,6 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case SirCaseDecisionTree.Leaf(bindingMap, actionRef, pos) =>
                 if ctx.env.debug then
                     println(s"compileDecisions: leaf ${SirCaseDecisionTree.show(tree)}")
-                val trueConst = SIR.Const.bool(true, AnnotationsDecl.empty)
                 actionRef match {
                     case SirParsedCase.ActionRef.FailMatch =>
                         val anns = AnnotationsDecl
@@ -2066,7 +2089,10 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                     SIR.Case(SIR.Pattern.Const(const), caseBody, AnnotationsDecl.fromSrcPos(pos))
                 }.toList
                 val scrutinee = SIR.Var(columnName, scrutineeTp, AnnotationsDecl.fromSrcPos(pos))
-                SIR.Match(scrutinee, caseDefs, parsedMatch.resTp, AnnotationsDecl.fromSrcPos(pos))
+                val matchAnns = AnnotationsDecl.fromSrcPos(
+                  pos
+                ) ++ (if ctx.isUnchecked then Map("unchecked" -> trueConst) else Map.empty)
+                SIR.Match(scrutinee, caseDefs, parsedMatch.resTp, matchAnns)
             case SirCaseDecisionTree.ConstructorsChoice(
                   columnName,
                   scrutineeTp,
@@ -2093,15 +2119,17 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                           .bool(true, AnnotationsDecl.empty))
                     )
                 }
+                val matchAnns = AnnotationsDecl.fromSrcPos(
+                  pos
+                ) ++ (if ctx.isUnchecked then Map("unchecked" -> trueConst) else Map.empty)
                 SIR.Match(
                   scrutinee,
                   caseDefs ++ optDefaultCase,
                   parsedMatch.resTp,
-                  AnnotationsDecl.fromSrcPos(pos)
+                  matchAnns
                 )
         }
     }
-
 
     private def addActionsAndGuardsLet(
         ctx: PatternMatchingContext,
