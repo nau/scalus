@@ -493,6 +493,11 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                               matchData.anns.pos
                             )
                         oneCase
+                    case SIR.Pattern.Const(_) =>
+                        throw LoweringException(
+                          s"Constant pattern not supported for product case class ${constrDecl.name}",
+                          matchData.anns.pos
+                        )
                     case SIR.Pattern.Wildcard =>
                         val argsNames = constrDecl.params.map(_.name)
                         val argsTypes = constrDecl.params.map(_.tp)
@@ -588,6 +593,11 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
         val (frsName, sndName) = myCase.pattern match {
             case SIR.Pattern.Constr(constr, bindings, typeParamsBindinsg) =>
                 (bindings.head, bindings.tail.head)
+            case SIR.Pattern.Const(_) =>
+                throw LoweringException(
+                  s"Constant pattern not supported for product case class ${constrDecl.name}",
+                  matchData.anns.pos
+                )
             case SIR.Pattern.Wildcard =>
                 ("_unused1", "_unused2")
         }

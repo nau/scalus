@@ -125,6 +125,10 @@ class SirToUplc110Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                         case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _, _) =>
                             matchedConstructors += constrDecl.name // collect all matched constructors
                             expandedCases += c
+                        case SIR.Case(Pattern.Const(_), _, anns) =>
+                            throw new IllegalArgumentException(
+                              s"Constant pattern not supported in SirToUplc110Lowering at ${anns.pos.file}:${anns.pos.startLine}, ${anns.pos.startColumn}"
+                            )
                         case SIR.Case(Pattern.Wildcard, rhs, anns) =>
                             // If we have a wildcard case, it must be the last one
                             if idx != enhancedCases.length - 1 then
@@ -175,7 +179,12 @@ class SirToUplc110Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                                 bindings.foldRight(lowerInner(body)) { (binding, acc) =>
                                     Term.LamAbs(binding, acc)
                                 }
-                    case SIR.Case(Pattern.Wildcard, _, _) =>
+                    case SIR.Case(Pattern.Const(_), _, anns) =>
+                        val pos = anns.pos
+                        throw new IllegalArgumentException(
+                          s"Constant pattern not supported in SirToUplc110Lowering at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                        )
+                    case SIR.Case(Pattern.Wildcard, _, anns) =>
                         val pos = anns.pos
                         throw new IllegalArgumentException(
                           s"Wildcard case must have been eliminated at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
@@ -190,6 +199,11 @@ class SirToUplc110Lowering(sir: SIR, generateErrorTraces: Boolean = false):
                             //   case Newtype(a) -> expr
                             // lowers to (\a -> expr) newtype
                             Term.Apply(casesTerms.head, scrutineeTerm)
+                        case SIR.Case(Pattern.Const(_), _, anns) =>
+                            val pos = anns.pos
+                            throw new IllegalArgumentException(
+                              s"Constant pattern not supported in SirToUplc110Lowering at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                            )
                         case SIR.Case(Pattern.Wildcard, body, _) =>
                             // newtype match
                             //   case _ -> expr

@@ -63,6 +63,8 @@ object RemoveRecursivity:
                             removeRecursivity(body),
                             anns
                           )
+                      case SIR.Case(Pattern.Const(value), body, anns) =>
+                          Case(Pattern.Const(value), removeRecursivity(body), anns)
                       case SIR.Case(Pattern.Wildcard, body, anns) =>
                           Case(Pattern.Wildcard, removeRecursivity(body), anns)
                   },
@@ -98,6 +100,8 @@ object RemoveRecursivity:
                 isRecursive(name, scrutinee, env) || cases.exists {
                     case SIR.Case(Pattern.Constr(_, bindings, typeBindings), body, anns) =>
                         isRecursive(name, body, bindings ++ env)
+                    case SIR.Case(Pattern.Const(_), body, anns) =>
+                        isRecursive(name, body, env)
                     case SIR.Case(Pattern.Wildcard, body, anns) =>
                         isRecursive(name, body, env)
                 }

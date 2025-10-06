@@ -1069,6 +1069,21 @@ object SIRType {
                 case _ => true
     }
 
+    /** Unroll TypeProxy to get the actual type it references
+      *
+      * Follows TypeProxy.ref chain until a non-proxy type is found.
+      * Returns the original type if it's not a TypeProxy.
+      *
+      * @param tp The type to unroll
+      * @return The unrolled type (non-proxy)
+      */
+    def unrollTypeProxy(tp: SIRType): SIRType = tp match {
+        case proxy: TypeProxy =>
+            if proxy.ref == null then tp
+            else unrollTypeProxy(proxy.ref)
+        case _ => tp
+    }
+
     def syntheticNarrowConstrDeclName(childDataDeclName: String): String = {
         s"z_narrow$$${childDataDeclName}"
     }

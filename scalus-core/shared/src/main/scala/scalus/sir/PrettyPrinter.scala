@@ -150,6 +150,9 @@ object PrettyPrinter:
                               "->"
                             ) + (line + pretty(body, style))
                                 .nested(2)).grouped.aligned
+                        case SIR.Case(Pattern.Const(value), body, _) =>
+                            (kw("case") & pretty(value, style) & text("->") + (line + pretty(body, style))
+                                .nested(2)).grouped.aligned
                         case SIR.Case(Pattern.Wildcard, body, _) =>
                             (kw("case") & text("_") & text("->") + (line + pretty(body, style))
                                 .nested(2)).grouped.aligned

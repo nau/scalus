@@ -640,3 +640,190 @@ class SirToUplcSmLoweringTest
         }
 
     }
+
+    test("lower constant pattern match on Integer") {
+        // match x with
+        //   case 1 => 10
+        //   case 2 => 20
+        //   case _ => 30
+        val scrutineeVar = SIR.Var("x", SIRType.Integer, ae)
+        val matchExpr = SIR.Match(
+          scrutineeVar,
+          List(
+            SIR.Case(
+              SIR.Pattern.Const(SIR.Const(Constant.Integer(1), SIRType.Integer, ae)),
+              SIR.Const(Constant.Integer(10), SIRType.Integer, ae),
+              ae
+            ),
+            SIR.Case(
+              SIR.Pattern.Const(SIR.Const(Constant.Integer(2), SIRType.Integer, ae)),
+              SIR.Const(Constant.Integer(20), SIRType.Integer, ae),
+              ae
+            ),
+            SIR.Case(
+              SIR.Pattern.Wildcard,
+              SIR.Const(Constant.Integer(30), SIRType.Integer, ae),
+              ae
+            )
+          ),
+          SIRType.Integer,
+          ae
+        )
+
+        val sirWithLet = SIR.Let(
+          List(Binding("x", SIRType.Integer, SIR.Const(Constant.Integer(1), SIRType.Integer, ae))),
+          matchExpr,
+          SIR.LetFlags.None,
+          ae
+        )
+
+        val uplc = lower(sirWithLet)
+        val result = uplc.evaluateDebug
+
+        result match {
+            case Result.Success(term, _, _, _) =>
+                assert(term == Term.Const(Constant.Integer(10)))
+            case _ =>
+                fail(s"Expected success with result 10, got: ${result}")
+        }
+
+        // Test with x = 2
+        val sirWithLet2 = SIR.Let(
+          List(Binding("x", SIRType.Integer, SIR.Const(Constant.Integer(2), SIRType.Integer, ae))),
+          matchExpr,
+          SIR.LetFlags.None,
+          ae
+        )
+
+        val result2 = lower(sirWithLet2).evaluateDebug
+        result2 match {
+            case Result.Success(term, _, _, _) =>
+                assert(term == Term.Const(Constant.Integer(20)))
+            case _ =>
+                fail(s"Expected success with result 20, got: ${result2}")
+        }
+
+        // Test with x = 5 (wildcard case)
+        val sirWithLet3 = SIR.Let(
+          List(Binding("x", SIRType.Integer, SIR.Const(Constant.Integer(5), SIRType.Integer, ae))),
+          matchExpr,
+          SIR.LetFlags.None,
+          ae
+        )
+
+        val result3 = lower(sirWithLet3).evaluateDebug
+        result3 match {
+            case Result.Success(term, _, _, _) =>
+                assert(term == Term.Const(Constant.Integer(30)))
+            case _ =>
+                fail(s"Expected success with result 30, got: ${result3}")
+        }
+    }
+
+    test("lower constant pattern match on Boolean") {
+        // match x with
+        //   case true => 1
+        //   case false => 0
+        val scrutineeVar = SIR.Var("x", SIRType.Boolean, ae)
+        val matchExpr = SIR.Match(
+          scrutineeVar,
+          List(
+            SIR.Case(
+              SIR.Pattern.Const(SIR.Const(Constant.Bool(true), SIRType.Boolean, ae)),
+              SIR.Const(Constant.Integer(1), SIRType.Integer, ae),
+              ae
+            ),
+            SIR.Case(
+              SIR.Pattern.Const(SIR.Const(Constant.Bool(false), SIRType.Boolean, ae)),
+              SIR.Const(Constant.Integer(0), SIRType.Integer, ae),
+              ae
+            )
+          ),
+          SIRType.Integer,
+          ae
+        )
+
+        val sirWithLetTrue = SIR.Let(
+          List(Binding("x", SIRType.Boolean, SIR.Const(Constant.Bool(true), SIRType.Boolean, ae))),
+          matchExpr,
+          SIR.LetFlags.None,
+          ae
+        )
+
+        val resultTrue = lower(sirWithLetTrue).evaluateDebug
+        resultTrue match {
+            case Result.Success(term, _, _, _) =>
+                assert(term == Term.Const(Constant.Integer(1)))
+            case _ =>
+                fail(s"Expected success with result 1, got: ${resultTrue}")
+        }
+
+        val sirWithLetFalse = SIR.Let(
+          List(Binding("x", SIRType.Boolean, SIR.Const(Constant.Bool(false), SIRType.Boolean, ae))),
+          matchExpr,
+          SIR.LetFlags.None,
+          ae
+        )
+
+        val resultFalse = lower(sirWithLetFalse).evaluateDebug
+        resultFalse match {
+            case Result.Success(term, _, _, _) =>
+                assert(term == Term.Const(Constant.Integer(0)))
+            case _ =>
+                fail(s"Expected success with result 0, got: ${resultFalse}")
+        }
+    }
+
+    test("lower constant pattern match with @unchecked annotation") {
+        // match x with
+        //   case 1 => 10
+        // This is non-exhaustive but marked as @unchecked, so should generate error term instead of throwing
+        val scrutineeVar = SIR.Var("x", SIRType.Integer, ae)
+        val matchExpr = SIR.Match(
+          scrutineeVar,
+          List(
+            SIR.Case(
+              SIR.Pattern.Const(SIR.Const(Constant.Integer(1), SIRType.Integer, ae)),
+              SIR.Const(Constant.Integer(10), SIRType.Integer, ae),
+              ae
+            )
+          ),
+          SIRType.Integer,
+          ae ++ Map("unchecked" -> SIR.Const(Constant.Unit, SIRType.Unit, ae))
+        )
+
+        val sirWithLet = SIR.Let(
+          List(Binding("x", SIRType.Integer, SIR.Const(Constant.Integer(1), SIRType.Integer, ae))),
+          matchExpr,
+          SIR.LetFlags.None,
+          ae
+        )
+
+        val uplc = lower(sirWithLet)
+        val result = uplc.evaluateDebug
+
+        result match {
+            case Result.Success(term, _, _, _) =>
+                assert(term == Term.Const(Constant.Integer(10)))
+            case _ =>
+                fail(s"Expected success with result 10, got: ${result}")
+        }
+
+        // Test with x = 2 (should hit the error term)
+        val sirWithLet2 = SIR.Let(
+          List(Binding("x", SIRType.Integer, SIR.Const(Constant.Integer(2), SIRType.Integer, ae))),
+          matchExpr,
+          SIR.LetFlags.None,
+          ae
+        )
+
+        val result2 = lower(sirWithLet2).evaluateDebug
+        result2 match {
+            case Result.Failure(err, _, _, _) =>
+                // Expected to fail with error term generated by @unchecked
+                // The error message will be "Error evaluated"
+                assert(err.getMessage.contains("Error"))
+            case _ =>
+                fail(s"Expected failure for non-matching case, got: ${result2}")
+        }
+    }

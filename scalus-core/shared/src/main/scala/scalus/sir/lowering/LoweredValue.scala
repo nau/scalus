@@ -1068,15 +1068,17 @@ object LoweredValue {
               f.sirType,
               argInTargetRepresentation.sirType,
               Map.empty,
-              // debug = lctx.debug
+              debug = lctx.debug
             )
             if lctx.debug then lctx.log(s"lvApply1: calculatedResType = ${calculatedResType.show}")
 
             val resType = resTp match {
                 case Some(tp) =>
+                    // Unroll TypeProxy before using the type
+                    val unrolledTp = SIRType.unrollTypeProxy(tp)
                     val tvGen = new SIRType.SetBasedTypeVarGenerationContext(Set.empty, 0L)
                     val ctOverlapp = tvGen.importSetFromType(calculatedResType)
-                    val (resTps, resBody) = tp match {
+                    val (resTps, resBody) = unrolledTp match {
                         case tl @ SIRType.TypeLambda(resTps, resBody) =>
                             val resOverlapp = tvGen.importSetFromType(tp)
                             if resOverlapp then {
@@ -1086,7 +1088,11 @@ object LoweredValue {
                                 val nResBody = RenamingTypeVars.inType(resBody, renamingContext)
                                 (nResTps, nResBody)
                             } else (resTps, resBody)
-                        case other => (Seq.empty, other)
+                        case SIRType.Fun(in, out) =>
+                            // Unroll TypeProxy in the function argument position
+                            (Seq.empty, SIRType.Fun(SIRType.unrollTypeProxy(in), out))
+                        case other =>
+                            (Seq.empty, other)
                     }
                     val (ctRes, ctBody) = calculatedResType match {
                         case SIRType.TypeLambda(tps, body) => (tps, body)
@@ -1099,6 +1105,9 @@ object LoweredValue {
                               s"lvApply: resType = ${resTps.map(_.show).mkString(", ")} =>> ${resBody.show}))"
                             )
                         else lctx.log(s"lvApply: resType =${resBody.show}")
+                        lctx.log(s"lvApply: About to unify:")
+                        lctx.log(s"  ctBody  = ${ctBody.show}")
+                        lctx.log(s"  resBody = ${resBody.show}")
                     }
                     SIRUnify.topLevelUnifyType(
                       ctBody,

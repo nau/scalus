@@ -251,6 +251,11 @@ case class ProductCaseOneElementSirTypeGenerator(
                               s"Expected case class ${sirCaseClass.constrDecl.name}, got ${constr.name}",
                               anns.pos
                             )
+                    case SIR.Pattern.Const(_) =>
+                        throw LoweringException(
+                          s"Constant pattern not supported for product case class ${sirCaseClass.constrDecl.name}",
+                          anns.pos
+                        )
                     case SIR.Pattern.Wildcard =>
                         lctx.lower(body, optTargetType)
             case _ =>

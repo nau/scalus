@@ -916,6 +916,7 @@ object FlatInstances:
         private val patternTagWidth = 2
         private val patternTagConstr: Byte = 0
         private val patternTagWildcard: Byte = 1
+        private val patternTagConst: Byte = 2
         override def toRepr(a: SIR.Case): HashConsedRef[SIR.Case] =
             HashConsedRef.fromData(a)
 
@@ -931,6 +932,11 @@ object FlatInstances:
                     val bodySize = SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
                     val annsSize = AnnotationsDeclFlat.bitSizeHC(a.anns, hashConsed)
                     patternTagWidth + constrSize + bindingsSize + typeBindingsSize + bodySize + annsSize
+                case Pattern.Const(value) =>
+                    val valueSize = SIRHashConsedFlat.bitSizeHC(value, hashConsed)
+                    val bodySize = SIRHashConsedFlat.bitSizeHC(a.body, hashConsed)
+                    val annsSize = AnnotationsDeclFlat.bitSizeHC(a.anns, hashConsed)
+                    patternTagWidth + valueSize + bodySize + annsSize
                 case Pattern.Wildcard => // FIXME
                     patternTagWidth + SIRHashConsedFlat.bitSizeHC(a.body, hashConsed) +
                         AnnotationsDeclFlat.bitSizeHC(a.anns, hashConsed)
@@ -944,6 +950,9 @@ object FlatInstances:
                     HashConsedReprFlat
                         .listRepr(SIRTypeHashConsedFlat)
                         .encodeHC(typeBindings, encode)
+                case Pattern.Const(value) =>
+                    encode.encode.bits(patternTagWidth, patternTagConst)
+                    SIRHashConsedFlat.encodeHC(value, encode)
                 case Pattern.Wildcard => // FIXME
                     encode.encode.bits(patternTagWidth, patternTagWildcard)
             SIRHashConsedFlat.encodeHC(a.body, encode)
@@ -959,6 +968,17 @@ object FlatInstances:
                     HashConsedRef.deferred((hs, l, p) =>
                         SIR.Case(
                           Pattern.Wildcard,
+                          body.finValue(hs, l, p),
+                          anns.finValue(hs, l, p)
+                        )
+                    )
+                case `patternTagConst` =>
+                    val value = SIRHashConsedFlat.decodeHC(decode)
+                    val body = SIRHashConsedFlat.decodeHC(decode)
+                    val anns = AnnotationsDeclFlat.decodeHC(decode)
+                    HashConsedRef.deferred((hs, l, p) =>
+                        SIR.Case(
+                          Pattern.Const(value.finValue(hs, l, p).asInstanceOf[SIR.Const]),
                           body.finValue(hs, l, p),
                           anns.finValue(hs, l, p)
                         )
