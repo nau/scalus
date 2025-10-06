@@ -401,12 +401,18 @@ object Lowering {
                       s"Error lowering app: ${app.pretty.render(100)} at ${app.anns.pos.file}:${app.anns.pos.startLine + 1}"
                     )
                     println(ex.getMessage)
+                    println(s"=== Problematic Apply Node ===")
+                    println(s"app.tp=${app.tp.show}")
+                    println(s"app.tp class=${app.tp.getClass.getName}")
+                    println(s"app.f class=${app.f.getClass.getSimpleName}")
+                    println(s"app.f=${app.f}")
                     println(s"f.tp=${app.f.tp.show}")
                     println(s"f=${app.f.pretty.render(100)}")
                     println(s"lowered f.tp: ${fun.sirType.show}")
                     println(s"arg.tp=${app.arg.tp.show}")
                     println(s"unrolled arg.tp=${SIRType.unrollTypeProxy(app.arg.tp).show}")
                     println(s"lowered arg.tp: ${arg.sirType.show}")
+                    println(s"=== End Problematic Apply Node ===")
                     lctx.debug = true
                     // redu with debug mode to see the error
                     lvApply(

@@ -1090,7 +1090,11 @@ object LoweredValue {
                             } else (resTps, resBody)
                         case SIRType.Fun(in, out) =>
                             // Unroll TypeProxy in the function argument position
-                            (Seq.empty, SIRType.Fun(SIRType.unrollTypeProxy(in), out))
+                            val unrolledIn = SIRType.unrollTypeProxy(in)
+                            if lctx.debug then {
+                                lctx.log(s"lvApply: Unrolling Fun type: in=${in.show} -> unrolledIn=${unrolledIn.show}")
+                            }
+                            (Seq.empty, SIRType.Fun(unrolledIn, out))
                         case other =>
                             (Seq.empty, other)
                     }
