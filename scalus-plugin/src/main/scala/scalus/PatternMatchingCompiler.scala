@@ -354,14 +354,7 @@ object SirParsedCase:
 
     enum ActionRef:
         case Origin(i: Int)
-        case MergedConstructorCond(
-            frsPatterm: IndexedSeq[Pattern],
-            frsAction: ActionRef,
-            sndPatterm: Pattern,
-            sndAction: ActionRef,
-        )
         case FailMatch
-        case ContinueMatch
     end ActionRef
 
     case class BindingNameInfo(

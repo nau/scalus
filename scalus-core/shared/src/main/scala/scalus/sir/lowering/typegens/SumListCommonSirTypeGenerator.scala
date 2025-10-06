@@ -556,6 +556,11 @@ trait SumListCommonSirTypeGenerator extends SirTypeUplcGenerator {
                   s"Cons case should have two bindings, but found ${consCase.pattern}",
                   consCase.anns.pos
                 )
+            case SIR.Pattern.Const(_) =>
+                throw LoweringException(
+                  s"Constant pattern not supported for list matching",
+                  consCase.anns.pos
+                )
             case SIR.Pattern.Wildcard =>
                 ("_head", "_tail")
 

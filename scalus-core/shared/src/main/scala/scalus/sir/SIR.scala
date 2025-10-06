@@ -404,6 +404,7 @@ object SIR:
         def show: String = this match {
             case Pattern.Constr(constr, bindings, typeParamsBindings) =>
                 s"${constr.name}, ${bindings.mkString(", ")}"
+            case Pattern.Const(value) => s"${value.uplcConst}"
             case Pattern.Wildcard => "_"
         }
     }
@@ -567,6 +568,7 @@ object SIR:
                         val nLn = c.pattern match {
                             case Pattern.Wildcard               => localNames
                             case Pattern.Constr(_, bindings, _) => localNames ++ bindings
+                            case Pattern.Const(_)               => localNames
                         }
                         val nBody = processSir(c.body, nLn)
                         Case(c.pattern, nBody, c.anns)
@@ -641,6 +643,7 @@ object SIR:
                     val ln1 = c.pattern match {
                         case Pattern.Wildcard               => ln
                         case Pattern.Constr(_, bindings, _) => ln ++ bindings
+                        case Pattern.Const(_)               => ln
                     }
                     val a1 = accumulate(c.body, a, ln1, f)
                     (a1, ln)
@@ -771,6 +774,8 @@ object SIRChecker {
             case SIR.Pattern.Constr(constr, bindings, typeBindings) =>
                 typeBindings.flatMap(x => checkType(x, throwOnFirst)) ++
                     checkConstr(constr, throwOnFirst) ++ checkSIR(c.body, throwOnFirst)
+            case SIR.Pattern.Const(value) =>
+                checkSIR(value, throwOnFirst) ++ checkSIR(c.body, throwOnFirst)
             case SIR.Pattern.Wildcard => checkSIR(c.body, throwOnFirst)
     }
 

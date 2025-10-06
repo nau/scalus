@@ -315,15 +315,18 @@ object Lowering {
                           id = varId,
                           name = b.name,
                           sir = SIR.Var(b.name, b.tp, anns),
-                          representation = rhs.representation
+                          representation = rhs.representation,
+                          optRhs = if flags.isLazy then Some(rhs) else None
                         )
                         lctx.scope = lctx.scope.add(varVal)
                         (varVal: IdentifiableLoweredValue, rhs)
                     }.toSeq
                     val bodyValue = lowerSIR(body)
                     lctx.scope = prevScope
-                    LetNonRecLoweredValue(bindingValues, bodyValue, sirLet.anns.pos)
-                else
+                    if flags.isLazy then bodyValue
+                    else LetNonRecLoweredValue(bindingValues, bodyValue, sirLet.anns.pos)
+                else {
+                    // in rec case, Lazy doesn't make sense, so we ignore it
                     bindings match
                         case List(Binding(name, tp, rhs)) =>
                             lctx.zCombinatorNeeded = true
@@ -354,6 +357,7 @@ object Lowering {
                             sys.error(
                               s"Mutually recursive bindings are not supported: $bindings at ${sirLet.anns.pos.file}:${sirLet.anns.pos.startLine}"
                             )
+                }
         retval
 
     }
@@ -401,6 +405,7 @@ object Lowering {
                     println(s"f=${app.f.pretty.render(100)}")
                     println(s"lowered f.tp: ${fun.sirType.show}")
                     println(s"arg.tp=${app.arg.tp.show}")
+                    println(s"unrolled arg.tp=${SIRType.unrollTypeProxy(app.arg.tp).show}")
                     println(s"lowered arg.tp: ${arg.sirType.show}")
                     lctx.debug = true
                     // redu with debug mode to see the error

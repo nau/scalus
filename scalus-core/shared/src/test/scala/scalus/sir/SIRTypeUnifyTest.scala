@@ -216,4 +216,55 @@ class SIRTypeUnifyTest extends AnyFunSuite {
 
     }
 
+    test("Unification with TypeProxy should unroll proxy before unifying") {
+        // This test reproduces the Groth16 bug where TypeProxy is not unrolled before unification
+
+        // Create a TypeProxy that points to List[ByteString]
+        val listByteString = SIRType.List(SIRType.ByteString)
+        val proxy = SIRType.TypeProxy(listByteString)
+
+        // Create the expected type: Proxy -> List[Int] -> ... should unify with List[ByteString] -> List[Int] -> ...
+        val proxyFun = SIRType.Fun(proxy, SIRType.Fun(SIRType.List(SIRType.Integer), SIRType.Integer))
+        val listFun = SIRType.Fun(listByteString, SIRType.Fun(SIRType.List(SIRType.Integer), SIRType.Integer))
+
+        // Try to unify - this currently fails because Proxy is not unrolled
+        val result = SIRUnify.topLevelUnifyType(
+          proxyFun,
+          listFun,
+          SIRUnify.Env.empty.withUpcasting
+        )
+
+        result match {
+            case SIRUnify.UnificationSuccess(env, tp) =>
+                // Success! The types should unify
+                assert(tp ~=~ listFun)
+            case SIRUnify.UnificationFailure(path, l, r) =>
+                fail(s"TypeProxy should be unrolled before unification. Failure at path=$path, left=$l, right=$r")
+        }
+    }
+
+    test("Unification should handle TypeProxy in function argument position") {
+        // Specific case from Groth16: Fun(Proxy(List[ByteString]), ...) vs Fun(List[ByteString], ...)
+
+        val listByteString = SIRType.List(SIRType.ByteString)
+        val proxy = SIRType.TypeProxy(listByteString)
+
+        // The actual case: trying to unify Proxy -> X with List[ByteString] -> X
+        val withProxy = SIRType.Fun(proxy, SIRType.Integer)
+        val withoutProxy = SIRType.Fun(listByteString, SIRType.Integer)
+
+        val result = SIRUnify.topLevelUnifyType(
+          withProxy,
+          withoutProxy,
+          SIRUnify.Env.empty.withUpcasting
+        )
+
+        result match {
+            case SIRUnify.UnificationSuccess(env, tp) =>
+                assert(tp ~=~ withoutProxy)
+            case SIRUnify.UnificationFailure(path, l, r) =>
+                fail(s"Should unify Proxy with its referenced type. Failure: path=$path, left=${l}, right=${r}")
+        }
+    }
+
 }

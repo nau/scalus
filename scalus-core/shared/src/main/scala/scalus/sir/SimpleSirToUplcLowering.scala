@@ -120,6 +120,10 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                         case c @ SIR.Case(Pattern.Constr(constrDecl, _, _), _, _) =>
                             matchedConstructors += constrDecl.name // collect all matched constructors
                             expandedCases += c
+                        case SIR.Case(Pattern.Const(_), _, anns) =>
+                            throw new IllegalArgumentException(
+                              s"Constant pattern not supported in SimpleSirToUplcLowering at ${anns.pos.file}:${anns.pos.startLine}, ${anns.pos.startColumn}"
+                            )
                         case SIR.Case(Pattern.Wildcard, rhs, anns) =>
                             // If we have a wildcard case, it must be the last one
                             if idx != enhanchedCases.length - 1 then
@@ -168,7 +172,12 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                                 bindings.foldRight(lowerInner(body)) { (binding, acc) =>
                                     Term.LamAbs(binding, acc)
                                 }
-                    case SIR.Case(Pattern.Wildcard, _, _) =>
+                    case SIR.Case(Pattern.Const(_), _, anns) =>
+                        val pos = anns.pos
+                        throw new IllegalArgumentException(
+                          s"Constant pattern not supported in SimpleSirToUplcLowering at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                        )
+                    case SIR.Case(Pattern.Wildcard, _, anns) =>
                         val pos = anns.pos
                         throw new IllegalArgumentException(
                           s"Wildcard case must have been eliminated at ${pos.file}:${pos.startLine}, ${pos.startColumn}"

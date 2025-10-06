@@ -255,6 +255,11 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                         case Some(_) =>
                             matchedConstructors += constrDecl.name // collect all matched constructors
                             expandedCases += c
+                case SIR.Case(SIR.Pattern.Const(_), _, anns) =>
+                    throw LoweringException(
+                      s"Constant pattern not supported for sum type ${loweredScrutinee.sirType.show}",
+                      anns.pos
+                    )
                 case SIR.Case(SIR.Pattern.Wildcard, rhs, anns) =>
                     // If we have a wildcard case, it must be the last one
                     if idx != enhancedCases.length - 1 then

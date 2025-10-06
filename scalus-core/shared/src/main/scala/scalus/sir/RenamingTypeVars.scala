@@ -212,6 +212,8 @@ object RenamingTypeVars {
                   bindings,
                   typeBindings.map(inType(_, context))
                 )
+            case Pattern.Const(value) =>
+                Pattern.Const(inSirExpr(value, context).asInstanceOf[SIR.Const])
             case Pattern.Wildcard => Pattern.Wildcard
         }
     }

@@ -142,6 +142,77 @@ object SIRTypeUplcBooleanGenerator extends PrimitiveSirTypeGenerator {
           pos
         )
 
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
+        lctx: LoweringContext
+    ): LoweredValue = {
+        val isUnchecked = matchData.anns.data.contains("unchecked")
+        val scrutineeInConstRepr = loweredScrutinee.toRepresentation(
+          PrimitiveRepresentation.Constant,
+          matchData.scrutinee.anns.pos
+        )
+
+        def processCases(cases: List[SIR.Case], matchedValues: Set[Boolean]): LoweredValue = cases match {
+            case Nil =>
+                if isUnchecked then
+                    lctx.lower(
+                      SIR.Error("Non-exhaustive pattern match for Boolean", matchData.anns),
+                      optTargetType
+                    )
+                else
+                    throw LoweringException(
+                      s"Non-exhaustive pattern match for Boolean",
+                      matchData.anns.pos
+                    )
+            case SIR.Case(SIR.Pattern.Const(constValue), body, anns) :: rest =>
+                constValue.uplcConst match {
+                    case scalus.uplc.Constant.Bool(boolValue) =>
+                        val newMatched = matchedValues + boolValue
+                        // Check if after this case all boolean values are covered
+                        val isExhaustive = newMatched.contains(true) && newMatched.contains(false)
+
+                        if rest.isEmpty && isExhaustive then {
+                            // Last case and exhaustive - just return the body
+                            lctx.lower(body, optTargetType)
+                        } else {
+                            // Need to generate if-then-else
+                            val thenBranch = lctx.lower(body, optTargetType)
+                            val elseBranch = processCases(rest, newMatched)
+                            // if constValue is true: if scrutinee then body else rest
+                            // if constValue is false: if scrutinee then rest else body
+                            if boolValue then
+                                lvIfThenElse(scrutineeInConstRepr, thenBranch, elseBranch, anns.pos)
+                            else
+                                lvIfThenElse(scrutineeInConstRepr, elseBranch, thenBranch, anns.pos)
+                        }
+                    case _ =>
+                        throw LoweringException(
+                          s"Expected Boolean constant, got ${constValue.uplcConst}",
+                          anns.pos
+                        )
+                }
+
+            case SIR.Case(SIR.Pattern.Wildcard, body, anns) :: rest =>
+                if rest.nonEmpty then
+                    throw LoweringException(
+                      s"Wildcard pattern must be the last case",
+                      anns.pos
+                    )
+                lctx.lower(body, optTargetType)
+
+            case SIR.Case(SIR.Pattern.Constr(_, _, _), _, anns) :: _ =>
+                throw LoweringException(
+                  s"Constructor pattern not supported for Boolean",
+                  anns.pos
+                )
+        }
+
+        processCases(matchData.cases, Set.empty)
+    }
+
 }
 
 object SIRTypeUplcIntegerGenerator extends PrimitiveSirTypeGenerator {
@@ -169,6 +240,60 @@ object SIRTypeUplcIntegerGenerator extends PrimitiveSirTypeGenerator {
           pos
         )
 
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
+        lctx: LoweringContext
+    ): LoweredValue = {
+        val isUnchecked = matchData.anns.data.contains("unchecked")
+        val scrutineeInConstRepr = loweredScrutinee.toRepresentation(
+          PrimitiveRepresentation.Constant,
+          matchData.scrutinee.anns.pos
+        )
+
+        def processCases(cases: List[SIR.Case]): LoweredValue = cases match {
+            case Nil =>
+                if isUnchecked then
+                    lctx.lower(
+                      SIR.Error("Non-exhaustive pattern match for Integer", matchData.anns),
+                      optTargetType
+                    )
+                else
+                    throw LoweringException(
+                      s"Non-exhaustive pattern match for Integer",
+                      matchData.anns.pos
+                    )
+            case SIR.Case(SIR.Pattern.Const(constValue), body, anns) :: rest =>
+                val loweredConst = lctx.lower(constValue)
+                val constInConstRepr = loweredConst.toRepresentation(
+                  PrimitiveRepresentation.Constant,
+                  anns.pos
+                )
+                val comparison = lvEqualsInteger(scrutineeInConstRepr, constInConstRepr, anns.pos)
+                val thenBranch = lctx.lower(body, optTargetType)
+                val elseBranch = processCases(rest)
+                lvIfThenElse(comparison, thenBranch, elseBranch, anns.pos)
+
+            case SIR.Case(SIR.Pattern.Wildcard, body, anns) :: rest =>
+                if rest.nonEmpty then
+                    throw LoweringException(
+                      s"Wildcard pattern must be the last case",
+                      anns.pos
+                    )
+                lctx.lower(body, optTargetType)
+
+            case SIR.Case(SIR.Pattern.Constr(_, _, _), _, anns) :: _ =>
+                throw LoweringException(
+                  s"Constructor pattern not supported for Integer",
+                  anns.pos
+                )
+        }
+
+        processCases(matchData.cases)
+    }
+
 }
 
 object SIRTypeUplcByteStringGenerator extends PrimitiveSirTypeGenerator {
@@ -194,6 +319,67 @@ object SIRTypeUplcByteStringGenerator extends PrimitiveSirTypeGenerator {
           PrimitiveRepresentation.Constant,
           pos
         )
+
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
+        lctx: LoweringContext
+    ): LoweredValue = {
+        val isUnchecked = matchData.anns.data.contains("unchecked")
+        val scrutineeInConstRepr = loweredScrutinee.toRepresentation(
+          PrimitiveRepresentation.Constant,
+          matchData.scrutinee.anns.pos
+        )
+
+        def processCases(cases: List[SIR.Case]): LoweredValue = cases match {
+            case Nil =>
+                if isUnchecked then
+                    lctx.lower(
+                      SIR.Error("Non-exhaustive pattern match for ByteString", matchData.anns),
+                      optTargetType
+                    )
+                else
+                    throw LoweringException(
+                      s"Non-exhaustive pattern match for ByteString",
+                      matchData.anns.pos
+                    )
+            case SIR.Case(SIR.Pattern.Const(constValue), body, anns) :: rest =>
+                val loweredConst = lctx.lower(constValue)
+                val constInConstRepr = loweredConst.toRepresentation(
+                  PrimitiveRepresentation.Constant,
+                  anns.pos
+                )
+                val comparison = lvBuiltinApply2(
+                  SIRBuiltins.equalsByteString,
+                  scrutineeInConstRepr,
+                  constInConstRepr,
+                  SIRType.Boolean,
+                  PrimitiveRepresentation.Constant,
+                  anns.pos
+                )
+                val thenBranch = lctx.lower(body, optTargetType)
+                val elseBranch = processCases(rest)
+                lvIfThenElse(comparison, thenBranch, elseBranch, anns.pos)
+
+            case SIR.Case(SIR.Pattern.Wildcard, body, anns) :: rest =>
+                if rest.nonEmpty then
+                    throw LoweringException(
+                      s"Wildcard pattern must be the last case",
+                      anns.pos
+                    )
+                lctx.lower(body, optTargetType)
+
+            case SIR.Case(SIR.Pattern.Constr(_, _, _), _, anns) :: _ =>
+                throw LoweringException(
+                  s"Constructor pattern not supported for ByteString",
+                  anns.pos
+                )
+        }
+
+        processCases(matchData.cases)
+    }
 
 }
 
@@ -233,6 +419,67 @@ object SIRTypeUplcStringGenerator extends PrimitiveSirTypeGenerator {
           PrimitiveRepresentation.Constant,
           pos
         )
+    }
+
+    override def genMatch(
+        matchData: SIR.Match,
+        loweredScrutinee: LoweredValue,
+        optTargetType: Option[SIRType]
+    )(using
+        lctx: LoweringContext
+    ): LoweredValue = {
+        val isUnchecked = matchData.anns.data.contains("unchecked")
+        val scrutineeInConstRepr = loweredScrutinee.toRepresentation(
+          PrimitiveRepresentation.Constant,
+          matchData.scrutinee.anns.pos
+        )
+
+        def processCases(cases: List[SIR.Case]): LoweredValue = cases match {
+            case Nil =>
+                if isUnchecked then
+                    lctx.lower(
+                      SIR.Error("Non-exhaustive pattern match for String", matchData.anns),
+                      optTargetType
+                    )
+                else
+                    throw LoweringException(
+                      s"Non-exhaustive pattern match for String",
+                      matchData.anns.pos
+                    )
+            case SIR.Case(SIR.Pattern.Const(constValue), body, anns) :: rest =>
+                val loweredConst = lctx.lower(constValue)
+                val constInConstRepr = loweredConst.toRepresentation(
+                  PrimitiveRepresentation.Constant,
+                  anns.pos
+                )
+                val comparison = lvBuiltinApply2(
+                  SIRBuiltins.equalsString,
+                  scrutineeInConstRepr,
+                  constInConstRepr,
+                  SIRType.Boolean,
+                  PrimitiveRepresentation.Constant,
+                  anns.pos
+                )
+                val thenBranch = lctx.lower(body, optTargetType)
+                val elseBranch = processCases(rest)
+                lvIfThenElse(comparison, thenBranch, elseBranch, anns.pos)
+
+            case SIR.Case(SIR.Pattern.Wildcard, body, anns) :: rest =>
+                if rest.nonEmpty then
+                    throw LoweringException(
+                      s"Wildcard pattern must be the last case",
+                      anns.pos
+                    )
+                lctx.lower(body, optTargetType)
+
+            case SIR.Case(SIR.Pattern.Constr(_, _, _), _, anns) :: _ =>
+                throw LoweringException(
+                  s"Constructor pattern not supported for String",
+                  anns.pos
+                )
+        }
+
+        processCases(matchData.cases)
     }
 
 }
