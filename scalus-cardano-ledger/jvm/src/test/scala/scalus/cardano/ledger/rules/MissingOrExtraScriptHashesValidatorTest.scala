@@ -38,9 +38,9 @@ class MissingOrExtraScriptHashesValidatorTest extends AnyFunSuite, ValidatorRule
                     Mint(
                       MultiAsset(
                         SortedMap(
-                          plutusV1Script.scriptHash -> SortedMap.empty,
-                          plutusV2Script.scriptHash -> SortedMap.empty,
-                          plutusV3Script.scriptHash -> SortedMap.empty
+                          plutusV1Script.scriptHash -> SortedMap(AssetName.empty -> 1),
+                          plutusV2Script.scriptHash -> SortedMap(AssetName.empty -> 1),
+                          plutusV3Script.scriptHash -> SortedMap(AssetName.empty -> 1)
                         )
                       )
                     )

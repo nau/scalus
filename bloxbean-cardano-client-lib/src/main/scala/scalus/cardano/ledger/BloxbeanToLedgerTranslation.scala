@@ -10,7 +10,7 @@ object BloxbeanToLedgerTranslation {
         def toLedgerValue: Value = {
             Value(
               Coin(self.getCoin.longValue()),
-              multiAsset = MultiAsset(
+              MultiAsset(
                 self.getMultiAssets.asScala
                     .map { ma =>
                         Hash.scriptHash(ByteString.fromHex(ma.getPolicyId)) -> ma.getAssets.asScala
