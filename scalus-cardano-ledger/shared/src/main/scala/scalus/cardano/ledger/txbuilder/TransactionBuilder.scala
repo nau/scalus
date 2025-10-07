@@ -574,6 +574,8 @@ object TransactionBuilder:
         // build : List[Step] => Context
         // modify : List[Step] => Context => Context
 
+        def finalizeContext: Either[TransactionException | TxBalancingError, Context] = ???
+
     }
 
     object Context:

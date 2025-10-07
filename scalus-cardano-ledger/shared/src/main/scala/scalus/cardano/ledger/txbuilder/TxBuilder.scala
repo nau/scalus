@@ -1,450 +1,134 @@
 package scalus.cardano.ledger.txbuilder
-import com.bloxbean.cardano.client.account.Account
-import com.bloxbean.cardano.client.backend.api.BackendService
-import com.bloxbean.cardano.client.function.TxSigner as CCLSigner
-import com.bloxbean.cardano.client.quicktx.QuickTxBuilder
-import scalus.builtin.{platform, ByteString, Data}
+
+import cats.implicits.*
+import monocle.syntax.all.*
+import scalus.builtin.Data
 import scalus.cardano.address.Address
-import scalus.cardano.ledger.txbuilder.TxBuilder.{dummyVkey, modifyBody, modifyWs}
-import scalus.cardano.ledger.utils.TxBalance
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.Script.{Native, PlutusV3}
 
-import scala.collection.immutable.SortedMap
-
+/** High-level transaction builder API for pay transactions.
+  *
+  * Focuses on building payment transactions with support for Plutus validators.
+  */
 case class TxBuilder(
     context: BuilderContext,
-    onSurplus: OnSurplus = OnSurplus.toFirstPayer,
-    tx: Transaction = TxBuilder.emptyTx,
-    backendService: BackendService = null,
-    var payer: Address = null,
-    var attachedScript: PlutusV3 = null,
-    var attachedNativeScript: Native = null,
-    signer: CCLSigner = null
+    steps: Seq[TransactionBuilderStep] = Seq.empty
 ) {
 
-    def withBackendService(backendService: BackendService): TxBuilder =
-        copy(backendService = backendService)
-    def withSigner(signer: CCLSigner): TxBuilder = copy(signer = signer)
-    def withPayer(address: Address): TxBuilder = copy(payer = address)
-    def withAttachedScript(script: PlutusV3) = copy(attachedScript = script)
-    def withAttachedNativeScript(script: Script.Native) = copy(attachedNativeScript = script)
-
-    /** Configures the behaviour that is invoked when the payment transaction produces more ada than
-      * it consumes.
-      */
-    def onSurplus(onSurplus: OnSurplus): TxBuilder = copy(onSurplus = onSurplus)
-
-    /** Specifies the minting information for the transaction, setting a mint field and adding a
-      * respective 0 ada output that contains the minted token. The token is sent to the specified
-      * address.
-      */
-    def mint(address: Address, value: Value, script: Script): TxBuilder = {
-        val out = Sized(TransactionOutput(address, value))
-        copy(tx =
-            modifyBody(tx, b => b.copy(mint = Some(Mint(value.assets)), outputs = b.outputs :+ out))
-        )
-    }
-
-    def registerDrep(account: Account) = RegisterDRepTransactionBuilder(this.context, account)
-    def unRegistrerDrep(account: Account) = UnregisterDRepTransactionBuilder(this.context, account)
-
-    def payTo(address: Address, value: Value) = {
-        PaymentTransactionBuilder(
-          context,
-          payer,
-          address,
-          value,
-          Option(attachedScript),
-          Option(attachedNativeScript)
-        )
-    }
-
-    def mint(tokens: MultiAsset, receiver: Address) = {
-        MintTransactionBuilder(
-          context,
-          payer,
-          receiver,
-          tokens,
-          Option(attachedScript),
-          Option(attachedNativeScript)
-        )
-    }
-
-    /** Adds a new output which contains the specified value to be sent to the specified address.
-      * The output contains the specified data stored as inline datum.
-      */
-    def payToScript(address: Address, value: Value, datum: Data): TxBuilder = {
-        val out = Sized(TransactionOutput(address, value, DatumOption.Inline(datum)))
-        copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
-    }
-
-    /** Adds a new output which contains the specified value to be sent to the specified address.
-      * The output contains the specified data hash.
-      */
-    def payToScript(address: Address, value: Value, datumHash: DataHash): TxBuilder = {
-        val out = Sized(TransactionOutput(address, value, DatumOption.Hash(datumHash)))
-        copy(tx = modifyBody(tx, b => b.copy(outputs = b.outputs :+ out)))
-    }
-
-    /** Configures the slot number. The result transaction is considered valid starting from the
-      * specified slot.
-      */
-    def validFrom(slot: Slot): TxBuilder = {
-        copy(tx = modifyBody(tx, b => b.copy(validityStartSlot = Some(slot.slot))))
-    }
-
-    /** Appends the specified address key hashes as required signers for this transaction. */
-    def withRequiredSigners(signers: Set[AddrKeyHash]): TxBuilder = {
-        copy(tx =
-            modifyBody(
-              tx,
-              b =>
-                  b.copy(requiredSigners =
-                      TaggedOrderedSet(b.requiredSigners.toSortedSet ++ signers)
-                  )
-            )
-        )
-    }
-
-    /** Attaches a Plutus script for spending UTXOs from script addresses.
+    /** Add a step to spend a UTxO from a Plutus script address.
       *
-      * @see
-      *   [[attachPlutusScript]]
-      */
-    def attachSpendingScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
-        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Spend)
-
-    /** Attaches a Plutus script for minting/burning tokens.
-      *
-      * @see
-      *   [[attachPlutusScript]]
-      */
-    def attachMintingScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
-        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Mint)
-
-    /** Attaches a Plutus script for certificate operations (staking, delegation, etc.).
-      *
-      * @see
-      *   [[attachPlutusScript]]
-      */
-    def attachCertScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
-        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Cert)
-
-    /** Attaches a Plutus script for reward withdrawal operations.
-      *
-      * @see
-      *   [[attachPlutusScript]]
-      */
-    def attachRewardScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
-        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Reward)
-
-    /** Attaches a Plutus script for governance voting operations.
-      *
-      * @see
-      *   [[attachPlutusScript]]
-      */
-    def attachVotingScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
-        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Voting)
-
-    /** Attaches a Plutus script for governance proposal operations.
-      *
-      * @see
-      *   [[attachPlutusScript]]
-      */
-    def attachProposingScript(script: PlutusScript, datum: Data, redeemer: Data, index: Int) =
-        attachPlutusScript(script, datum, redeemer, index, RedeemerTag.Proposing)
-
-    /** Attaches a Plutus script with the specified redeemer tag.
-      *
-      * This is the general method for attaching Plutus scripts. Use the specific methods like
-      * [[attachSpendingScript]], [[attachMintingScript]], etc. for better type safety.
-      *
-      * @param script
-      *   The Plutus script (V1, V2, or V3)
-      * @param datum
-      *   The datum data for the script
+      * @param utxo
+      *   The UTxO to spend
       * @param redeemer
-      *   The redeemer data for script execution
-      * @param index
-      *   The index for the redeemer (context-dependent based on tag)
-      * @param tag
-      *   The redeemer tag indicating the script's purpose
+      *   The redeemer data for the validator
+      * @param validator
+      *   The Plutus script validator
+      * @param datum
+      *   Optional datum witness (required if the UTxO has a datum hash)
+      * @return
+      *   Updated builder
       */
-    def attachPlutusScript(
-        script: PlutusScript,
-        datum: Data,
+    def collectFrom(
+        utxo: TransactionUnspentOutput,
         redeemer: Data,
-        index: Int,
-        tag: RedeemerTag
-    ) = {
-        val plutusData = TaggedSet.from(
-          tx.witnessSet.plutusData.value.toIndexedSeq :+ KeepRaw(datum) :+ KeepRaw(redeemer)
-        )
-        val updatedWitnessSet = script match {
-            case plutusV1: Script.PlutusV1 =>
-                tx.witnessSet.copy(
-                  plutusV1Scripts = tx.witnessSet.plutusV1Scripts + plutusV1,
-                  plutusData = KeepRaw(plutusData),
-                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer, tag)))
-                )
-            case plutusV2: Script.PlutusV2 =>
-                tx.witnessSet.copy(
-                  plutusV2Scripts = tx.witnessSet.plutusV2Scripts + plutusV2,
-                  plutusData = KeepRaw(plutusData),
-                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer, tag)))
-                )
-            case plutusV3: Script.PlutusV3 =>
-                tx.witnessSet.copy(
-                  plutusV3Scripts = tx.witnessSet.plutusV3Scripts + plutusV3,
-                  plutusData = KeepRaw(plutusData),
-                  redeemers = Some(KeepRaw(addRedeemer(index, redeemer, tag)))
-                )
-        }
-        copy(tx = tx.copy(witnessSet = updatedWitnessSet))
-    }
-
-    /** Attaches a native script (timelock/multisig) to the transaction.
-      *
-      * Native scripts don't require redeemers or datum, only signatures and timelock validation.
-      */
-    def attachNativeScript(script: Script.Native, index: Int): TxBuilder = {
-        val updatedWitnessSet = tx.witnessSet.copy(
-          nativeScripts = tx.witnessSet.nativeScripts + script
-        )
-        copy(tx = tx.copy(witnessSet = updatedWitnessSet))
-    }
-
-    private def addRedeemer(index: Int, redeemerData: Data, tag: RedeemerTag): Redeemers = {
-        val newRedeemer = Redeemer(
-          tag = tag,
-          index = index,
-          data = redeemerData,
-          exUnits = TxBuilder.dummyExUnits
-        )
-
-        tx.witnessSet.redeemers match {
-            case Some(existingRedeemers) =>
-                val existing = existingRedeemers.value.toIndexedSeq
-                val updated =
-                    existing.filterNot(r => r.tag == tag && r.index == index) :+ newRedeemer
-                Redeemers.from(updated)
-            case None =>
-                Redeemers(newRedeemer)
-        }
-    }
-
-    /** Specifies the exact set of UTXOs to use as transaction inputs.
-      *
-      * @param inputs
-      *   The transaction inputs to use
-      */
-    def withInputs(inputs: Set[TransactionInput]): TxBuilder =
-        copy(tx = modifyBody(tx, _.copy(inputs = TaggedOrderedSet.from(inputs))))
-
-    /** Selects transaction inputs using the provided selection strategy.
-      *
-      * @param selectInputs
-      *   Strategy for selecting inputs from available UTXOs
-      * @see
-      *   [[SelectInputs.all]], [[SelectInputs.particular]]
-      */
-    def selectInputs(selectInputs: SelectInputs): TxBuilder = withInputs(selectInputs(context.utxo))
-
-    /** Specifies collateral inputs for Plutus script transactions.
-      *
-      * Collateral is required when spending UTXOs locked by Plutus scripts. If script execution
-      * fails, collateral is consumed to pay for fees.
-      *
-      * @param collateralIn
-      *   The UTXOs to use as collateral
-      */
-    def withCollateral(collateralIn: Set[TransactionInput]): TxBuilder =
-        copy(tx = modifyBody(tx, _.copy(collateralInputs = TaggedOrderedSet.from(collateralIn))))
-
-    /** Registers a stake credential, enabling staking operations.
-      *
-      * Requires a deposit as specified in protocol parameters.
-      *
-      * @param credential
-      *   The stake credential to register
-      */
-    def registerStake(credential: Credential): TxBuilder = {
-        val stakeDeposit = Coin(context.protocolParams.stakeAddressDeposit)
-        addCertificate(Certificate.RegCert(credential, Some(stakeDeposit)))
-    }
-
-    /** Delegates stake from a registered credential to a stake pool.
-      *
-      * @param credential
-      *   The registered stake credential
-      * @param poolKeyHash
-      *   The target stake pool's key hash
-      */
-    def delegateStake(credential: Credential, poolKeyHash: PoolKeyHash): TxBuilder =
-        addCertificate(Certificate.StakeDelegation(credential, poolKeyHash))
-
-    /** Registers a stake credential and delegates to a pool in a single certificate.
-      *
-      * More efficient than separate registration and delegation transactions.
-      *
-      * @param credential
-      *   The stake credential to register and delegate
-      * @param poolKeyHash
-      *   The target stake pool's key hash
-      */
-    def registerAndDelegateStake(credential: Credential, poolKeyHash: PoolKeyHash): TxBuilder = {
-        val stakeDeposit = Coin(context.protocolParams.stakeAddressDeposit)
-        addCertificate(Certificate.StakeRegDelegCert(credential, poolKeyHash, stakeDeposit))
-    }
-
-    /** Deregisters a stake credential and returns the deposit.
-      *
-      * @param credential
-      *   The stake credential to deregister
-      */
-    def deregisterStake(credential: Credential): TxBuilder = {
-        val stakeDeposit = Coin(context.protocolParams.stakeAddressDeposit)
-        addCertificate(Certificate.UnregCert(credential, Some(stakeDeposit)))
-    }
-
-    /** Delegates voting power to a DRep (Delegated Representative) for governance.
-      *
-      * @param credential
-      *   The stake credential delegating voting power
-      * @param drep
-      *   The target DRep to delegate to
-      */
-    def delegateToVote(credential: Credential, drep: DRep): TxBuilder =
-        addCertificate(Certificate.VoteDelegCert(credential, drep))
-
-    /** Delegates both stake (to a pool) and voting power (to a DRep) in a single certificate.
-      *
-      * @param credential
-      *   The registered stake credential
-      * @param poolKeyHash
-      *   The target stake pool's key hash
-      * @param drep
-      *   The target DRep for voting delegation
-      */
-    def delegateStakeAndVote(
-        credential: Credential,
-        poolKeyHash: PoolKeyHash,
-        drep: DRep
-    ): TxBuilder =
-        addCertificate(Certificate.StakeVoteDelegCert(credential, poolKeyHash, drep))
-
-    /** Registers a stake credential and delegates both stake and voting power in a single
-      * certificate.
-      *
-      * Most efficient way to perform all three operations (register, delegate stake, delegate
-      * vote).
-      *
-      * @param credential
-      *   The stake credential to register and delegate
-      * @param poolKeyHash
-      *   The target stake pool's key hash
-      * @param drep
-      *   The target DRep for voting delegation
-      */
-    def registerAndDelegateStakeAndVote(
-        credential: Credential,
-        poolKeyHash: PoolKeyHash,
-        drep: DRep
+        validator: PlutusScript,
+        datum: Option[Data] = None
     ): TxBuilder = {
-        val stakeDeposit = Coin(context.protocolParams.stakeAddressDeposit)
-        addCertificate(
-          Certificate.StakeVoteRegDelegCert(credential, poolKeyHash, drep, stakeDeposit)
+        val witness = OutputWitness.PlutusScriptOutput(
+          witness = ScriptWitness.ScriptValue(validator, Set.empty),
+          redeemer = redeemer,
+          datum = datum.map(DatumWitness.DatumValue.apply)
         )
+        copy(steps = steps :+ TransactionBuilderStep.SpendOutput(utxo, Some(witness)))
     }
 
-    /** Withdraws staking rewards from multiple reward accounts.
+    /** Add a step to send funds to an address.
       *
-      * @param withdrawals
-      *   Map of reward accounts to amounts to withdraw
+      * @param address
+      *   The recipient address
+      * @param value
+      *   The value to send
+      * @param datum
+      *   Optional datum to attach to the output
+      * @return
+      *   Updated builder
       */
-    def withdrawRewards(withdrawals: Withdrawals): TxBuilder =
-        copy(tx = modifyBody(tx, b => b.copy(withdrawals = Some(withdrawals))))
-
-    /** Withdraws staking rewards from a single reward account.
-      *
-      * @param rewardAccount
-      *   The reward account to withdraw from
-      * @param amount
-      *   The amount to withdraw
-      */
-    def withdrawRewards(rewardAccount: RewardAccount, amount: Coin): TxBuilder =
-        withdrawRewards(Withdrawals(SortedMap(rewardAccount -> amount)))
-
-    private def addCertificate(certificate: Certificate): TxBuilder = {
-        val updatedCertificates =
-            TaggedSet.from(tx.body.value.certificates.toIndexedSeq :+ certificate)
-        copy(tx = modifyBody(tx, b => b.copy(certificates = updatedCertificates)))
+    def payTo(address: Address, value: Value, datum: Option[DatumOption] = None): TxBuilder = {
+        val output = TransactionOutput.Babbage(
+          address = address,
+          value = value,
+          datumOption = datum,
+          scriptRef = None
+        )
+        copy(steps = steps :+ TransactionBuilderStep.Pay(output))
     }
 
-    private def addDummyVkey(tx: Transaction) =
-        modifyWs(tx, ws => ws.copy(vkeyWitnesses = ws.vkeyWitnesses + dummyVkey))
-
-    private def removeDummyVkey(tx: Transaction) =
-        modifyWs(tx, ws => ws.copy(vkeyWitnesses = ws.vkeyWitnesses - dummyVkey))
-
-    /** Builds the final transaction with automatic balancing, fee calculation, and signing.
+    /** Add a step to send funds to a script address with an inline datum.
       *
-      * This method:
-      *   1. Adds temporary dummy witnesses for fee calculation
-      *   2. Balances inputs/outputs and calculates fees
-      *   3. Evaluates Plutus scripts if present and updates execution units
-      *   4. Signs the transaction with provided signing keys
-      *   5. Validates the final transaction against configured validators
+      * @param scriptAddress
+      *   The script address
+      * @param value
+      *   The value to lock
+      * @param datum
+      *   The datum to attach inline
+      * @return
+      *   Updated builder
+      */
+    def payToScript(
+        scriptAddress: Address,
+        value: Value,
+        datum: Data
+    ): TxBuilder = {
+        payTo(scriptAddress, value, Some(DatumOption.Inline(datum)))
+    }
+
+    /** Build and complete the transaction with balancing.
       *
       * @return
-      *   The complete, balanced, and signed transaction ready for submission
-      * @throws TransactionException
-      *   if the transaction cannot be balanced or validated
+      *   Either an error or the finalized transaction
       */
-    def build: Transaction = {
-        val withDummyVkey = addDummyVkey(tx)
-        val balanced = TxBalance.doBalance(withDummyVkey)(
-          context.utxoProvider.utxo,
-          context.protocolParams,
-          onSurplus
-        )
-        context.validate(balanced).toTry.get
+    def complete(): Either[String, Transaction] = {
+        for {
+            txContext <- TransactionBuilder.build(context.env.network, steps).left.map(_.explain)
+            // Use wallet to get change output
+            changeOutput <- context.wallet.getInput(Coin(0)) match {
+                case Some((resolvedInput, _)) =>
+                    Right(Sized(resolvedInput.output))
+                case None =>
+                    Left("No UTxO available for change output")
+            }
+            // Add change output to the transaction
+            txWithChangeOut = modifyBody(
+              txContext.transaction,
+              body => body.copy(outputs = body.outputs.toSeq :+ changeOutput)
+            )
+            changeOutputIdx = txWithChangeOut.body.value.outputs.size - 1
+            // Balance the transaction
+            utxo = txContext.resolvedUtxos.map(u => u.input -> u.output).toMap
+            balanced <- LowLevelTxBuilder
+                .balanceFeeAndChange(
+                  txWithChangeOut,
+                  changeOutputIdx,
+                  context.env.protocolParams,
+                  utxo,
+                  context.env.evaluator
+                )
+                .left
+                .map {
+                    case TxBalancingError.Failed(cause) => cause.getMessage
+                    case TxBalancingError.CantBalance(lastDiff) =>
+                        s"Can't balance: last diff $lastDiff"
+                    case TxBalancingError.InsufficientFunds(diff, required) =>
+                        s"Insufficient funds: need $required more"
+                }
+        } yield balanced
     }
-
-    private def isPlutusScriptTx(transaction: Transaction): Boolean =
-        transaction.witnessSet.plutusV1Scripts.size +
-            transaction.witnessSet.plutusV2Scripts.size +
-            transaction.witnessSet.plutusV3Scripts.size > 0
 }
 
 object TxBuilder {
-    // will be updated during balancing
-    private val dummyExUnits = ExUnits(memory = 0L, steps = 0L)
+    def apply(context: BuilderContext): TxBuilder = new TxBuilder(context)
+}
 
-    // needed during fee calculation and prior to signing
-    private val dummyVkey = VKeyWitness(
-      ByteString.fromString("0".repeat(32)),
-      ByteString.fromString("0".repeat(64))
-    )
-
-    def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody) = {
-        val newBody = f(tx.body.value)
-        tx.copy(body = KeepRaw(newBody))
-    }
-
-    def modifyWs(
-        tx: Transaction,
-        f: TransactionWitnessSet => TransactionWitnessSet
-    ): Transaction = {
-        val newWs = f(tx.witnessSet)
-        tx.copy(witnessSet = newWs)
-    }
-
-    val emptyTx: Transaction = Transaction.empty
-
-    def withInputsFromUtxos(utxo: UTxO) = Transaction(
-      TransactionBody(TaggedOrderedSet.from(utxo.keySet), IndexedSeq.empty, Coin.zero),
-      TransactionWitnessSet.empty
-    )
+extension (context: BuilderContext) {
+    def newTx: TxBuilder = TxBuilder(context)
 }
