@@ -12,7 +12,7 @@ import monocle.syntax.all.*
 
 import scala.annotation.tailrec
 import scala.collection.immutable.{SortedMap, SortedSet, TreeSet}
-import scala.util.Random
+import scala.util.{Random, Try}
 
 /*
  * Intention is what the user intends to happen. Should accept as few parameters as possible.
@@ -624,7 +624,7 @@ def balancingLoop(
         val a = ensurePaymentOutputExists(i)(tx)
         val b = ensureChangeOutputExists(changeReturnStrategy, w.utxo, protocolParams)(a)
         val c = ceilOuts(protocolParams)(b)
-        val d = computeScriptsWitness(w.utxo, evaluator, protocolParams)(c)
+        val d = computeScriptsWitness(w.utxo, evaluator, protocolParams)(c).right.get
         val e = setMinFee(w, protocolParams)(d)
         // 1) Set the current diff as change
         // 2) Calculate the fee, then use it to (re)-calculate the change
@@ -691,10 +691,10 @@ def computeScriptsWitness(
     utxo: UTxO,
     evaluator: PlutusScriptEvaluator,
     protocolParams: ProtocolParams
-)(tx: Transaction): Transaction = {
+)(tx: Transaction): Either[Throwable, Transaction] = Try {
     val redeemers = evaluator.evalPlutusScripts(tx, utxo)
     setupRedeemers(protocolParams, tx, redeemers)
-}
+}.toEither
 
 def ensureChangeOutputExists(
     changeReturnStrategy: ChangeReturnStrategy,
@@ -951,40 +951,49 @@ object LowLevelTxBuilder {
         evaluator: PlutusScriptEvaluator,
     ): Either[TxBalancingError, Transaction] = {
         var iteration = 0
+
         @tailrec def loop(tx: Transaction): Either[TxBalancingError, Transaction] = {
             iteration += 1
             if iteration > 20 then return Left(TxBalancingError.CantBalance(0))
             val providedTxFee = tx.body.value.fee
-            val txWithExUnits = computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx)
 
-            MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams) match
-                case Right(minFee) =>
-                    // don't go below initial fee
-                    val fee = Coin(math.max(minFee.value, initial.body.value.fee.value))
-                    val txWithFees = setFee(fee)(txWithExUnits)
-
-                    // if modifying the fee changed the transaction size - re-loop
-                    if providedTxFee != fee then
-                        MinTransactionFee(txWithFees, resolvedUtxo, protocolParams) match
-                            case Right(newMinFee) if newMinFee != minFee =>
-                                return loop(txWithFees)
-                            case Right(_) =>
-                            // Fee is still correct, continue
-                            case Left(error) => return Left(TxBalancingError.Failed(error))
-
-                    // find the diff
-                    val diff = calculateChangeLovelace(txWithFees, resolvedUtxo, protocolParams)
-                    // try to balance it
-                    diffHandler(diff, txWithFees) match
-                        case Right(balanced) =>
-                            val balancedDiff =
-                                calculateChangeLovelace(balanced, resolvedUtxo, protocolParams)
-                            // if diff is zero, we are done
-                            if balancedDiff == 0 then Right(balanced)
-                            else loop(balanced) // try again with the balanced tx
-                        case Left(error) => Left(error)
+            computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx) match
                 case Left(error) => Left(TxBalancingError.Failed(error))
+                case Right(txWithExUnits) =>
+                    MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams) match
+                        case Right(minFee) =>
+                            // don't go below initial fee
+                            val fee = Coin(math.max(minFee.value, initial.body.value.fee.value))
+                            val txWithFees = setFee(fee)(txWithExUnits)
+
+                            // if modifying the fee changed the transaction size - re-loop
+                            if providedTxFee != fee then
+                                MinTransactionFee(txWithFees, resolvedUtxo, protocolParams) match
+                                    case Right(newMinFee) if newMinFee != minFee =>
+                                        return loop(txWithFees)
+                                    case Right(_) =>
+                                    // Fee is still correct, continue
+                                    case Left(error) => return Left(TxBalancingError.Failed(error))
+
+                            // find the diff
+                            val diff =
+                                calculateChangeLovelace(txWithFees, resolvedUtxo, protocolParams)
+                            // try to balance it
+                            diffHandler(diff, txWithFees) match
+                                case Right(balanced) =>
+                                    val balancedDiff =
+                                        calculateChangeLovelace(
+                                          balanced,
+                                          resolvedUtxo,
+                                          protocolParams
+                                        )
+                                    // if diff is zero, we are done
+                                    if balancedDiff == 0 then Right(balanced)
+                                    else loop(balanced) // try again with the balanced tx
+                                case Left(error) => Left(error)
+                        case Left(error) => Left(TxBalancingError.Failed(error))
         }
+
         loop(initial)
     }
 
