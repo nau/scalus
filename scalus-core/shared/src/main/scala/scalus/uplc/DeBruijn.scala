@@ -24,9 +24,7 @@ object DeBruijn:
                 case Var(name) =>
                     val idx = env.indexOf(name.name)
                     if idx == -1 then
-                        unique -= 1
-                        Var(name.copy(index = unique))
-                        // throw new Exception(s"Variable $name not found in environment $env")
+                        throw new IllegalArgumentException(s"Unresolved variable '${name.name}' in De Bruijn conversion. Available variables in scope: [${env.mkString(", ")}]")
                     else Var(name.copy(index = idx + 1)) // 1-based index
                 case LamAbs(name, term) => LamAbs(name, deBruijnTerm(term, name :: env))
                 case Apply(f, arg)      => Apply(deBruijnTerm(f, env), deBruijnTerm(arg, env))

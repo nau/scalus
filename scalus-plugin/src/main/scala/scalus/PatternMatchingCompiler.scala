@@ -67,6 +67,10 @@ class PatternMatchingContext(
         _scrutineeName
     }
 
+    def setScrutineeName(name: String): Unit = {
+        _scrutineeName = name
+    }
+
     def actionsUsageCount: Map[Int, Int] = _actionsUsageCount
 
     def countActionUsage(actionIndex: Int): Int = {
@@ -204,7 +208,20 @@ object SirParsedCase:
             optNameInfo: Option[BindingNameInfo],
             innerPattern: Pattern,
             pos: SrcPos
-        ) extends Pattern {
+        )(using Context)
+            extends Pattern {
+
+            optNameInfo match {
+                case Some(nameInfo) =>
+                    SIRUnify.topLevelUnifyType(tp, nameInfo.tp, SIRUnify.Env.empty) match {
+                        case SIRUnify.UnificationSuccess(emv, u) =>
+                        case SIRUnify.UnificationFailure(path, l, r) =>
+                            throw IllegalStateException(
+                              s"TypeSelector: type selector type ${tp.show} is not compatible with binding type ${nameInfo.tp.show} at ${pos.sourcePos.show} in path ${path}"
+                            )
+                    }
+                case _ =>
+            }
 
             def withAlias(alias: BindingNameInfo): Pattern = {
                 optNameInfo match {
@@ -217,7 +234,7 @@ object SirParsedCase:
                 case None =>
                     innerPattern.collectNames
                 case Some(nameInfo) =>
-                    innerPattern.collectNames + (nameInfo.name -> tp)
+                    innerPattern.collectNames + (nameInfo.name -> nameInfo.tp)
             }
 
             def show: String = s"(${innerPattern.show} : ${tp.show})"
@@ -227,6 +244,7 @@ object SirParsedCase:
         case class Constructor(
             tp: SIRType.CaseClass,
             freeTypeParams: List[SIRType.TypeVar],
+            // filledTypeParams: Map[Symbol, SIRType],
             optNameInfo: Option[BindingNameInfo],
             // constructorSymbol: Symbol,
             subcases: IndexedSeq[Pattern],
@@ -235,8 +253,9 @@ object SirParsedCase:
 
             def withAlias(alias: BindingNameInfo): Pattern = {
                 optNameInfo match {
-                    case None           => this.copy(optNameInfo = Some(alias))
-                    case Some(nameInfo) => this.copy(optNameInfo = Some(nameInfo.withAlias(alias)))
+                    case None => this.copy(optNameInfo = Some(alias))
+                    case Some(nameInfo) =>
+                        this.copy(optNameInfo = Some(nameInfo.withAlias(alias)))
                 }
             }
 
@@ -363,6 +382,7 @@ object SirParsedCase:
         tp: SIRType,
         aliases: Set[BindingNameInfo] = Set.empty
     ) {
+
         def withAlias(alias: BindingNameInfo): BindingNameInfo =
             this.copy(aliases = this.aliases + alias)
     }
@@ -448,30 +468,6 @@ object SirCaseDecisionTree:
         nextTrue: SirCaseDecisionTree,
         nextFalse: SirCaseDecisionTree
     ) extends SirCaseDecisionTree
-
-    /*
-    case class SeqCheck(
-        first: SirCaseDecisionTree,
-        next: SirCaseDecisionTree
-    ) extends SirCaseDecisionTree
-
-    case class RebindUpConstructor(
-        names: IndexedSeq[SirParsedCase.BindingNameInfo],
-        next: SirCaseDecisionTree
-    ) extends SirCaseDecisionTree
-
-    case class RebindTopLevelBind(
-        name: String,
-        next: SirCaseDecisionTree
-    )
-
-    case class DropRebinds(names: String, next: SirCaseDecisionTree)
-
-    case class InnerMatch(
-        scrutinee: SIR.Var,
-        matchDecisionTree: SirCaseDecisionTree,
-        actions: IndexedSeq[SirCaseDecisionTree]
-    )*/
 
     case class Leaf(
         binding: Map[String, String],
@@ -588,10 +584,21 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         val bPrefix = s"_${tree.srcPos.startPos.source.name}_${tree.srcPos.line}_match_"
         val ctx = PatternMatchingContext(bPrefix, env, tree.srcPos)
         val parsedMatch = parseMatch(ctx, tree, env)
+
+        // Optimization: if scrutinee is already a variable, use it directly instead of creating a let binding
+        val needsScrutineeLet = parsedMatch.scrutinee match {
+            case SIR.Var(name, _, _) =>
+                // Set the scrutinee name to the variable name to avoid creating a redundant let binding
+                ctx.setScrutineeName(name)
+                false
+            case _ =>
+                true
+        }
+
         val decisionTree = buildDecisionTree(ctx, parsedMatch, env)
         if env.debug then
             println(s"compileMath, decisionTree:\n${SirCaseDecisionTree.show(decisionTree)}")
-        val sir = compileDecisionTree(ctx, decisionTree, parsedMatch)
+        val sir = compileDecisionTree(ctx, decisionTree, parsedMatch, needsScrutineeLet)
         if env.debug then println(s"end of compileMartch: ${sir}")
         sir
     }
@@ -918,7 +925,12 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             case Left(err) =>
                 SirParsedCase.Pattern.ErrorPattern(err, unapply.srcPos, ctx)
             case Right(cType) =>
+                if ctx.env.debug then println(s"parseConstructorPattern: cType = ${cType.show} ")
                 val sirConstrType = compiler.sirTypeInEnv(cType, unapply.srcPos, ctx.env)
+                if ctx.env.debug then
+                    println(
+                      s"parseConstructorPattern: sirConstrType = ${sirConstrType.show} [${SIRType.unrollTypeProxy(sirConstrType).show}] "
+                    )
                 val (typeParams, constrDecl, typeArgs) = SIRType
                     .collectProd(sirConstrType)
                     .getOrElse {
@@ -936,8 +948,14 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                 val optParent = SIRType.prodParent(sirConstrType)
                 val constrSymbol = cType.typeSymbol.primaryConstructor
                 val typeParamsMap = constrDecl.typeParams.zip(typeArgs).toMap
+                if ctx.env.debug then
+                    println(
+                      s"parseConstructorPattern: typeParamsMap = ${typeParamsMap
+                              .map { (k, v) => s"${k.name} -> ${v.show}" }}"
+                    )
                 val paramTypes =
                     constrDecl.params.map(b => SIRType.substitute(b.tp, typeParamsMap, Map.empty))
+
                 val subpatterns = unapply.patterns
                     .zip(paramTypes)
                     .map { case (p, tp) =>
@@ -1111,15 +1129,17 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         sirScrutineeType: SIRType
     ): SirParsedCase.Pattern = {
         if ctx.env.debug then
-            println(s"parsePattern: ${pat.show} ${pat.tpe.show} ${sirScrutineeType}")
+            println(
+              s"parsePattern: ${pat.show} ${pat.tpe.show} ${sirScrutineeType.show} [${SIRType.unrollTypeProxy(sirScrutineeType).show}]"
+            )
         pat match
             // this is case Constr(name @ _) or Constr(name)
-            case b @ Bind(name, patten) =>
+            case b @ Bind(name, pattern) =>
                 val tp = compiler.sirTypeInEnv(b.tpe.widen, b.srcPos, ctx.env)
                 val nameInfo = SirParsedCase.BindingNameInfo(name.show, Some(name.show), tp)
                 parsePatternInOptBind(
                   ctx,
-                  patten,
+                  pattern,
                   Some(nameInfo),
                   pat.srcPos.sourcePos,
                   sirScrutineeType
@@ -1965,7 +1985,8 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
     private def compileDecisionTree(
         ctx: PatternMatchingContext,
         tree: SirCaseDecisionTree,
-        parsedMatch: SirParsedMatch
+        parsedMatch: SirParsedMatch,
+        needsScrutineeLet: Boolean
     ): AnnotatedSIR = {
         // now we build SIR in form:
         // Let (action = compile(action)
@@ -2000,19 +2021,25 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             og.map(g => (g, embedding, ctx.freshName(s"caseGuard${i}_")))
         }
         val decisions = compileDecisions(ctx, tree, parsedMatch, actionsRecords, guardsRecords)
-        val scrutineeLet = SIR.Let(
-          List(
-            Binding(
-              ctx.scrutineeName,
-              parsedMatch.scrutineeTp,
-              parsedMatch.scrutinee
-            )
-          ),
-          decisions,
-          SIR.LetFlags.Lazy,
-          AnnotationsDecl.fromSrcPos(ctx.topLevelPos)
-        )
-        val sir = addActionsAndGuardsLet(ctx, scrutineeLet, actionsRecords, guardsRecords)
+        val decisionsWithScrutinee =
+            if needsScrutineeLet then
+                // For non-variable scrutinees, create a let binding
+                SIR.Let(
+                  List(
+                    Binding(
+                      ctx.scrutineeName,
+                      parsedMatch.scrutineeTp,
+                      parsedMatch.scrutinee
+                    )
+                  ),
+                  decisions,
+                  SIR.LetFlags.Lazy,
+                  AnnotationsDecl.fromSrcPos(ctx.topLevelPos)
+                )
+            else
+                // For variable scrutinees, no let binding needed
+                decisions
+        val sir = addActionsAndGuardsLet(ctx, decisionsWithScrutinee, actionsRecords, guardsRecords)
         sir
     }
 

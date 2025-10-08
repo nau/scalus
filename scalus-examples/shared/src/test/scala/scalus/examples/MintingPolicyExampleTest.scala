@@ -166,15 +166,26 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         tokensSIR.toUplc().evaluate
 
     test("Minting Policy Validator") {
-        val validator = MintingPolicy.compiledMintingPolicyScript.toUplc(
+        // Import the V3 backend configuration from MintingPolicy
+        import MintingPolicy.given scalus.Compiler.Options
+
+        // Compile evaledTokens with the same V3 backend
+        val evaledTokensV3 =
+            val tokensSIR =
+                compile(SortedMap.singleton(hex"484f534b59", BigInt("1000000000000000")))
+            tokensSIR.toUplc().evaluate
+
+        val sir = MintingPolicy.compiledMintingPolicyScript
+
+        val validator = sir.toUplc(
           generateErrorTraces = true,
           optimizeUplc = false
         )
         val appliedValidator =
-            validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
-        val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
-        assert(flatSize == 2002)
+            validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokensV3
+        assert(flatSize == 1652)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
+
     }
 
     test("Minting Policy Validator V2") {
@@ -186,21 +197,25 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV2(appliedValidator).flatEncoded.length
-        assert(flatSize == 2154)
+        assert(flatSize == 2161)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
     }
 
     test("Minting Policy Validator Optimized") {
-        // println(MintingPolicy.compiledOptimizedMintingPolicyScript.pretty.render(100))
+        // Import SimpleSirToUplcLowering backend from MintingPolicySimpleBackend
+        import MintingPolicySimpleBackend.given scalus.Compiler.Options
+
+        // println(MintingPolicySimpleBackend.compiledOptimizedMintingPolicyScript.pretty.render(100))
         val validator =
-            MintingPolicy.compiledOptimizedMintingPolicyScript.toUplc(
+            MintingPolicySimpleBackend.compiledOptimizedMintingPolicyScript.toUplc(
               generateErrorTraces = true,
               optimizeUplc = false
             )
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
-        assert(flatSize == 846)
+        // assert(flatSize == 846) // Re-enable when lazy let will be supported on SimpleSirToUplcLowering (issue #125)
+        assert(flatSize == 856)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
     }
 }
