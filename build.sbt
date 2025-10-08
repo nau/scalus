@@ -401,7 +401,8 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
             "scalus/ledger/api/v2/ArbitraryInstances.scala",
             "scalus/ledger/api/v3/ArbitraryInstances.scala",
             "scalus/cardano/address/ArbitraryInstances.scala",
-            "scalus/cardano/ledger/ArbitraryInstances.scala"
+            "scalus/cardano/ledger/ArbitraryInstances.scala",
+            "scalus/prelude/StdlibTestKit.scala"
           )
           val baseDir =
               (scalus.jvm / crossProjectBaseDirectory).value / "shared" / "src" / "test" / "scala"
@@ -412,8 +413,10 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       },
       Compile / unmanagedSourceDirectories += crossProjectBaseDirectory.value / "core-shared" / "scala",
       Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value,
+      PluginDependency,
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18",
-      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0"
+      libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0",
+      libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.19",
     )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",

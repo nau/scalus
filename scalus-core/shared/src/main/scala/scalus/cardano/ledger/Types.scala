@@ -26,15 +26,20 @@ enum Era(val value: Int) extends Enumeration {
 final case class Coin(value: Long) derives Codec {
 
     /** Add another coin amount */
-    def +(other: Coin): Coin = Coin(value + other.value)
+    @targetName("plus")
+    infix def +(other: Coin): Coin = Coin(value + other.value)
 
     /** Subtract another coin amount */
-    def -(other: Coin): Coin = Coin(value - other.value)
+    @targetName("minus")
+    infix def -(other: Coin): Coin = Coin(value - other.value)
 
-    def >(other: Coin): Boolean = value > other.value
-    def >=(other: Coin): Boolean = value >= other.value
-    def <(other: Coin): Boolean = value < other.value
-    def <=(other: Coin): Boolean = value <= other.value
+    @targetName("negate")
+    def unary_- : Coin = Coin(-value)
+
+    infix def >(other: Coin): Boolean = value > other.value
+    infix def >=(other: Coin): Boolean = value >= other.value
+    infix def <(other: Coin): Boolean = value < other.value
+    infix def <=(other: Coin): Boolean = value <= other.value
 }
 
 object Coin {
@@ -48,7 +53,7 @@ object Coin {
     given CommutativeGroup[Coin] with
         def combine(x: Coin, y: Coin): Coin = x + y
         def empty: Coin = Coin.zero
-        def inverse(x: Coin): Coin = Coin(-x.value)
+        def inverse(x: Coin): Coin = -x
 }
 
 /** Minting MultiAsset. Can't contain zeros, can't be empty */
@@ -67,66 +72,74 @@ object Mint {
     given Decoder[Mint] = MultiAsset.given_Decoder_MultiAsset.map(Mint.apply)
 }
 
-case class MultiAsset(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]) {
+case class MultiAsset private (assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]) {
     def isEmpty: Boolean = assets.isEmpty
 
     def isPositive: Boolean = assets.values.forall(_.values.forall(_ > 0))
     def isNegative: Boolean = assets.values.forall(_.values.forall(_ < 0))
 
-    import scalus.cardano.ledger.MultiAsset.binOp
     @targetName("plus")
-    infix def +(other: MultiAsset): MultiAsset = binOp(_ + _)(this, other)
+    infix def +(other: MultiAsset): MultiAsset = MultiAsset.binOp(_ + _)(this, other)
+
     @targetName("minus")
-    infix def -(other: MultiAsset): MultiAsset = binOp(_ - _)(this, other)
+    infix def -(other: MultiAsset): MultiAsset = MultiAsset.binOp(_ - _)(this, other)
+
+    @targetName("negate")
+    def unary_- : MultiAsset = new MultiAsset(
+      assets.view
+          .mapValues(_.view.mapValues(v => -v).to(SortedMap))
+          .to(SortedMap)
+    )
 }
 
 object MultiAsset {
-    val zero: MultiAsset = MultiAsset(SortedMap.empty[PolicyId, SortedMap[AssetName, Long]])
+    val zero: MultiAsset = new MultiAsset(SortedMap.empty)
     val empty: MultiAsset = zero
 
     /** Create a MultiAsset with a single asset */
     def asset(policyId: PolicyId, assetName: AssetName, amount: Long): MultiAsset = {
-        require(amount != 0, "Asset amount cannot be zero")
-        MultiAsset(
-          SortedMap(policyId -> SortedMap(assetName -> amount))
-        )
+        if amount == 0 then MultiAsset.zero
+        else
+            new MultiAsset(
+              SortedMap(policyId -> SortedMap(assetName -> amount))
+            )
     }
 
     /** Create a MultiAsset from a single policy with multiple assets */
     def fromPolicy(policyId: PolicyId, assets: Iterable[(AssetName, Long)]): MultiAsset = {
-        val filteredAssets = assets.filter(_._2 != 0)
-        require(filteredAssets.nonEmpty, "Assets map cannot be empty or contain only zero values")
-        MultiAsset(
-          SortedMap(policyId -> SortedMap.from(filteredAssets))
-        )
+        val filteredAssets = assets.filter(_._2 != 0).to(SortedMap)
+
+        if filteredAssets.isEmpty then MultiAsset.zero
+        else new MultiAsset(SortedMap(policyId -> filteredAssets))
     }
 
     /** Create a MultiAsset from a map of policies to asset maps */
     def fromAssets(
         assets: collection.Map[PolicyId, collection.Map[AssetName, Long]]
     ): MultiAsset = {
-        val filteredAssets = assets.view.mapValues(_.filter(_._2 != 0)).filter(_._2.nonEmpty)
+        val filteredAssets = SortedMap.from(
+          assets.view
+              .mapValues(_.filter(_._2 != 0).to(SortedMap))
+              .filter(_._2.nonEmpty)
+        )
+
         if filteredAssets.isEmpty then MultiAsset.zero
-        else
-            MultiAsset(
-              SortedMap.from(
-                filteredAssets.map { case (policyId, assetMap) =>
-                    policyId -> SortedMap.from(assetMap)
-                }
-              )
-            )
+        else new MultiAsset(filteredAssets)
     }
 
     /** Create a MultiAsset from a sequence of (PolicyId, AssetName, Amount) tuples */
     def from(assets: Iterable[(PolicyId, AssetName, Long)]): MultiAsset = {
-        val grouped = assets.view
-            .filter(_._3 != 0) // Filter out zero amounts
-            .groupBy(_._1) // Group by PolicyId
-            .view
-            .mapValues(_.map(t => t._2 -> t._3).toMap) // Convert to asset maps
-            .toMap
+        val groupedAssets = SortedMap.from(
+          assets.view
+              .filter(_._3 != 0) // Filter out zero amounts
+              .groupBy(_._1) // Group by PolicyId
+              .view
+              .mapValues(_.map(asset => asset._2 -> asset._3).to(SortedMap))
+              .filter(_._2.nonEmpty) // Filter out empty policies
+        )(using summon[Ordering[PolicyId]])
 
-        fromAssets(grouped)
+        if groupedAssets.isEmpty then MultiAsset.zero
+        else new MultiAsset(groupedAssets)
     }
 
     /** Create a MultiAsset from varargs of (PolicyId, AssetName, Amount) tuples */
@@ -135,13 +148,19 @@ object MultiAsset {
     }
 
     /** Safely create a MultiAsset that filters out zero amounts and empty policies */
-    def safe(assets: SortedMap[PolicyId, SortedMap[AssetName, Long]]): MultiAsset = {
-        val filteredAssets = assets.view
-            .mapValues(_.filter(_._2 != 0)) // Remove zero amounts
-            .filter(_._2.nonEmpty) // Remove empty policies
-            .toMap
+    def apply(
+        assets: SortedMap[PolicyId, SortedMap[AssetName, Long]] = SortedMap.empty
+    ): MultiAsset = {
+        if assets.isEmpty then return MultiAsset.zero
 
-        MultiAsset(SortedMap.from(filteredAssets))
+        val filteredAssets = SortedMap.from(
+          assets.view
+              .mapValues(_.filter(_._2 != 0)) // Remove zero amounts
+              .filter(_._2.nonEmpty) // Remove empty policies
+        )
+
+        if filteredAssets.isEmpty then MultiAsset.zero
+        else new MultiAsset(filteredAssets)
     }
 
     private[ledger] def binOp(
@@ -170,7 +189,7 @@ object MultiAsset {
                     if mergedAssets.nonEmpty then Some(policyId -> mergedAssets) else None
                 }
                 .to(SortedMap)
-        MultiAsset(assets)
+        new MultiAsset(assets)
     }
 
     given Encoder[MultiAsset] =
@@ -184,7 +203,7 @@ object MultiAsset {
     given CommutativeGroup[MultiAsset] with
         def combine(x: MultiAsset, y: MultiAsset): MultiAsset = x + y
         def empty: MultiAsset = MultiAsset.zero
-        def inverse(x: MultiAsset): MultiAsset = binOp((a, b) => -a)(MultiAsset.zero, x)
+        def inverse(x: MultiAsset): MultiAsset = -x
 
 }
 

@@ -155,7 +155,7 @@ class VestingTest extends AnyFunSuite, ScalusTest {
         assert(result.isSuccess, "Script execution should succeed")
     }
 
-    test("Successful partial 50% widthdrawal") {
+    test("Successful partial 50% withdrawal") {
         val vestingDatum = VestingDatum(
           beneficiary = beneficiaryPKH,
           startTimestamp = defaultStartTime,
