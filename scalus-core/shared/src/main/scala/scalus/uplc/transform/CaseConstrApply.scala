@@ -36,7 +36,8 @@ object CaseConstrApply {
                     case (f, args) if args.sizeCompare(2) > 0 =>
                         logs += s"Replacing ${args.size} Apply with Case/Constr"
                         Case(Constr(0, args.map(go)), go(f) :: Nil)
-                    case _ => term
+                    case (f, args) =>
+                        args.foldLeft(go(f)) { case (acc, arg) => Apply(acc, go(arg)) }
             case LamAbs(name, body) => LamAbs(name, go(body))
             case Force(t)           => Force(go(t))
             case Delay(t)           => Delay(go(t))

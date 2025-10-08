@@ -38,7 +38,7 @@ class HelloCardanoTest extends AnyFunSuite with ScalusTest {
             then {
                 // S3 lowering backend
                 if compilerOptions.generateErrorTraces then
-                    ExBudget(ExCPU(12038210L), ExMemory(39750L))
+                    ExBudget(ExCPU(11846210L), ExMemory(38550L))
                 else ExBudget(ExCPU(11686210L), ExMemory(37550L))
             } else
                 //  Simple backend.  TODO: test for all backends

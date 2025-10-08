@@ -96,7 +96,7 @@ class PreimageExampleTest extends BaseValidatorTest {
         // println(validator.showHighlighted)
         val flatSize = validator.flatEncoded.length
         // V3 backend, optimizeUplc = true
-        assert(flatSize == 382)
+        assert(flatSize == 389)
         // V3 backend, optimizeUplc = false
         // assert(flatSize == 380)
         // SimpleBackend
