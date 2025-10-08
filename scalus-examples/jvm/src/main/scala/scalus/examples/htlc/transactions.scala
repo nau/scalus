@@ -1,6 +1,6 @@
 package scalus.examples.htlc
 
-import scalus.builtin.ToData.{given, *}
+import scalus.builtin.ToData.*
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.PlutusV3
@@ -27,35 +27,37 @@ case class HtlcTransactions(env: Environment, wallet: Wallet) {
     }
 
     def reveal(
-        lockedUtxo: TransactionUnspentOutput,
+        lockedUtxo: (TransactionInput, TransactionOutput),
         preimage: Preimage,
         recipientAddress: Address
     ): Either[String, Transaction] = {
+        val (input, output) = lockedUtxo
         val redeemer = Action.Reveal(preimage).toData
-        val datum = lockedUtxo.output.datumOption.flatMap {
+        val datum = output.datumOption.flatMap {
             case DatumOption.Inline(d) => Some(d)
             case _                     => None
         }
 
         context.newTx
             .collectFrom(lockedUtxo, redeemer, script, datum)
-            .payTo(recipientAddress, lockedUtxo.output.value)
+            .payTo(recipientAddress, output.value)
             .complete()
     }
 
     def timeout(
-        lockedUtxo: TransactionUnspentOutput,
+        lockedUtxo: (TransactionInput, TransactionOutput),
         committerAddress: Address
     ): Either[String, Transaction] = {
+        val (input, output) = lockedUtxo
         val redeemer = Action.Timeout.toData
-        val datum = lockedUtxo.output.datumOption.flatMap {
+        val datum = output.datumOption.flatMap {
             case DatumOption.Inline(d) => Some(d)
             case _                     => None
         }
 
         context.newTx
             .collectFrom(lockedUtxo, redeemer, script, datum)
-            .payTo(committerAddress, lockedUtxo.output.value)
+            .payTo(committerAddress, output.value)
             .complete()
     }
 }

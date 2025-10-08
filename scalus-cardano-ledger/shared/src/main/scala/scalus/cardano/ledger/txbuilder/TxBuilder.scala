@@ -1,7 +1,6 @@
 package scalus.cardano.ledger.txbuilder
 
 import cats.implicits.*
-import monocle.syntax.all.*
 import scalus.builtin.Data
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
@@ -12,7 +11,7 @@ case class TxBuilder(
 ) {
 
     def collectFrom(
-        utxo: TransactionUnspentOutput,
+        utxo: (TransactionInput, TransactionOutput),
         redeemer: Data,
         validator: PlutusScript,
         datum: Option[Data] = None
@@ -22,7 +21,12 @@ case class TxBuilder(
           redeemer = redeemer,
           datum = datum.map(DatumWitness.DatumValue.apply)
         )
-        copy(steps = steps :+ TransactionBuilderStep.SpendOutput(utxo, Some(witness)))
+        copy(steps =
+            steps :+ TransactionBuilderStep.SpendOutput(
+              TransactionUnspentOutput(utxo._1, utxo._2),
+              Some(witness)
+            )
+        )
     }
 
     def payTo(address: Address, value: Value, datum: Option[DatumOption] = None): TxBuilder = {
@@ -43,15 +47,27 @@ case class TxBuilder(
         payTo(scriptAddress, value, Some(DatumOption.Inline(datum)))
     }
 
+    private def walletInputSteps: Seq[TransactionBuilderStep] =
+        context.wallet.inputs.toSeq.map { input =>
+            TransactionBuilderStep.SpendOutput(
+              TransactionUnspentOutput(input.input, input.output),
+              None
+            )
+        }
+
     def complete(): Either[String, Transaction] = {
         for {
-            txContext <- TransactionBuilder.build(context.env.network, steps).left.map(_.explain)
-            changeOutput <- context.wallet.getInput(Coin(0)) match {
-                case Some((resolvedInput, _)) =>
-                    Right(Sized(resolvedInput.output))
-                case None =>
-                    Left("No UTxO available for change output")
-            }
+            txContext <- TransactionBuilder
+                .build(context.env.network, walletInputSteps ++ steps)
+                .left
+                .map(_.explain)
+
+            changeOutput = Sized(
+              TransactionOutput(
+                address = context.wallet.changeAddress,
+                value = Value(Coin(0))
+              )
+            )
 
             txWithChangeOut = modifyBody(
               txContext.transaction,
