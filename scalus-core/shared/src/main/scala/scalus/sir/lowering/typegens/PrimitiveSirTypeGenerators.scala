@@ -155,60 +155,72 @@ object SIRTypeUplcBooleanGenerator extends PrimitiveSirTypeGenerator {
           matchData.scrutinee.anns.pos
         )
 
-        def processCases(cases: List[SIR.Case], matchedValues: Set[Boolean]): LoweredValue = cases match {
-            case Nil =>
-                if isUnchecked then
-                    lctx.lower(
-                      SIR.Error("Non-exhaustive pattern match for Boolean", matchData.anns),
-                      optTargetType
-                    )
-                else
-                    throw LoweringException(
-                      s"Non-exhaustive pattern match for Boolean",
-                      matchData.anns.pos
-                    )
-            case SIR.Case(SIR.Pattern.Const(constValue), body, anns) :: rest =>
-                constValue.uplcConst match {
-                    case scalus.uplc.Constant.Bool(boolValue) =>
-                        val newMatched = matchedValues + boolValue
-                        // Check if after this case all boolean values are covered
-                        val isExhaustive = newMatched.contains(true) && newMatched.contains(false)
-
-                        if rest.isEmpty && isExhaustive then {
-                            // Last case and exhaustive - just return the body
-                            lctx.lower(body, optTargetType)
-                        } else {
-                            // Need to generate if-then-else
-                            val thenBranch = lctx.lower(body, optTargetType)
-                            val elseBranch = processCases(rest, newMatched)
-                            // if constValue is true: if scrutinee then body else rest
-                            // if constValue is false: if scrutinee then rest else body
-                            if boolValue then
-                                lvIfThenElse(scrutineeInConstRepr, thenBranch, elseBranch, anns.pos)
-                            else
-                                lvIfThenElse(scrutineeInConstRepr, elseBranch, thenBranch, anns.pos)
-                        }
-                    case _ =>
+        def processCases(cases: List[SIR.Case], matchedValues: Set[Boolean]): LoweredValue =
+            cases match {
+                case Nil =>
+                    if isUnchecked then
+                        lctx.lower(
+                          SIR.Error("Non-exhaustive pattern match for Boolean", matchData.anns),
+                          optTargetType
+                        )
+                    else
                         throw LoweringException(
-                          s"Expected Boolean constant, got ${constValue.uplcConst}",
+                          s"Non-exhaustive pattern match for Boolean",
+                          matchData.anns.pos
+                        )
+                case SIR.Case(SIR.Pattern.Const(constValue), body, anns) :: rest =>
+                    constValue.uplcConst match {
+                        case scalus.uplc.Constant.Bool(boolValue) =>
+                            val newMatched = matchedValues + boolValue
+                            // Check if after this case all boolean values are covered
+                            val isExhaustive =
+                                newMatched.contains(true) && newMatched.contains(false)
+
+                            if rest.isEmpty && isExhaustive then {
+                                // Last case and exhaustive - just return the body
+                                lctx.lower(body, optTargetType)
+                            } else {
+                                // Need to generate if-then-else
+                                val thenBranch = lctx.lower(body, optTargetType)
+                                val elseBranch = processCases(rest, newMatched)
+                                // if constValue is true: if scrutinee then body else rest
+                                // if constValue is false: if scrutinee then rest else body
+                                if boolValue then
+                                    lvIfThenElse(
+                                      scrutineeInConstRepr,
+                                      thenBranch,
+                                      elseBranch,
+                                      anns.pos
+                                    )
+                                else
+                                    lvIfThenElse(
+                                      scrutineeInConstRepr,
+                                      elseBranch,
+                                      thenBranch,
+                                      anns.pos
+                                    )
+                            }
+                        case _ =>
+                            throw LoweringException(
+                              s"Expected Boolean constant, got ${constValue.uplcConst}",
+                              anns.pos
+                            )
+                    }
+
+                case SIR.Case(SIR.Pattern.Wildcard, body, anns) :: rest =>
+                    if rest.nonEmpty then
+                        throw LoweringException(
+                          s"Wildcard pattern must be the last case",
                           anns.pos
                         )
-                }
+                    lctx.lower(body, optTargetType)
 
-            case SIR.Case(SIR.Pattern.Wildcard, body, anns) :: rest =>
-                if rest.nonEmpty then
+                case SIR.Case(SIR.Pattern.Constr(_, _, _), _, anns) :: _ =>
                     throw LoweringException(
-                      s"Wildcard pattern must be the last case",
+                      s"Constructor pattern not supported for Boolean",
                       anns.pos
                     )
-                lctx.lower(body, optTargetType)
-
-            case SIR.Case(SIR.Pattern.Constr(_, _, _), _, anns) :: _ =>
-                throw LoweringException(
-                  s"Constructor pattern not supported for Boolean",
-                  anns.pos
-                )
-        }
+            }
 
         processCases(matchData.cases, Set.empty)
     }

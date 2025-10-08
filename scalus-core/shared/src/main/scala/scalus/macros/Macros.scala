@@ -1,10 +1,10 @@
 package scalus.macros
 
-import scalus.{Compiler, builtin}
+import scalus.{builtin, Compiler}
 import scalus.builtin.Builtins
 import scalus.builtin.Data
 import scalus.sir.SIR
-import scalus.uplc.{BuiltinRuntime, BuiltinsMeaning, DefaultFun, ExprBuilder, Expr as Exp, Term as Trm}
+import scalus.uplc.{BuiltinRuntime, BuiltinsMeaning, DefaultFun, Expr as Exp, ExprBuilder, Term as Trm}
 import scalus.uplc.ExprBuilder.*
 
 import java.io.File
@@ -320,7 +320,9 @@ object Macros {
         Files.readString(path)
     }
 
-    inline def sourcesRoot(using Quotes)(srcRoot: String =  File.separator  + "src" + File.separator + "main" + File.separator): Path = {
+    inline def sourcesRoot(using
+        Quotes
+    )(srcRoot: String = File.separator + "src" + File.separator + "main" + File.separator): Path = {
         val path = quotes.reflect.SourceFile.current.path
         val pos = path.lastIndexOf(srcRoot)
         require(pos > 0, s"Not found source root '$srcRoot' in path '$path'")

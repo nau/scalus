@@ -224,8 +224,10 @@ class SIRTypeUnifyTest extends AnyFunSuite {
         val proxy = SIRType.TypeProxy(listByteString)
 
         // Create the expected type: Proxy -> List[Int] -> ... should unify with List[ByteString] -> List[Int] -> ...
-        val proxyFun = SIRType.Fun(proxy, SIRType.Fun(SIRType.List(SIRType.Integer), SIRType.Integer))
-        val listFun = SIRType.Fun(listByteString, SIRType.Fun(SIRType.List(SIRType.Integer), SIRType.Integer))
+        val proxyFun =
+            SIRType.Fun(proxy, SIRType.Fun(SIRType.List(SIRType.Integer), SIRType.Integer))
+        val listFun =
+            SIRType.Fun(listByteString, SIRType.Fun(SIRType.List(SIRType.Integer), SIRType.Integer))
 
         // Try to unify - this currently fails because Proxy is not unrolled
         val result = SIRUnify.topLevelUnifyType(
@@ -239,7 +241,9 @@ class SIRTypeUnifyTest extends AnyFunSuite {
                 // Success! The types should unify
                 assert(tp ~=~ listFun)
             case SIRUnify.UnificationFailure(path, l, r) =>
-                fail(s"TypeProxy should be unrolled before unification. Failure at path=$path, left=$l, right=$r")
+                fail(
+                  s"TypeProxy should be unrolled before unification. Failure at path=$path, left=$l, right=$r"
+                )
         }
     }
 
@@ -263,7 +267,9 @@ class SIRTypeUnifyTest extends AnyFunSuite {
             case SIRUnify.UnificationSuccess(env, tp) =>
                 assert(tp ~=~ withoutProxy)
             case SIRUnify.UnificationFailure(path, l, r) =>
-                fail(s"Should unify Proxy with its referenced type. Failure: path=$path, left=${l}, right=${r}")
+                fail(
+                  s"Should unify Proxy with its referenced type. Failure: path=$path, left=${l}, right=${r}"
+                )
         }
     }
 
