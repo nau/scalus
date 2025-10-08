@@ -1,22 +1,21 @@
 package scalus.cardano.ledger.txbuilder
 
-/*
- Transaction editing utilities with automatic redeemer re-indexing.
-
- According to the ledger spec, redeemers, which are stored in a
- `TransactionWitnessSet`, contain pointers to various transaction parts.
- The pointers are just numbers corresponding to indices in arrays.
-
- For example, a redeemer for spending a UTxO locked at a script address
- contains an index of the corresponding input. It's not very convenient
- because of the need to keep the indices correct while modifying the transaction.
-
- For example, if a new mint is added, all mint redeemer indices may have to
- be updated. This module automates these updates by providing a better API
- for modifying transactions that lets the developer abstract away from the indices.
-
- The main functions are `editTransaction` and `editTransactionSafe`.
- */
+/** Transaction editing utilities with automatic redeemer re-indexing.
+  *
+  * According to the ledger spec, redeemers, which are stored in a `TransactionWitnessSet`, contain
+  * pointers to various transaction parts. The pointers are just numbers corresponding to indices in
+  * arrays.
+  *
+  * For example, a redeemer for spending a UTxO locked at a script address contains an index of the
+  * corresponding input. It's not very convenient because of the need to keep the indices correct
+  * while modifying the transaction.
+  *
+  * For example, if a new mint is added, all mint redeemer indices may have to be updated. This
+  * module automates these updates by providing a better API for modifying transactions that lets
+  * the developer abstract away from the indices.
+  *
+  * The main functions are `editTransaction` and `editTransactionSafe`.
+  */
 
 import cats.implicits.*
 import monocle.Lens
