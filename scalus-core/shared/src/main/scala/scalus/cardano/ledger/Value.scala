@@ -3,38 +3,25 @@ package scalus.cardano.ledger
 import cats.kernel.CommutativeGroup
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
 
+import scala.annotation.targetName
+
 // FIXME: make sure we validate Value is non-negative in ledger rules
 /** Represents a value in Cardano, which can be either pure ADA or ADA with multi-assets */
-case class Value(coin: Coin, assets: MultiAsset) {
-    // Validate multi-asset map
-    validateMultiAsset(assets)
-
+case class Value(coin: Coin, assets: MultiAsset = MultiAsset.empty) {
+    @targetName("plus")
     infix def +(rhs: Value): Value = binOp(_ + _)(rhs)
 
+    @targetName("minus")
     infix def -(rhs: Value): Value = binOp(_ - _)(rhs)
 
-    def unary_- : Value =
-        Value(Coin(-coin.value), summon[CommutativeGroup[MultiAsset]].inverse(assets))
+    @targetName("negate")
+    def unary_- : Value = Value(-coin, -assets)
 
     def isPositive: Boolean = coin.value > 0 && assets.isPositive
 
     def isNegative: Boolean = coin.value < 0 && assets.isNegative
 
     def isZero: Boolean = coin.value == 0 && assets.isEmpty
-
-    /** Validate a multi-asset map according to Cardano rules */
-    private def validateMultiAsset(multiAsset: MultiAsset): Unit = {
-        // Validate that all policy maps are non-empty
-        require(
-          multiAsset.assets.forall { case (_, assets) => assets.nonEmpty },
-          "MultiAsset map cannot contain empty policy entries"
-        )
-
-        require(
-          multiAsset.assets.values.forall(_.forall { case (_, amount) => amount != 0 }),
-          "MultiAsset cannot contain zeros"
-        )
-    }
 
     private def binOp(op: (Long, Long) => Long)(rhs: Value): Value = (this, rhs) match
         case (Value(coin1, assets1), Value(coin2, assets2)) =>
@@ -51,23 +38,13 @@ object Value:
     /** Create a pure ADA value */
     def ada(amount: Long): Value = Value(Coin.ada(amount))
 
-    /** Create a Value from coin and multi-asset */
-    def apply(coin: Coin, multiAsset: MultiAsset = MultiAsset.empty): Value =
-        new Value(coin, multiAsset)
-
-    /** Create a Value with a single asset (no ADA) */
-    def asset(policyId: PolicyId, assetName: AssetName, amount: Long): Value =
-        Value(
-          Coin.zero,
-          MultiAsset(
-            scala.collection.immutable.TreeMap(
-              policyId -> scala.collection.immutable.TreeMap(assetName -> amount)
-            )
-          )
-        )
-
     /** Create a Value with a single asset and ADA */
-    def asset(policyId: PolicyId, assetName: AssetName, amount: Long, lovelace: Coin): Value =
+    def asset(
+        policyId: PolicyId,
+        assetName: AssetName,
+        amount: Long,
+        lovelace: Coin = Coin.zero
+    ): Value =
         Value(
           lovelace,
           MultiAsset(
@@ -77,33 +54,23 @@ object Value:
           )
         )
 
-    /** Create a Value from a map of assets (no ADA) */
-    def assets(assets: Map[PolicyId, Map[AssetName, Long]]): Value = {
-        assets.foldLeft(Value.zero) { case (acc, (policyId, assetMap)) =>
-            assetMap.foldLeft(acc) { case (acc2, (assetName, amount)) =>
-                acc2 + asset(policyId, assetName, amount)
-            }
-        }
-    }
-
     /** Create a Value from a map of assets with ADA */
-    def assets(assets: Map[PolicyId, Map[AssetName, Long]], lovelace: Coin): Value = {
-        Value.assets(assets) + Value(lovelace)
+    def assets(assets: Map[PolicyId, Map[AssetName, Long]], lovelace: Coin = Coin.zero): Value = {
+        assets
+            .foldLeft(Value.zero) { case (acc, (policyId, assetMap)) =>
+                assetMap.foldLeft(acc) { case (acc2, (assetName, amount)) =>
+                    acc2 + asset(policyId, assetName, amount)
+                }
+            }
+            .copy(coin = lovelace)
     }
-
-    /** Create a Value from assets under a single policy */
-    def fromPolicy(policyId: PolicyId, assets: Map[AssetName, Long]): Value =
-        Value(
-          Coin.zero,
-          MultiAsset(
-            scala.collection.immutable.TreeMap(
-              policyId -> scala.collection.immutable.TreeMap(assets.toSeq*)
-            )
-          )
-        )
 
     /** Create a Value from assets under a single policy with ADA */
-    def fromPolicy(policyId: PolicyId, assets: Map[AssetName, Long], lovelace: Coin): Value =
+    def fromPolicy(
+        policyId: PolicyId,
+        assets: Map[AssetName, Long],
+        lovelace: Coin = Coin.zero
+    ): Value =
         Value(
           lovelace,
           MultiAsset(

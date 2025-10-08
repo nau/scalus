@@ -45,7 +45,7 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             catch
                 case NonFatal(exception) =>
                     assert(
-                      ClassTag(exception.getClass) == summon[ClassTag[E]],
+                      summon[ClassTag[E]].runtimeClass.isAssignableFrom(exception.getClass),
                       s"Expected exception of type ${summon[ClassTag[E]]}, but got $exception"
                     )
                     val result = Compiler.compileInline(code).toUplc(true).evaluateDebug
@@ -71,6 +71,63 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
 
         if !isExceptionThrown then
             fail(s"Expected exception of type ${summon[ClassTag[E]]}, but got success: $code")
+    }
+
+    protected final inline def assertEvalFailsWithMessage[E <: Throwable: ClassTag](
+        expectedMessage: String
+    )(inline code: Any): Unit = {
+        var isExceptionThrown = false
+
+        val _ =
+            try code
+            catch
+                case NonFatal(exception) =>
+                    assert(
+                      summon[ClassTag[E]].runtimeClass.isAssignableFrom(exception.getClass),
+                      s"Expected exception of type ${summon[ClassTag[E]]}, but got $exception"
+                    )
+
+                    assert(
+                      exception.getMessage == expectedMessage,
+                      s"Expected message '$expectedMessage', but got '${exception.getMessage}'"
+                    )
+
+                    val result = Compiler.compileInline(code).toUplc(true).evaluateDebug
+                    result match
+                        case failure: Result.Failure =>
+                            result.logs.lastOption match {
+                                case Some(message) =>
+                                    assert(message.contains(exception.getMessage))
+                                case None =>
+                                    // if the error occurred due to an erroneously called builtin, e.g. / by zero,
+                                    // there won't be a respective log, but the CEK exception message is going to include
+                                    // the root error.
+                                    assert(
+                                      failure.exception.getMessage.contains(
+                                        exception.getClass.getName
+                                      )
+                                    )
+                            }
+                        case _ =>
+                            fail(s"Expected failure, but got success: $result")
+
+                    isExceptionThrown = true
+
+        if !isExceptionThrown then
+            fail(s"Expected exception of type ${summon[ClassTag[E]]}, but got success: $code")
+    }
+
+    protected final inline def assertEvalSuccess(inline code: Any): Unit = {
+        val _ =
+            try code
+            catch
+                case NonFatal(exception) => fail(s"Expected success, but got exception: $exception")
+
+        val result = Compiler.compileInline(code).toUplc(true).evaluateDebug
+        result match
+            case failure: Result.Failure =>
+                fail(s"Expected success, but got failure: $failure")
+            case _ =>
     }
 
     protected final inline def assertEvalEq[T: Eq](inline code: T, inline expected: T): Unit = {
@@ -100,6 +157,10 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
 
         val codeTerm = Compiler.compileInline(code).toUplc(true).evaluate
         assert(Term.alphaEq(codeTerm, trueTerm))
+    }
+
+    protected final inline def assertEvalCompile(inline code: Any): Unit = {
+        Compiler.compileInline(code).toUplc(true).evaluate
     }
 
     protected inline final def checkEval[A1](

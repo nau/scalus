@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.12.1 (2025-10-08)
+
+### Added
+
+- Address constructors for Credentials
+- Transaction and TransactionOutput constructors
+- `NormalizedInterval` implementation for interval operations
+- ledger rules: `missingRequiredDatums`, `validateOutputBootAddrAttrsTooBig`, `hasExactSetOfRedeemers`
+- upstream tx editor and tx builder
+- additional functions to StdlibTestKit
+
+### Changed
+
+- refactored and improved offchain MultiAsset, Coin and Value
+- refactored HtlcValidator to follow scalus style
+- deprecated prelude `orFail`, replaced `==` with `===` in several places
+- simplified datum retrieval in Escrow, HelloCardano, and Vesting scripts
+- refactored TransactionWitnessSet.apply
+- moved BuildInfo to `scalus.utils`
+- replaced Hex.hexToBytes calls with extension method
+- rewritten patterns tests using UPLC
+
+### Fixed
+
+- not all tree is traversed during Apply handling in CaseConstrApply optimization pass
+- plutus scripts error propagation to low level tx balancer
+- wrong redeemers sorting in ScriptContext
+- low level tx balancer fee change re-looping
+- hardcoded change output values in transaction building
+- budget calculation: wrong sorting order of redeemers
+
 ## 0.12.0 (2025-09-27)
 
 ### Added

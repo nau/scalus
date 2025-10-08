@@ -82,7 +82,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
               Mint(
                 MultiAsset(
                   SortedMap(
-                    plutusScript.scriptHash -> SortedMap.empty
+                    plutusScript.scriptHash -> SortedMap(AssetName.empty -> 1)
                   )
                 )
               )
@@ -157,7 +157,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
               Mint(
                 MultiAsset(
                   SortedMap(
-                    plutusScript.scriptHash -> SortedMap.empty
+                    plutusScript.scriptHash -> SortedMap(AssetName.empty -> 1)
                   )
                 )
               )
@@ -195,7 +195,7 @@ class ExactSetOfRedeemersValidatorTest extends AnyFunSuite, ValidatorRulesTestKi
               Mint(
                 MultiAsset(
                   SortedMap(
-                    nativeScript.scriptHash -> SortedMap.empty
+                    nativeScript.scriptHash -> SortedMap(AssetName.empty -> 1)
                   )
                 )
               )
