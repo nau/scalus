@@ -50,6 +50,9 @@ object TxId:
     given Ord[TxId] = (a: TxId, b: TxId) => a.hash <=> b.hash
     given FromData[TxId] = (d: Data) => TxId(d.toByteString)
     given ToData[TxId] = (x: TxId) => bData(x.hash)
+    extension (sc: StringContext)
+        inline def txid(args: Any*): TxId =
+            TxId(sc.hex(args*))
 
 case class TxOutRef(id: TxId, idx: BigInt)
 
