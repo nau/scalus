@@ -7,34 +7,12 @@ import scalus.cardano.ledger.Script.PlutusV3
 import scalus.cardano.ledger.txbuilder.*
 import scalus.ledger.api.v1.PosixTime
 
-/** High-level HTLC transaction builders using the new fluent API.
-  *
-  * Demonstrates how to use the transaction builder for:
-  *   - Locking funds with a datum
-  *   - Revealing the preimage to unlock
-  *   - Timing out to refund
-  */
 case class HtlcTransactions(env: Environment, wallet: Wallet) {
 
     val context = BuilderContext(env, wallet)
     val script = PlutusV3(HtlcValidator.script.cborByteString)
     val scriptAddress = Address(env.network, Credential.ScriptHash(script.scriptHash))
 
-    /** Lock funds at the HTLC script with the contract datum.
-      *
-      * @param value
-      *   The value to lock
-      * @param committer
-      *   The party who can claim after timeout
-      * @param receiver
-      *   The party who can claim with preimage
-      * @param image
-      *   The hash of the secret preimage
-      * @param timeout
-      *   The time after which committer can reclaim
-      * @return
-      *   Either an error or the built transaction
-      */
     def lock(
         value: Value,
         committer: PubKeyHash,
@@ -48,17 +26,6 @@ case class HtlcTransactions(env: Environment, wallet: Wallet) {
             .complete()
     }
 
-    /** Reveal the preimage to unlock funds from the HTLC script.
-      *
-      * @param lockedUtxo
-      *   The UTxO locked at the script
-      * @param preimage
-      *   The secret preimage
-      * @param recipientAddress
-      *   Where to send the unlocked funds
-      * @return
-      *   Either an error or the built transaction
-      */
     def reveal(
         lockedUtxo: TransactionUnspentOutput,
         preimage: Preimage,
@@ -76,15 +43,6 @@ case class HtlcTransactions(env: Environment, wallet: Wallet) {
             .complete()
     }
 
-    /** Timeout transaction to reclaim funds after the deadline.
-      *
-      * @param lockedUtxo
-      *   The UTxO locked at the script
-      * @param committerAddress
-      *   The committer's address to receive the refund
-      * @return
-      *   Either an error or the built transaction
-      */
     def timeout(
         lockedUtxo: TransactionUnspentOutput,
         committerAddress: Address
