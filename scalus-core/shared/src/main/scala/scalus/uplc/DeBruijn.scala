@@ -18,25 +18,36 @@ object DeBruijn:
       *   the term with De Bruijn indices
       */
     def deBruijnTerm(term: Term): Term =
+        deBruijnTerm(term, false)
+
+    def deBruijnTerm(term: Term, errrOnUnresolvedVariable: Boolean): Term =
         var unique = 0
-        def deBruijnTerm(term: Term, env: List[String]): Term =
+
+        def process(term: Term, env: List[String]): Term =
             term match
                 case Var(name) =>
                     val idx = env.indexOf(name.name)
                     if idx == -1 then
-                        throw new IllegalArgumentException(s"Unresolved variable '${name.name}' in De Bruijn conversion. Available variables in scope: [${env.mkString(", ")}]")
+                        if errrOnUnresolvedVariable then
+                            throw new IllegalArgumentException(
+                              s"Unresolved variable '${name.name}' in De Bruijn conversion. Available variables in scope: [${env.mkString(", ")}]"
+                            )
+                        else
+                            unique -= 1
+                            Var(name.copy(index = unique)) // free variable
                     else Var(name.copy(index = idx + 1)) // 1-based index
-                case LamAbs(name, term) => LamAbs(name, deBruijnTerm(term, name :: env))
-                case Apply(f, arg)      => Apply(deBruijnTerm(f, env), deBruijnTerm(arg, env))
-                case Force(term)        => Force(deBruijnTerm(term, env))
-                case Delay(term)        => Delay(deBruijnTerm(term, env))
-                case Constr(tag, args)  => Constr(tag, args.map(deBruijnTerm(_, env)))
+                case LamAbs(name, term) => LamAbs(name, process(term, name :: env))
+                case Apply(f, arg)      => Apply(process(f, env), process(arg, env))
+                case Force(term)        => Force(process(term, env))
+                case Delay(term)        => Delay(process(term, env))
+                case Constr(tag, args)  => Constr(tag, args.map(process(_, env)))
                 case Case(arg, cases) =>
-                    Case(deBruijnTerm(arg, env), cases.map(deBruijnTerm(_, env)))
+                    Case(process(arg, env), cases.map(process(_, env)))
                 case Const(const) => term
                 case Builtin(bn)  => term
                 case Error        => term
-        deBruijnTerm(term, Nil)
+
+        process(term, Nil)
 
     def fromDeBruijnTerm(term: Term): Term =
         var idx = 0

@@ -1,7 +1,7 @@
 package scalus.regression
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.Compiler.{compile, compileDebug}
+import scalus.Compiler.compile
 import scalus.builtin.ByteString.hex
 import scalus.builtin.Data
 import scalus.builtin.Data.toData
@@ -180,7 +180,7 @@ class ParseScriptInfoOldBackendTest extends AnyFunSuite:
 
         val compiled = compile { ParseScriptInfo.validate }
 
-        println(compiled.pretty.render(100))
+        // println(compiled.pretty.render(100))
         // println(s"compiled type:  ${compiled.tp.show}")
         val term = compiled.toUplc()
 

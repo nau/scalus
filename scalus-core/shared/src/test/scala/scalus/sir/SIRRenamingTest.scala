@@ -85,6 +85,7 @@ class SIRRenamingTest extends AnyFunSuite {
                         }
                     case _ => fail(s"Unexpected renamed expression: $term")
                 }
+            case _ => fail("renaming appply should leave apply, we have: $rename2")
         }
 
     }

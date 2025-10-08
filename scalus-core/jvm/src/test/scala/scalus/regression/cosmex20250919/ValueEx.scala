@@ -10,9 +10,9 @@ object ValueEx {
     def unionVal(
         l: Value,
         r: Value
-    ): SortedMap[CurrencySymbol, SortedMap[TokenName, These[BigInt, BigInt]]] = {
+    ): SortedMap[PolicyId, SortedMap[TokenName, These[BigInt, BigInt]]] = {
         val combined: SortedMap[
-          CurrencySymbol,
+          PolicyId,
           These[SortedMap[TokenName, BigInt], SortedMap[TokenName, BigInt]]
         ] = SortedMap.union(l.toSortedMap, r.toSortedMap)
         combined.mapValues {

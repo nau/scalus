@@ -5,14 +5,15 @@ import scalus.ScalusDebug
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.BLS12_381_G1_Element
-import scalus.builtin.BLS12_381_MlResult
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.ToData
 import scalus.builtin.FromData
 import scalus.builtin.ToData
 import scalus.prelude.*
-import scalus.prelude.crypto.bls12_381.{G1, G2}
+import scalus.prelude.crypto.bls12_381.G1
 import scalus.prelude.crypto.bls12_381.G1.*
+
+import scala.annotation.tailrec
 
 /** Minimal reproducer for Groth16 type unification bug
   *
@@ -27,7 +28,7 @@ import scalus.prelude.crypto.bls12_381.G1.*
   * scalus.prelude.List[Int] -> BLS12_381_G1_Element -> BLS12_381_G1_Element"
   */
 @Compile
-@ScalusDebug(20)
+//@ScalusDebug(20)
 object Groth16Minimal:
     /** Minimal case class needed for Data conversion */
     case class MinimalData(value: BigInt)
@@ -38,6 +39,7 @@ object Groth16Minimal:
     given ToData[MinimalData] = ToData.derived
 
     /** This is the minimal function that reproduces the bug */
+    @tailrec
     def minimalDerive(
         vk_ic: List[ByteString],
         public: List[BigInt],

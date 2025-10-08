@@ -1,7 +1,7 @@
 package scalus.regression.hzmin20251002
 
 import scalus.*
-import scalus.Compiler.{compile, compileDebug}
+import scalus.Compiler.compile
 import org.scalatest.funsuite.AnyFunSuite
 
 class HzMinCompilationTest extends AnyFunSuite {
@@ -26,7 +26,7 @@ class HzMinCompilationTest extends AnyFunSuite {
                 case _                                    => BigInt(2)
         }
 
-        println(sir1.pretty.render(100))
+        // println(sir1.pretty.render(100))
 
         val lc = sir1.toLoweredValue()
         // println(lc.pretty.render(100))

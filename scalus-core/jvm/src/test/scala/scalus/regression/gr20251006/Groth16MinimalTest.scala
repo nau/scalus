@@ -5,7 +5,6 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.Data
 import scalus.regression.gr20251006.Groth16Minimal
-import scalus.prelude.List
 import scala.util.{Failure, Success, Try}
 
 /** Regression test for Groth16 compilation issue
@@ -15,9 +14,9 @@ import scala.util.{Failure, Success, Try}
   * `derive` function which has nested pattern matching on List[ByteString] and List[BigInt] with
   * recursion.
   *
-  * The error was:
-  * "Cannot unify result type of apply: Proxy(X) -> BLS12_381_G1_Element -> BLS12_381_G1_Element
-  * and scalus.prelude.List[Int] -> BLS12_381_G1_Element -> BLS12_381_G1_Element"
+  * The error was: "Cannot unify result type of apply: Proxy(X) -> BLS12_381_G1_Element ->
+  * BLS12_381_G1_Element and scalus.prelude.List[Int] -> BLS12_381_G1_Element ->
+  * BLS12_381_G1_Element"
   */
 class Groth16MinimalTest extends AnyFunSuite:
 
@@ -36,9 +35,9 @@ class Groth16MinimalTest extends AnyFunSuite:
             )
 
             // Print SIR before lowering
-            println("=== SIR before lowering ===")
-            println(sir.pretty.render(120))
-            println("=== End SIR ===")
+            // println("=== SIR before lowering ===")
+            // println(sir.pretty.render(120))
+            // println("=== End SIR ===")
 
             val uplc = sir.toUplc()
             uplc
