@@ -536,14 +536,17 @@ final class SIRCompiler(
     }
 
     def makeConstrDecl(env: Env, srcPos: SrcPos, constrSymbol: Symbol): ConstrDecl = {
-        val typeParams =
-            constrSymbol.typeParams.map(tp =>
-                SIRType.TypeVar(tp.name.show, Some(tp.hashCode), false)
-            )
-        val envTypeVars1 = constrSymbol.typeParams.foldLeft(env.typeVars) { case (acc, tp) =>
-            acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode), false))
-        }
-        val envTypeVars2 = primaryConstructorTypeParams(constrSymbol).foldLeft(envTypeVars1) {
+        // val typeParams =
+        //    constrSymbol.typeParams.map(tp =>
+        //        SIRType.TypeVar(tp.name.show, Some(tp.hashCode), false)
+        //    )
+        // val envTypeVars1 = constrSymbol.typeParams.foldLeft(env.typeVars) { case (acc, tp) =>
+        //    acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode), false))
+        // }
+        val pcTypeParams = primaryConstructorTypeParams(constrSymbol).map(tp =>
+            SIRType.TypeVar(tp.name.show, Some(tp.hashCode), false)
+        )
+        val envTypeVars2 = primaryConstructorTypeParams(constrSymbol).foldLeft(env.typeVars) {
             case (acc, tp) =>
                 acc + (tp -> SIRType.TypeVar(tp.name.show, Some(tp.hashCode), false))
         }
@@ -572,14 +575,26 @@ final class SIRCompiler(
                 memberDef.rawComment.map(_.raw)
             case _ => None
         val anns = AnnotationsDecl(pos, comment)
-
-        scalus.sir.ConstrDecl(
-          constrSymbol.fullName.show,
-          params,
-          typeParams,
-          baseTypeArgs,
-          anns
-        )
+        try
+            scalus.sir.ConstrDecl(
+              constrSymbol.fullName.show,
+              params,
+              pcTypeParams,
+              baseTypeArgs,
+              anns
+            )
+        catch
+            case NonFatal(e) =>
+                println(
+                  s"Error making ConstrDecl for ${constrSymbol.fullName.show}: ${e.getMessage}"
+                )
+                println("Symbol: " + constrSymbol)
+                println(s"pcTypeParams: $pcTypeParams")
+                println(
+                  s"primaryConstructorTypeParams: ${primaryConstructorTypeParams(constrSymbol)}"
+                )
+                println(s"params: $params")
+                throw e
 
     }
 
@@ -718,6 +733,10 @@ final class SIRCompiler(
                 )
             // local def, use the name
             case (true, false) =>
+                if e.symbol.name.toString == "publicRest" then
+                    println(
+                      s"compileIdentOrQualifiedSelect: local var ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env.get(name): ${env.vars.get(name).map(x => SIRType.unrollTypeProxy(x).show)}"
+                    )
                 val localType = env.vars(name)
                 (
                   SIR.Var(
@@ -1014,8 +1033,7 @@ final class SIRCompiler(
                 println(
                   s"compileDefDef: tpFromBody: ${tpFromBody.show}\n" +
                       s"selfTypeFromDef: ${selfTypeFromDef.show}\n" +
-                      s"bodyExpr.tp: ${bodyExpr.tp.show}\n" +
-                      s"bodyExpr: ${bodyExpr}\n"
+                      s"bodyExpr.tp: ${bodyExpr.tp.show}\n"
                 )
 
             val lbFlags = tryMethodResultType(dd) match {
@@ -1954,7 +1972,8 @@ final class SIRCompiler(
             val (applyExpr, applyTpe) = argsSir.foldLeft((fSir, partTpes)) { (acc, arg) =>
                 val (fun, tp) = acc
                 val nTp = tp match
-                    case SIRType.Fun(t1, t2) => t2
+                    case SIRType.Fun(t1, t2) =>
+                        t2
                     case _ =>
                         error(
                           TypeMismatch(
@@ -3234,11 +3253,13 @@ object SIRCompiler {
         thisTypeSymbol: Symbol = Symbols.NoSymbol
     ) {
 
-        def ++(bindings: Iterable[(String, SIRType)]): Env =
+        def ++(bindings: Iterable[(String, SIRType)]): Env = {
             copy(vars = vars ++ bindings)
+        }
 
-        def +(ntpe: (String, SIRType)): Env =
+        def +(ntpe: (String, SIRType)): Env = {
             copy(vars = vars + ntpe)
+        }
 
         def withDebug: Env = copy(debug = true)
 

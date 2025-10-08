@@ -196,9 +196,13 @@ object SIRType {
         override def show: String = "*"
     }
 
-    class TypeProxy(private var _ref: SIRType | Null) extends SIRType {
+    class TypeProxy(
+        private var _ref: SIRType | Null,
+        private var _freezed: Boolean = false,
+        private var callbacks: scala.List[TypeProxy => Unit] = Nil
+    ) extends SIRType {
 
-        val ex = new RuntimeException("type-proxy-created")
+        // val ex = new RuntimeException("type-proxy-created")
 
         override def hashCode(): Int = {
             if ref == null then 0
@@ -229,7 +233,21 @@ object SIRType {
                       s"TypeProxy cannot be assigned to TypeProxy: $tp, tp.ref=${tp.ref}"
                     )
                 case _ =>
+            if _ref != null && _freezed then
+                throw new IllegalStateException(
+                  s"TypeProxy is freezed, cannot change ref from ${_ref} to $value",
+                  ex
+                )
             _ref = value
+            callbacks.foreach(f => f(this))
+        }
+
+        def freeze: Unit = {
+            _freezed = true
+        }
+
+        def setCallback(f: TypeProxy => Unit): Unit = {
+            callbacks = f :: callbacks
         }
 
     }
@@ -1071,11 +1089,13 @@ object SIRType {
 
     /** Unroll TypeProxy to get the actual type it references
       *
-      * Follows TypeProxy.ref chain until a non-proxy type is found.
-      * Returns the original type if it's not a TypeProxy.
+      * Follows TypeProxy.ref chain until a non-proxy type is found. Returns the original type if
+      * it's not a TypeProxy.
       *
-      * @param tp The type to unroll
-      * @return The unrolled type (non-proxy)
+      * @param tp
+      *   The type to unroll
+      * @return
+      *   The unrolled type (non-proxy)
       */
     def unrollTypeProxy(tp: SIRType): SIRType = tp match {
         case proxy: TypeProxy =>

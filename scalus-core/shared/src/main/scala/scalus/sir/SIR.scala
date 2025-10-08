@@ -107,36 +107,6 @@ case class ConstrDecl(
         throw new RuntimeException("Invalid name in constructor: " + name)
     }
 
-    if name == "scalus.prelude.List$.Nil" then
-        if parentTypeArgs.isEmpty then
-            throw new RuntimeException(
-              "Nil constructor must have parent type arguments. (name=" + name + ")"
-            )
-        else if parentTypeArgs.size != 1 then
-            throw new RuntimeException(
-              "Nil constructor must have exactly one parent type argument. (name=" + name + ")"
-            )
-
-    if name == "scalus.prelude.Option$.Some" then
-        if parentTypeArgs.isEmpty then
-            throw new RuntimeException(
-              "Some constructor must have parent type arguments. (name=" + name + ")"
-            )
-        else if parentTypeArgs.size != 1 then
-            throw new RuntimeException(
-              "Some constructor must have exactly one parent type argument. (name=" + name + ")"
-            )
-
-    if name == "scala.Tuple3" then
-        if params.head.name == "t1" then
-            throw new RuntimeException(
-              "Tuple3 constructor must have parameters _1, _2, _3. (name=" + name + ")"
-            )
-        if parentTypeArgs.nonEmpty then
-            throw new RuntimeException(
-              "Tuple3 constructor must not have parent type arguments. (name=" + name + ")"
-            )
-
 }
 
 //  Data~ Lost(Const)
@@ -405,7 +375,7 @@ object SIR:
             case Pattern.Constr(constr, bindings, typeParamsBindings) =>
                 s"${constr.name}, ${bindings.mkString(", ")}"
             case Pattern.Const(value) => s"${value.uplcConst}"
-            case Pattern.Wildcard => "_"
+            case Pattern.Wildcard     => "_"
         }
     }
 

@@ -17,20 +17,22 @@ import scalus.prelude.crypto.bls12_381.G1.*
 /** Minimal reproducer for Groth16 type unification bug
   *
   * The bug occurs when:
-  * 1. We have a recursive function with nested pattern matching
-  * 2. The outer match is on List[ByteString]
-  * 3. The inner match is on List[BigInt] (which becomes List[Int] in SIR)
-  * 4. The recursive call is inside the inner match
-  * 5. The function is called through Data.to[] conversion
+  *   1. We have a recursive function with nested pattern matching
+  *   2. The outer match is on List[ByteString]
+  *   3. The inner match is on List[BigInt] (which becomes List[Int] in SIR)
+  *   4. The recursive call is inside the inner match
+  *   5. The function is called through Data.to[] conversion
   *
-  * Error: "Cannot unify Proxy(X) -> BLS12_381_G1_Element -> BLS12_381_G1_Element
-  *         and scalus.prelude.List[Int] -> BLS12_381_G1_Element -> BLS12_381_G1_Element"
+  * Error: "Cannot unify Proxy(X) -> BLS12_381_G1_Element -> BLS12_381_G1_Element and
+  * scalus.prelude.List[Int] -> BLS12_381_G1_Element -> BLS12_381_G1_Element"
   */
 @Compile
 @ScalusDebug(20)
 object Groth16Minimal:
     /** Minimal case class needed for Data conversion */
     case class MinimalData(value: BigInt)
+
+    val x = BigInt(2)
 
     given FromData[MinimalData] = FromData.derived
     given ToData[MinimalData] = ToData.derived

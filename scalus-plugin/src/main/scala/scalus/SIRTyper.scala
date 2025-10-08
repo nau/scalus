@@ -1,7 +1,6 @@
 package scalus
 
 import scala.annotation.unused
-
 import dotty.tools.dotc.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Contexts.Context
@@ -10,6 +9,7 @@ import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import dotty.tools.dotc.util.SrcPos
 import scalus.sir.*
+import scalus.sir.SIRType.CaseClass
 
 import scala.util.control.NonFatal
 
@@ -22,6 +22,8 @@ case class SIRTypeEnv(
 
 case class TypingException(tpe: Type, pos: SrcPos, msg: String, cause: Throwable = null)
     extends RuntimeException(msg, cause)
+
+case class SIRTypeWithTypeLambda(sirType: SIRType, optSirTypeLambda: Option[SIRType.TypeLambda])
 
 class SIRTyper(using Context) {
 
@@ -340,17 +342,28 @@ class SIRTyper(using Context) {
         tpArgs: List[SIRType],
         env: SIRTypeEnv
     ): Option[SIRType] = {
-        env.forwardRefs.get(typeSymbol).orElse {
-            val proxy = new SIRType.TypeProxy(null)
-            val retval = tryMakeCaseClassOrSumTypeNoRec(
-              typeSymbol,
-              tpArgs,
-              env.copy(forwardRefs = env.forwardRefs.updated(typeSymbol, proxy)),
-              proxy
-            )
-            retval.foreach(t => proxy.ref = t)
-            retval
-        }
+        env.forwardRefs.get(typeSymbol) match
+            case Some(tlProxy) =>
+                if tlProxy.ref != null then
+                    // think - is it safe, mb create proxy in any case.
+                    Some(SIRType.typeApply(tlProxy, tpArgs))
+                else if tpArgs.isEmpty then Some(tlProxy)
+                else
+                    val proxy = new SIRType.TypeProxy(null)
+                    tlProxy.setCallback(tlProxy => proxy.ref = SIRType.typeApply(tlProxy, tpArgs))
+                    Some(proxy)
+            case None =>
+                val tlProxy = new SIRType.TypeProxy(null)
+                val proxy =
+                    if tpArgs.isEmpty then tlProxy
+                    else new SIRType.TypeProxy(null)
+                tryMakeCaseClassOrSumTypeNoRec(
+                  typeSymbol,
+                  tpArgs,
+                  env.copy(forwardRefs = env.forwardRefs.updated(typeSymbol, tlProxy)),
+                  proxy,
+                  tlProxy
+                ).map(_.sirType)
     }
 
     private def tryMakeFunctionalInterface(
@@ -425,12 +438,13 @@ class SIRTyper(using Context) {
         typeSymbol: Symbol,
         tpArgs: List[SIRType],
         env: SIRTypeEnv,
-        thisProxy: SIRType.TypeProxy
-    ) = {
+        thisProxy: SIRType.TypeProxy,
+        thisTypeLambdaProxy: SIRType.TypeProxy
+    ): Option[SIRTypeWithTypeLambda] = {
         if typeSymbol.children.isEmpty then
             val optParent = retrieveParentSymbol(typeSymbol, env)
-            tryMakeCaseClassType(typeSymbol, tpArgs, env, thisProxy, optParent)
-        else tryMakeSumType(typeSymbol, tpArgs, env, thisProxy)
+            tryMakeCaseClassType(typeSymbol, tpArgs, env, thisProxy, thisTypeLambdaProxy, optParent)
+        else tryMakeSumType(typeSymbol, tpArgs, env, thisProxy, thisTypeLambdaProxy)
     }
 
     private def retrieveParentSymbol(typeSymbol: Symbol, env: SIRTypeEnv): Option[Symbol] = {
@@ -454,11 +468,22 @@ class SIRTyper(using Context) {
         tpArgs: List[SIRType],
         env: SIRTypeEnv,
         thisProxy: SIRType.TypeProxy,
+        thisTypeLambdaProxy: SIRType.TypeProxy,
         optParentSym: Option[Symbol]
-    ) = {
+    ): Option[SIRTypeWithTypeLambda] = {
         // TODO: insert checks
         if typeSymbol.flags.is(Flags.Trait) || typeSymbol.flags.is(Flags.Abstract) then None
-        else Some(makeCaseClassType(typeSymbol, tpArgs, env, thisProxy, optParentSym))
+        else
+            Some(
+              makeCaseClassType(
+                typeSymbol,
+                tpArgs,
+                env,
+                thisProxy,
+                thisTypeLambdaProxy,
+                optParentSym
+              )
+            )
     }
 
     private def makeCaseClassType(
@@ -466,17 +491,44 @@ class SIRTyper(using Context) {
         tpArgs: List[SIRType],
         env: SIRTypeEnv,
         thisProxy: SIRType.TypeProxy,
+        thisTypeLambdaProxy: SIRType.TypeProxy,
         optParentSym: Option[Symbol]
-    ) = {
+    ): SIRTypeWithTypeLambda = {
         val retval = optParentSym match
             case Some(parentSym) =>
                 val dataDecl = makeSumClassDataDecl(parentSym, env)
                 val nakedType = dataDecl.constrType(typeSymbol.fullName.show)
-                SIRType.typeApply(nakedType, tpArgs)
+                thisTypeLambdaProxy.ref = nakedType
+                if tpArgs.isEmpty then
+                    thisProxy.ref = nakedType
+                    SIRTypeWithTypeLambda(nakedType, None)
+                else
+                    val cladType = SIRType.typeApply(nakedType, tpArgs)
+                    thisProxy.ref = cladType
+                    val tlNakedType = nakedType match
+                        case tl: SIRType.TypeLambda => tl
+                        case _ =>
+                            throw new IllegalStateException(
+                              s"nakedType should be TypeLambda, found ${nakedType.show}"
+                            )
+                    SIRTypeWithTypeLambda(cladType, Some(tlNakedType))
             case None =>
-                val constrDecl = makeCaseClassConstrDecl(typeSymbol, env, optParentSym)
-                SIRType.CaseClass(constrDecl, tpArgs, None)
-        thisProxy.ref = retval
+                val constrDecl = makeCaseClassConstrDecl(typeSymbol, env, None)
+                if tpArgs.isEmpty then
+                    val retval = SIRType.CaseClass(constrDecl, Nil, None)
+                    thisProxy.ref = retval
+                    thisTypeLambdaProxy.ref = retval
+                    SIRTypeWithTypeLambda(retval, None)
+                else {
+                    val cladType = SIRType.CaseClass(constrDecl, tpArgs, None)
+                    thisProxy.ref = cladType
+                    val nakedType = SIRType.TypeLambda(
+                      constrDecl.typeParams,
+                      SIRType.CaseClass(constrDecl, constrDecl.typeParams, None)
+                    )
+                    thisTypeLambdaProxy.ref = nakedType
+                    SIRTypeWithTypeLambda(cladType, Some(nakedType))
+                }
         retval
     }
 
@@ -484,10 +536,11 @@ class SIRTyper(using Context) {
         typeSymbol: Symbol,
         tpArgs: List[SIRType],
         env: SIRTypeEnv,
-        thisProxy: SIRType.TypeProxy
-    ): Option[SIRType] = {
+        thisProxy: SIRType.TypeProxy,
+        thisTypeLambdaProxy: SIRType.TypeProxy
+    ): Option[SIRTypeWithTypeLambda] = {
         if typeSymbol.children.nonEmpty then
-            Some(makeSumClassType(typeSymbol, tpArgs, env, thisProxy))
+            Some(makeSumClassType(typeSymbol, tpArgs, env, thisProxy, thisTypeLambdaProxy))
         else None
     }
 
@@ -562,13 +615,49 @@ class SIRTyper(using Context) {
         typeSymbol: Symbol,
         tpArgs: List[SIRType],
         env: SIRTypeEnv,
-        thisProxy: SIRType.TypeProxy
-    ): SIRType = {
+        thisProxy: SIRType.TypeProxy,
+        thisTypeLambdaProxy: SIRType.TypeProxy
+    ): SIRTypeWithTypeLambda = {
         val dataDecl = makeSumClassDataDecl(typeSymbol, env)
-        val retval =
-            if tpArgs.isEmpty then dataDecl.tp
-            else SIRType.typeApply(dataDecl.tp, tpArgs)
-        thisProxy.ref = retval
+        // thisProxy.ref = dataDecl.tp
+        val retval = dataDecl.tp match {
+            case tl @ SIRType.TypeLambda(params, res) =>
+                if tpArgs.isEmpty then
+                    throw TypingException(
+                      typeSymbol.info,
+                      env.pos,
+                      s"Type ${typeSymbol.showFullName} should have ${params.length} type arguments, found 0"
+                    )
+                else if params.length != tpArgs.length then
+                    throw TypingException(
+                      typeSymbol.info,
+                      env.pos,
+                      s"Type ${typeSymbol.showFullName} should have ${params.length} type arguments, found ${tpArgs.length}"
+                    )
+                else {
+                    val cladType = SIRType.typeApply(tl, tpArgs)
+                    thisProxy.ref = cladType
+                    thisTypeLambdaProxy.ref = tl
+                    SIRTypeWithTypeLambda(cladType, Some(tl))
+                }
+            case _ =>
+                if tpArgs.nonEmpty then
+                    throw TypingException(
+                      typeSymbol.info,
+                      env.pos,
+                      s"Type ${typeSymbol.showFullName} should not have type arguments, found ${tpArgs.length}"
+                    )
+                else {
+                    thisProxy.ref = dataDecl.tp
+                    thisTypeLambdaProxy.ref = dataDecl.tp
+                    SIRTypeWithTypeLambda(dataDecl.tp, None)
+                }
+        }
+
+        // val retval =
+        //    if tpArgs.isEmpty then dataDecl.tp
+        //    else SIRType.typeApply(dataDecl.tp, tpArgs)
+        // thisProxy.ref = retval
         retval
     }
 
@@ -604,10 +693,12 @@ class SIRTyper(using Context) {
                     case AppliedType(tycon, targs) =>
                         targs.map(t => sirTypeInEnvWithErr(t, nEnv))
                     case _ => Nil
-                val paramType = env.forwardRefs.get(s).getOrElse {
-                    val dataDecl = makeSumClassDataDecl(s, nEnv)
-                    SIRType.typeApply(dataDecl.tp, sirTypeParams)
-                }
+                val paramType = env.forwardRefs.get(s) match
+                    case Some(s) =>
+                        SIRType.typeApply(s, sirTypeParams)
+                    case None =>
+                        val dataDecl = makeSumClassDataDecl(s, nEnv)
+                        SIRType.typeApply(dataDecl.tp, sirTypeParams)
                 val params = List(TypeBinding("value", paramType))
                 ConstrDecl(
                   syntethicName,

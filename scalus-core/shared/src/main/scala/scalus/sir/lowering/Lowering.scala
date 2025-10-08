@@ -451,6 +451,9 @@ object Lowering {
             case SIR.ExternalVar(moduleName, name, tp, _) =>
                 // extrapolation.  TODO: write annotation when compiling FromData tp and extract it here
                 isFromDataName(name) && isFromDataType(tp)
+            case SIR.Var(name, tp, _) =>
+                // Also check for Var nodes with fully qualified name
+                isFromDataName(name) && isFromDataType(tp)
             case _ => false
     }
 
@@ -460,6 +463,9 @@ object Lowering {
             case SIR.ExternalVar(moduleName, name, tp, _) =>
                 // extrapolation.  TODO: write annotation when compiling ToData tp and extract it here
                 name == "scalus.builtin.internal.UniversalDataConversion$.toData"
+            case SIR.Var(name, tp, _) =>
+                // Also check for Var nodes with fully qualified name
+                isToDataName(name)
             case _ => false
 
     }
