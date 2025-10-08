@@ -202,7 +202,7 @@ object SIRType {
         private var callbacks: scala.List[TypeProxy => Unit] = Nil
     ) extends SIRType {
 
-        // val ex = new RuntimeException("type-proxy-created")
+        val createEx = new RuntimeException("type-proxy-created")
 
         override def hashCode(): Int = {
             if ref == null then 0
@@ -236,7 +236,7 @@ object SIRType {
             if _ref != null && _freezed then
                 throw new IllegalStateException(
                   s"TypeProxy is freezed, cannot change ref from ${_ref} to $value",
-                  ex
+                  createEx
                 )
             _ref = value
             callbacks.foreach(f => f(this))
@@ -1045,7 +1045,7 @@ object SIRType {
                 case tp: TypeProxy =>
                     if tp.ref == null then
                         println("Found null typeproxe, created at: ")
-                        tp.ex.printStackTrace()
+                        tp.createEx.printStackTrace()
                         false
                     else if traceloops.get(tp.ref) != null then
                         checkAllProxiesFilledTraced(tp.ref, traceloops, log)

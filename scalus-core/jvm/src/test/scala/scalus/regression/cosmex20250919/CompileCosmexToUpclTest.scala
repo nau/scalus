@@ -7,12 +7,10 @@ import scalus.*
 
 class CompileCosmexToUpclTest extends AnyFunSuite {
 
-    import scalus.prelude.*
-    import scalus.ledger.api.v1.CurrencySymbol
     import scalus.ledger.api.v3.*
 
     test("compile cosmex to uplc") {
-        import scalus.Compiler.compile
+        // import scalus.Compiler.compile
 
         pending
 
@@ -27,7 +25,7 @@ class CompileCosmexToUpclTest extends AnyFunSuite {
 
         val uplc = CosmexValidator.mkCosmexValidator(exchangeParams)
 
-        println(uplc.pretty.render(100))
+        // println(uplc.pretty.render(100))
         // println(uplc.plutusV3.cborByteString)
     }
 
