@@ -1638,8 +1638,8 @@ final class SIRCompiler(
                   )
                 )
 
-    private def compileMatch(tree: Match, env: Env): AnnotatedSIR = {
-        pmCompiler.compileMatch(tree, env)
+    private def compileMatch(tree: Match, env: Env, isUnchecked: Boolean = false): AnnotatedSIR = {
+        pmCompiler.compileMatch(tree, env, isUnchecked)
     }
 
     private def compileBuiltinPairMethods(
@@ -2469,11 +2469,23 @@ final class SIRCompiler(
             case Block(stmt, expr)   => compileBlock(env, stmt, expr)
             case Typed(expr, tpTree) =>
                 // if env.debug then println(s"typed-here: expr=${expr.show}, tpTree=${tpTree.show}")
+                // Check if the type has @unchecked annotation and the expr is a Match
+                val isUncheckedMatch = expr match {
+                    case _: Match =>
+                        tpTree.tpe match {
+                            case AnnotatedType(_, ann) if ann.symbol == defn.UncheckedAnnot => true
+                            case _                                                          => false
+                        }
+                    case _ => false
+                }
                 val expr1 =
                     if isFunctionalInterface(tpTree.tpe) then
                         tryFixFunctionalInterface(env, expr).getOrElse(expr)
                     else expr
-                val term = compileExpr(env, expr1)
+                val term = expr1 match {
+                    case m: Match if isUncheckedMatch => compileMatch(m, env, isUnchecked = true)
+                    case _                            => compileExpr(env, expr1)
+                }
                 val tp = sirTypeInEnv(tpTree.tpe, tree.srcPos, env)
                 if expr.tpe.widen =:= tpTree.tpe.widen then term
                 else

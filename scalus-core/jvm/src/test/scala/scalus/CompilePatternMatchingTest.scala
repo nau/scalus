@@ -54,11 +54,11 @@ class CompilePatternMatchingTest extends AnyFunSuite {
         import scalus.prelude.*
         val compiled = compile { (x: List[Option[These[BigInt, Boolean]]]) =>
             x match
-                case List.Cons(Option.Some(These.This(n)), _)    => n
-                case List.Cons(Option.Some(These.That(b)), _)    => if b then BigInt(1) else BigInt(0)
+                case List.Cons(Option.Some(These.This(n)), _) => n
+                case List.Cons(Option.Some(These.That(b)), _) => if b then BigInt(1) else BigInt(0)
                 case List.Cons(Option.Some(These.These(n, _)), _) => n + BigInt(100)
-                case List.Cons(Option.None, _)                   => BigInt(-1)
-                case List.Nil                                    => BigInt(-2)
+                case List.Cons(Option.None, _)                    => BigInt(-1)
+                case List.Nil                                     => BigInt(-2)
         }
 
         val uplc = compiled.toUplc(generateErrorTraces = true)
@@ -188,7 +188,7 @@ class CompilePatternMatchingTest extends AnyFunSuite {
         val arg3 = compile { BigInt(42) }.toUplc()
         assert((uplc $ arg3).evaluate == Term.Const(Constant.String("other")))
     }
-    */
+     */
 
     // Test constant patterns with booleans
     test("pattern matching on boolean constants") {
@@ -250,7 +250,7 @@ class CompilePatternMatchingTest extends AnyFunSuite {
         val arg3 = compile { hex"cafe" }.toUplc()
         assert((uplc $ arg3).evaluate == Term.Const(Constant.Integer(0)))
     }
-    */
+     */
 
     // Test mixed patterns: constructors, constants, and wildcards
     // TODO: Add special handling for BigInt() constructor in PatternMatchingCompiler
@@ -279,7 +279,7 @@ class CompilePatternMatchingTest extends AnyFunSuite {
         val argNone = compile { Option.None: Option[BigInt] }.toUplc()
         assert((uplc $ argNone).evaluate == Term.Const(Constant.String("none")))
     }
-    */
+     */
 
     // Test guards with if expressions
     test("pattern matching with if guards") {
@@ -363,7 +363,7 @@ class CompilePatternMatchingTest extends AnyFunSuite {
         val arg3 = compile { (BigInt(42), true, "ignored") }.toUplc()
         assert((uplc $ arg3).evaluate == Term.Const(Constant.String("142")))
     }
-    */
+     */
 
     // Test nested tuple pattern matching
     // TODO: Add special handling for BigInt() constructor in PatternMatchingCompiler
@@ -387,7 +387,7 @@ class CompilePatternMatchingTest extends AnyFunSuite {
         val arg3 = compile { ((BigInt(42), true), "ignored") }.toUplc()
         assert((uplc $ arg3).evaluate == Term.Const(Constant.String("142")))
     }
-    */
+     */
 
     // Test pattern matching with variable binding at different levels
     // TODO: Fix issue with @ pattern bindings in nested positions
@@ -419,16 +419,14 @@ class CompilePatternMatchingTest extends AnyFunSuite {
         }.toUplc()
         assert((uplc $ arg3).evaluate == Term.Const(Constant.Integer(-1)))
     }
-    */
+     */
 
     // Test exhaustiveness checking with @unchecked
-    // TODO: Fix issue with @unchecked annotation handling
-    /*
     test("non-exhaustive pattern matching with @unchecked") {
         import scalus.prelude.*
         val compiled = compile { (x: Option[BigInt]) =>
-            (x match
-                case Option.Some(v) => v): @unchecked
+            (x: @unchecked) match
+                case Option.Some(v) => v
         }
 
         val uplc = compiled.toUplc(generateErrorTraces = true)
@@ -441,7 +439,6 @@ class CompilePatternMatchingTest extends AnyFunSuite {
         val result = (uplc $ argNone).evaluateDebug
         assert(result.isFailure)
     }
-    */
 
     // Test pattern matching in nested contexts
     // TODO: Fix issue with sequential match expressions
@@ -474,6 +471,6 @@ class CompilePatternMatchingTest extends AnyFunSuite {
         }.toUplc()
         assert((uplc $ arg3).evaluate == Term.Const(Constant.Integer(-1)))
     }
-    */
+     */
 
 }
