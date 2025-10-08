@@ -45,7 +45,7 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             catch
                 case NonFatal(exception) =>
                     assert(
-                      ClassTag(exception.getClass) == summon[ClassTag[E]],
+                      summon[ClassTag[E]].runtimeClass.isAssignableFrom(exception.getClass),
                       s"Expected exception of type ${summon[ClassTag[E]]}, but got $exception"
                     )
                     val result = Compiler.compileInline(code).toUplc(true).evaluateDebug
@@ -83,7 +83,7 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
             catch
                 case NonFatal(exception) =>
                     assert(
-                      ClassTag(exception.getClass) == summon[ClassTag[E]],
+                      summon[ClassTag[E]].runtimeClass.isAssignableFrom(exception.getClass),
                       s"Expected exception of type ${summon[ClassTag[E]]}, but got $exception"
                     )
 
@@ -159,7 +159,7 @@ class StdlibTestKit extends AnyFunSuite with ScalaCheckPropertyChecks with Arbit
         assert(Term.alphaEq(codeTerm, trueTerm))
     }
 
-    protected final inline def assertCompile(inline code: Any): Unit = {
+    protected final inline def assertEvalCompile(inline code: Any): Unit = {
         Compiler.compileInline(code).toUplc(true).evaluate
     }
 

@@ -2,31 +2,33 @@ package scalus.patterns
 
 import scalus.*
 import scalus.builtin.{ByteString, Data}
+import scalus.builtin.Data.toData
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import org.scalatest.matchers.should.Matchers.*
+import scalus.cardano.onchain.{OnchainError, RequirementError}
 
 class StakeValidatorTest extends StdlibTestKit with scalus.ledger.api.v3.ArbitraryInstances {
-    // TODO: UPLC error with Data.unit
-//    test("success spend") {
-//        assertEvalSuccess {
-//            val scriptHash = ByteString.empty
-//            val credential = Credential.ScriptCredential(scriptHash)
-//
-//            val txInfo = TxInfo(
-//              inputs = List.empty,
-//              withdrawals = SortedMap.singleton(credential, 0),
-//              redeemers = SortedMap.singleton(ScriptPurpose.Rewarding(credential), Data.unit),
-//              id = TxId(ByteString.empty)
-//            )
-//
-//            StakeValidator.spend(
-//              withdrawalScriptHash = scriptHash,
-//              withdrawalRedeemerValidator = (redeemer, lovelace) => true,
-//              txInfo = txInfo
-//            )
-//        }
-//    }
+    // TODO: UPLC error
+    ignore("success spend") {
+        assertEvalSuccess {
+            val scriptHash = ByteString.empty
+            val credential = Credential.ScriptCredential(scriptHash)
+
+            val txInfo = TxInfo(
+              inputs = List.empty,
+              withdrawals = SortedMap.singleton(credential, 0),
+              redeemers = SortedMap.singleton(ScriptPurpose.Rewarding(credential), ().toData),
+              id = TxId(ByteString.empty)
+            )
+
+            StakeValidator.spend(
+              withdrawalScriptHash = scriptHash,
+              withdrawalRedeemerValidator = (redeemer, lovelace) => true,
+              txInfo = txInfo
+            )
+        }
+    }
 
     // TODO: UPLC error
     ignore("failed spend with missing redeemer") {
@@ -49,49 +51,49 @@ class StakeValidatorTest extends StdlibTestKit with scalus.ledger.api.v3.Arbitra
         }
     }
 
-    // TODO: UPLC error with Data.unit
-//    test("failed spend with missing withdrawal") {
-//        assertEvalFailsWithMessage[NoSuchElementException](StakeValidator.MissingWithdrawal) {
-//            val scriptHash = ByteString.empty
-//            val credential = Credential.ScriptCredential(scriptHash)
-//
-//            val txInfo = TxInfo(
-//              inputs = List.empty,
-//              withdrawals = SortedMap.empty,
-//              redeemers = SortedMap.singleton(ScriptPurpose.Rewarding(credential), Data.unit),
-//              id = TxId(ByteString.empty)
-//            )
-//
-//            StakeValidator.spend(
-//              withdrawalScriptHash = scriptHash,
-//              withdrawalRedeemerValidator = (redeemer, lovelace) => true,
-//              txInfo = txInfo
-//            )
-//        }
-//    }
+    // TODO: UPLC error
+    ignore("failed spend with missing withdrawal") {
+        assertEvalFailsWithMessage[NoSuchElementException](StakeValidator.MissingWithdrawal) {
+            val scriptHash = ByteString.empty
+            val credential = Credential.ScriptCredential(scriptHash)
 
-    // TODO: UPLC error with Data.unit
-//    test("failed spend with withdrawal redeemer validator failed") {
-//        assertEvalFailsWithMessage[RuntimeException](
-//          StakeValidator.WithdrawalRedeemerValidatorFailed
-//        ) {
-//            val scriptHash = ByteString.empty
-//            val credential = Credential.ScriptCredential(scriptHash)
-//
-//            val txInfo = TxInfo(
-//              inputs = List.empty,
-//              withdrawals = SortedMap.singleton(credential, 0),
-//              redeemers = SortedMap.singleton(ScriptPurpose.Rewarding(credential), Data.unit),
-//              id = TxId(ByteString.empty)
-//            )
-//
-//            StakeValidator.spend(
-//              withdrawalScriptHash = scriptHash,
-//              withdrawalRedeemerValidator = (redeemer, lovelace) => false,
-//              txInfo = txInfo
-//            )
-//        }
-//    }
+            val txInfo = TxInfo(
+              inputs = List.empty,
+              withdrawals = SortedMap.empty,
+              redeemers = SortedMap.singleton(ScriptPurpose.Rewarding(credential), ().toData),
+              id = TxId(ByteString.empty)
+            )
+
+            StakeValidator.spend(
+              withdrawalScriptHash = scriptHash,
+              withdrawalRedeemerValidator = (redeemer, lovelace) => true,
+              txInfo = txInfo
+            )
+        }
+    }
+
+    // TODO: UPLC error
+    ignore("failed spend with withdrawal redeemer validator failed") {
+        assertEvalFailsWithMessage[RequirementError](
+          StakeValidator.WithdrawalRedeemerValidatorFailed
+        ) {
+            val scriptHash = ByteString.empty
+            val credential = Credential.ScriptCredential(scriptHash)
+
+            val txInfo = TxInfo(
+              inputs = List.empty,
+              withdrawals = SortedMap.singleton(credential, 0),
+              redeemers = SortedMap.singleton(ScriptPurpose.Rewarding(credential), ().toData),
+              id = TxId(ByteString.empty)
+            )
+
+            StakeValidator.spend(
+              withdrawalScriptHash = scriptHash,
+              withdrawalRedeemerValidator = (redeemer, lovelace) => false,
+              txInfo = txInfo
+            )
+        }
+    }
 
     test("success spendMinimal") {
         assertEvalSuccess {
@@ -128,29 +130,29 @@ class StakeValidatorTest extends StdlibTestKit with scalus.ledger.api.v3.Arbitra
         }
     }
 
-    // TODO: UPLC error with Data.unit
-//    test("success withdraw") {
-//        assertEvalSuccess {
-//            val scriptHash = ByteString.empty
-//            val credential = Credential.ScriptCredential(scriptHash)
-//
-//            val txInfo = TxInfo(
-//              inputs = List.empty,
-//              id = TxId(ByteString.empty)
-//            )
-//
-//            StakeValidator.withdraw(
-//              withdrawalValidator = (redeemer, validatorHash, tx) => true,
-//              redeemer = Data.unit,
-//              credential = credential,
-//              txInfo = txInfo
-//            )
-//        }
-//    }
+    // TODO: UPLC error
+    ignore("success withdraw") {
+        assertEvalSuccess {
+            val scriptHash = ByteString.empty
+            val credential = Credential.ScriptCredential(scriptHash)
 
-    // TODO: UPLC error with Data.unit
+            val txInfo = TxInfo(
+              inputs = List.empty,
+              id = TxId(ByteString.empty)
+            )
+
+            StakeValidator.withdraw(
+              withdrawalValidator = (redeemer, validatorHash, tx) => true,
+              redeemer = ().toData,
+              credential = credential,
+              txInfo = txInfo
+            )
+        }
+    }
+
+    // TODO: UPLC error
 //    test("failed withdraw with pub key credential not supported") {
-//        assertEvalFailsWithMessage[RuntimeException](StakeValidator.PubKeyCredentialNotSupported) {
+//        assertEvalFailsWithMessage[OnchainError](StakeValidator.PubKeyCredentialNotSupported) {
 //            val scriptHash = ByteString.empty
 //            val credential = Credential.PubKeyCredential(PubKeyHash(scriptHash))
 //
@@ -161,16 +163,16 @@ class StakeValidatorTest extends StdlibTestKit with scalus.ledger.api.v3.Arbitra
 //
 //            StakeValidator.withdraw(
 //              withdrawalValidator = (redeemer, validatorHash, tx) => true,
-//              redeemer = Data.unit,
+//              redeemer = ().toData,
 //              credential = credential,
 //              txInfo = txInfo
 //            )
 //        }
 //    }
 
-    // TODO: UPLC error with Data.unit
+    // TODO: UPLC error
 //    test("failed withdraw with withdrawal validator failed") {
-//        assertEvalFailsWithMessage[RuntimeException](StakeValidator.WithdrawalValidatorFailed) {
+//        assertEvalFailsWithMessage[RequirementError](StakeValidator.WithdrawalValidatorFailed) {
 //            val scriptHash = ByteString.empty
 //            val credential = Credential.ScriptCredential(scriptHash)
 //
@@ -181,7 +183,7 @@ class StakeValidatorTest extends StdlibTestKit with scalus.ledger.api.v3.Arbitra
 //
 //            StakeValidator.withdraw(
 //              withdrawalValidator = (redeemer, validatorHash, tx) => false,
-//              redeemer = Data.unit,
+//              redeemer = ().toData,
 //              credential = credential,
 //              txInfo = txInfo
 //            )
