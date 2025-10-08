@@ -140,7 +140,7 @@ object Betting extends Validator:
                                                     case _ => fail("New datum must be present")
                                             case _ => fail("Current bet datum must be inline")
                                     case _ => fail("Continuing output must be single")
-                            case _ => fail("There's must be a continuing output")
+                            case _ => fail("There must be a continuing output")
                     // Handle oracle announcing the winner
                     case Action.AnnounceWinner(winner) =>
                         input.datum match // FIME: nested pattern matching
@@ -232,7 +232,7 @@ object BettingContract:
     inline def compiled(using scalus.Compiler.Options) = compile(Betting.validate)
 
     def application: Application = Application
-        .ofSingleValidator[VestingDatum, VestingRedeemer](
+        .ofSingleValidator[BetDatum, Action](
           "Betting validator",
           "Decentralized two-player betting system with trustless wagering and oracle-based resolution",
           "1.0.0",

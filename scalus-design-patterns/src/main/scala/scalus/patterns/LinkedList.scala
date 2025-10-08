@@ -1,26 +1,20 @@
-package scalus.examples
+package scalus.patterns
 
+import scalus.Compiler.compile
 import scalus.builtin.Builtins
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.ToData
+import scalus.cardano.blueprint.Application
+import scalus.cardano.blueprint.Blueprint
 import scalus.ledger.api.v1.Address
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.prelude.Option.*
 import scalus.{show as _, *}
-
-case class AssetClass(
-    currencySymbol: CurrencySymbol,
-    tokenName: TokenName
-) derives FromData,
-      ToData
-
-@Compile
-object AssetClass
 
 case class Config(
     init: TxOutRef,
@@ -99,9 +93,10 @@ enum NodeAction derives FromData, ToData:
 @Compile
 object NodeAction
 
-case class LinkedList(cfg: Config) extends Validator:
+@Compile
+object LinkedList extends DataParameterizedValidator:
 
-    val nodeToken: TokenName = utf8"LAN"
+    val nodeToken: TokenName = fromString("LAN") // FIXME: utf8"LAN" syntax
 
     def mkCommon(
         currencySymbol: CurrencySymbol,
@@ -184,10 +179,12 @@ case class LinkedList(cfg: Config) extends Validator:
         else None
 
     override def mint(
+        cfgData: Data,
         redeemer: Data,
         currencySymbol: CurrencySymbol,
         tx: TxInfo
     ): Unit =
+        val cfg = cfgData.to[Config]
         val (common, inputs, outputs, signatories, range) = mkCommon(currencySymbol, tx)
         redeemer.to[NodeAction] match
             case NodeAction.Init =>
@@ -198,11 +195,11 @@ case class LinkedList(cfg: Config) extends Validator:
             case NodeAction.Deinit =>
                 require(deinit(common), "validate deinit")
             case NodeAction.Insert(key, covering) =>
-                require(range.entirelyBefore(cfg.deadline), "must be before the deadline")
+                require(range.isEntirelyBefore(cfg.deadline), "must be before the deadline")
                 require(signatories.contains(key), "must be signed by a node key")
                 require(insert(common, key, covering), "validate insert")
             case NodeAction.Remove(key, covering) =>
-                require(range.entirelyBefore(cfg.deadline), "must be before the deadline")
+                require(range.isEntirelyBefore(cfg.deadline), "must be before the deadline")
                 require(
                   remove(common, range, cfg, outputs, signatories, key, covering),
                   "validate remove"
@@ -238,7 +235,7 @@ case class LinkedList(cfg: Config) extends Validator:
                                 mustNotProduceNodeOutput && mustBurnCorrectly
                             case _ => false // Linked list must be empty
                     case _ => false // Head node input must be single
-            case _ => false // There's must be a head node input
+            case _ => false // There must be a head node input
 
     /** Insert a node under for a key at an unordered list.
       *
@@ -290,15 +287,27 @@ case class LinkedList(cfg: Config) extends Validator:
                 // TODO: both find in a single pass
                 common.inputs.find(SetNode(Some(key), node.link) === _.node) match
                     case Some(removeNode) =>
-                        val fee = removeNode.value.getLovelace /% BigInt(4) match
-                            case (div, rem) => if rem == BigInt(0) then div else div + BigInt(1)
+                        val div = removeNode.value.getLovelace / BigInt(4)
+                        val rem = removeNode.value.getLovelace % BigInt(4)
+                        val fee = if rem == BigInt(0) then div else div + BigInt(1)
                         val mustSatisfyRemovalBrokePhaseRules =
-                            range.entirelyBefore(config.deadline) || outputs.exists(out =>
+                            range.isEntirelyBefore(config.deadline) || outputs.exists(out =>
                                 out.address === config.penalty && fee < out.value.getLovelace
                             )
                         mustCoverRemoveKey && mustSpendTwoNodes && mustCorrectNodeOutput && mustMintCorrect && mustSignByUser && mustSatisfyRemovalBrokePhaseRules
-                    case _ => false // There's must be a remove node input
-            case _ => false // There's must be a stay node input
+                    case _ => false // There must be a remove node input
+            case _ => false // There must be a stay node input
 
-@Compile
-object LinkedList
+object LinkedListContract:
+
+    inline def compiled(using scalus.Compiler.Options) = compile(LinkedList.validate)
+
+    def application: Application = Application
+        .ofSingleValidator[Config, NodeAction](
+          "LinkedList validator",
+          "Linked list structures leverage the EUTXO model to enhancing scalability and throughput significantly. By linking multiple UTXOs together through a series of minting policies and validators, it can improve the user experience interacting with smart contract concurrently.",
+          "1.0.0",
+          LinkedList.validate
+        )
+
+    def blueprint: Blueprint = application.blueprint
