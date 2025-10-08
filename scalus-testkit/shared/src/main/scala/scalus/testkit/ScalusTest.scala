@@ -10,6 +10,7 @@ import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
+import scalus.prelude.Option.*
 import scalus.sir.SIR
 import scalus.uplc.*
 import scalus.uplc.eval.*
@@ -21,12 +22,13 @@ trait ScalusTest extends ArbitraryInstances {
         def runScript(using
             scalusOptions: scalus.Compiler.Options = scalus.Compiler.defaultOptions
         )(
-            scriptContext: ScriptContext
+            scriptContext: ScriptContext,
+            param: Option[Data] = None
         ): Result =
             // UPLC program: (ScriptContext as Data) -> ()
             val script = self.toUplc().plutusV3
-//            println(s"uplc: ${script.pretty.render(100)}")
-            val appliedScript = script $ scriptContext.toData
+            // println(s"uplc: ${script.pretty.render(100)}")
+            val appliedScript = param.map(script $ _).getOrElse(script) $ scriptContext.toData
             appliedScript.evaluateDebug
 
         def scriptV3(using
