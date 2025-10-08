@@ -231,7 +231,6 @@ class CompilerPluginEvalTest extends AnyFunSuite {
 
     }
 
-    /*
     test("compile inner matches on enum") {
         import scalus.prelude.*
         val sir = compile { (x: List[Option[BigInt]]) =>
@@ -258,7 +257,5 @@ class CompilerPluginEvalTest extends AnyFunSuite {
         val r3 = (uplc $ arg3).evaluate
         assert(r3 == Term.Const(Constant.Integer(-1)))
     }
-    
-     */
 
 }
