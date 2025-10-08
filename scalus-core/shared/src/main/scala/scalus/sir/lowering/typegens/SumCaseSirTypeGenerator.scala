@@ -477,6 +477,8 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
             case SIRType.SumCaseClass(decl, _) =>
                 decl.constructors
             case SIRType.TypeLambda(_, t) => findConstructors(t, pos)
+            case SIRType.TypeProxy(ref) =>
+                findConstructors(ref, pos)
             case _ =>
                 throw new IllegalArgumentException(
                   s"Expected case class type, got ${sirType} at match at ${pos}"
