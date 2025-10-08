@@ -2,6 +2,7 @@ package scalus.patterns
 
 import scalus.Compiler.compile
 import scalus.builtin.Builtins
+import scalus.builtin.Builtins.trace
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
@@ -74,7 +75,7 @@ object NodePair:
   *   current Tx outputs
   */
 case class Common(
-    currency: CurrencySymbol,
+    currency: PolicyId,
     mint: Value,
     inputs: List[NodePair], // TxInInfo
     outputs: List[NodePair] // TxOut
@@ -99,7 +100,7 @@ object LinkedList extends DataParameterizedValidator:
     val nodeToken: TokenName = fromString("LAN") // FIXME: utf8"LAN" syntax
 
     def mkCommon(
-        currencySymbol: CurrencySymbol,
+        currencySymbol: PolicyId,
         tx: TxInfo
     ): (Common, List[TxInInfo], List[TxOut], List[PubKeyHash], Interval) =
         val fromNodeOutputs =
@@ -117,9 +118,7 @@ object LinkedList extends DataParameterizedValidator:
                     NodePair(
                       out.value,
                       out.datum match
-                          case OutputDatum.OutputDatum(nodeDatum) =>
-                              val node = nodeDatum.to[SetNode]
-                              node
+                          case OutputDatum.OutputDatum(nodeDatum) => nodeDatum.to[SetNode]
                           case _ => fail("Node datum must be inline")
                     )
                 )
@@ -181,7 +180,7 @@ object LinkedList extends DataParameterizedValidator:
     override def mint(
         cfgData: Data,
         redeemer: Data,
-        currencySymbol: CurrencySymbol,
+        currencySymbol: PolicyId,
         tx: TxInfo
     ): Unit =
         val cfg = cfgData.to[Config]
@@ -217,7 +216,7 @@ object LinkedList extends DataParameterizedValidator:
         val mustExactlyOneNodeOutput = common.outputs.length == BigInt(1)
         val mustMintCorrectly =
             common.mint.flatten === List.single((common.currency, nodeToken, BigInt(1)))
-        mustSpendNodes && mustExactlyOneNodeOutput && mustMintCorrectly
+        mustSpendNodes.? && mustExactlyOneNodeOutput.? && mustMintCorrectly.?
 
     /** Deinitialize an empty unordered list.
       */
@@ -232,10 +231,10 @@ object LinkedList extends DataParameterizedValidator:
                                 val mustBurnCorrectly = common.mint.flatten === List.single(
                                   (common.currency, nodeToken, BigInt(-1))
                                 )
-                                mustNotProduceNodeOutput && mustBurnCorrectly
-                            case _ => false // Linked list must be empty
-                    case _ => false // Head node input must be single
-            case _ => false // There must be a head node input
+                                mustNotProduceNodeOutput.? && mustBurnCorrectly.?
+                            case _ => trace("Linked list must be empty")(false)
+                    case _ => trace("Head node input must be single")(false)
+            case _ => trace("There must be a head node input")(false)
 
     /** Insert a node under for a key at an unordered list.
       *
@@ -257,9 +256,9 @@ object LinkedList extends DataParameterizedValidator:
                         val mustMintCorrect = common.mint.flatten === List.single(
                           (common.currency, nodeToken ++ key, BigInt(1)) // serializedKey
                         )
-                        mustCoverInsertingKey && mustHasDatumInOutput && mustCorrectNodeOutput && mustMintCorrect
-                    case _ => false // Linked list must be empty
-            case _ => false // Covering node input must be single
+                        mustCoverInsertingKey.? && mustHasDatumInOutput.? && mustCorrectNodeOutput.? && mustMintCorrect.?
+                    case _ => trace("Linked list must be empty")(false)
+            case _ => trace("Covering node input must be single")(false)
 
     /** Remove a non-root node from the list.
       */
@@ -294,9 +293,9 @@ object LinkedList extends DataParameterizedValidator:
                             range.isEntirelyBefore(config.deadline) || outputs.exists(out =>
                                 out.address === config.penalty && fee < out.value.getLovelace
                             )
-                        mustCoverRemoveKey && mustSpendTwoNodes && mustCorrectNodeOutput && mustMintCorrect && mustSignByUser && mustSatisfyRemovalBrokePhaseRules
-                    case _ => false // There must be a remove node input
-            case _ => false // There must be a stay node input
+                        mustCoverRemoveKey.? && mustSpendTwoNodes.? && mustCorrectNodeOutput.? && mustMintCorrect.? && mustSignByUser.? && mustSatisfyRemovalBrokePhaseRules.?
+                    case _ => trace("There must be a remove node input")(false)
+            case _ => trace("There must be a stay node input")(false)
 
 object LinkedListContract:
 
