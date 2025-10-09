@@ -154,7 +154,7 @@ class S3LoweringDataAccessTest extends AnyFunSuite {
         val r = term.evaluateDebug
         if r.isFailure then println(r)
         assert(r.isSuccess)
-        */
+     */
 
     test("get txInfop.validRange from ScriptContext") {
         val sir =
