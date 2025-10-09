@@ -116,6 +116,46 @@ class S3LoweringDataAccessTest extends AnyFunSuite {
         assert(r.isSuccess)
     }
 
+    /*
+    test("Interval"):
+        val sir = compile:
+            Interval
+                .entirelyBetween(BigInt(1000), BigInt(2000))
+                .isEntirelyAfter(BigInt(86_400_000))
+
+        // println(sir.showHighlighted)
+        val lower = SirToUplcV3Lowering(sir)
+        val term = lower.lower()
+        // println(term.showHighlighted)
+        val r = term.evaluateDebug
+        assert(r.isSuccess)
+
+    test("Interval from TxInfo"):
+        val sir = compile: (data: Data) =>
+            val ctx = data.to[TxInfo]
+            ctx.validRange
+                .isEntirelyBefore(ctx.data.values.head.to[Option[PosixTime]].get)
+
+        import scalus.prelude.Option.{*, *}
+        import scalus.builtin.Data.{to, toData}
+
+        val data = Some(86_400_000L).toData
+        val tx = TxInfo.placeholder
+            .copy(
+              validRange = Interval.entirelyBetween(1000L, 2000L),
+              data = SortedMap.singleton(data.dataHash, data)
+            )
+            .toData
+
+        // println(sir.showHighlighted)
+        val lower = SirToUplcV3Lowering(sir)
+        val term = lower.lower() $ tx.asTerm
+        // println(term.showHighlighted)
+        val r = term.evaluateDebug
+        if r.isFailure then println(r)
+        assert(r.isSuccess)
+        */
+
     test("get txInfop.validRange from ScriptContext") {
         val sir =
             compile: (ctxData: Data) =>
