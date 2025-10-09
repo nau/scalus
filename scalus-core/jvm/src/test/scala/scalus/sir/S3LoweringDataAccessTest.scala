@@ -39,6 +39,7 @@ class S3LoweringDataAccessTest extends AnyFunSuite {
         case CCC
         case DDD(a: BigInt)
 
+    
     test("V3 lowering") {
         val sir =
             compile:
@@ -115,9 +116,9 @@ class S3LoweringDataAccessTest extends AnyFunSuite {
         val r = term.evaluateDebug
         assert(r.isSuccess)
     }
+    
 
-    /*
-    test("Interval"):
+    test("Interval") {
         val sir = compile:
             Interval
                 .entirelyBetween(BigInt(1000), BigInt(2000))
@@ -129,17 +130,58 @@ class S3LoweringDataAccessTest extends AnyFunSuite {
         // println(term.showHighlighted)
         val r = term.evaluateDebug
         assert(r.isSuccess)
+    }
+        
 
-    test("Interval from TxInfo"):
-        val sir = compile: (data: Data) =>
+        
+        
+
+    test("IntervalBound data representation") {
+        // Test each part separately then use in isEntirelyBefore
+        import scalus.prelude.show
+        import scalus.builtin.Data.toData
+        val sir = compile{ (data: Data) =>
+            val intervalBound = data.to[IntervalBound]
+            log("from:")
+            log(intervalBound.toData.show)
+            log("from.boundType:")
+            log(intervalBound.boundType.toData.show)
+            log("from.boundType.closure:")
+            log(intervalBound.isInclusive.show)
+        }
+
+    
+        import scalus.builtin.Data.to
+
+        val interval = Interval.entirelyBetween(1000L, 2000L)
+        val vlFrom = interval.from
+
+        val lower1 = SirToUplcV3Lowering(sir)
+        //val term1 = lower1.lower() $ tx.asTerm
+        val term1 = lower1.lower() $ vlFrom.toData.asTerm
+        val r1 = term1.evaluateDebug
+        r1 match
+            case Result.Success(result, _, _, logs) =>
+            case Result.Failure(_, _, _, logs) =>
+                println(s"result: $r1")
+                logs.foreach(println)
+
+        assert(r1.isSuccess, "Separated expressions should work")
+    }
+        
+    
+    test("Interval from TxInfo") {
+        // Test the chained expression - this fails
+        val sirChained = compile{ (data: Data) =>
             val ctx = data.to[TxInfo]
-            ctx.validRange
-                .isEntirelyBefore(ctx.data.values.head.to[Option[PosixTime]].get)
+            val extracted = ctx.data.values.head.to[Option[PosixTime]].get
+            ctx.validRange.isEntirelyBefore(extracted)
+        }
 
-        import scalus.prelude.Option.{*, *}
+        import scalus.prelude.Option
         import scalus.builtin.Data.{to, toData}
 
-        val data = Some(86_400_000L).toData
+        val data = Option.Some(BigInt(86_400_000L)).toData
         val tx = TxInfo.placeholder
             .copy(
               validRange = Interval.entirelyBetween(1000L, 2000L),
@@ -147,14 +189,19 @@ class S3LoweringDataAccessTest extends AnyFunSuite {
             )
             .toData
 
-        // println(sir.showHighlighted)
-        val lower = SirToUplcV3Lowering(sir)
-        val term = lower.lower() $ tx.asTerm
-        // println(term.showHighlighted)
-        val r = term.evaluateDebug
-        if r.isFailure then println(r)
-        assert(r.isSuccess)
-     */
+        val lower2 = SirToUplcV3Lowering(sirChained)
+        val term2 = lower2.lower() $ tx.asTerm
+        val r2 = term2.evaluateDebug
+        r2 match
+            case Result.Success(_, _, _, logs) =>
+                logs.foreach(println)
+            case Result.Failure(_, _, _, logs) =>
+                logs.foreach(println)
+
+        assert(r2.isSuccess, "Call of isEntirelyBefore on intervsal from TxInfo should work")
+    }
+
+    
 
     test("get txInfop.validRange from ScriptContext") {
         val sir =
@@ -197,5 +244,6 @@ class S3LoweringDataAccessTest extends AnyFunSuite {
         // println(ctx.txInfo.validRange.toData.asTerm.showHighlighted)
         assert(Term.alphaEq(t, ctx.txInfo.validRange.toData.asTerm))
     }
+    
 
 }

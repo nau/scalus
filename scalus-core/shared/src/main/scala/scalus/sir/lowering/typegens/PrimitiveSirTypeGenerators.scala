@@ -100,40 +100,61 @@ trait PrimitiveSirTypeGenerator extends SirTypeUplcGenerator {
 
 object SIRTypeUplcBooleanGenerator extends PrimitiveSirTypeGenerator {
 
+    /** Boolean represented in data as Constr 0 [] and Constr 1 [] (see definition in plutus:
+      * https://github.com/IntersectMBO/plutus/blob/master/plutus-tx/src/PlutusTx/IsData/Instances.hs#L24C1-L25C1)
+      *
+      * @param input
+      * @param pos
+      * @return
+      */
     override def uplcToDataValue(input: LoweredValue, pos: SIRPosition)(using
         LoweringContext
     ): LoweredValue =
-        lvIfThenElse(
+
+        val asInt = lvIfThenElse(
           input,
-          lvBuiltinApply(
-            SIRBuiltins.iData,
-            lvIntConstant(1, pos),
-            SIRType.Boolean,
-            PrimitiveRepresentation.PackedData,
+          lvIntConstant(1, pos),
+          lvIntConstant(0, pos),
+          pos
+        )
+        lvBuiltinApply2(
+          SIRBuiltins.constrData,
+          asInt,
+          lvBuiltinApply0(
+            SIRBuiltins.mkNilData,
+            SIRType.BuiltinList(SIRType.Data),
+            PrimitiveRepresentation.Constant,
             pos
           ),
-          lvBuiltinApply(
-            SIRBuiltins.iData,
-            lvIntConstant(0, pos),
-            SIRType.Boolean,
-            PrimitiveRepresentation.PackedData,
-            pos
-          ),
+          SIRType.Data,
+          PrimitiveRepresentation.PackedData,
           pos
         )
 
     override def dataToUplcValue(input: LoweredValue, pos: SIRPosition)(using
         LoweringContext
     ): LoweredValue =
+
+        val unconstr = lvBuiltinApply(
+          SIRBuiltins.unConstrData,
+          input,
+          SIRType.BuiltinPair(
+            SIRType.Integer,
+            SIRType.BuiltinList(SIRType.Data)
+          ),
+          PrimitiveRepresentation.Constant,
+          pos
+        )
+        val asInt = lvBuiltinApply(
+          SIRBuiltins.fstPair,
+          unconstr,
+          SIRType.Integer,
+          PrimitiveRepresentation.Constant,
+          pos
+        )
         lvIfThenElse(
           lvEqualsInteger(
-            lvBuiltinApply(
-              SIRBuiltins.unIData,
-              input,
-              SIRType.Integer,
-              PrimitiveRepresentation.Constant,
-              pos
-            ),
+            asInt,
             lvIntConstant(0, pos),
             pos
           ),

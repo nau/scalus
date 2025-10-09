@@ -35,6 +35,7 @@ enum IntervalBoundType:
 
 @Compile
 object IntervalBoundType {
+
     given Eq[IntervalBoundType] = (x: IntervalBoundType, y: IntervalBoundType) =>
         x match
             case NegInf =>
