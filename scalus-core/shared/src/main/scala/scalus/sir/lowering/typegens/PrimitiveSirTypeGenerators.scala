@@ -116,6 +116,7 @@ object SIRTypeUplcBooleanGenerator extends PrimitiveSirTypeGenerator {
           lvIntConstant(1, pos),
           lvIntConstant(0, pos),
           pos
+        
         )
         lvBuiltinApply2(
           SIRBuiltins.constrData,
@@ -126,7 +127,7 @@ object SIRTypeUplcBooleanGenerator extends PrimitiveSirTypeGenerator {
             PrimitiveRepresentation.Constant,
             pos
           ),
-          SIRType.Data,
+          SIRType.Boolean,
           PrimitiveRepresentation.PackedData,
           pos
         )
