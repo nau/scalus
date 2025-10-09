@@ -2049,11 +2049,25 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                     val caseBody = compileDecisions(ctx, subtree, parsedMatch, actions, guards)
                     SIR.Case(SIR.Pattern.Const(const), caseBody, AnnotationsDecl.fromSrcPos(pos))
                 }.toList
+                val defaultCase = {
+                    val defaultBody = compileDecisions(ctx, optNext, parsedMatch, actions, guards)
+                    SIR.Case(
+                      SIR.Pattern.Wildcard,
+                      defaultBody,
+                      AnnotationsDecl.fromSrcPos(pos) + ("sir.DefaultCase" -> SIR.Const
+                          .bool(true, AnnotationsDecl.empty))
+                    )
+                }
                 val scrutinee = SIR.Var(columnName, scrutineeTp, AnnotationsDecl.fromSrcPos(pos))
                 val matchAnns = AnnotationsDecl.fromSrcPos(
                   pos
                 ) ++ (if ctx.isUnchecked then Map("unchecked" -> trueConst) else Map.empty)
-                SIR.Match(scrutinee, caseDefs, parsedMatch.resTp, matchAnns)
+                SIR.Match(
+                  scrutinee,
+                  caseDefs :+ defaultCase,
+                  parsedMatch.resTp,
+                  matchAnns
+                )
             case SirCaseDecisionTree.ConstructorsChoice(
                   columnName,
                   scrutineeTp,
