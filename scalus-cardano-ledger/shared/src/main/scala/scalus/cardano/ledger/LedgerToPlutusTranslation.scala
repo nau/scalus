@@ -604,7 +604,7 @@ object LedgerToPlutusTranslation {
             body.requiredSigners.toSortedSet.view
                 .map(hash => v1.PubKeyHash(hash))
           ),
-          data = prelude.List.from(datums.sortBy(_._1)),
+          data = prelude.List.from(datums.to(immutable.SortedMap)),
           id = v1.TxId(tx.id)
         )
     }
@@ -643,7 +643,7 @@ object LedgerToPlutusTranslation {
               val purpose = getScriptPurposeV2(tx, redeemer)
               purpose -> redeemer.data
           })),
-          data = SortedMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
+          data = SortedMap.unsafeFromList(prelude.List.from(datums.to(immutable.SortedMap))),
           id = v1.TxId(tx.id)
         )
     }
@@ -701,7 +701,7 @@ object LedgerToPlutusTranslation {
               val purpose = getScriptPurposeV3(tx, redeemer)
               purpose -> redeemer.data
           })),
-          data = SortedMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
+          data = SortedMap.unsafeFromList(prelude.List.from(datums.to(immutable.SortedMap))),
           id = v3.TxId(tx.id),
           votes = getVotingProcedures(body.votingProcedures),
           proposalProcedures = prelude.List.from(

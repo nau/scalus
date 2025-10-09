@@ -42,6 +42,21 @@ case class LookupTable(
     datums: Map[DataHash, Data]
 )
 
+type PlutusScriptContext = v1.ScriptContext | v2.ScriptContext | v3.ScriptContext
+object PlutusScriptContext {
+    def foldMap[T](sc: PlutusScriptContext)(
+        f1: v1.ScriptContext => T,
+        f2: v2.ScriptContext => T,
+        f3: v3.ScriptContext => T
+    ): T = sc match {
+        case sc1: v1.ScriptContext => f1(sc1)
+        case sc2: v2.ScriptContext => f2(sc2)
+        case sc3: v3.ScriptContext => f3(sc3)
+    }
+    def asData(sc: PlutusScriptContext): Data =
+        foldMap(sc)(_.toData, _.toData, _.toData)
+}
+
 /** Evaluates Plutus V1, V2 or V3 scripts using the provided transaction and UTxO set.
   *
   * @note
@@ -116,7 +131,13 @@ class PlutusScriptEvaluator(
     def evalPlutusScripts(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput],
-    ): Seq[Redeemer] = {
+    ): Seq[Redeemer] =
+        evalPlutusScriptsWithContexts(tx, utxos).map(_._1)
+
+    def evalPlutusScriptsWithContexts(
+        tx: Transaction,
+        utxos: Map[TransactionInput, TransactionOutput],
+    ): Seq[(Redeemer, PlutusScriptContext)] = {
         log.debug(s"Starting Phase 2 evaluation for transaction: ${tx.id}")
 
         val redeemers = tx.witnessSet.redeemers.map(_.value.toMap).getOrElse(Map.empty)
@@ -204,7 +225,7 @@ class PlutusScriptEvaluator(
                           s"Redeemer not found for tag $redeemerTag and index $index"
                         )
 
-                val evaluatedRedeemer =
+                val (evaluatedRedeemer, sc) =
                     evalRedeemer(tx, datumsMapping, utxos, redeemer, plutusScript, datum)
 
                 // Log execution unit differences for debugging
@@ -219,7 +240,7 @@ class PlutusScriptEvaluator(
                   remainingBudget.memory - evaluatedRedeemer.exUnits.memory
                 )
 
-                evaluatedRedeemer
+                (evaluatedRedeemer, sc)
             }).toSeq
 
         log.debug(s"Phase 2 evaluation completed. Remaining budget: $remainingBudget")
@@ -242,7 +263,7 @@ class PlutusScriptEvaluator(
         redeemer: Redeemer,
         plutusScript: PlutusScript,
         datum: Option[Data]
-    ): Redeemer = {
+    ): (Redeemer, PlutusScriptContext) = {
         val result = plutusScript match
             case Script.PlutusV1(script) =>
                 evalPlutusV1Script(tx, datums, utxos, redeemer, script, datum)
@@ -253,11 +274,11 @@ class PlutusScriptEvaluator(
             case Script.PlutusV3(script) =>
                 evalPlutusV3Script(tx, datums, utxos, redeemer, script, datum)
 
-        val cost = result.budget
+        val cost = result._1.budget
         log.debug(s"Evaluation result: $result")
 
         // Return redeemer with computed execution units
-        redeemer.copy(exUnits = ExUnits(memory = cost.memory, steps = cost.cpu))
+        redeemer.copy(exUnits = ExUnits(memory = cost.memory, steps = cost.cpu)) -> result._2
     }
 
     private def extractDatumFromOutput(
@@ -284,7 +305,7 @@ class PlutusScriptEvaluator(
         redeemer: Redeemer,
         script: ByteString,
         datum: Option[Data]
-    ): Result = {
+    ): (Result, v1.ScriptContext) = {
         // Build V1 script context
         val txInfoV1 = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
         val purpose = getScriptPurposeV1(tx, redeemer)
@@ -298,7 +319,13 @@ class PlutusScriptEvaluator(
         log.debug(s"Script context: ${ctxData.toJson}")
 
         // Apply script arguments based on whether datum is present
-        evalScript(redeemer, txhash, plutusV1VM, script, datum.toSeq :+ redeemer.data :+ ctxData*)
+        evalScript(
+          redeemer,
+          txhash,
+          plutusV1VM,
+          script,
+          datum.toSeq :+ redeemer.data :+ ctxData*
+        ) -> scriptContext
     }
 
     /** Evaluate a Plutus V2 script with the V2 script context.
@@ -310,7 +337,7 @@ class PlutusScriptEvaluator(
         redeemer: Redeemer,
         script: ByteString,
         datum: Option[Data]
-    ): Result = {
+    ): (Result, v2.ScriptContext) = {
         // Build V2 script context
         val txInfoV2 = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
         val purpose = getScriptPurposeV2(tx, redeemer)
@@ -324,7 +351,13 @@ class PlutusScriptEvaluator(
         log.debug(s"Script context: ${ctxData.toJson}")
 
         // Apply script arguments
-        evalScript(redeemer, txhash, plutusV2VM, script, datum.toSeq :+ redeemer.data :+ ctxData*)
+        evalScript(
+          redeemer,
+          txhash,
+          plutusV2VM,
+          script,
+          datum.toSeq :+ redeemer.data :+ ctxData*
+        ) -> scriptContext
     }
 
     /** Evaluate a Plutus V3 script with the V3 script context.
@@ -336,7 +369,7 @@ class PlutusScriptEvaluator(
         redeemer: Redeemer,
         script: ByteString,
         datum: Option[Data]
-    ): Result = {
+    ): (Result, v3.ScriptContext) = {
         // Build V3 script context
         val txInfoV3 = getTxInfoV3(tx, datums, utxos, slotConfig, protocolMajorVersion)
         val scriptInfo = getScriptInfoV3(tx, redeemer, datum)
@@ -350,7 +383,7 @@ class PlutusScriptEvaluator(
         log.debug(s"Script context: ${ctxData.toJson}")
 
         // V3 scripts only take the script context as argument
-        evalScript(redeemer, txhash, plutusV3VM, script, ctxData)
+        evalScript(redeemer, txhash, plutusV3VM, script, ctxData) -> scriptContext
     }
 
     /** Execute a UPLC script with the given arguments.

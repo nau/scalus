@@ -636,7 +636,7 @@ object Interop {
                 .map(v1.PubKeyHash.apply)
                 .toSeq
           ),
-          data = prelude.List.from(datums.sortBy(_._1)),
+          data = prelude.List.from(datums.to(immutable.SortedMap)),
           id = v1.TxId(ByteString.fromHex(txhash))
         )
     }
@@ -696,7 +696,7 @@ object Interop {
                   )
                   purpose -> toScalusData(redeemer.getData)
               })),
-          data = SortedMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
+          data = SortedMap.unsafeFromList(prelude.List.from(datums.to(immutable.SortedMap))),
           id = v1.TxId(ByteString.fromHex(txhash))
         )
     }
@@ -1089,7 +1089,7 @@ object Interop {
                   val purpose = getScriptPurposeV3(tx, redeemer)
                   purpose -> toScalusData(redeemer.getData)
               })),
-          data = SortedMap.unsafeFromList(prelude.List.from(datums.sortBy(_._1))),
+          data = SortedMap.unsafeFromList(prelude.List.from(datums.to(immutable.SortedMap))),
           id = v3.TxId(ByteString.fromHex(txhash)),
           votes = getVotingProcedures(body.getVotingProcedures),
           proposalProcedures = prelude.List

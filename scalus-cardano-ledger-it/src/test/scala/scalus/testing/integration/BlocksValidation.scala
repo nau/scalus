@@ -20,7 +20,7 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, LedgerToPlutusTranslation, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, ProtocolParams, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, LedgerToPlutusTranslation, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptContext, PlutusScriptEvaluator, ProtocolParams, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Hex.toHex
 import scalus.utils.Utils
@@ -170,7 +170,7 @@ class BlocksValidation extends AnyFunSuite {
                |v3: $v3ScriptsExecuted of ${v3Scripts.size}
                |""".stripMargin)
 
-        assert(errors.size <= 67)
+        assert(errors.size == 50)
     }
 
     private def validateBlocksOfEpochWithScalus(epoch: Int): Int = {
@@ -219,8 +219,8 @@ class BlocksValidation extends AnyFunSuite {
 //                    pprint.pprintln(tx)
                     val utxos = utxoResolver.resolveUtxos(tx)
                     if tx.isValid && tx.witnessSet.redeemers.nonEmpty then {
-                        val actualRedeemers =
-                            Redeemers.from(evaluator.evalPlutusScripts(tx, utxos)).toMap
+                        val results = evaluator.evalPlutusScriptsWithContexts(tx, utxos)
+                        val actualRedeemers = Redeemers.from(results.map(_._1)).toMap
                         val expectedRedeemers = tx.witnessSet.redeemers.get.value.toMap
                         for (key, (_, actualExUnits)) <- actualRedeemers do
                             val expectedExUnits = expectedRedeemers(key)._2
@@ -231,6 +231,15 @@ class BlocksValidation extends AnyFunSuite {
                                 println(
                                   s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}"
                                 )
+                                for case (_, sc) <- results.find(r => (r._1.tag, r._1.index) == key)
+                                do
+                                    println(
+                                      PlutusScriptContext.foldMap(sc)(
+                                        "v1." + pprint(_),
+                                        "v2." + pprint(_),
+                                        "v3." + pprint(_)
+                                      )
+                                    )
                             }
                     }
                     totalTx += 1
@@ -243,7 +252,6 @@ class BlocksValidation extends AnyFunSuite {
         println(
           s"\n${Console.GREEN}Total txs: $totalTx, errors ${errors.size}, blocks: ${blocks.size}, epoch: $epoch${Console.RESET}"
         )
-        if errors.size < 184 then println("Some errors were fixed!")
         errors.size
     }
 
@@ -595,8 +603,8 @@ class BlocksValidation extends AnyFunSuite {
         }
     }
 
-    test("validateBlocksOfEpochWithScalus(543) <= 184"):
-        assert(validateBlocksOfEpochWithScalus(543) <= 184)
+    test("validateBlocksOfEpochWithScalus(543)"):
+        assert(validateBlocksOfEpochWithScalus(543) == 0)
 
     test("validateBlocksOfEpoch(543)"):
         validateBlocksOfEpoch(543)
