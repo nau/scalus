@@ -523,10 +523,15 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
 
     private val trueConst = SIR.Const.bool(true, AnnotationsDecl.empty)
 
-    def compileMatch(tree: Match, env: SIRCompiler.Env): AnnotatedSIR = {
+    def compileMatch(
+        tree: Match,
+        env: SIRCompiler.Env,
+        isUnchecked: Boolean = false
+    ): AnnotatedSIR = {
         if env.debug then println(s"compileMatch: ${tree.show}")
         val bPrefix = s"_${tree.srcPos.startPos.source.name}_${tree.srcPos.line}_match_"
         val ctx = PatternMatchingContext(bPrefix, env, tree.srcPos)
+        if isUnchecked then ctx.isUnchecked = true
         val parsedMatch = parseMatch(ctx, tree, env)
 
         // Optimization: if scrutinee is already a variable, use it directly instead of creating a let binding
@@ -1137,6 +1142,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
         val Match(scrutineeMbUnchecked, cases) = tree
         // val typeSymbol = matchTree.tpe.widen.dealias.typeSymbol
         // report.echo(s"Match: ${typeSymbol} ${typeSymbol.children} $adtInfo", tree.srcPos)
+        // Check for @unchecked on the scrutinee
         val (scrutinee, isUnchecked) = scrutineeMbUnchecked match
             case Typed(selectorExpr, tp) =>
                 tp.tpe match
@@ -2043,11 +2049,25 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
                     val caseBody = compileDecisions(ctx, subtree, parsedMatch, actions, guards)
                     SIR.Case(SIR.Pattern.Const(const), caseBody, AnnotationsDecl.fromSrcPos(pos))
                 }.toList
+                val defaultCase = {
+                    val defaultBody = compileDecisions(ctx, optNext, parsedMatch, actions, guards)
+                    SIR.Case(
+                      SIR.Pattern.Wildcard,
+                      defaultBody,
+                      AnnotationsDecl.fromSrcPos(pos) + ("sir.DefaultCase" -> SIR.Const
+                          .bool(true, AnnotationsDecl.empty))
+                    )
+                }
                 val scrutinee = SIR.Var(columnName, scrutineeTp, AnnotationsDecl.fromSrcPos(pos))
                 val matchAnns = AnnotationsDecl.fromSrcPos(
                   pos
                 ) ++ (if ctx.isUnchecked then Map("unchecked" -> trueConst) else Map.empty)
-                SIR.Match(scrutinee, caseDefs, parsedMatch.resTp, matchAnns)
+                SIR.Match(
+                  scrutinee,
+                  caseDefs :+ defaultCase,
+                  parsedMatch.resTp,
+                  matchAnns
+                )
             case SirCaseDecisionTree.ConstructorsChoice(
                   columnName,
                   scrutineeTp,

@@ -71,12 +71,12 @@ object RedeemerPurposeUtils {
 /** Contains parts of a transaction that are needed for redeemer processing.
   */
 case class RedeemersContext(
-    inputs: Vector[TransactionInput],
-    mintingPolicyHashes: Vector[ScriptHash],
-    rewardAddresses: Vector[RewardAccount],
-    certs: Vector[Certificate],
-    proposals: Vector[ProposalProcedure],
-    voters: Vector[Voter]
+    inputs: Vector[TransactionInput] = Vector.empty,
+    mintingPolicyHashes: Vector[ScriptHash] = Vector.empty,
+    rewardAddresses: Vector[RewardAccount] = Vector.empty,
+    certs: Vector[Certificate] = Vector.empty,
+    proposals: Vector[ProposalProcedure] = Vector.empty,
+    voters: Vector[Voter] = Vector.empty
 )
 
 // ============================================================================

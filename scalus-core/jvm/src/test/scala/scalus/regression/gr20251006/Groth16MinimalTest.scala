@@ -4,7 +4,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.Data
-import scalus.regression.gr20251006.Groth16Minimal
 import scala.util.{Failure, Success, Try}
 
 /** Regression test for Groth16 compilation issue

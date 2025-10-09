@@ -105,8 +105,8 @@ class HtlcValidatorTest extends AnyFunSuite with ScalusTest {
         // run as Scala function
         HtlcValidator.validate(context.toData)
 
-        // run as UPLC program
-        checkResult(expected = success, actual = program.runWithDebug(context))
+        // run as UPLC script
+        checkResult(expected = success, actual = script.runWithDebug(context))
 
         // Use Scalus TxEvaluator calculate redeemers/costs/fees for the transaction
         val evaluator = TxEvaluator(
@@ -132,7 +132,7 @@ class HtlcValidatorTest extends AnyFunSuite with ScalusTest {
         val plutusScript = PlutusV3Script
             .builder()
             .`type`("PlutusScriptV3")
-            .cborHex(program.doubleCborHex)
+            .cborHex(script.doubleCborHex)
             .build()
             .asInstanceOf[PlutusV3Script]
         val scriptRefUtxo = Map(
@@ -268,7 +268,7 @@ class HtlcValidatorTest extends AnyFunSuite with ScalusTest {
                 case (((), _), scala.util.Success(_))                  =>
                 case (_, actual) => fail(s"Expected: $expected, but got: $actual")
 
-            checkResult(expected = expected, actual = program.runWithDebug(context))
+            checkResult(expected = expected, actual = script.runWithDebug(context))
         }
 
     private def makeSpendingScriptContext(
@@ -299,8 +299,10 @@ class HtlcValidatorTest extends AnyFunSuite with ScalusTest {
     }
 
     private lazy val sender = new Account()
-    private lazy val program = Htlc.contract.asProgram
-    private lazy val scriptHash = Htlc.contract.asScript.scriptHash
+    private lazy val script = {
+        HtlcValidator.script
+    }
+    private lazy val scriptHash = script.hash
     private val costMdls = CostMdls()
     costMdls.add(CostModelUtil.PlutusV3CostModel)
 }

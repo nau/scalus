@@ -4,8 +4,8 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.{FromData, ToData}
-import scalus.builtin.*
-import scalus.cardano.blueprint.{Application, PlutusV3}
+import scalus.builtin.{ByteString, Data, FromData, ToData}
+import scalus.cardano.blueprint.{Application, Blueprint}
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.uplc.Program
@@ -39,18 +39,24 @@ object HtlcValidator extends Validator:
         redeemer.to[Action] match
             case Action.Timeout =>
                 require(tx.isSignedBy(committer), UnsignedCommitterTransaction)
-                require(tx.validRange.isEntirelyAfter(timeout), InvalidCommitterTimePoint)
+                require(tx.validRange.isAfter(timeout), InvalidCommitterTimePoint)
 
             case Action.Reveal(preimage) =>
                 require(tx.isSignedBy(receiver), UnsignedReceiverTransaction)
-                require(!tx.validRange.isEntirelyAfter(timeout), InvalidReceiverTimePoint)
-                require(sha3_256(preimage) == image, InvalidReceiverPreimage)
+                require(!tx.validRange.isAfter(timeout), InvalidReceiverTimePoint)
+                require(sha3_256(preimage) === image, InvalidReceiverPreimage)
     }
 
     // Helper methods
     extension (self: TxInfo)
         private def isSignedBy(pubKeyHash: PubKeyHash): Boolean =
-            self.signatories.exists { _.hash == pubKeyHash }
+            self.signatories.exists { _.hash === pubKeyHash }
+
+    extension (self: Interval)
+        private infix def isAfter(timePoint: PosixTime): Boolean =
+            self.from.boundType match
+                case IntervalBoundType.Finite(time) => timePoint < time
+                case _                              => false
 
     // Error messages
     inline val InvalidDatum =
@@ -82,34 +88,16 @@ object HtlcValidator extends Validator:
 
 end HtlcValidator
 
-object Htlc:
-    val contract = PlutusV3.create[ContractDatum, Action](
-      title = "Hashed timelocked contract",
-      description =
-          "Releases funds when recipient reveals hash preimage before deadline, otherwise refunds to sender."
-    )(HtlcValidator.validate)
-
-    val application = Application(
-      title = "Hashed timelocked contract",
-      description =
+object HtlcContract:
+    val application: Application = {
+        Application.ofSingleValidator[ContractDatum, Action](
+          "Hashed timelocked contract",
           "Releases funds when recipient reveals hash preimage before deadline, otherwise refunds to sender.",
-      version = "1.0.0",
-      contracts = Seq(contract)
-    )
-end Htlc
+          "1.0.0",
+          HtlcValidator.validate
+        )
+    }
 
-// validate(ctx: ScriptContext): Unit => SIR
-// SIR ?=> (Debug, Release Traces, Backend, Optimization) UPLC
-// UPLC => optimize => UPLC
-// => (v1,v2,v3,v4) Program
-// => PlutusScript => // Cardano Client Lib integration helper: CCL.PlutusScript helper function
-// => CBOR(FLAT)
-// Blueprint.Validator (compiled CBOR, Datum/Redeemer schemas, description)
-// Blueprint.Validator => Blueprint (contracts: List[Validator], preamble: Preamble)
-// Application (blueprint: Blueprint) => JSON (CIP-57) => CLI => API
+    val bluerprint: Blueprint = application.blueprint
 
-// Debug/Release Error handling
-// Custom Optimizations
-// Backend selection
-// Blueprint
-// Application (multiple contracts, endpoints, tx building, testing, deployment, description)
+end HtlcContract
