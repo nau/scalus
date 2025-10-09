@@ -22,11 +22,8 @@ import scalus.cardano.ledger.{MajorProtocolVersion, Script}
 import scalus.ledger
 import scalus.ledger.api
 import scalus.cardano.ledger.Language
-
-import scalus.ledger.api.v1
-import scalus.ledger.api.v2
+import scalus.ledger.api.{v1, v2, v3, ScriptContext}
 import scalus.ledger.api.v2.OutputDatum
-import scalus.ledger.api.v3
 
 import java.nio.file.StandardOpenOption
 import scalus.uplc.{eval, Constant, DeBruijnedProgram, Term}
@@ -75,8 +72,16 @@ object SlotConfig {
 class TxEvaluationException(
     message: String,
     cause: Throwable,
-    @BeanProperty val logs: Array[String]
-) extends Exception(message, cause)
+    @BeanProperty val logs: Array[String],
+    @BeanProperty val scriptContext: List[ScriptContext] = List()
+) extends Exception(
+      s"""Error evaluating transaction: ${message}
+      |Evaluation logs: ${logs.mkString("\n")}""".stripMargin,
+      cause
+    ) {
+    def withContext(sc: ScriptContext): TxEvaluationException =
+        TxEvaluationException(message, cause, logs, sc :: scriptContext)
+}
 
 @deprecated("Use Script instead", "0.10.1")
 enum ScriptVersion:
@@ -133,7 +138,12 @@ class TxEvaluator(
         val datums = transaction.getWitnessSet.getPlutusDataList.asScala
             .map(data => ByteString.fromArray(data.serializeToBytes()))
             .toSeq
-        evaluateTx(transaction, inputUtxos, datums, TransactionUtil.getTxHash(transaction))
+        evaluateTxWithContexts(
+          transaction,
+          inputUtxos,
+          datums,
+          TransactionUtil.getTxHash(transaction)
+        ).map(_._1)
     }
 
     /** Phase 2 validation and execution of the transaction
@@ -143,14 +153,14 @@ class TxEvaluator(
       * @param datums
       *   \- Exact CBOR datums from Transaction Witness Set. This is to compute correct datum hash
       * @return
-      *   Redeemers
+      *   (Redeemers, ScriptContext)
       */
-    def evaluateTx(
+    def evaluateTxWithContexts(
         transaction: Transaction,
         inputUtxos: Map[TransactionInput, TransactionOutput],
         datums: collection.Seq[ByteString],
         txhash: String
-    ): collection.Seq[Redeemer] = {
+    ): collection.Seq[(Redeemer, ScriptContext)] = {
         assert(
           transaction.getWitnessSet.getPlutusDataList.size == datums.size,
           s"Datum size mismatch, expected: ${transaction.getWitnessSet.getPlutusDataList.size}, actual: ${datums.size}"
@@ -315,7 +325,7 @@ class TxEvaluator(
         utxos: Map[TransactionInput, TransactionOutput],
         redeemer: Redeemer,
         lookupTable: LookupTable
-    ): Redeemer = {
+    ): (Redeemer, ScriptContext) = {
         import scalus.bloxbean.Interop.toScalusData
         import scalus.builtin.Data.toData
 
@@ -334,19 +344,31 @@ class TxEvaluator(
                     log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                datum match
-                    case Some(datum) =>
-                        evalScript(
-                          redeemer,
-                          txhash,
-                          plutusV1VM,
-                          script,
-                          datum,
-                          rdmr,
-                          ctxData
-                        )
-                    case None =>
-                        evalScript(redeemer, txhash, plutusV1VM, script, rdmr, ctxData)
+                try {
+                    datum match
+                        case Some(datum) =>
+                            evalScript(
+                              redeemer,
+                              txhash,
+                              plutusV1VM,
+                              script,
+                              datum,
+                              rdmr,
+                              ctxData
+                            ) -> scriptContext
+                        case None =>
+                            evalScript(
+                              redeemer,
+                              txhash,
+                              plutusV1VM,
+                              script,
+                              rdmr,
+                              ctxData
+                            ) -> scriptContext
+                } catch {
+                    case e: TxEvaluationException =>
+                        throw e.withContext(scriptContext)
+                }
 
             case (Script.PlutusV2(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
@@ -360,19 +382,31 @@ class TxEvaluator(
                     log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                datum match
-                    case Some(datum) =>
-                        evalScript(
-                          redeemer,
-                          txhash,
-                          plutusV2VM,
-                          script,
-                          datum,
-                          rdmr,
-                          ctxData
-                        )
-                    case None =>
-                        evalScript(redeemer, txhash, plutusV2VM, script, rdmr, ctxData)
+                try {
+                    datum match
+                        case Some(datum) =>
+                            evalScript(
+                              redeemer,
+                              txhash,
+                              plutusV2VM,
+                              script,
+                              datum,
+                              rdmr,
+                              ctxData
+                            ) -> scriptContext
+                        case None =>
+                            evalScript(
+                              redeemer,
+                              txhash,
+                              plutusV2VM,
+                              script,
+                              rdmr,
+                              ctxData
+                            ) -> scriptContext
+                } catch {
+                    case e: TxEvaluationException =>
+                        throw e.withContext(scriptContext)
+                }
 
             case (Script.PlutusV3(script), datum) =>
                 val rdmr = toScalusData(redeemer.getData)
@@ -386,9 +420,12 @@ class TxEvaluator(
                     log.debug(s"Datum: ${datum.map(_.toJson)}")
                     log.debug(s"Redeemer: ${rdmr.toJson}")
                     log.debug(s"Script context: ${ctxData.toJson}")
-                evalScript(redeemer, txhash, plutusV3VM, script, ctxData)
+                try evalScript(redeemer, txhash, plutusV3VM, script, ctxData) -> scriptContext
+                catch {
+                    case e: TxEvaluationException => throw e.withContext(scriptContext)
+                }
 
-        val cost = result.budget
+        val cost = result._1.budget
         log.debug(s"Eval result: $result")
         Redeemer(
           redeemer.getTag,
@@ -398,7 +435,7 @@ class TxEvaluator(
             BigInteger.valueOf(cost.memory),
             BigInteger.valueOf(cost.cpu)
           )
-        )
+        ) -> result._2
     }
 
     private def evalScript(
@@ -451,7 +488,7 @@ class TxEvaluator(
         datums: collection.Seq[ByteString],
         utxos: Map[TransactionInput, TransactionOutput],
         runPhaseOne: Boolean
-    ): collection.Seq[Redeemer] = {
+    ): collection.Seq[(Redeemer, ScriptContext)] = {
         log.debug(
           s"Eval phase two $tx, $utxos, $costMdls, $initialBudget, $slotConfig, $runPhaseOne"
         )
@@ -471,7 +508,7 @@ class TxEvaluator(
 
         var remainingBudget = initialBudget
         val collectedRedeemers = for redeemer <- redeemers.asScala yield {
-            val evaluatedRedeemer = evalRedeemer(
+            val (evaluatedRedeemer, sc) = evalRedeemer(
               tx,
               txhash,
               datumsMapping,
@@ -494,7 +531,7 @@ class TxEvaluator(
               remainingBudget.memory - evaluatedRedeemer.getExUnits.getMem.longValue
             )
 
-            evaluatedRedeemer
+            evaluatedRedeemer -> sc
         }
         collectedRedeemers
     }

@@ -20,7 +20,8 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, LedgerToPlutusTranslation, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptContext, PlutusScriptEvaluator, ProtocolParams, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, ProtocolParams, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
+import scalus.ledger.api.ScriptContext
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Hex.toHex
 import scalus.utils.Utils
@@ -56,6 +57,15 @@ class BlocksValidation extends AnyFunSuite {
     )
 
     private lazy val resourcesPath = Paths.get(dataPath)
+
+    lazy val pprinter = pprint.copy(defaultHeight = Int.MaxValue)
+
+    private def showScriptContext(sc: ScriptContext): String =
+        ScriptContext.foldMap(sc)(
+          "v1." + pprinter(_),
+          "v2." + pprinter(_),
+          "v3." + pprinter(_),
+        )
 
     private def validateBlocksOfEpoch(epoch: Int): Unit = {
         import com.bloxbean.cardano.yaci.core.config.YaciConfig
@@ -129,28 +139,30 @@ class BlocksValidation extends AnyFunSuite {
                     && (datums.size() == tx.getWitnessSet.getPlutusDataList
                         .size()) // FIXME: remove this check when we have the correct datums
                     then
-                        val result = evaluator.evaluateTx(tx, util.Set.of(), datums, txhash)
-//                        val result = evaluator.evaluateTx2(tx, util.Set.of(), datums, txhash)
                         totalTx += 1
-                        if !result.isSuccessful then
-                            errors += ((result.getResponse, blockNum, txhash))
-                            println(
-                              s"${Console.RED}[error# ${errors.size}] AAAA!!!! block $blockNum $txhash ${result.getResponse}${Console.RESET}"
-                            )
-                        else
-//                        println(result.getResponse)
-                            for script <- scripts.values do
-                                script match
-                                    case _: Script.PlutusV1 =>
-                                        v1Scripts += script.scriptHash.toHex
-                                        v1ScriptsExecuted += 1
-                                    case _: Script.PlutusV2 =>
-                                        v2Scripts += script.scriptHash.toHex
-                                        v2ScriptsExecuted += 1
-                                    case _: Script.PlutusV3 =>
-                                        v3Scripts += script.scriptHash.toHex
-                                        v3ScriptsExecuted += 1
-                                    case _ =>
+                        val result =
+                            evaluator.evaluateTxWithContexts(tx, util.Set.of(), datums, txhash)
+                        result match {
+                            case Left(error) =>
+                                errors += ((error.toString, blockNum, txhash))
+                                println(
+                                  s"${Console.RED}[error# ${errors.size}] AAAA!!!! block $blockNum $txhash ${error}${Console.RESET}"
+                                )
+                                println(error.scriptContext.map(showScriptContext).mkString("\n"))
+                            case Right(_) =>
+                                for script <- scripts.values do
+                                    script match
+                                        case _: Script.PlutusV1 =>
+                                            v1Scripts += script.scriptHash.toHex
+                                            v1ScriptsExecuted += 1
+                                        case _: Script.PlutusV2 =>
+                                            v2Scripts += script.scriptHash.toHex
+                                            v2ScriptsExecuted += 1
+                                        case _: Script.PlutusV3 =>
+                                            v3Scripts += script.scriptHash.toHex
+                                            v3ScriptsExecuted += 1
+                                        case _ =>
+                        }
                     else
                         println(
                           s"${Console.RED}[error# ${errors.size}] AAAAA invalid!!! $txhash ${Console.RESET}"
@@ -232,14 +244,7 @@ class BlocksValidation extends AnyFunSuite {
                                   s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}"
                                 )
                                 for case (_, sc) <- results.find(r => (r._1.tag, r._1.index) == key)
-                                do
-                                    println(
-                                      PlutusScriptContext.foldMap(sc)(
-                                        "v1." + pprint(_),
-                                        "v2." + pprint(_),
-                                        "v3." + pprint(_)
-                                      )
-                                    )
+                                do println(showScriptContext(sc))
                             }
                     }
                     totalTx += 1

@@ -10,6 +10,7 @@ import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.client.util.JsonUtil
 import scalus.builtin.ByteString
 import scalus.cardano.ledger.{CostModels, MajorProtocolVersion, PlutusScriptEvaluator}
+import scalus.ledger.api.ScriptContext
 import scalus.uplc.eval.ExBudget
 
 import java.math.BigInteger
@@ -194,7 +195,7 @@ class ScalusTransactionEvaluator(
     override def evaluateTx(
         transaction: Transaction,
         inputUtxos: util.Set[Utxo]
-    ): Result[util.List[EvaluationResult]] = {
+    ): Result[util.List[EvaluationResult]] = try {
         val datumHashes = for
             ws <- Option(transaction.getWitnessSet)
             dataList <- Option(ws.getPlutusDataList)
@@ -202,105 +203,53 @@ class ScalusTransactionEvaluator(
             .stream()
             .map(data => ByteString.fromArray(data.getDatumHashAsBytes))
             .collect(util.stream.Collectors.toList())
-        evaluateTx(
+        evaluateTxWithContexts(
           transaction,
           inputUtxos,
           datumHashes.getOrElse(util.List.of()),
           TransactionUtil.getTxHash(transaction)
+        ).fold(
+          e =>
+              Result
+                  .error(e.getMessage)
+                  .asInstanceOf[Result[util.List[EvaluationResult]]],
+          r =>
+              Result
+                  .success(JsonUtil.getPrettyJson(r))
+                  .asInstanceOf[Result[util.List[EvaluationResult]]]
+                  .withValue(r.map(_._1).asJava)
+                  .asInstanceOf[Result[util.List[EvaluationResult]]]
         )
+    } catch {
+        case e: Exception => throw ApiException("Error evaluating transaction", e)
     }
 
-    def evaluateTx(
+    def evaluateTxWithContexts(
         transaction: Transaction,
         inputUtxos: util.Set[Utxo],
         datums: util.List[scalus.builtin.ByteString],
         txhash: String
-    ): Result[util.List[EvaluationResult]] = {
-        try {
-            val resolvedUtxos: Map[TransactionInput, TransactionOutput] =
-                utxoResolver.resolveUtxos(transaction, inputUtxos)
+    ): Either[TxEvaluationException, collection.Seq[(EvaluationResult, ScriptContext)]] = {
+        val resolvedUtxos: Map[TransactionInput, TransactionOutput] =
+            utxoResolver.resolveUtxos(transaction, inputUtxos)
 
-            try
-                val redeemers =
-                    txEvaluator.evaluateTx(transaction, resolvedUtxos, datums.asScala, txhash)
-                val evaluationResults = redeemers.map { redeemer =>
-                    EvaluationResult.builder
-                        .redeemerTag(redeemer.getTag)
-                        .index(redeemer.getIndex.intValue)
-                        .exUnits(redeemer.getExUnits)
-                        .build
-                }.asJava
-
-                Result
-                    .success(JsonUtil.getPrettyJson(evaluationResults))
-                    .asInstanceOf[Result[util.List[EvaluationResult]]]
-                    .withValue(evaluationResults)
-                    .asInstanceOf[Result[util.List[EvaluationResult]]]
-            catch
-                case e: TxEvaluationException =>
-                    Result
-                        .error(s"""Error evaluating transaction: ${e.getMessage}
-                                  |Evaluation logs: ${e.logs.mkString("\n")}
-                                  |===========================
-                                  |""".stripMargin)
-                        .asInstanceOf[Result[util.List[EvaluationResult]]]
-                case e: Exception =>
-                    Result
-                        .error(s"Error evaluating transaction: ${e.getMessage}")
-                        .asInstanceOf[Result[util.List[EvaluationResult]]]
-        } catch {
-            case e: Exception => throw ApiException("Error evaluating transaction", e)
-        }
-    }
-
-    private[scalus] def evaluateTx2(
-        transaction: Transaction,
-        inputUtxos: util.Set[Utxo],
-        datums: util.List[scalus.builtin.ByteString],
-        txhash: String
-    ): Result[util.List[EvaluationResult]] = {
-        import scalus.cardano.ledger
-        try {
-            val tx = ledger.Transaction.fromCbor(transaction.serialize())
-            val resolvedUtxos: Map[ledger.TransactionInput, ledger.TransactionOutput] =
-                utxoResolver2.resolveUtxos(tx)
-
-            try
-                val redeemers =
-                    txEvaluator2.evalPlutusScripts(tx, resolvedUtxos)
-                val evaluationResults = redeemers.map { redeemer =>
-                    EvaluationResult.builder
-                        .redeemerTag(RedeemerTag.valueOf(redeemer.tag.toString))
-                        .index(redeemer.index)
-                        .exUnits(
-                          new ExUnits(
-                            BigInteger.valueOf(redeemer.exUnits.memory),
-                            BigInteger.valueOf(redeemer.exUnits.steps)
-                          )
-                        )
-                        .build
-                }.asJava
-
-                Result
-                    .success(JsonUtil.getPrettyJson(evaluationResults))
-                    .asInstanceOf[Result[util.List[EvaluationResult]]]
-                    .withValue(evaluationResults)
-                    .asInstanceOf[Result[util.List[EvaluationResult]]]
-            catch
-                case e: TxEvaluationException =>
-                    Result
-                        .error(s"""Error evaluating transaction: ${e.getMessage}
-                                  |Evaluation logs: ${e.logs.mkString("\n")}
-                                  |===========================
-                                  |""".stripMargin)
-                        .asInstanceOf[Result[util.List[EvaluationResult]]]
-                case e: Exception =>
-                    Result
-                        .error(s"Error evaluating transaction: ${e.getMessage}")
-                        .asInstanceOf[Result[util.List[EvaluationResult]]]
-        } catch {
-            case e: Exception => throw ApiException("Error evaluating transaction", e)
-        }
+        try
+            val redeemers =
+                txEvaluator.evaluateTxWithContexts(
+                  transaction,
+                  resolvedUtxos,
+                  datums.asScala,
+                  txhash
+                )
+            val evaluationResults = redeemers.map { case (redeemer, sc) =>
+                EvaluationResult.builder
+                    .redeemerTag(redeemer.getTag)
+                    .index(redeemer.getIndex.intValue)
+                    .exUnits(redeemer.getExUnits)
+                    .build -> sc
+            }
+            Right(evaluationResults)
+        catch case e: TxEvaluationException => Left(e)
     }
 
     override def evaluateTx(

@@ -9,7 +9,7 @@ import scalus.cardano.ledger.LedgerToPlutusTranslation.*
 import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllResolvedScripts}
 import scalus.ledger
 import scalus.ledger.api
-import scalus.ledger.api.{v1, v2, v3}
+import scalus.ledger.api.{v1, v2, v3, ScriptContext}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
@@ -41,21 +41,6 @@ case class LookupTable(
     // cache of `getDatum`
     datums: Map[DataHash, Data]
 )
-
-type PlutusScriptContext = v1.ScriptContext | v2.ScriptContext | v3.ScriptContext
-object PlutusScriptContext {
-    def foldMap[T](sc: PlutusScriptContext)(
-        f1: v1.ScriptContext => T,
-        f2: v2.ScriptContext => T,
-        f3: v3.ScriptContext => T
-    ): T = sc match {
-        case sc1: v1.ScriptContext => f1(sc1)
-        case sc2: v2.ScriptContext => f2(sc2)
-        case sc3: v3.ScriptContext => f3(sc3)
-    }
-    def asData(sc: PlutusScriptContext): Data =
-        foldMap(sc)(_.toData, _.toData, _.toData)
-}
 
 /** Evaluates Plutus V1, V2 or V3 scripts using the provided transaction and UTxO set.
   *
@@ -137,7 +122,7 @@ class PlutusScriptEvaluator(
     def evalPlutusScriptsWithContexts(
         tx: Transaction,
         utxos: Map[TransactionInput, TransactionOutput],
-    ): Seq[(Redeemer, PlutusScriptContext)] = {
+    ): Seq[(Redeemer, ScriptContext)] = {
         log.debug(s"Starting Phase 2 evaluation for transaction: ${tx.id}")
 
         val redeemers = tx.witnessSet.redeemers.map(_.value.toMap).getOrElse(Map.empty)
@@ -263,7 +248,7 @@ class PlutusScriptEvaluator(
         redeemer: Redeemer,
         plutusScript: PlutusScript,
         datum: Option[Data]
-    ): (Redeemer, PlutusScriptContext) = {
+    ): (Redeemer, ScriptContext) = {
         val result = plutusScript match
             case Script.PlutusV1(script) =>
                 evalPlutusV1Script(tx, datums, utxos, redeemer, script, datum)

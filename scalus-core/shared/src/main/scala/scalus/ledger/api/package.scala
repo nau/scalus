@@ -62,4 +62,18 @@ package object api {
     @deprecated("Use scalus.cardano.ledger.Language instead", "0.12.0")
     val PlutusLedgerLanguage: Language.type = Language
 
+    type ScriptContext = v1.ScriptContext | v2.ScriptContext | v3.ScriptContext
+
+    object ScriptContext {
+        def foldMap[T](sc: ScriptContext)(
+            f1: v1.ScriptContext => T,
+            f2: v2.ScriptContext => T,
+            f3: v3.ScriptContext => T
+        ): T = sc match {
+            case sc1: v1.ScriptContext => f1(sc1)
+            case sc2: v2.ScriptContext => f2(sc2)
+            case sc3: v3.ScriptContext => f3(sc3)
+        }
+    }
+
 }
