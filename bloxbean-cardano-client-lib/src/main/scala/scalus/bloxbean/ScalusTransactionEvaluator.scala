@@ -195,7 +195,7 @@ class ScalusTransactionEvaluator(
     override def evaluateTx(
         transaction: Transaction,
         inputUtxos: util.Set[Utxo]
-    ): Result[util.List[EvaluationResult]] = try {
+    ): Result[util.List[EvaluationResult]] = {
         val datumHashes = for
             ws <- Option(transaction.getWitnessSet)
             dataList <- Option(ws.getPlutusDataList)
@@ -203,37 +203,49 @@ class ScalusTransactionEvaluator(
             .stream()
             .map(data => ByteString.fromArray(data.getDatumHashAsBytes))
             .collect(util.stream.Collectors.toList())
-        evaluateTxWithContexts(
+        evaluateTx(
           transaction,
           inputUtxos,
           datumHashes.getOrElse(util.List.of()),
           TransactionUtil.getTxHash(transaction)
-        ).fold(
-          e =>
-              Result
-                  .error(e.getMessage)
-                  .asInstanceOf[Result[util.List[EvaluationResult]]],
-          r =>
-              Result
-                  .success(JsonUtil.getPrettyJson(r))
-                  .asInstanceOf[Result[util.List[EvaluationResult]]]
-                  .withValue(r.map(_._1).asJava)
-                  .asInstanceOf[Result[util.List[EvaluationResult]]]
         )
-    } catch {
-        case e: Exception => throw ApiException("Error evaluating transaction", e)
     }
+
+    def evaluateTx(
+        transaction: Transaction,
+        inputUtxos: util.Set[Utxo],
+        datums: util.List[scalus.builtin.ByteString],
+        txhash: String
+    ): Result[util.List[EvaluationResult]] =
+        try {
+            evaluateTxWithContexts(transaction, inputUtxos, datums, txhash)
+                .fold(
+                  e =>
+                      Result
+                          .error(e.getMessage)
+                          .asInstanceOf[Result[util.List[EvaluationResult]]],
+                  r =>
+                      Result
+                          .success(JsonUtil.getPrettyJson(r))
+                          .asInstanceOf[Result[util.List[EvaluationResult]]]
+                          .withValue(r.map(_._1).asJava)
+                          .asInstanceOf[Result[util.List[EvaluationResult]]]
+                )
+        } catch {
+            case e: Exception =>
+                throw ApiException("Error evaluating transaction", e)
+        }
 
     def evaluateTxWithContexts(
         transaction: Transaction,
         inputUtxos: util.Set[Utxo],
         datums: util.List[scalus.builtin.ByteString],
         txhash: String
-    ): Either[TxEvaluationException, collection.Seq[(EvaluationResult, ScriptContext)]] = {
-        val resolvedUtxos: Map[TransactionInput, TransactionOutput] =
-            utxoResolver.resolveUtxos(transaction, inputUtxos)
+    ): Either[TxEvaluationException, collection.Seq[(EvaluationResult, ScriptContext)]] =
+        try {
+            val resolvedUtxos: Map[TransactionInput, TransactionOutput] =
+                utxoResolver.resolveUtxos(transaction, inputUtxos)
 
-        try
             val redeemers =
                 txEvaluator.evaluateTxWithContexts(
                   transaction,
@@ -249,8 +261,9 @@ class ScalusTransactionEvaluator(
                     .build -> sc
             }
             Right(evaluationResults)
-        catch case e: TxEvaluationException => Left(e)
-    }
+        } catch {
+            case e: TxEvaluationException => Left(e)
+        }
 
     override def evaluateTx(
         cbor: Array[Byte],

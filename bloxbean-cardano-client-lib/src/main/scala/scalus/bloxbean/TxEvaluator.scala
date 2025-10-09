@@ -73,12 +73,14 @@ class TxEvaluationException(
     message: String,
     cause: Throwable,
     @BeanProperty val logs: Array[String],
-    @BeanProperty val scriptContext: List[ScriptContext] = List()
+    @BeanProperty val scriptContext: List[ScriptContext]
 ) extends Exception(
       s"""Error evaluating transaction: ${message}
       |Evaluation logs: ${logs.mkString("\n")}""".stripMargin,
       cause
     ) {
+    def this(message: String, cause: Throwable, logs: Array[String]) =
+        this(message, cause, logs, List())
     def withContext(sc: ScriptContext): TxEvaluationException =
         TxEvaluationException(message, cause, logs, sc :: scriptContext)
 }
@@ -155,6 +157,14 @@ class TxEvaluator(
       * @return
       *   (Redeemers, ScriptContext)
       */
+    def evaluateTx(
+        transaction: Transaction,
+        inputUtxos: Map[TransactionInput, TransactionOutput],
+        datums: collection.Seq[ByteString],
+        txhash: String
+    ): collection.Seq[Redeemer] =
+        evaluateTxWithContexts(transaction, inputUtxos, datums, txhash).map(_._1)
+
     def evaluateTxWithContexts(
         transaction: Transaction,
         inputUtxos: Map[TransactionInput, TransactionOutput],
