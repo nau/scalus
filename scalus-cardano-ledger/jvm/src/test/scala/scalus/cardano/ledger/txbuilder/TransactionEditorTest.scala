@@ -1,12 +1,7 @@
 package scalus.cardano.ledger.txbuilder
 
 import scalus.cardano.ledger.txbuilder.*
-import scalus.cardano.ledger.txbuilder.CredentialWitness.PlutusScriptCredential
-import scalus.cardano.ledger.txbuilder.ExpectedWitnessType.ScriptHashWitness
-import scalus.cardano.ledger.txbuilder.InputAction.SpendInput
-import scalus.cardano.ledger.txbuilder.OutputWitness.{NativeScriptOutput, PlutusScriptOutput}
 import scalus.cardano.ledger.txbuilder.RedeemerPurpose.{ForCert, ForMint}
-import scalus.cardano.ledger.txbuilder.ScriptWitness.ScriptValue
 import scalus.cardano.ledger.txbuilder.TransactionBuilder.{build, modify, Context}
 import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.*
 import scalus.cardano.ledger.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
@@ -29,7 +24,6 @@ import scalus.cardano.ledger.RedeemerTag.{Cert, Spend}
 import scalus.cardano.ledger.Timelock.AllOf
 import scalus.cardano.ledger.TransactionOutput.Babbage
 import scalus.|>
-import TransactionBuilder.txBodyL
 
 import scala.collection.immutable.{SortedMap, SortedSet}
 
@@ -42,7 +36,7 @@ private def addInput(input: TransactionInput): Transaction => Transaction =
             )
         )
 
-class TransactionEditorTests extends AnyFunSuite, ScalaCheckPropertyChecks {
+class TransactionEditorTest extends AnyFunSuite, ScalaCheckPropertyChecks {
 
     val oneInput: Transaction = {
         val l1 = txBodyL

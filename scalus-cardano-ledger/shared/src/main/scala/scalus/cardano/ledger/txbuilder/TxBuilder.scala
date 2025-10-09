@@ -16,15 +16,16 @@ case class TxBuilder(
         validator: PlutusScript,
         datum: Option[Data] = None
     ): TxBuilder = {
-        val witness = OutputWitness.PlutusScriptOutput(
-          witness = ScriptWitness.ScriptValue(validator, Set.empty),
+        val witness = ThreeArgumentPlutusScriptWitness(
+          scriptSource = ScriptSource.PlutusScriptValue(validator),
           redeemer = redeemer,
-          datum = datum.map(DatumWitness.DatumValue.apply)
+          datum = datum.map(Datum.DatumValue.apply).getOrElse(Datum.DatumInlined),
+          additionalSigners = Set.empty
         )
         copy(steps =
-            steps :+ TransactionBuilderStep.SpendOutput(
+            steps :+ TransactionBuilderStep.Spend(
               TransactionUnspentOutput(utxo._1, utxo._2),
-              Some(witness)
+              witness
             )
         )
     }
@@ -36,7 +37,7 @@ case class TxBuilder(
           datumOption = datum,
           scriptRef = None
         )
-        copy(steps = steps :+ TransactionBuilderStep.Pay(output))
+        copy(steps = steps :+ TransactionBuilderStep.Send(output))
     }
 
     def payToScript(
@@ -49,9 +50,9 @@ case class TxBuilder(
 
     private def walletInputSteps: Seq[TransactionBuilderStep] =
         context.wallet.inputs.toSeq.map { input =>
-            TransactionBuilderStep.SpendOutput(
+            TransactionBuilderStep.Spend(
               TransactionUnspentOutput(input.input, input.output),
-              None
+              PubKeyWitness
             )
         }
 
@@ -75,7 +76,7 @@ case class TxBuilder(
             )
             changeOutputIdx = txWithChangeOut.body.value.outputs.size - 1
 
-            utxo = txContext.resolvedUtxos.map(u => u.input -> u.output).toMap
+            utxo = txContext.resolvedUtxos.utxos
             balanced <- LowLevelTxBuilder
                 .balanceFeeAndChange(
                   txWithChangeOut,

@@ -6,7 +6,7 @@ import scalus.cardano.ledger.{Coin, UTxO}
 /** Owns a set of utxos.
   */
 trait Wallet {
-    def getInput(targetValue: Coin): Option[(ResolvedTxInput, OutputWitness)]
+    def getInput(targetValue: Coin): Option[ResolvedTxInput]
     def utxo: UTxO
     def inputs: Set[ResolvedTxInput]
     def collateralInputs: Set[ResolvedTxInput]
@@ -16,7 +16,7 @@ object Wallet {
 
     def empty(changeAddr: Address) = new Wallet {
 
-        override def getInput(targetValue: Coin): Option[(ResolvedTxInput, OutputWitness)] =
+        override def getInput(targetValue: Coin): Option[ResolvedTxInput] =
             None
 
         override def utxo: UTxO = Map.empty
