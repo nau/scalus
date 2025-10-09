@@ -1,7 +1,6 @@
 package scalus.cardano.ledger.utils
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
-import scalus.cardano.ledger.txbuilder.{ChangeReturnStrategy, FeePayerStrategy}
 
 import scala.annotation.tailrec
 import scala.util.boundary
@@ -35,6 +34,7 @@ object TxBalance {
         def lookupStakingDeposit(cred: Credential): Option[Coin] = {
             certState.dstate.deposits.get(cred)
         }
+
         def lookupDRepDeposit(cred: Credential): Option[Coin] = {
             certState.vstate.dreps.get(cred).map(_.deposit)
         }
@@ -93,116 +93,4 @@ object TxBalance {
         getProducedValue
     }
 
-    def doBalance(
-        tx: Transaction
-    )(utxo: UTxO, protocolParams: ProtocolParams, onSurplus: Any): Transaction = {
-        val consumed = TxBalance.consumed(tx, CertState.empty, utxo, protocolParams).toTry.get
-        val produced = TxBalance.produced(tx)
-        if consumed.coin < produced.coin then {
-            throw TransactionException.ValueNotConservedUTxOException(tx.id, consumed, produced)
-        }
-
-        @tailrec
-        def go(currentTx: Transaction): Transaction = {
-            val currentProduced = TxBalance.produced(currentTx)
-            val diffLong = consumed.coin.value - currentProduced.coin.value
-            diffLong match {
-                case d if d > 0L =>
-                    val diff = Coin(d)
-                    val newTx = currentTx
-                    val correctFee = MinTransactionFee(newTx, utxo, protocolParams).toTry.get
-                    val newTxWithFee = modifyBody(newTx, _.copy(fee = correctFee))
-                    val newProduced = TxBalance.produced(newTxWithFee)
-                    if consumed.coin >= newProduced.coin then {
-                        // fee is good
-                        go(newTxWithFee)
-                    } else {
-                        // fee + change exceeds inputs, remove the change and rebalance again
-                        val txWithoutChange =
-                            modifyBody(currentTx, _.copy(fee = correctFee))
-                        go(txWithoutChange)
-                    }
-                case 0L => currentTx
-                case _ => // diff < 0, we cannot cover the tx
-                    throw TransactionException.IllegalArgumentException(
-                      "Insufficient funds to cover transaction"
-                    )
-            }
-        }
-        val estimatedFee = MinTransactionFee(tx, utxo, protocolParams).toTry.get
-        val initialTx = modifyBody(tx, _.copy(fee = estimatedFee))
-        go(initialTx)
-    }
-
-    // a copy of doBalance with new txbuilder strategies.
-    // probably going to replace the old doBalance
-    def doBalance2(tx: Transaction)(
-        utxo: UTxO,
-        protocolParams: ProtocolParams,
-        changeReturnStrategy: ChangeReturnStrategy,
-        feePayerStrategy: FeePayerStrategy
-    ): Transaction = {
-        val consumed = TxBalance.consumed(tx, CertState.empty, utxo, protocolParams).toTry.get
-        val produced = TxBalance.produced(tx)
-        if consumed.coin < produced.coin then {
-            throw TransactionException.ValueNotConservedUTxOException(tx.id, consumed, produced)
-        }
-
-        @tailrec
-        def go(currentTx: Transaction): Transaction = {
-            val currentProduced = TxBalance.produced(currentTx)
-            val diffLong = consumed.coin.value - currentProduced.coin.value
-
-            diffLong match {
-                case d if d > 0L =>
-                    val tempTx = modifyBody(
-                      currentTx,
-                      _.copy(outputs =
-                          changeReturnStrategy
-                              .returnChange(diffLong, currentTx.body.value, utxo)
-                              .map(Sized(_))
-                      )
-                    )
-                    val correctFee = MinTransactionFee(tempTx, utxo, protocolParams).toTry.get
-                    val changeWithFee = Coin(diffLong) + correctFee
-                    val newOuts =
-                        changeReturnStrategy.returnChange(
-                          changeWithFee.value,
-                          currentTx.body.value,
-                          utxo
-                        )
-                    val newTx = modifyBody(currentTx, _.copy(outputs = newOuts.map(Sized(_))))
-                    val outputsAfterAppliedFee = feePayerStrategy(correctFee, newOuts)
-                    val newTxWithFee = modifyBody(
-                      newTx,
-                      _.copy(fee = correctFee, outputs = outputsAfterAppliedFee.map(Sized(_)))
-                    )
-                    val newProduced = TxBalance.produced(newTxWithFee)
-                    if consumed.coin >= newProduced.coin then {
-                        // fee is good
-                        go(newTxWithFee)
-                    } else {
-                        // fee + change exceeds inputs, remove the change and rebalance again
-                        val txWithoutChange =
-                            modifyBody(currentTx, _.copy(fee = correctFee))
-                        go(txWithoutChange)
-                    }
-                case 0L => currentTx
-                case _ => // diff < 0, we cannot cover the tx
-                    throw TransactionException.IllegalArgumentException(
-                      "Insufficient funds to cover transaction"
-                    )
-            }
-        }
-
-        val estimatedFee = MinTransactionFee(tx, utxo, protocolParams).toTry.get
-        val initialTx = modifyBody(tx, _.copy(fee = estimatedFee))
-        go(initialTx)
-    }
-
-    // need to refactor later, too many KeepRaw.apply calls
-    def modifyBody(tx: Transaction, f: TransactionBody => TransactionBody): Transaction = {
-        val newBody = f(tx.body.value)
-        tx.copy(body = KeepRaw(newBody))
-    }
 }
