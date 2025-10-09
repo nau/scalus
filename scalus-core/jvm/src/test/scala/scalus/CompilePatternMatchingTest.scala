@@ -390,8 +390,6 @@ class CompilePatternMatchingTest extends AnyFunSuite {
      */
 
     // Test pattern matching with variable binding at different levels
-    // TODO: Fix issue with @ pattern bindings in nested positions
-    /*
     test("pattern matching with variable bindings") {
         import scalus.prelude.*
         val compiled = compile { (x: List[Option[BigInt]]) =>
@@ -419,7 +417,6 @@ class CompilePatternMatchingTest extends AnyFunSuite {
         }.toUplc()
         assert((uplc $ arg3).evaluate == Term.Const(Constant.Integer(-1)))
     }
-     */
 
     // Test exhaustiveness checking with @unchecked
     test("non-exhaustive pattern matching with @unchecked") {
