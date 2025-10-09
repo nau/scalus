@@ -15,7 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{ByteString, Data, platform}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, StakingTransactionBuilder, TxSigner}
+import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, TxSigner}
 import scalus.ledger.api.v1.{CurrencySymbol, TokenName}
 import scalus.ledger.api.v1.{PolicyId, TokenName}
 import scalus.ledger.api.v3.ScriptContext
