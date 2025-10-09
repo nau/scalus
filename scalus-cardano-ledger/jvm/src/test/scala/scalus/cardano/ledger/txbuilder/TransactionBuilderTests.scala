@@ -7,7 +7,7 @@ import scalus.cardano.ledger.txbuilder.RedeemerPurpose.{ForCert, ForMint}
 import scalus.cardano.ledger.txbuilder.TransactionBuilder.{build, modify, Context, ResolvedUtxos, WitnessKind}
 import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.*
 import scalus.cardano.ledger.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
-import scalus.cardano.ledger.txbuilder.TxBuildError.{IncorrectScriptHash, UnneededDeregisterWitness, WrongNetworkId, WrongOutputType}
+import scalus.cardano.ledger.txbuilder.TxBuildError.{AttachedScriptNotFound, IncorrectScriptHash, UnneededDeregisterWitness, WrongNetworkId, WrongOutputType}
 import io.bullet.borer.Cbor
 import monocle.syntax.all.*
 import monocle.{Focus, Lens}
@@ -19,16 +19,17 @@ import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.Network.{Mainnet, Testnet}
 import scalus.cardano.address.ShelleyDelegationPart.{Key, Null}
 import scalus.cardano.address.{Network, ShelleyAddress, ShelleyPaymentPart}
-import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Certificate.UnregCert
 import scalus.cardano.ledger.DatumOption.Inline
-import scalus.cardano.ledger.RedeemerTag.{Cert, Spend}
+import scalus.cardano.ledger.RedeemerTag.Cert
+import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.{ReferenceOutput, Spend}
 import scalus.cardano.ledger.Timelock.AllOf
 import scalus.cardano.ledger.TransactionOutput.Babbage
 import scalus.|>
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-
+import scalus.cardano.ledger.txbuilder.TestPeer.Alice
+import scalus.cardano.ledger.{Mint as TxBodyMint, *}
 import scala.collection.immutable.{SortedMap, SortedSet}
 
 class TransactionBuilderTest extends AnyFunSuite, ScalaCheckPropertyChecks {

@@ -24,8 +24,7 @@ import scalus.cardano.ledger.rules.{Context as SContext, STS, State as SState, U
 import scalus.cardano.ledger.txbuilder.Datum.DatumValue
 import scalus.cardano.ledger.txbuilder.TransactionBuilder.{Operation, WitnessKind}
 import scalus.cardano.ledger.txbuilder.TxBuildError.*
-import scalus.cardano.ledger.txbuilder.TxBuilder.modifyWs
-import scalus.cardano.ledger.txbuilder.wip.DiffHandler
+import scalus.cardano.ledger.txbuilder.modifyWs
 import scalus.cardano.ledger.utils.{AllResolvedScripts, MinCoinSizedTransactionOutput}
 
 import scalus.|>
@@ -392,7 +391,7 @@ object TransactionBuilder:
             // TODO: @Ilia Wrap this so that we can only modify the transaction outputs. Basically inject
             // a (Coin, Set[TransactionOutput]) => Either[TxBalancingError, Set[TransactionOutput]]
             // into a DiffHandler
-            diffHandler: DiffHandler,
+            diffHandler: (Long, Transaction) => Either[TxBalancingError, Transaction],
             protocolParams: ProtocolParams,
             evaluator: PlutusScriptEvaluator
         ): Either[TxBalancingError, Context] = {
@@ -447,7 +446,7 @@ object TransactionBuilder:
           */
         def finalizeContext(
             protocolParams: ProtocolParams,
-            diffHandler: DiffHandler,
+            diffHandler: (Long, Transaction) => Either[TxBalancingError, Transaction],
             evaluator: PlutusScriptEvaluator,
             validators: Seq[Validator]
         ): Either[TransactionException | TxBalancingError, Context] =
@@ -1949,6 +1948,22 @@ private def generateVKeyWitness(counter: Int): VKeyWitness = {
 
 private def generateUniqueKeys(n: Int): Set[VKeyWitness] = {
     (0 until n).map(i => generateVKeyWitness(i)).toSet
+}
+
+def txInputsL: Lens[Transaction, TaggedOrderedSet[TransactionInput]] = {
+    txBodyL.refocus(_.inputs)
+}
+
+def txReferenceInputsL: Lens[Transaction, TaggedOrderedSet[TransactionInput]] = {
+    txBodyL.refocus(_.referenceInputs)
+}
+
+def txRequiredSignersL: Lens[Transaction, TaggedOrderedSet[AddrKeyHash]] = {
+    txBodyL.refocus(_.requiredSigners)
+}
+
+def txRedeemersL: Lens[Transaction, Option[KeepRaw[Redeemers]]] = {
+    Focus[Transaction](_.witnessSet.redeemers)
 }
 
 // ---
