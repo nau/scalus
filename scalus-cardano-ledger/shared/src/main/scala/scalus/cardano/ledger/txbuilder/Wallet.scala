@@ -12,7 +12,7 @@ trait Wallet {
 
     def collateralInputs: Seq[(TransactionUnspentOutput, Witness)]
 
-    def changeAddress: Address
+    def owner: Address
 }
 
 object Wallet {
@@ -23,7 +23,7 @@ object Wallet {
 
         override def collateralInputs: Seq[(TransactionUnspentOutput, Witness)] = Seq.empty
 
-        override def changeAddress: Address = changeAddr
+        override def owner: Address = changeAddr
 
         override def selectInputs(
             required: Value

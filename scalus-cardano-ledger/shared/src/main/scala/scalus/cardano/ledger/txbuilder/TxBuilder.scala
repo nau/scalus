@@ -66,7 +66,7 @@ case class TxBuilder(
 
             changeOutput = Sized(
               TransactionOutput(
-                address = context.wallet.changeAddress,
+                address = context.wallet.owner,
                 value = Value(Coin(0))
               )
             )

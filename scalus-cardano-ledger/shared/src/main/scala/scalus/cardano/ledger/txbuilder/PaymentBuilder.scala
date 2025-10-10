@@ -21,7 +21,7 @@ case class PaymentBuilder(
 
     def collateral(c: (TransactionUnspentOutput, Witness)) = copy(collateral = Some(c))
 
-    def collectFrom(
+    def spendScriptOutputs(
         utxo: (TransactionInput, TransactionOutput),
         redeemer: Data,
         validator: PlutusScript,
@@ -36,6 +36,20 @@ case class PaymentBuilder(
         copy(
           scriptInputs = scriptInputs + ((TransactionUnspentOutput(utxo), witness))
         )
+    }
+
+    def spendOutputs(
+        utxo: (TransactionInput, TransactionOutput),
+        witness: Witness
+    ) = witness match {
+        case w: PubKeyWitness.type =>
+            withStep(TransactionBuilderStep.Spend(TransactionUnspentOutput(utxo), w))
+        case w: NativeScriptWitness =>
+            withStep(TransactionBuilderStep.Spend(TransactionUnspentOutput(utxo), w))
+        case w: ThreeArgumentPlutusScriptWitness =>
+            withStep(TransactionBuilderStep.Spend(TransactionUnspentOutput(utxo), w))
+        case _: TwoArgumentPlutusScriptWitness =>
+            ???
     }
 
     def withStep(step: TransactionBuilderStep): PaymentBuilder =
@@ -92,7 +106,7 @@ case class PaymentBuilder(
                 Change.handleChange(
                   diff,
                   tx,
-                  context.wallet.changeAddress,
+                  context.wallet.owner,
                   context.env.protocolParams
                 )
 
@@ -122,6 +136,6 @@ case class PaymentBuilder(
 }
 
 object PaymentBuilder {
-    def apply(context: BuilderContext, wallet: Wallet): PaymentBuilder =
-        new PaymentBuilder(context, wallet)
+    def apply(context: BuilderContext): PaymentBuilder =
+        new PaymentBuilder(context, context.wallet)
 }
