@@ -76,6 +76,20 @@ Run `~compile` to automatically recompile the project when the source code chang
 
 Run `~test` to automatically run the tests when the source code changes.
 
+## IDE integration
+
+In case of using Metals (e.g. with the VSCode),
+to export sbt build, run
+
+```sh
+sbt bloopInstall
+```
+
+Additional setup see
+
+- https://scalacenter.github.io/bloop/docs/build-tools/sbt
+- https://scalameta.org/metals/docs/editors/user-configuration/
+
 ## Adding Scalus to existing sbt project
 
 If you already have an sbt project, you can add Scalus to it.
