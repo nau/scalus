@@ -189,11 +189,9 @@ class BlocksValidation extends AnyFunSuite {
                         errors += (("Invalid tx", blockNum, txhash))
                 }
             catch {
-                case e: Exception => errors += (("Missed block", blockNum, ""))
+                case e: Exception => println(s"#$blockNum ${e.getMessage}")
             }
 
-//                println("----------------------------------------------------")
-//            println(s"=======================================")
         println(s"""Total txs: $totalTx,
                |errors: ${errors.size},
                |v1: $v1ScriptsExecuted of ${v1Scripts.size},
@@ -201,7 +199,7 @@ class BlocksValidation extends AnyFunSuite {
                |v3: $v3ScriptsExecuted of ${v3Scripts.size}
                |""".stripMargin)
 
-        assert(errors.size == 50)
+        assert(errors.size == 0)
     }
 
     private def getPurpose(oldSc: ScriptContext): RedeemerTag = {

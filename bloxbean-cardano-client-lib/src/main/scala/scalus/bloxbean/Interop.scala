@@ -378,19 +378,12 @@ object Interop {
         )
     }
 
+    private val ADA_ZERO = ByteString.empty -> List(ByteString.empty -> BigInt(0))
+
     def getMintValue(value: util.List[MultiAsset]): v1.Value = {
-        getValue(
-          // add Lovelace asset if not present, don't ask me why :(
-          value.asScala.toSeq
-              .appended(
-                MultiAsset
-                    .builder()
-                    .policyId("")
-                    .assets(util.List.of(Asset.builder().name("").value(BigInteger.ZERO).build()))
-                    .build()
-              )
-              .asJava
-        )
+        // Always include ADA entry with zero value for minting
+        val x = getValue(value).toSortedMap.toList.map(x => x._1 -> x._2.toList)
+        v1.Value.unsafeFromList(x.prepended(ADA_ZERO))
     }
 
     def getTxOutV1(out: TransactionOutput): v1.TxOut = {
