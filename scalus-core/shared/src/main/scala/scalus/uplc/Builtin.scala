@@ -4,8 +4,6 @@ import scalus.builtin.*
 import scalus.builtin.Builtins.*
 import scalus.sir.{SIR, SIRBuiltins, SIRType}
 import scalus.uplc.Constant.given
-import scalus.uplc.DefaultUni.Bool
-import scalus.uplc.DefaultUni.Integer
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.DefaultUni.given
 import scalus.uplc.eval.BuiltinCostModel
