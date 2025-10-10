@@ -21,7 +21,9 @@ import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
 import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, ExUnits, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, ProtocolParams, RedeemerTag, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
-import scalus.ledger.api.ScriptContext
+import scalus.ledger.api.{v3, ScriptContext}
+import scalus.ledger.api.v1.ScriptPurpose
+import scalus.ledger.api.v3.ScriptInfo
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Hex.toHex
 import scalus.utils.Utils
@@ -113,7 +115,7 @@ class BlocksValidation extends AnyFunSuite {
         var v3ScriptsExecuted = 0
 
         println(s"Validating blocks of epoch $epoch...")
-        for blockNum <- 11544518 to /*11662495*/ 11546100 do
+        for blockNum <- 11544518 /*11544519*/ to /*11662495*/ 11546100 /*11544519*/ do
             try
                 val (txs, blockBytes) = readTransactionsFromBlockCbor(
                   resourcesPath.resolve(s"blocks/block-$blockNum.cbor")
@@ -156,10 +158,14 @@ class BlocksValidation extends AnyFunSuite {
                                         evalScalus(blockBytes)
                                 do
                                     if tx.id.toHex == txhash then {
-                                        println(
-                                          s"\nScalus script context (key $key, actual $actualExUnits, expected $expectedExUnits):"
-                                        )
-                                        println(showScriptContext(newSc))
+                                        val oldSc = error.scriptContext.head
+                                        val p = getPurpose(oldSc)
+                                        if p == key._1 then {
+                                            println(
+                                              s"\nScalus script context (key $key, actual $actualExUnits, expected $expectedExUnits):"
+                                            )
+                                            println(showScriptContext(newSc))
+                                        }
                                     }
                                 println()
                             case Right(_) =>
@@ -196,6 +202,31 @@ class BlocksValidation extends AnyFunSuite {
                |""".stripMargin)
 
         assert(errors.size == 50)
+    }
+
+    private def getPurpose(oldSc: ScriptContext): RedeemerTag = {
+        ScriptContext.foldMap(oldSc)(
+          _.purpose match {
+              case ScriptPurpose.Minting(curSymbol)     => RedeemerTag.Mint
+              case ScriptPurpose.Spending(txOutRef)     => RedeemerTag.Spend
+              case ScriptPurpose.Rewarding(stakingCred) => RedeemerTag.Reward
+              case ScriptPurpose.Certifying(cert)       => RedeemerTag.Cert
+          },
+          _.purpose match {
+              case ScriptPurpose.Minting(curSymbol)     => RedeemerTag.Mint
+              case ScriptPurpose.Spending(txOutRef)     => RedeemerTag.Spend
+              case ScriptPurpose.Rewarding(stakingCred) => RedeemerTag.Reward
+              case ScriptPurpose.Certifying(cert)       => RedeemerTag.Cert
+          },
+          _.scriptInfo match {
+              case ScriptInfo.MintingScript(policyId)           => RedeemerTag.Mint
+              case ScriptInfo.SpendingScript(txOutRef, datum)   => RedeemerTag.Spend
+              case ScriptInfo.RewardingScript(credential)       => RedeemerTag.Reward
+              case ScriptInfo.CertifyingScript(index, cert)     => RedeemerTag.Cert
+              case ScriptInfo.VotingScript(voter)               => RedeemerTag.Voting
+              case ScriptInfo.ProposingScript(index, procedure) => RedeemerTag.Proposing
+          }
+        )
     }
 
     def plutusScriptEvaluator(
