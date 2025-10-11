@@ -15,7 +15,7 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
 
     private val params: ProtocolParams = CardanoInfo.mainnet.protocolParams
     private val evaluator = PlutusScriptEvaluator(
-      SlotConfig.Mainnet,
+      CardanoInfo.mainnet.slotConfig,
       initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
       protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
       costModels = CostModels.fromProtocolParams(params)

@@ -235,7 +235,7 @@ class BlocksValidation extends AnyFunSuite {
         val params: ProtocolParams = CardanoInfo.mainnet.protocolParams
         val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
         utxoResolver -> PlutusScriptEvaluator(
-          ledger.SlotConfig.Mainnet,
+          CardanoInfo.mainnet.slotConfig,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
           protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = CostModels.fromProtocolParams(params)

@@ -27,7 +27,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
 
     test("TxEvaluator PlutusV2") {
         val evaluator = PlutusScriptEvaluator(
-          SlotConfig.Mainnet,
+          CardanoInfo.mainnet.slotConfig,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
           protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = costModels
@@ -84,7 +84,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
 
     test("TxEvaluator PlutusV3") {
         val evaluator = PlutusScriptEvaluator(
-          SlotConfig.Mainnet,
+          CardanoInfo.mainnet.slotConfig,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
           protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = costModels
@@ -171,7 +171,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
 //        val utxos = bloxbeanResolveUtxo(tx)
         val utxos = resolveUtxoFromResources(tx)
         val evaluator = PlutusScriptEvaluator(
-          SlotConfig.Mainnet,
+          CardanoInfo.mainnet.slotConfig,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
           protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = costModels,

@@ -9,7 +9,7 @@ import com.bloxbean.cardano.client.transaction.spec.{Transaction, TransactionInp
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.client.util.JsonUtil
 import scalus.builtin.ByteString
-import scalus.cardano.ledger.{CostModels, MajorProtocolVersion, PlutusScriptEvaluator}
+import scalus.cardano.ledger.{CardanoInfo, CostModels, MajorProtocolVersion, PlutusScriptEvaluator}
 import scalus.ledger.api.ScriptContext
 import scalus.uplc.eval.ExBudget
 
@@ -181,7 +181,7 @@ class ScalusTransactionEvaluator(
     )
 
     private lazy val txEvaluator2 = PlutusScriptEvaluator(
-      scalus.cardano.ledger.SlotConfig.Mainnet,
+      CardanoInfo.mainnet.slotConfig,
       initialBudget = ExBudget.fromCpuAndMemory(
         protocolParams.getMaxTxExSteps.toLong,
         protocolParams.getMaxTxExMem.toLong

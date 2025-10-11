@@ -26,7 +26,7 @@ val blockfrost544Params: ProtocolParams = CardanoInfo.mainnet.protocolParams
 val costModels = CostModels.fromProtocolParams(blockfrost544Params)
 
 val evaluator = PlutusScriptEvaluator(
-  SlotConfig.Mainnet,
+  CardanoInfo.mainnet.slotConfig,
   initialBudget = ExBudget.enormous,
   protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
   costModels = costModels

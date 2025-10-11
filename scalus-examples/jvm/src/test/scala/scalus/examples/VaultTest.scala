@@ -22,7 +22,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     private val env = Environment(
       protocolParams = testProtocolParams,
       evaluator = PlutusScriptEvaluator(
-        SlotConfig.Mainnet,
+        CardanoInfo.mainnet.slotConfig,
         initialBudget = ExBudget.enormous,
         protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
         costModels = CostModels.fromProtocolParams(testProtocolParams)
@@ -131,7 +131,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
           datum,
           tx,
           utxos,
-          SlotConfig.Mainnet,
+          CardanoInfo.mainnet.slotConfig,
           CardanoInfo.mainnet.majorProtocolVersion
         )
     }
