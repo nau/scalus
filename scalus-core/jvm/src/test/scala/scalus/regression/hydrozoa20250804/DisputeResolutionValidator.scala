@@ -19,6 +19,7 @@ import scalus.builtin.Builtins.{serialiseData, verifyEd25519Signature}
 import scalus.builtin.ByteString.hex
 import scalus.builtin.ToData.toData
 import scalus.builtin.{ByteString, Data, FromData, ToData}
+import scalus.ledger.api.v1.{PosixTime, Value}
 import scalus.ledger.api.v1.IntervalBoundType.Finite
 import scalus.ledger.api.v1.Value.+
 import scalus.ledger.api.v3.*
@@ -195,7 +196,12 @@ object DisputeResolutionValidator extends Validator:
         }
 
     // Entry point
-    override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit =
+    inline override def spend(
+        datum: Option[Data],
+        redeemer: Data,
+        tx: TxInfo,
+        ownRef: TxOutRef
+    ): Unit =
 
         log("DisputeResolution")
 

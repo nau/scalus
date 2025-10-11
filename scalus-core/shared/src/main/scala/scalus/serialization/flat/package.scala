@@ -247,6 +247,7 @@ package object flat:
     def zagZig(u: Long) = u >> 1 ^ -(u & 1)
 
     def w7l(n: BigInt): List[Byte] =
+        require(n >= 0, s"w7l: input must be non-negative, got $n")
         val low = n & 0x7f
         val t = n >> 7
         if t == 0 then low.toByte :: Nil else (low | 0x80).toByte :: w7l(t)

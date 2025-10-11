@@ -43,7 +43,7 @@ object SimpleTransfer extends Validator {
     private inline def getOutputs(tx: TxInfo, cred: Credential): List[TxOut] =
         tx.outputs.filter(_.address.credential === cred)
 
-    override def spend(
+    inline override def spend(
         datum: Option[Data],
         redeemer: Data,
         tx: TxInfo,
