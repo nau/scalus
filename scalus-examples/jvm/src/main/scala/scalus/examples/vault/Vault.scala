@@ -9,7 +9,7 @@ import scalus.ledger.api.v1.{Credential, Value}
 import scalus.ledger.api.v2.{OutputDatum, TxOut}
 import scalus.ledger.api.v3.{TxInInfo, TxInfo, TxOutRef}
 import scalus.ledger.api.{v1, v2}
-import scalus.prelude.{===, Validator, fail, require}
+import scalus.prelude.{===, fail, require, Validator}
 import scalus.uplc.Program
 import scalus.*
 
