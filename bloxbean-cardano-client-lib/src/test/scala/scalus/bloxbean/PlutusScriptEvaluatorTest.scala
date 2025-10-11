@@ -16,10 +16,8 @@ import java.nio.file.Paths
 import scala.collection.immutable.SortedSet
 
 class PlutusScriptEvaluatorTest extends AnyFunSuite {
-    private val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
-      this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-    )
-    private val costModels = CostModels.fromProtocolParams(params)
+    private val params: ProtocolParams = CardanoInfo.mainnet.protocolParams
+    private val costModels = params.costModels
 
     lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(
       "BLOCKFROST_API_KEY is not set, please set it before running the test"

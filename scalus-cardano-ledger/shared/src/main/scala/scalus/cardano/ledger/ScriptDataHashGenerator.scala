@@ -25,7 +25,7 @@ object ScriptDataHashGenerator {
         // must be sorted to ensure the same order of cost models
         // must preserve order of languages during traversal, so we use ListMap
         val models = (refLangs ++ v1 ++ v2 ++ v3).view
-            .map(l => l.ordinal -> pparams.costModels(l.toString))
+            .map(l => l.ordinal -> pparams.costModels.models(l.ordinal))
             .to(ListMap)
         CostModels(models)
     }

@@ -187,7 +187,7 @@ class ScalusTransactionEvaluator(
         protocolParams.getMaxTxExMem.toLong
       ),
       protocolMajorVersion = MajorProtocolVersion(protocolParams.getProtocolMajorVer.intValue()),
-      costModels = CostModels.fromProtocolParams(params)
+      costModels = params.costModels
     )
     private val utxoResolver = CclUtxoResolver(utxoSupplier, scriptSupplier)
     private lazy val utxoResolver2 = ScalusUtxoResolver(utxoSupplier, scriptSupplier)

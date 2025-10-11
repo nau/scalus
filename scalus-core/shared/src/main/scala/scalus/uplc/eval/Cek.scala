@@ -250,7 +250,7 @@ object MachineParams {
     /** Creates [[MachineParams]] from a [[ProtocolParams]] and a [[Language]]
       */
     def fromProtocolParams(pparams: ProtocolParams, language: Language): MachineParams = {
-        val costs = pparams.costModels(language.toString)
+        val costs = pparams.costModels.models(language.languageId)
         val params = language match
             case Language.PlutusV1 => PlutusV1Params.fromSeq(costs)
             case Language.PlutusV2 => PlutusV2Params.fromSeq(costs)

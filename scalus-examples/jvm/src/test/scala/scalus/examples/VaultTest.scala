@@ -25,7 +25,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         CardanoInfo.mainnet.slotConfig,
         initialBudget = ExBudget.enormous,
         protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
-        costModels = CostModels.fromProtocolParams(testProtocolParams)
+        costModels = testProtocolParams.costModels
       ),
       network = CardanoInfo.mainnet.network
     )

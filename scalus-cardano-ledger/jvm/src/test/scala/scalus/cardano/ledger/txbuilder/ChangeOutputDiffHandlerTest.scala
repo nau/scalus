@@ -18,7 +18,7 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
       CardanoInfo.mainnet.slotConfig,
       initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
       protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
-      costModels = CostModels.fromProtocolParams(params)
+      costModels = params.costModels
     )
 
     enum Expected {

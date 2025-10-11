@@ -23,7 +23,7 @@ import scala.language.postfixOps
 
 val blockfrost544Params: ProtocolParams = CardanoInfo.mainnet.protocolParams
 
-val costModels = CostModels.fromProtocolParams(blockfrost544Params)
+val costModels = blockfrost544Params.costModels
 
 val evaluator = PlutusScriptEvaluator(
   CardanoInfo.mainnet.slotConfig,

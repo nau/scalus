@@ -12,7 +12,7 @@ import cats.kernel.CommutativeGroup
 
 import java.util
 import scala.annotation.{targetName, threadUnsafe}
-import scala.collection.immutable.{ListMap, SortedMap, TreeMap}
+import scala.collection.immutable.{SortedMap, TreeMap}
 import scala.compiletime.asMatchable
 
 enum Era(val value: Int) extends Enumeration {
@@ -469,16 +469,28 @@ case class CostModels(models: Map[Int, IndexedSeq[Long]]) derives Codec {
 }
 
 object CostModels {
-    def fromProtocolParams(
-        pparams: ProtocolParams
-    ): CostModels = {
-        // Convert the cost models from ProtocolParams to the format used in CostModels
-        CostModels(
-          pparams.costModels.view
-              .map { case (lang, costs) => Language.valueOf(lang).languageId -> costs }
-              .to(ListMap)
+    import upickle.default.*
+
+    /** ReadWriter for Cardano CLI JSON format that uses string keys like "PlutusV1", "PlutusV2",
+      * "PlutusV3"
+      */
+    val cardanoCliReadWriter: ReadWriter[CostModels] =
+        readwriter[ujson.Value].bimap[CostModels](
+          costModels =>
+              ujson.Obj.from(
+                costModels.models.map { case (langId, costs) =>
+                    Language.fromId(langId).toString -> ujson.Arr.from(
+                      costs.map(v => ujson.Num(v.toDouble))
+                    )
+                }
+              ),
+          json =>
+              CostModels(
+                json.obj.map { case (k, v) =>
+                    Language.valueOf(k).languageId -> v.arr.map(_.num.toLong).toIndexedSeq
+                }.toMap
+              )
         )
-    }
 }
 
 /** Represents a constitution in the Cardano blockchain governance system.

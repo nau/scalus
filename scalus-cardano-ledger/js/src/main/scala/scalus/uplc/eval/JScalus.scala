@@ -114,7 +114,7 @@ object JScalus {
         val utxo =
             Cbor.decode(utxoCborBytes.toArray).to[Map[TransactionInput, TransactionOutput]].value
         val params: ProtocolParams = CardanoInfo.mainnet.protocolParams
-        val costModels = CostModels.fromProtocolParams(params)
+        val costModels = params.costModels
         val evaluator = PlutusScriptEvaluator(
           slotConfig = slotConfig,
           initialBudget = ExBudget.enormous,

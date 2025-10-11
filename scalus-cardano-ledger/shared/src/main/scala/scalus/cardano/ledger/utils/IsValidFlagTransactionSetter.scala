@@ -20,7 +20,7 @@ object IsValidFlagTransactionSetter {
               initialBudget =
                   ExBudget.fromCpuAndMemory(maxTxExecutionUnits.steps, maxTxExecutionUnits.memory),
               protocolMajorVersion = MajorProtocolVersion(protocolVersion.major),
-              costModels = CostModels.fromProtocolParams(protocolParameters),
+              costModels = protocolParameters.costModels,
               mode = EvaluatorMode.Validate,
               debugDumpFilesForTesting = false
             ).evalPlutusScripts(transaction, utxo)
