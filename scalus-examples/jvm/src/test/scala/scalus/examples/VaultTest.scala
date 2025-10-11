@@ -235,17 +235,25 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val vaultUtxo = getVaultUtxo(lockTx)
 
         val withdrawTx = withdrawVault(vaultUtxo)
+
+        val withdrawWallet = createTestWallet(ownerAddress, 50_000_000L)
+        val withdrawUtxos: UTxO = Map(vaultUtxo) ++ withdrawWallet.utxo
+        val withdrawContext = getScriptContext(withdrawTx, withdrawUtxos, vaultUtxo._1)
+        val withdrawResult = VaultContract.compiled.runScript(withdrawContext)
+
+        assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
+
         val pendingVaultUtxo = getVaultUtxo(withdrawTx)
 
         val finalizeTx = finalizeVault(pendingVaultUtxo)
 
-        val wallet = createTestWallet(ownerAddress, 50_000_000L)
-        val utxos: UTxO = Map(pendingVaultUtxo) ++ wallet.utxo
+        val finalizeWallet = createTestWallet(ownerAddress, 50_000_000L)
+        val finalizeUtxos: UTxO = Map(pendingVaultUtxo) ++ finalizeWallet.utxo
 
-        val scriptContext = getScriptContext(finalizeTx, utxos, pendingVaultUtxo._1)
-        val result = VaultContract.compiled.runScript(scriptContext)
+        val finalizeContext = getScriptContext(finalizeTx, finalizeUtxos, pendingVaultUtxo._1)
+        val finalizeResult = VaultContract.compiled.runScript(finalizeContext)
 
-        assert(result.isSuccess, s"Finalize should succeed: $result")
+        assert(finalizeResult.isSuccess, s"Finalize should succeed: $finalizeResult")
 
         val scriptOutputs = finalizeTx.body.value.outputs.filter(_.value.address.hasScript)
         assert(scriptOutputs.isEmpty, "Finalize should close vault (no script outputs)")
