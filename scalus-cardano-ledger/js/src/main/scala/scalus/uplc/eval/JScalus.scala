@@ -113,14 +113,12 @@ object JScalus {
         val tx = Transaction.fromCbor(txCborBytes.toArray)
         val utxo =
             Cbor.decode(utxoCborBytes.toArray).to[Map[TransactionInput, TransactionOutput]].value
-        val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
-          inlineResource("blockfrost-params-epoch-544.json")
-        )
+        val params: ProtocolParams = CardanoInfo.mainnet.protocolParams
         val costModels = CostModels.fromProtocolParams(params)
         val evaluator = PlutusScriptEvaluator(
           slotConfig = slotConfig,
           initialBudget = ExBudget.enormous,
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = costModels,
           mode = EvaluatorMode.EvaluateAndComputeCost,
           debugDumpFilesForTesting = false

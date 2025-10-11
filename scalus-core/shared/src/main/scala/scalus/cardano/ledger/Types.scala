@@ -279,7 +279,7 @@ object Language {
     }
 
     extension (lang: Language) {
-        def majorProtocolVersion: MajorProtocolVersion = lang match {
+        def introducedInVersion: MajorProtocolVersion = lang match {
             case Language.PlutusV1 => MajorProtocolVersion.alonzoPV
             case Language.PlutusV2 => MajorProtocolVersion.vasilPV
             case Language.PlutusV3 => MajorProtocolVersion.changPV

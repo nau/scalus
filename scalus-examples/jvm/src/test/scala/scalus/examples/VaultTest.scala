@@ -16,9 +16,7 @@ import scalus.ledger.api.v3
 class VaultTest extends AnyFunSuite, ScalusTest {
 
     // Minimal protocol params for testing
-    private val testProtocolParams = ProtocolParams.fromBlockfrostJson(
-      getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-    )
+    private val testProtocolParams = CardanoInfo.mainnet.protocolParams
 
     // Test environment setup
     private val env = Environment(
@@ -26,15 +24,15 @@ class VaultTest extends AnyFunSuite, ScalusTest {
       evaluator = PlutusScriptEvaluator(
         SlotConfig.Mainnet,
         initialBudget = ExBudget.enormous,
-        protocolMajorVersion = MajorProtocolVersion.plominPV,
+        protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
         costModels = CostModels.fromProtocolParams(testProtocolParams)
       ),
-      network = Network.Mainnet
+      network = CardanoInfo.mainnet.network
     )
 
     // Create a simple test address
     private val ownerAddress = ShelleyAddress(
-      network = Network.Mainnet,
+      network = CardanoInfo.mainnet.network,
       payment =
           ShelleyPaymentPart.Key(AddrKeyHash.fromByteString(ByteString.fromHex("a".repeat(56)))),
       delegation = ShelleyDelegationPart.Null
@@ -134,7 +132,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
           tx,
           utxos,
           SlotConfig.Mainnet,
-          MajorProtocolVersion.plominPV
+          CardanoInfo.mainnet.majorProtocolVersion
         )
     }
 

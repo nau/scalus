@@ -3,8 +3,7 @@ package eval
 
 import cats.syntax.group.*
 import scalus.builtin.{ByteString, Data, PlatformSpecific}
-import scalus.cardano.ledger.{Language, MajorProtocolVersion, ProtocolParams, ProtocolVersion}
-
+import scalus.cardano.ledger.{CardanoInfo, Language, MajorProtocolVersion, ProtocolParams, ProtocolVersion}
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
@@ -156,13 +155,13 @@ case class MachineParams(
 object MachineParams {
 
     lazy val defaultPlutusV1PostConwayParams: MachineParams =
-        defaultParamsFor(Language.PlutusV1, MajorProtocolVersion.plominPV)
+        defaultParamsFor(Language.PlutusV1, CardanoInfo.mainnet.majorProtocolVersion)
 
     lazy val defaultPlutusV2PostConwayParams: MachineParams =
-        defaultParamsFor(Language.PlutusV2, MajorProtocolVersion.plominPV)
+        defaultParamsFor(Language.PlutusV2, CardanoInfo.mainnet.majorProtocolVersion)
 
     lazy val defaultPlutusV3Params: MachineParams =
-        defaultParamsFor(Language.PlutusV3, MajorProtocolVersion.plominPV)
+        defaultParamsFor(Language.PlutusV3, CardanoInfo.mainnet.majorProtocolVersion)
 
     /** Creates default machine parameters for a given Plutus version and protocol version.
       *

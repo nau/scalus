@@ -19,7 +19,7 @@ object PlutusScript {
         language: Language,
         majorProtocolVersion: MajorProtocolVersion
     ): Boolean = {
-        if majorProtocolVersion < language.majorProtocolVersion then return false
+        if majorProtocolVersion < language.introducedInVersion then return false
 
         val ProgramFlatCodec.DecodeResult(DeBruijnedProgram(_, term), remaining) =
             try DeBruijnedProgram.fromCborWithRemainingBytes(script.bytes)

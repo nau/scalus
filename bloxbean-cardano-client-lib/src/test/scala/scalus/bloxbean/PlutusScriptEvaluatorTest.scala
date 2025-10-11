@@ -29,7 +29,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = costModels
         )
 
@@ -86,7 +86,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = costModels
         )
 
@@ -173,7 +173,7 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
         val evaluator = PlutusScriptEvaluator(
           SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = costModels,
           debugDumpFilesForTesting = false
         )

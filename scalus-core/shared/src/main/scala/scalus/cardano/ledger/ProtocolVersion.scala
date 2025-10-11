@@ -20,6 +20,8 @@ case class ProtocolVersion(
         val majorComp = this.major.compareTo(that.major)
         if majorComp != 0 then majorComp else this.minor.compareTo(that.minor)
     }
+
+    def toMajor: MajorProtocolVersion = MajorProtocolVersion(major)
 }
 
 object ProtocolVersion {

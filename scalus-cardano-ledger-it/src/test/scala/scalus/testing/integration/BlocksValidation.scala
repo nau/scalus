@@ -20,7 +20,7 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CostModels, ExUnits, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, ProtocolParams, RedeemerTag, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CardanoInfo, CostModels, ExUnits, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, ProtocolParams, RedeemerTag, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
 import scalus.ledger.api.{v3, ScriptContext}
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v3.ScriptInfo
@@ -232,14 +232,12 @@ class BlocksValidation extends AnyFunSuite {
         scriptSupplier: ScriptSupplier,
         epoch: Int
     ): (ScalusUtxoResolver, PlutusScriptEvaluator) = {
-        val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
-          this.getClass.getResourceAsStream(s"/blockfrost-params-epoch-$epoch.json")
-        )
+        val params: ProtocolParams = CardanoInfo.mainnet.protocolParams
         val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
         utxoResolver -> PlutusScriptEvaluator(
           ledger.SlotConfig.Mainnet,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = CostModels.fromProtocolParams(params)
         )
     }
