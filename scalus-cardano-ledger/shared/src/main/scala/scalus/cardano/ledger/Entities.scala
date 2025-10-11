@@ -296,7 +296,6 @@ object TransactionException {
 }
 
 type UTxO = Map[TransactionInput, TransactionOutput]
-type SlotNo = Long
 type GovState = Unit
 type StakeMap = Map[Credential, Coin]
 case class UTxOState(
