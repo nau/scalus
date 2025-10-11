@@ -28,7 +28,7 @@ import scalus.prelude.*
 @Compile
 object PaymentSplitter extends DataParameterizedValidator {
 
-    override def spend(
+    inline override def spend(
         payeesData: Data,
         datum: Option[Data],
         redeemer: Data,

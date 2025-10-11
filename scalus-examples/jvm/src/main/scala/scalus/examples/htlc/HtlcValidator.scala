@@ -32,7 +32,12 @@ enum Action derives FromData, ToData:
 object HtlcValidator extends Validator:
     /** Spending script purpose validation
       */
-    override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit = {
+    inline override def spend(
+        datum: Option[Data],
+        redeemer: Data,
+        tx: TxInfo,
+        ownRef: TxOutRef
+    ): Unit = {
         val ContractDatum(committer, receiver, image, timeout) =
             datum.map(_.to[ContractDatum]).getOrFail(InvalidDatum)
 

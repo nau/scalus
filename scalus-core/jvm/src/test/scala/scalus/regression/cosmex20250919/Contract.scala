@@ -1009,7 +1009,7 @@ object CosmexContract extends DataParameterizedValidator {
                     case _ => fail("LBI")
     }
 
-    override def spend(
+    inline override def spend(
         param: Datum,
         datum: Option[Datum],
         redeemer: Datum,

@@ -4,9 +4,10 @@ import scalus.builtin.Data
 import scalus.ledger.api.v3.*
 
 @scalus.Compile
+//erased [not availanle uet]
 trait Validator {
 
-    def validate(scData: Data): Unit = {
+    inline def validate(scData: Data): Unit = {
         val sc = scData.to[ScriptContext]
         sc.scriptInfo match
             case ScriptInfo.MintingScript(policyId) =>
@@ -23,53 +24,60 @@ trait Validator {
                 propose(procedure, sc.txInfo)
     }
 
-    def spend(
+    inline def spend(
         datum: Option[Data],
         redeemer: Data,
         tx: TxInfo,
         ownRef: TxOutRef
-    ): Unit = {
-        // send the script to the blockchain
-        fail("Empty Validator.spend")
-    }
+    ): Unit
+    // = {
+    //    // send the script to the blockchain
+    //    fail("Empty Validator.spend")
+    // }
 
-    def mint(
+    inline def mint(
         redeemer: Data,
         policyId: PolicyId,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.mint")
-    }
+    ): Unit
+    // = {
+    //    fail("Empty Validator.mint")
+    // }
 
-    def reward(
+    inline def reward(
         redeemer: Data,
         stakingKey: Credential,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.reward")
-    }
+    ): Unit
+    // = {
+    //    fail("Empty Validator.reward")
+    // }
 
-    def certify(
+    inline def certify(
         redeemer: Data,
         cert: TxCert,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.certify")
-    }
+    ): Unit
+    // = {
+    //    fail("Empty Validator.certify")
+    // }
 
-    def vote(
+    inline def vote(
         redeemer: Data,
         voter: Voter,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.vote")
-    }
+    ): Unit
+    // =
+    // {
+    //    fail("Empty Validator.vote")
+    // }
 
-    def propose(
+    inline def propose(
         proposalProcedure: ProposalProcedure,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.propose")
-    }
+    ): Unit
+    // = {
+    //    fail("Empty Validator.propose")
+    // }
 
 }

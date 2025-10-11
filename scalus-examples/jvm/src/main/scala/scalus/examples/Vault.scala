@@ -47,7 +47,7 @@ object Vault extends Validator {
         case Idle
         case Pending
 
-    override def spend(
+    inline override def spend(
         d: prelude.Option[Data],
         redeemer: Data,
         tx: TxInfo,

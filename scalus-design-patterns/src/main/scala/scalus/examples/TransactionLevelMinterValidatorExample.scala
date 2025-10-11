@@ -20,7 +20,7 @@ object TransactionLevelMinterValidatorExample extends Validator {
 
     // Sample spend logic on how to use the provided interface. Here we are
     // passing script's own hash as the expected minting policy.
-    override def spend(
+    inline override def spend(
         datum: Option[Data],
         redeemer: Redeemer,
         tx: TxInfo,
@@ -57,7 +57,7 @@ object TransactionLevelMinterValidatorExample extends Validator {
 
     // Sample mint logic that benefits from this design pattern. This example
     // expects a specific number of inputs to be spent in each transaction.
-    override def mint(redeemer: Redeemer, policyId: PolicyId, tx: TxInfo): Unit = {
+    inline override def mint(redeemer: Redeemer, policyId: PolicyId, tx: TxInfo): Unit = {
         val sampleMintRedeemer = redeemer.to[SampleMintRedeemer]
         val scriptInputsCount = tx.inputs.foldRight(BigInt(0)) { (input, acc) =>
             input.resolved.address.credential match

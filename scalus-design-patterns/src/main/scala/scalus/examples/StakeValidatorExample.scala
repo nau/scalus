@@ -11,7 +11,7 @@ import scalus.prelude.*
 // performant.
 @Compile
 object StakeValidatorExample extends Validator {
-    override def spend(
+    inline override def spend(
         datum: Option[Data],
         redeemer: Redeemer,
         tx: TxInfo,
@@ -29,7 +29,7 @@ object StakeValidatorExample extends Validator {
         )
     }
 
-    override def reward(redeemer: Redeemer, stakingKey: Credential, tx: TxInfo): Unit = {
+    inline override def reward(redeemer: Redeemer, stakingKey: Credential, tx: TxInfo): Unit = {
         StakeValidator.withdraw(
           withdrawalValidator = (redeemer, validatorHash, txInfo) => true,
           redeemer = redeemer,

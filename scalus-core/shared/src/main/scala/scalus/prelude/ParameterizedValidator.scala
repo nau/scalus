@@ -3,10 +3,11 @@ package scalus.prelude
 import scalus.builtin.Data
 import scalus.ledger.api.v3.*
 
+// erased [not availanle uet]
 @scalus.Compile
 trait ParameterizedValidator[A] {
 
-    def validate(param: A)(scData: Data): Unit = {
+    inline def validate(param: A)(scData: Data): Unit = {
         val sc = scData.to[ScriptContext]
         sc.scriptInfo match
             case ScriptInfo.MintingScript(policyId) =>
@@ -23,54 +24,60 @@ trait ParameterizedValidator[A] {
                 propose(param, procedure, sc.txInfo)
     }
 
-    def spend(
+    inline def spend(
         param: A,
         datum: Option[Data],
         redeemer: Data,
         tx: TxInfo,
         ownRef: TxOutRef
-    ): Unit = {
-        // send the script to the blockchain
-        fail("Empty Validator.spend")
-    }
+    ): Unit
+    // = {
+    // send the script to the blockchain
+    // fail("Empty Validator.spend")
+    // }
 
-    def mint(
+    inline def mint(
         param: A,
         redeemer: Data,
         policyId: PolicyId,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.mint")
-    }
+    ): Unit
+    // = {
+    //    fail("Empty Validator.mint")
+    // }
 
-    def reward(
+    inline def reward(
         param: A,
         redeemer: Data,
         stakingKey: Credential,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.reward")
-    }
+    ): Unit
+    // =
+    // {
+    //    fail("Empty Validator.reward")
+    // }
 
-    def certify(
+    inline def certify(
         param: A,
         redeemer: Data,
         cert: TxCert,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.certify")
-    }
+    ): Unit
+    // = {
+    //    fail("Empty Validator.certify")
+    // }
 
-    def vote(
+    inline def vote(
         param: A,
         redeemer: Data,
         voter: Voter,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.vote")
-    }
+    ): Unit
+    // = {
+    //    fail("Empty Validator.vote")
+    // }
 
-    def propose(
+    inline def propose(
         param: A,
         proposalProcedure: ProposalProcedure,
         tx: TxInfo
@@ -88,7 +95,7 @@ trait ParameterizedValidator[A] {
 @scalus.Compile
 trait DataParameterizedValidator {
 
-    def validate(param: Data)(scData: Data): Unit = {
+    inline def validate(param: Data)(scData: Data): Unit = {
         val sc = scData.to[ScriptContext]
         sc.scriptInfo match
             case ScriptInfo.MintingScript(policyId) =>
@@ -105,18 +112,19 @@ trait DataParameterizedValidator {
                 propose(param, procedure, sc.txInfo)
     }
 
-    def spend(
+    inline def spend(
         param: Data,
         datum: Option[Data],
         redeemer: Data,
         tx: TxInfo,
         ownRef: TxOutRef
-    ): Unit = {
-        // send the script to the blockchain
-        fail("Empty Validator.spend")
-    }
+    ): Unit
+    // = {
+    //    // send the script to the blockchain
+    //    fail("Empty Validator.spend")
+    // }
 
-    def mint(
+    inline def mint(
         param: Data,
         redeemer: Data,
         policyId: PolicyId,
@@ -125,7 +133,7 @@ trait DataParameterizedValidator {
         fail("Empty Validator.mint")
     }
 
-    def reward(
+    inline def reward(
         param: Data,
         redeemer: Data,
         stakingKey: Credential,
@@ -134,7 +142,7 @@ trait DataParameterizedValidator {
         fail("Empty Validator.reward")
     }
 
-    def certify(
+    inline def certify(
         param: Data,
         redeemer: Data,
         cert: TxCert,
@@ -143,7 +151,7 @@ trait DataParameterizedValidator {
         fail("Empty Validator.certify")
     }
 
-    def vote(
+    inline def vote(
         param: Data,
         redeemer: Data,
         voter: Voter,
@@ -152,7 +160,7 @@ trait DataParameterizedValidator {
         fail("Empty Validator.vote")
     }
 
-    def propose(
+    inline def propose(
         param: Data,
         proposalProcedure: ProposalProcedure,
         tx: TxInfo

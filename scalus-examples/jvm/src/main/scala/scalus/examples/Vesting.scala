@@ -49,7 +49,7 @@ object VestingUtils {
 
 @Compile
 object Vesting extends Validator:
-    override def spend(
+    inline override def spend(
         datum: Option[Data],
         redeemer: Data,
         txInfo: TxInfo,

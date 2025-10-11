@@ -7,7 +7,7 @@ import scalus.Compile
 
 @Compile
 object EmptyValidator extends Validator:
-    override def spend(
+    inline override def spend(
         datum: Option[Data],
         redeemer: Data,
         tx: TxInfo,
