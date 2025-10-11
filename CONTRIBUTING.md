@@ -113,10 +113,11 @@ above.
 ## Publishing Scalus JS library to NPM
 
 ```sbt
-scalusJS / prepareNpmPackage
+scalusCardanoLedgerJS / prepareNpmPackag
 ```
 
-This will create a `scalus-opt-bundle.js` package in the `scalus-core/js/src/main/npm` directory.
+This will create a `scalus-opt-bundle.js` package in the `scalus-cardano-ledger/js/src/main/npm`
+directory.
 
 Login to NPM:
 
@@ -124,7 +125,7 @@ Login to NPM:
 npm login
 ```
 
-Update the version in `scalus-core/js/src/main/npm/package.json` and publish it to NPM:
+Update the version in `scalus-cardano-ledger/js/src/main/npm/package.json` and publish it to NPM:
 
 ```bash
 npm publish --access public

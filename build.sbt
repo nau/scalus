@@ -332,16 +332,6 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     .jsSettings(
       // Add JS-specific settings here
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
-      // copy scalus-*-bundle.js to dist for publishing on npm
-      prepareNpmPackage := {
-          val bundle = (Compile / fullOptJS / webpack).value
-          val target = (Compile / sourceDirectory).value / "npm"
-          bundle.foreach(f => IO.copyFile(f.data.file, target / f.data.file.getName))
-          streams.value.log.info(s"Copied ${bundle} to ${target}")
-      },
-      // use custom webpack config to export scalus as a commonjs2 module
-      // otherwise it won't export the module correctly
-      webpackConfigFile := Some(sourceDirectory.value / "main" / "webpack" / "webpack.config.js"),
       scalaJSLinkerConfig ~= {
           _.withModuleKind(ModuleKind.CommonJSModule)
           // Use .mjs extension.
@@ -567,6 +557,16 @@ lazy val scalusCardanoLedger = crossProject(JSPlatform, JVMPlatform)
     )
     .jsSettings(
       Compile / npmDependencies += "@noble/curves" -> "1.4.2",
+      // copy scalus-*-bundle.js to dist for publishing on npm
+      prepareNpmPackage := {
+          val bundle = (Compile / fullOptJS / webpack).value
+          val target = (Compile / sourceDirectory).value / "npm"
+          bundle.foreach(f => IO.copyFile(f.data.file, target / f.data.file.getName))
+          streams.value.log.info(s"Copied ${bundle} to ${target}")
+      },
+      // use custom webpack config to export scalus as a commonjs2 module
+      // otherwise it won't export the module correctly
+      webpackConfigFile := Some(sourceDirectory.value / "main" / "webpack" / "webpack.config.js"),
       scalaJSUseMainModuleInitializer := false,
       scalaJSLinkerConfig ~= {
           _.withModuleKind(ModuleKind.CommonJSModule)
@@ -654,7 +654,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "ci-js",
-  "clean;js/Test/compile;js/test"
+  "clean;js/Test/compile;js/test;scalusCardanoLedgerJS/prepareNpmPackage"
 )
 addCommandAlias(
   "ci-native",

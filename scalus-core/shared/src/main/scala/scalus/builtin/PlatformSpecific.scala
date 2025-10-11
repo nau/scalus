@@ -166,6 +166,48 @@ trait PlatformSpecific:
 
     def ripemd_160(byteString: ByteString): ByteString
 
+    /** Read a file from the filesystem and return its contents as a byte array.
+      *
+      * @note
+      *   This method is only available in Node.js, JVM, and Native environments. DO NOT use this
+      *   method in code that is intended to run in a browser. For browser-compatible code, avoid
+      *   file I/O operations or use browser-specific APIs like FileReader.
+      *
+      * @param path
+      *   The path to the file to read
+      * @return
+      *   The contents of the file as a byte array
+      */
+    def readFile(path: String): Array[Byte]
+
+    /** Write bytes to a file, creating or truncating the file if it exists.
+      *
+      * @note
+      *   This method is only available in Node.js, JVM, and Native environments. DO NOT use this
+      *   method in code that is intended to run in a browser. For browser-compatible code, avoid
+      *   file I/O operations or use browser-specific APIs like FileWriter.
+      *
+      * @param path
+      *   The path to the file to write
+      * @param bytes
+      *   The bytes to write to the file
+      */
+    def writeFile(path: String, bytes: Array[Byte]): Unit
+
+    /** Append bytes to a file, creating the file if it doesn't exist.
+      *
+      * @note
+      *   This method is only available in Node.js, JVM, and Native environments. DO NOT use this
+      *   method in code that is intended to run in a browser. For browser-compatible code, avoid
+      *   file I/O operations or use browser-specific APIs.
+      *
+      * @param path
+      *   The path to the file to append to
+      * @param bytes
+      *   The bytes to append to the file
+      */
+    def appendFile(path: String, bytes: Array[Byte]): Unit
+
 object PlatformSpecific:
     val bls12_381_scalar_period: BigInt =
         BigInt("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001", 16)

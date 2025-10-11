@@ -1,5 +1,6 @@
 package scalus.builtin
 
+import java.nio.file.{Files, Paths}
 import scala.scalanative.runtime
 import scala.scalanative.unsafe.*
 import scala.scalanative.unsigned.*
@@ -375,6 +376,25 @@ trait NativePlatformSpecific extends PlatformSpecific {
 
     // TODO: make native implementation for ripemd_160
     override def ripemd_160(byteString: ByteString): ByteString = ???
+
+    override def readFile(path: String): Array[Byte] = {
+        Files.readAllBytes(Paths.get(path))
+    }
+
+    override def writeFile(path: String, bytes: Array[Byte]): Unit = {
+        Files.write(Paths.get(path), bytes.toArray)
+        ()
+    }
+
+    override def appendFile(path: String, bytes: Array[Byte]): Unit = {
+        Files.write(
+          Paths.get(path),
+          bytes.toArray,
+          java.nio.file.StandardOpenOption.CREATE,
+          java.nio.file.StandardOpenOption.APPEND
+        )
+        ()
+    }
 }
 
 object NativePlatformSpecific extends NativePlatformSpecific

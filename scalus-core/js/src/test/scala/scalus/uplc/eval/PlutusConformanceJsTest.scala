@@ -1,5 +1,7 @@
 package scalus.uplc.eval
 
+import scalus.builtin.platform
+
 /** Tests for the Plutus Conformance Test Suite.
   *
   * @note
@@ -7,9 +9,7 @@ package scalus.uplc.eval
   */
 class PlutusConformanceJsTest extends PlutusConformanceTest:
     override protected def readFile(path: String): String = {
-        import scalajs.js.Dynamic.global as g
-        val fs = g.require("fs")
-        fs.readFileSync(path).toString
+        new String(platform.readFile(path), "UTF-8")
     }
 
     check("builtin/constant/bls12-381/G1/bad-syntax-01/bad-syntax-01")

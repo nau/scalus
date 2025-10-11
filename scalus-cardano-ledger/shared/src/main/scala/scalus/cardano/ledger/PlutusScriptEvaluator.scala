@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 
 import scalus.builtin.Data.toData
-import scalus.builtin.{ByteString, Data}
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Language.*
@@ -15,7 +15,6 @@ import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
 import scribe.Logger
 
-import java.nio.file.{Files, Paths}
 import scala.collection.immutable
 import scala.util.control.NonFatal
 
@@ -432,12 +431,8 @@ class PlutusScriptEvaluator(
         txhash: String,
         language: Language
     ): Unit = {
-        Files.write(
-          Paths.get(s"script-$txhash-$language-${redeemer.tag}-${redeemer.index}.flat"),
-          program.flatEncoded,
-          java.nio.file.StandardOpenOption.CREATE,
-          java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
-        )
+        val filename = s"script-$txhash-$language-${redeemer.tag}-${redeemer.index}.flat"
+        platform.writeFile(filename, program.flatEncoded)
     }
 
     /** Extract all scripts from transaction and UTxOs.

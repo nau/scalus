@@ -1,8 +1,7 @@
 package scalus.uplc.eval
 
+import scalus.builtin.platform
 import scalus.uplc.eval.*
-
-import java.nio.file.Files
 
 class RestrictingBudgetSpenderWithScriptDump(
     maxBudget: ExBudget,
@@ -12,12 +11,9 @@ class RestrictingBudgetSpenderWithScriptDump(
         if debugDumpFilesForTesting then
             cat match
                 case ExBudgetCategory.BuiltinApp(fun) =>
-                    Files.write(
-                      java.nio.file.Paths.get("scalus.log"),
-                      s"fun $$${fun}, cost: ExBudget { mem: ${budget.memory}, cpu: ${budget.cpu} }\n".getBytes,
-                      java.nio.file.StandardOpenOption.CREATE,
-                      java.nio.file.StandardOpenOption.APPEND
-                    )
+                    val logMessage =
+                        s"fun $$${fun}, cost: ExBudget { mem: ${budget.memory}, cpu: ${budget.cpu} }\n"
+                    platform.appendFile("scalus.log", logMessage.getBytes("UTF-8"))
                 case _ =>
         super.spendBudget(cat, budget, env)
     }
