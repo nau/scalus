@@ -7,7 +7,6 @@ import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Decorators.toTermName
-import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
@@ -293,8 +292,9 @@ final class SIRCompiler(
             SIRType.TypeVar(tps.name.show, Some(tps.hashCode), false)
         }
         val sirTypeVars = (typeParamsSymbols zip sirTypeParams).toMap
+        println(s"processing type def: type-symbol=${td.tpe.typeSymbol.fullName}")
         val baseEnv = Env.empty.copy(
-          thisTypeSymbol = td.symbol,
+          thisTypeSymbol = td.tpe.typeSymbol,
           typeVars = sirTypeVars,
           debug = options.debugLevel > 0 || annotDebugLevel > 0,
         )
@@ -316,6 +316,7 @@ final class SIRCompiler(
         val superBindings = staticInheritanceParents.flatMap { p =>
             sirLoader.findAndReadModule(p.typeSymbol.fullName.show, true) match
                 case Left(message) =>
+                    /*
                     error(
                       GenericError(
                         s"Builtin module ${p.typeSymbol.showFullName} not found, check is you installatin is complete: ${message}",
@@ -323,6 +324,9 @@ final class SIRCompiler(
                       ),
                       None
                     )
+                  
+                     */
+                    None
                 case Right(module) =>
                     val parentTypeParams = p.typeParams
                     val parentTypeParamsSymbols = parentTypeParams.map(_.paramRef.typeSymbol)
@@ -354,7 +358,7 @@ final class SIRCompiler(
                     val (newBody, changed) = applyStaticInheritanceInSIR(
                       Symbols.NoSymbol,
                       b.body,
-                      Env.empty.copy(thisTypeSymbol = td.symbol),
+                      Env.empty.copy(thisTypeSymbol = td.tpe.typeSymbol),
                       Map.empty,
                       superNames
                     )
@@ -971,7 +975,43 @@ final class SIRCompiler(
             // (i.e. body.tpe should be consistent with selfType)
             val nTypeVars = env.typeVars ++ typeParamsMap
             val nVars = env.vars ++ paramNameTypes + (selfName -> selfTypeFromDef)
-            val funBodyExpr = compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
+            val nEnv1 = env.copy(vars = nVars, typeVars = nTypeVars)
+            // println(s"compileDefDef: this valdef ${v.show}, thisTpt: ${thisTpt.show}, thisRhs: ${thisRhs.show}, thisTpt.tpe: ${thisTpt.tpe.show}, thisTpt.symbol: ${thisTpt.symbol}, thisTpt.symbol == thisTypeSymbol: ${thisTpt.symbol == env.thisTypeSymbol}, thisTypeSymbol: ${env.thisTypeSymbol}")
+            // println(s"rhs tree: ${dd.rhs}")
+            val funBodyExpr = dd.rhs match
+                case Inlined(_, List(v @ ValDef(cnName, thisTpt, thisRhs)), expanded)
+                    if cnName.show.endsWith("_this") =>
+                    val nEnv2 = nEnv1.copy(thisVal = v.symbol)
+                    try compileExpr(nEnv2, expanded)
+                    catch
+                        case NonFatal(ex) =>
+                            println(
+                              s"ex:${ex.getMessage}"
+                            )
+                            println(s"dd.rhs=${dd.rhs.show}")
+                            println(s"rhs tree: ${dd.rhs}")
+                            println(
+                              s"valdef ${v.show}, thisTpt: ${thisTpt.show},  thisTpt.tpe: ${thisTpt.tpe.show}, thisTpt.symbol: ${thisTpt.symbol}, thisTpt.symbol == thisTypeSymbol: ${thisTpt.symbol == env.thisTypeSymbol}, thisTypeSymbol: ${env.thisTypeSymbol}"
+                            )
+                            throw ex
+                case _ =>
+                    try compileExpr(env.copy(vars = nVars, typeVars = nTypeVars), body)
+                    catch
+                        case NonFatal(ex) =>
+                            println(
+                              s"ex:${ex.getMessage}"
+                            )
+                            println(s"dd.rhs=${dd.rhs.show}")
+                            println(s"rhs tree: ${dd.rhs}")
+                            dd.rhs match
+                                case Inlined(_, List(v @ ValDef(name, tpt, rhs)), expanded) =>
+                                    println(
+                                      s"!catched valdef ${v.show}, _this: ${name.show.endsWith("_this")}"
+                                    )
+                                    println(
+                                      s"tpt.symbol ${tpt.tpe.typeSymbol}, ==thisTypeSymbol: ${tpt.symbol == env.thisTypeSymbol}, thisTypeSymbol: ${env.thisTypeSymbol}"
+                                    )
+                            throw ex
             if debug then
                 println(
                   s"compileDefDef: ${dd.symbol.fullName.toString}, btype0: ${funBodyExpr.tp.show}"
@@ -2430,9 +2470,18 @@ final class SIRCompiler(
                 //    )
                 //
                 //    ???
+                else if env.thisVal != Symbols.NoSymbol && sel.symbol == env.thisVal then
+                    // this.field or just field
+                    ???
                 else if isVirtualCall(tree, obj, ident) then
                     compileVirtualCall(env, tree, obj, ident)
-                else compileIdentOrQualifiedSelect(env, tree, tree, Nil)
+                else {
+                    try compileIdentOrQualifiedSelect(env, tree, tree, Nil)
+                    catch
+                        case NonFatal(ex) =>
+                            println(s"Exception during compiling select: ${sel.show}")
+                            throw ex
+                }
             // Ignore type application
             //   actually now all current applications are typeapplications
             case TypeApply(f, targs) =>
@@ -3191,7 +3240,7 @@ final class SIRCompiler(
 
                 if !moduleSym.isCompleted || moduleSym.info.findDecl(
                       Plugin.SIR_MODULE_VAL_NAME.toTermName,
-                      EmptyFlags
+                      Flags.EmptyFlags
                     ) == SymDenotations.NoDenotation
                 then {
                     val module =
@@ -3208,7 +3257,8 @@ final class SIRCompiler(
                             Module(SIRVersion, moduleSym.fullName.toString, List.empty)
                         else
                             report.error(
-                              s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} is not found",
+                              s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} is not found\n" +
+                                  s"on-resolved var: ${externalVar}",
                               srcPos
                             )
                             // write empty module instean.
@@ -3262,7 +3312,13 @@ object SIRCompiler {
         debug: Boolean = false,
         level: Int = 0,
         resolvedClasses: Map[Symbol, SIRType] = Map.empty,
-        thisTypeSymbol: Symbol = Symbols.NoSymbol
+        // set during compilation of object
+        thisTypeSymbol: Symbol = Symbols.NoSymbol,
+
+        //  during deifnition of inline method, this is variable,
+        //  which contains binding of 'this' object.
+        thisVal: Symbol = Symbols.NoSymbol,
+        createEx: RuntimeException = new RuntimeException("Env.create.stacktrace")
     ) {
 
         def ++(bindings: Iterable[(String, SIRType)]): Env = {

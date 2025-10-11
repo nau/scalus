@@ -73,7 +73,7 @@ object EscrowUtils {
 
 @Compile
 object Escrow extends Validator:
-    override def spend(
+    inline override def spend(
         datum: Option[Data],
         redeemer: Data,
         txInfo: TxInfo,

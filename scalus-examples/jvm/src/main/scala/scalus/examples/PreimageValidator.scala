@@ -28,7 +28,12 @@ object PreimageValidator {
 @Compile
 object PreimageValidatorV3 extends Validator {
     import scalus.ledger.api.v3.*
-    override def spend(datum: Option[Data], redeemer: Data, tx: TxInfo, ownRef: TxOutRef): Unit = { // deserialize from Data
+    inline override def spend(
+        datum: Option[Data],
+        redeemer: Data,
+        tx: TxInfo,
+        ownRef: TxOutRef
+    ): Unit = { // deserialize from Data
         val (hash, pkh) = datum.getOrFail("Expected datum").to[(ByteString, ByteString)]
         val preimage = redeemer.toByteString
         // check that the transaction is signed by the public key hash

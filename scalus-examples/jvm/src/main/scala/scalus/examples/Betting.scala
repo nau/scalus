@@ -55,7 +55,7 @@ object Betting extends Validator:
     /** Spending validator: Controls how the bet UTXO can be spent Handles both
       * [[scalus.examples.Action.Join]] and [[scalus.examples.Action.AnnounceWinner]] actions
       */
-    override def spend(
+    inline override def spend(
         datum: Option[Data],
         redeemer: Data,
         txInfo: TxInfo,
@@ -193,7 +193,7 @@ object Betting extends Validator:
     /** Minting policy: Controls the creation of bet tokens This ensures proper initialization of a
       * new bet
       */
-    override def mint(
+    inline override def mint(
         @annotation.unused redeemer: Data,
         policyId: PolicyId,
         tx: TxInfo
