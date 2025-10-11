@@ -15,10 +15,8 @@ import scalus.ledger.api.v3
 
 class VaultTest extends AnyFunSuite, ScalusTest {
 
-    // Minimal protocol params for testing
     private val testProtocolParams = CardanoInfo.mainnet.protocolParams
 
-    // Test environment setup
     private val env = Environment(
       protocolParams = testProtocolParams,
       evaluator = PlutusScriptEvaluator(
@@ -30,7 +28,6 @@ class VaultTest extends AnyFunSuite, ScalusTest {
       network = CardanoInfo.mainnet.network
     )
 
-    // Create a simple test address
     private val ownerAddress = ShelleyAddress(
       network = CardanoInfo.mainnet.network,
       payment =
@@ -47,7 +44,6 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     )
 
     def createTestWallet(address: Address, ada: BigInt): WalletTrait = new WalletTrait {
-        // Create a simple test UTxO
         private val testInput = TransactionInput(
           TransactionHash.fromByteString(ByteString.fromHex("0" * 64)),
           0
@@ -78,12 +74,30 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     }
 
     def lockVault(amount: BigInt) = {
-        val wallet = createTestWallet(ownerAddress, amount + 10_000_000L)
+        val wallet = createTestWallet(ownerAddress, amount + 50_000_000L)
         val context = BuilderContext(env, wallet)
-        new Transactions(context).lock(Value(Coin(amount.toLong)), ownerAddress) match {
-            case Right(tx)   => tx
-            case Left(error) => throw new Exception(s"Failed to lock vault: $error")
-        }
+        Transactions(context).lock(Value(Coin(amount.toLong)), ownerAddress).right.get
+    }
+
+    def withdrawVault(vaultUtxo: (TransactionInput, TransactionOutput)): Transaction = {
+        val wallet = createTestWallet(ownerAddress, 50_000_000L)
+        val context = BuilderContext(env, wallet)
+        new Transactions(context).withdraw(vaultUtxo).right.get
+    }
+
+    def depositVault(
+        vaultUtxo: (TransactionInput, TransactionOutput),
+        depositAmount: BigInt
+    ): Transaction = {
+        val wallet = createTestWallet(ownerAddress, depositAmount + 50_000_000L)
+        val context = BuilderContext(env, wallet)
+        new Transactions(context).deposit(vaultUtxo, Value(Coin(depositAmount.toLong))).right.get
+    }
+
+    def finalizeVault(vaultUtxo: (TransactionInput, TransactionOutput)): Transaction = {
+        val wallet = createTestWallet(ownerAddress, 50_000_000L)
+        val context = BuilderContext(env, wallet)
+        new Transactions(context).finalize(vaultUtxo, ownerAddress).right.get
     }
 
     def getVaultUtxo(tx: Transaction): (TransactionInput, TransactionOutput) = {
@@ -140,16 +154,12 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = getVaultUtxo(lockTx)
 
+        val withdrawTx = withdrawVault(vaultUtxo)
+
         val wallet = createTestWallet(ownerAddress, 50_000_000L)
-        val context = BuilderContext(env, wallet)
-        val withdrawTx = new Transactions(context).withdraw(vaultUtxo) match {
-            case Right(tx)   => tx
-            case Left(error) => fail(s"Failed to build withdraw transaction: $error")
-        }
         val utxos: UTxO = Map(vaultUtxo) ++ wallet.utxo
 
         val scriptContext = getScriptContext(withdrawTx, utxos, vaultUtxo._1)
-
         val result = VaultContract.compiled.runScript(scriptContext)
 
         assert(result.isSuccess)
@@ -167,5 +177,88 @@ class VaultTest extends AnyFunSuite, ScalusTest {
                   "Vault amount should remain unchanged"
                 )
         }
+    }
+
+    test("vault deposit adds funds") {
+        val lockTx = lockVault(defaultInitialAmount)
+        val vaultUtxo = getVaultUtxo(lockTx)
+
+        val depositAmount = BigInt(5_000_000L)
+        val depositTx = depositVault(vaultUtxo, depositAmount)
+
+        val wallet = createTestWallet(ownerAddress, depositAmount + 50_000_000L)
+        val utxos: UTxO = Map(vaultUtxo) ++ wallet.utxo
+
+        val scriptContext = getScriptContext(depositTx, utxos, vaultUtxo._1)
+        val result = VaultContract.compiled.runScript(scriptContext)
+
+        assert(result.isSuccess, s"Deposit should succeed: $result")
+        val newVaultUtxo = getVaultUtxo(depositTx)
+
+        newVaultUtxo._2 match {
+            case TransactionOutput.Babbage(_, value, Some(DatumOption.Inline(d)), _) =>
+                val newDatum = d.to[Vault.Datum]
+                assert(
+                  newDatum.state == Vault.State.Idle,
+                  s"Vault state should remain Idle, got ${newDatum.state}"
+                )
+                assert(
+                  newDatum.amount == defaultInitialAmount + depositAmount,
+                  s"Vault amount should be ${defaultInitialAmount + depositAmount}, got ${newDatum.amount}"
+                )
+                assert(
+                  value.coin.value == (defaultInitialAmount + depositAmount).toLong,
+                  s"Vault value should match datum amount"
+                )
+            case _ => fail("Vault output should have inline datum")
+        }
+    }
+
+    test("vault finalization fails when vault is in Idle state") {
+        val lockTx = lockVault(defaultInitialAmount)
+        val vaultUtxo = getVaultUtxo(lockTx)
+
+        val wallet = createTestWallet(ownerAddress, 50_000_000L)
+        val context = BuilderContext(env, wallet)
+        val result = new Transactions(context).finalize(vaultUtxo, ownerAddress)
+
+        assert(result.isLeft, "Finalize on Idle vault should fail during transaction building")
+        val errorMsg = result.swap.getOrElse("")
+        assert(
+          errorMsg.contains("Error evaluated"),
+          s"Expected script evaluation failure, got: $errorMsg"
+        )
+    }
+
+    test("vault finalization succeeds after withdrawal request") {
+        val lockTx = lockVault(defaultInitialAmount)
+        val vaultUtxo = getVaultUtxo(lockTx)
+
+        val withdrawTx = withdrawVault(vaultUtxo)
+        val pendingVaultUtxo = getVaultUtxo(withdrawTx)
+
+        val finalizeTx = finalizeVault(pendingVaultUtxo)
+
+        val wallet = createTestWallet(ownerAddress, 50_000_000L)
+        val utxos: UTxO = Map(pendingVaultUtxo) ++ wallet.utxo
+
+        val scriptContext = getScriptContext(finalizeTx, utxos, pendingVaultUtxo._1)
+        val result = VaultContract.compiled.runScript(scriptContext)
+
+        assert(result.isSuccess, s"Finalize should succeed: $result")
+
+        val scriptOutputs = finalizeTx.body.value.outputs.filter(_.value.address.hasScript)
+        assert(scriptOutputs.isEmpty, "Finalize should close vault (no script outputs)")
+
+        val ownerOutputs = finalizeTx.body.value.outputs.filter { output =>
+            output.value.address == ownerAddress
+        }
+        assert(ownerOutputs.nonEmpty, "Finalize should send funds to owner")
+
+        val ownerReceivedValue = ownerOutputs.head.value.value.coin.value
+        assert(
+          ownerReceivedValue >= defaultInitialAmount.toLong,
+          s"Owner should receive at least the vault amount, got $ownerReceivedValue"
+        )
     }
 }

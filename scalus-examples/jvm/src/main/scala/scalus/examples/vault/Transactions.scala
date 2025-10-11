@@ -18,7 +18,13 @@ class Transactions(context: BuilderContext) {
             case (builder, (utxo, witness)) =>
                 builder.spendOutputs((utxo.input, utxo.output), witness)
         }
-        val datum = Vault.Datum(owner.toBytes, Vault.State.Idle, BigInt(value.coin.value))
+        val ownerCredentialHash = owner match {
+            case addr: scalus.cardano.address.ShelleyAddress =>
+                scalus.builtin.ByteString.fromArray(addr.payment.asHash.bytes)
+            case _ =>
+                return Left("Only Shelley addresses are supported")
+        }
+        val datum = Vault.Datum(ownerCredentialHash, Vault.State.Idle, BigInt(value.coin.value))
         builder.payToScript(scriptAddress, value, datum.toData).build()
     }
 
@@ -43,6 +49,50 @@ class Transactions(context: BuilderContext) {
               script
             )
             .payToScript(scriptAddress, vaultValue, newDatum.toData)
+            .build()
+    }
+
+    def deposit(
+        vaultUtxo: (TransactionInput, TransactionOutput),
+        additionalValue: Value
+    ): Either[String, Transaction] = {
+        val currentDatum = vaultUtxo._2 match {
+            case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) =>
+                d.to[Vault.Datum]
+            case _ =>
+                return Left("Vault UTxO must have an inline datum")
+        }
+
+        val currentValue = vaultUtxo._2.value
+        val newValue = currentValue + additionalValue
+        val newAmount = BigInt(newValue.coin.value)
+
+        val newDatum = currentDatum.copy(amount = newAmount)
+
+        val redeemer = Vault.Redeemer.Deposit.toData
+        PaymentBuilder(context)
+            .spendScriptOutputs(vaultUtxo, redeemer, script)
+            .payToScript(scriptAddress, newValue, newDatum.toData)
+            .build()
+    }
+
+    def finalize(
+        vaultUtxo: (TransactionInput, TransactionOutput),
+        ownerAddress: Address
+    ): Either[String, Transaction] = {
+        val currentDatum = vaultUtxo._2 match {
+            case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) =>
+                d.to[Vault.Datum]
+            case _ =>
+                return Left("Vault UTxO must have an inline datum")
+        }
+
+        val vaultValue = vaultUtxo._2.value
+
+        val redeemer = Vault.Redeemer.Finalize.toData
+        PaymentBuilder(context)
+            .spendScriptOutputs(vaultUtxo, redeemer, script)
+            .payTo(ownerAddress, vaultValue)
             .build()
     }
 

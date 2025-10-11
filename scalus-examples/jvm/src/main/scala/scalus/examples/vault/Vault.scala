@@ -3,16 +3,15 @@ package scalus.examples.vault
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.builtin.{ByteString, Data}
 import scalus.examples.vault.Vault.Redeemer.{Cancel, Deposit, Finalize, Withdraw}
-import scalus.{plutusV3, toUplc}
 import scalus.ledger.api
 import scalus.ledger.api.v1.Credential.ScriptCredential
 import scalus.ledger.api.v1.{Credential, Value}
 import scalus.ledger.api.v2.{OutputDatum, TxOut}
 import scalus.ledger.api.v3.{TxInInfo, TxInfo, TxOutRef}
 import scalus.ledger.api.{v1, v2}
-import scalus.prelude.{===, log, require, Validator}
-import scalus.{ledger, prelude, Compile, Ignore}
+import scalus.prelude.{===, Validator, fail, require}
 import scalus.uplc.Program
+import scalus.*
 
 /** A contract for keeping funds.
   *
@@ -54,7 +53,6 @@ object Vault extends Validator {
         tx: TxInfo,
         ownRef: TxOutRef
     ): Unit = {
-        log("zero")
         val datum = d.get.to[Datum]
         redeemer.to[Redeemer] match {
             case Deposit  => deposit(tx, ownRef, datum)
@@ -98,7 +96,7 @@ object Vault extends Validator {
                   "Datum amount must match output lovelace amount"
                 )
             case _ =>
-                require(false, "Deposit transaction must have an inline datum with the new amount")
+                fail("Deposit transaction must have an inline datum with the new amount")
         }
     }
 
@@ -131,12 +129,18 @@ object Vault extends Validator {
                   datum.to[Datum].state.isPending,
                   "Output must have datum with State = Pending"
                 )
-            case _ => require(false, "Output must have datum with State = Pending")
+            case _ => fail("Output must have datum with State = Pending")
         }
     }
 
     private def finalize(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
+
+        // We can only finalize pending vaults.
+        ownInput.resolved.datum match {
+            case OutputDatum.OutputDatum(datum) => require(datum.to[Datum].state.isPending)
+            case _                              => fail("Contract has no datum.")
+        }
 
         val scriptOutputs = tx.outputs.filter(out =>
             out.address.credential === ownInput.resolved.address.credential
@@ -188,8 +192,7 @@ object Vault extends Validator {
                   "Idle transactions must change the vault state to Idle"
                 )
             case _ =>
-                require(
-                  false,
+                fail(
                   "Cancel transactions must have an inline datum with the correct state and amount"
                 )
         }
@@ -211,7 +214,7 @@ object Vault extends Validator {
                   newDatum.to[Datum].owner == datum.owner,
                   "Vault transactions cannot change the vault owner"
                 )
-            case _ => require(false, "Vault transactions must have an inline datum")
+            case _ => fail("Vault transactions must have an inline datum")
         }
 
     private def addressEquals(left: Credential, right: ByteString) = {
