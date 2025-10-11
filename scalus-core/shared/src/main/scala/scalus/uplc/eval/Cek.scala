@@ -4,7 +4,7 @@ package eval
 import cats.syntax.group.*
 import scalus.builtin.{ByteString, Data, PlatformSpecific}
 import scalus.cardano.ledger.{Language, MajorProtocolVersion, ProtocolParams, ProtocolVersion}
-import scalus.sir.SIRType
+
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
@@ -714,7 +714,7 @@ class CekMachine(
             case VBuiltin(fun, term, runtime) =>
                 val term1 = () => Apply(term(), dischargeCekValue(arg))
                 runtime.typeScheme match
-                    case SIRType.Fun(_, rest) =>
+                    case TypeScheme.Arrow(_, rest) =>
                         val runtime1 = runtime.copy(args = runtime.args :+ arg, typeScheme = rest)
                         val res = evalBuiltinApp(env, fun, term1, runtime1)
                         Return(ctx, env, res)
@@ -738,14 +738,8 @@ class CekMachine(
                 rt.typeScheme match
                     // It's only possible to force a builtin application if the builtin expects a type
                     // argument next.
-                    case tp @ SIRType.TypeLambda(params, body) =>
-                        val runtime1 = params match
-                            case _ :: Nil  => rt.copy(typeScheme = body)
-                            case _ :: rest => rt.copy(typeScheme = tp.copy(params = rest))
-                            case _ =>
-                                throw new IllegalStateException(
-                                  s"Impossible: empty type parameters in type lambda: $tp"
-                                )
+                    case TypeScheme.All(_, t) =>
+                        val runtime1 = rt.copy(typeScheme = t)
                         // We allow a type argument to appear last in the type of a built-in function,
                         // otherwise we could just assemble a 'VBuiltin' without trying to evaluate the
                         // application.
@@ -763,14 +757,14 @@ class CekMachine(
         runtime: BuiltinRuntime
     ): CekValue = {
         runtime.typeScheme match
-            case _: SIRType.Fun | _: SIRType.TypeLambda => VBuiltin(builtinName, term, runtime)
-            case _ =>
+            case TypeScheme.Type(_) | TypeScheme.TVar(_) | TypeScheme.App(_, _) =>
                 spendBudget(ExBudgetCategory.BuiltinApp(builtinName), runtime.calculateCost, env)
                 // eval the builtin and return result
                 try {
                     // eval builtin when it's fully saturated, i.e. when all arguments were applied
                     runtime.apply(logger)
                 } catch case NonFatal(e) => throw new BuiltinError(builtinName, term(), e, env)
+            case _ => VBuiltin(builtinName, term, runtime)
     }
 
     /** Converts a 'CekValue' into a 'Term' by replacing all bound variables with the terms they're
