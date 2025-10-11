@@ -7,7 +7,7 @@ import scalus.cardano.ledger.{Credential, DatumOption, Transaction, TransactionI
 import scalus.cardano.ledger.Script.PlutusV3
 import scalus.cardano.ledger.txbuilder.{BuilderContext, PaymentBuilder}
 
-class transactions(context: BuilderContext) {
+class Transactions(context: BuilderContext) {
     val wallet = context.wallet
     val script = PlutusV3(VaultContract.script.cborByteString)
     val scriptAddress = Address(context.env.network, Credential.ScriptHash(script.scriptHash))

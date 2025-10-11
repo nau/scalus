@@ -7,7 +7,7 @@ import scalus.builtin.ByteString.*
 import scalus.cardano.address.{Address, Network, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, PubKeyWitness, TransactionUnspentOutput, Wallet as WalletTrait, Witness}
-import scalus.examples.vault.{transactions, Vault}
+import scalus.examples.vault.{Transactions, Vault}
 import scalus.examples.vault.Vault.{Datum, State}
 import scalus.examples.vault.VaultContract
 import scalus.uplc.eval.ExBudget
@@ -82,7 +82,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     def lockVault(amount: BigInt) = {
         val wallet = createTestWallet(ownerAddress, amount + 10_000_000L)
         val context = BuilderContext(env, wallet)
-        new transactions(context).lock(Value(Coin(amount.toLong)), ownerAddress) match {
+        new Transactions(context).lock(Value(Coin(amount.toLong)), ownerAddress) match {
             case Right(tx)   => tx
             case Left(error) => throw new Exception(s"Failed to lock vault: $error")
         }
@@ -144,7 +144,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val wallet = createTestWallet(ownerAddress, 50_000_000L)
         val context = BuilderContext(env, wallet)
-        val withdrawTx = new transactions(context).withdraw(vaultUtxo) match {
+        val withdrawTx = new Transactions(context).withdraw(vaultUtxo) match {
             case Right(tx)   => tx
             case Left(error) => fail(s"Failed to build withdraw transaction: $error")
         }

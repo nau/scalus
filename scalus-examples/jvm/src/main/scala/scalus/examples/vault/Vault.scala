@@ -10,7 +10,7 @@ import scalus.ledger.api.v1.{Credential, Value}
 import scalus.ledger.api.v2.{OutputDatum, TxOut}
 import scalus.ledger.api.v3.{TxInInfo, TxInfo, TxOutRef}
 import scalus.ledger.api.{v1, v2}
-import scalus.prelude.{===, require, Validator}
+import scalus.prelude.{===, log, require, Validator}
 import scalus.{ledger, prelude, Compile, Ignore}
 import scalus.uplc.Program
 
@@ -54,7 +54,7 @@ object Vault extends Validator {
         tx: TxInfo,
         ownRef: TxOutRef
     ): Unit = {
-        scalus.prelude.log("zero")
+        log("zero")
         val datum = d.get.to[Datum]
         redeemer.to[Redeemer] match {
             case Deposit  => deposit(tx, ownRef, datum)
@@ -65,7 +65,7 @@ object Vault extends Validator {
     }
 
     private def deposit(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
-        val ownInput = tx.findOwnInput(ownRef).getOrFail("Own input not found.")
+        val ownInput = tx.findOwnInput(ownRef).getOrFail("Own input not found")
 
         val scriptOutputs = tx.outputs.filter(out =>
             out.address.credential === ownInput.resolved.address.credential
@@ -73,7 +73,7 @@ object Vault extends Validator {
 
         require(
           scriptOutputs.size == BigInt(1),
-          "Deposit transaction must have exactly 1 output to the vault script."
+          "Deposit transaction must have exactly 1 output to the vault script"
         )
 
         val out = scriptOutputs.head
@@ -81,14 +81,14 @@ object Vault extends Validator {
         requireOutputToOwnAddress(
           ownInput,
           out,
-          "Deposit transactions can only be made to the vault."
+          "Deposit transactions can only be made to the vault"
         )
 
         val value = out.value
-        require(value.withoutLovelace.isZero, "Deposits must only contain ADA.")
+        require(value.withoutLovelace.isZero, "Deposits must only contain ADA")
         require(
           value.getLovelace > ownInput.resolved.value.getLovelace,
-          "Deposits must add ADA to the vault."
+          "Deposits must add ADA to the vault"
         )
         requireEntireVaultIsSpent(datum, ownInput.resolved)
         out.datum match {
@@ -105,9 +105,9 @@ object Vault extends Validator {
     private def withdraw(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         require(
           datum.state.isIdle,
-          "Cannot withdraw, another withdrawal request is pending."
+          "Cannot withdraw, another withdrawal request is pending"
         )
-        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input.")
+        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
 
         val scriptOutputs = tx.outputs.filter(out =>
             out.address.credential === ownInput.resolved.address.credential
@@ -115,7 +115,7 @@ object Vault extends Validator {
 
         require(
           scriptOutputs.size == BigInt(1),
-          "Withdrawal transaction must contain exactly 1 output to the vault script."
+          "Withdrawal transaction must contain exactly 1 output to the vault script"
         )
 
         val out = scriptOutputs.head
@@ -123,20 +123,20 @@ object Vault extends Validator {
         requireOutputToOwnAddress(
           ownInput,
           out,
-          "Withdrawal transactions must have a vault output."
+          "Withdrawal transactions must have a vault output"
         )
         out.datum match {
             case OutputDatum.OutputDatum(datum) =>
                 require(
                   datum.to[Datum].state.isPending,
-                  "Output must have datum with State = Pending."
+                  "Output must have datum with State = Pending"
                 )
-            case _ => require(false, "Output must have datum with State = Pending.")
+            case _ => require(false, "Output must have datum with State = Pending")
         }
     }
 
     private def finalize(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
-        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input.")
+        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
 
         val scriptOutputs = tx.outputs.filter(out =>
             out.address.credential === ownInput.resolved.address.credential
@@ -145,7 +145,7 @@ object Vault extends Validator {
         // Finalize should close the vault - no outputs back to the script
         require(
           scriptOutputs.size == BigInt(0),
-          "Withdrawal finalization must not send funds back to the vault."
+          "Withdrawal finalization must not send funds back to the vault"
         )
 
         // Ensure there's at least one output to the owner address
@@ -153,12 +153,12 @@ object Vault extends Validator {
             tx.outputs.filter(out => addressEquals(out.address.credential, datum.owner))
         require(
           ownerOutputs.size > BigInt(0),
-          "Withdrawal finalization must send funds to the vault owner."
+          "Withdrawal finalization must send funds to the vault owner"
         )
     }
 
     private def cancel(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
-        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input.")
+        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
 
         // Filter outputs to only those going to the script address
         val scriptOutputs = tx.outputs.filter(out =>
@@ -167,7 +167,7 @@ object Vault extends Validator {
 
         require(
           scriptOutputs.size == BigInt(1),
-          "Cancel transaction must have exactly 1 output to the vault script."
+          "Cancel transaction must have exactly 1 output to the vault script"
         )
 
         val out = scriptOutputs.head
@@ -177,11 +177,11 @@ object Vault extends Validator {
                 val newDatum = d.to[Datum]
                 require(
                   newDatum.amount == datum.amount,
-                  "Cancel transactions must not change the vault amount."
+                  "Cancel transactions must not change the vault amount"
                 )
                 require(
                   out.value.getLovelace == datum.amount,
-                  "Cancel transactions must not change the vault amount."
+                  "Cancel transactions must not change the vault amount"
                 )
                 require(
                   newDatum.state.isIdle,
@@ -190,7 +190,7 @@ object Vault extends Validator {
             case _ =>
                 require(
                   false,
-                  "Cancel transactions must have an inline datum with the correct state and amount."
+                  "Cancel transactions must have an inline datum with the correct state and amount"
                 )
         }
     }
@@ -198,7 +198,7 @@ object Vault extends Validator {
     private def requireEntireVaultIsSpent(datum: Datum, output: TxOut) = {
         val amountToSpend = datum.amount
         val adaSpent = output.value.getLovelace
-        require(amountToSpend == adaSpent, "Must spend entire vault.")
+        require(amountToSpend == adaSpent, "Must spend entire vault")
     }
 
     private def requireOutputToOwnAddress(ownInput: TxInInfo, out: TxOut, message: String) =
@@ -209,9 +209,9 @@ object Vault extends Validator {
             case scalus.ledger.api.v2.OutputDatum.OutputDatum(newDatum) =>
                 require(
                   newDatum.to[Datum].owner == datum.owner,
-                  "Vault transactions cannot change the vault owner."
+                  "Vault transactions cannot change the vault owner"
                 )
-            case _ => require(false, "Vault transactions must have an inline datum.")
+            case _ => require(false, "Vault transactions must have an inline datum")
         }
 
     private def addressEquals(left: Credential, right: ByteString) = {
