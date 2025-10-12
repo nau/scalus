@@ -597,7 +597,7 @@ class CekMachine(
     val params: MachineParams,
     budgetSpender: BudgetSpender,
     logger: Logger,
-    builtinsMeaning: BuiltinsMeaning
+    getBuiltinRuntime: DefaultFun => BuiltinRuntime
 ) {
     import CekState.*
     import CekValue.*
@@ -649,7 +649,7 @@ class CekMachine(
                 spendBudget(ExBudgetCategory.Step(StepKind.Builtin), costs.builtinCost, env)
                 // The @term@ is a 'Builtin', so it's fully discharged.
                 try
-                    val meaning = builtinsMeaning.getBuiltinRuntime(bn)
+                    val meaning = getBuiltinRuntime(bn)
                     Return(ctx, env, VBuiltin(bn, () => term, meaning))
                 catch case _: Exception => throw new UnknownBuiltin(bn, env)
             case Error => throw new EvaluationFailure(env)

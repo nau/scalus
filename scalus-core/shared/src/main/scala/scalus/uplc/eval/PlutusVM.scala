@@ -33,7 +33,11 @@ class PlutusVM(
     platformSpecific: PlatformSpecific
 ) {
     private lazy val builtins =
-        new BuiltinsMeaning(machineParams.builtinCostModel, platformSpecific, semanticVariant)
+        new BuiltinsMeaning(
+          machineParams.builtinCostModel,
+          platformSpecific,
+          semanticVariant
+        )
 
     /** Evaluates a Plutus script according to the Plutus specification.
       *
@@ -106,7 +110,7 @@ class PlutusVM(
         budgetSpender: BudgetSpender = NoBudgetSpender,
         logger: Logger = NoLogger
     ): Term = {
-        val cek = new CekMachine(machineParams, budgetSpender, logger, builtins)
+        val cek = new CekMachine(machineParams, budgetSpender, logger, builtins.BuiltinMeanings)
         DeBruijn.fromDeBruijnTerm(cek.evaluateTerm(debruijnedTerm))
     }
 
