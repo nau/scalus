@@ -4,7 +4,6 @@ package eval
 import cats.syntax.group.*
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.ledger.*
-import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec

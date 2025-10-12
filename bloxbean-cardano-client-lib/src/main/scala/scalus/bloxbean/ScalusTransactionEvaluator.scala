@@ -1,19 +1,18 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.api.{TransactionEvaluator, UtxoSupplier}
 import com.bloxbean.cardano.client.api.exception.ApiException
 import com.bloxbean.cardano.client.api.model.{EvaluationResult, ProtocolParams, Result, Utxo}
 import com.bloxbean.cardano.client.api.util.CostModelUtil
+import com.bloxbean.cardano.client.api.{TransactionEvaluator, UtxoSupplier}
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.{Transaction, TransactionInput, TransactionOutput}
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.client.util.JsonUtil
 import scalus.builtin.ByteString
-import scalus.cardano.ledger.{CardanoInfo, CostModels, MajorProtocolVersion, PlutusScriptEvaluator}
+import scalus.cardano.ledger.{CardanoInfo, MajorProtocolVersion, PlutusScriptEvaluator}
 import scalus.ledger.api.ScriptContext
 import scalus.uplc.eval.ExBudget
 
-import java.math.BigInteger
 import java.util
 import java.util.List
 import scala.beans.BeanProperty
