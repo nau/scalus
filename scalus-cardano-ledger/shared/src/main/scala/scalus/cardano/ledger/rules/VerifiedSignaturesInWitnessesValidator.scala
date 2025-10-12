@@ -12,8 +12,8 @@ object VerifiedSignaturesInWitnessesValidator extends STS.Validator {
         val transactionId = event.id
         val utxo = state.utxo
 
-        val invalidVkeyWitnessesSet = invalidVkeyWitnesses(event, utxo)
-        val invalidBootstrapWitnessesSet = invalidBootstrapWitnesses(event, utxo)
+        val invalidVkeyWitnessesSet = invalidVkeyWitnesses(event)
+        val invalidBootstrapWitnessesSet = invalidBootstrapWitnesses(event)
 
         if invalidVkeyWitnessesSet.nonEmpty || invalidBootstrapWitnessesSet.nonEmpty
         then
@@ -29,8 +29,7 @@ object VerifiedSignaturesInWitnessesValidator extends STS.Validator {
     }
 
     private def invalidVkeyWitnesses(
-        event: Event,
-        utxo: UTxO
+        event: Event
     ): Set[VKeyWitness] = {
         val transactionId = event.id
         val vkeyWitnesses = event.witnessSet.vkeyWitnesses
@@ -41,8 +40,7 @@ object VerifiedSignaturesInWitnessesValidator extends STS.Validator {
     }
 
     private def invalidBootstrapWitnesses(
-        event: Event,
-        utxo: UTxO
+        event: Event
     ): Set[BootstrapWitness] = {
         val transactionId = event.id
         val bootstrapWitnesses = event.witnessSet.bootstrapWitnesses

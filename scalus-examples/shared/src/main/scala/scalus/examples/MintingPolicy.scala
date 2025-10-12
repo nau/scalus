@@ -163,8 +163,6 @@ object MintingPolicyV2 {
 
 @Compile
 object MintingPolicySimpleBackend {
-    import ScriptPurpose.*
-
     // Use SimpleSirToUplcLowering backend explicitly
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering
