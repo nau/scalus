@@ -2,11 +2,7 @@ package scalus.uplc.eval
 
 import scalus.builtin.{platform, PlatformSpecific, given}
 import scalus.cardano.ledger.{CardanoInfo, Language}
-import scalus.uplc.{BuiltinSemanticsVariant, BuiltinsMeaning}
-import scalus.uplc.Constant
-import scalus.uplc.DeBruijn
-import scalus.uplc.DeBruijnedProgram
-import scalus.uplc.Term
+import scalus.uplc.*
 
 /** Plutus VM facade.
   *
@@ -33,7 +29,7 @@ class PlutusVM(
     platformSpecific: PlatformSpecific
 ) {
     private lazy val builtins =
-        new BuiltinsMeaning(
+        new CardanoBuiltins(
           machineParams.builtinCostModel,
           platformSpecific,
           semanticVariant

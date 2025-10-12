@@ -21,6 +21,17 @@ case class BuiltinRuntime(
     def calculateCost: ExBudget = costFunction.calculateCost(args*)
 }
 
+class CardanoBuiltins(
+    builtinCostModel: BuiltinCostModel,
+    platformSpecific: PlatformSpecific,
+    semanticVariant: BuiltinSemanticsVariant
+) extends BuiltinsMeaning(
+      builtinCostModel,
+      platformSpecific,
+      semanticVariant
+    )
+
+@deprecated("Use CardanoBuiltins instead", "0.12.1")
 class BuiltinsMeaning(
     builtinCostModel: BuiltinCostModel,
     platformSpecific: PlatformSpecific,
