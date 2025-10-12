@@ -2,8 +2,9 @@ package scalus.uplc
 package eval
 
 import cats.syntax.group.*
-import scalus.builtin.{ByteString, Data, PlatformSpecific}
-import scalus.cardano.ledger.{CardanoInfo, Language, MajorProtocolVersion, ProtocolParams, ProtocolVersion}
+import scalus.builtin.{ByteString, Data}
+import scalus.cardano.ledger.*
+import scalus.ledger.api.MajorProtocolVersion
 import scalus.uplc.Term.*
 
 import scala.annotation.tailrec
@@ -148,24 +149,26 @@ object CekMachineCosts {
   */
 case class MachineParams(
     machineCosts: CekMachineCosts,
-    builtinCostModel: BuiltinCostModel,
-    semanticVariant: BuiltinSemanticsVariant
+    builtinCostModel: BuiltinCostModel
 )
 
 object MachineParams {
 
-    lazy val defaultPlutusV1PostConwayParams: MachineParams =
-        defaultParamsFor(Language.PlutusV1, CardanoInfo.mainnet.majorProtocolVersion)
+    lazy val defaultPlutusV1PostConwayParams: MachineParams = {
+        fromProtocolParams(CardanoInfo.mainnet.protocolParams, Language.PlutusV1)
+    }
 
-    lazy val defaultPlutusV2PostConwayParams: MachineParams =
-        defaultParamsFor(Language.PlutusV2, CardanoInfo.mainnet.majorProtocolVersion)
+    lazy val defaultPlutusV2PostConwayParams: MachineParams = {
+        fromProtocolParams(CardanoInfo.mainnet.protocolParams, Language.PlutusV2)
+    }
 
-    lazy val defaultPlutusV3Params: MachineParams =
-        defaultParamsFor(Language.PlutusV3, CardanoInfo.mainnet.majorProtocolVersion)
+    lazy val defaultPlutusV3Params: MachineParams = {
+        fromProtocolParams(CardanoInfo.mainnet.protocolParams, Language.PlutusV3)
+    }
 
     /** Creates default machine parameters for a given Plutus version and protocol version.
       *
-      * @param plutus
+      * @param language
       *   The plutus version
       * @param protocolVersion
       *   The protocol version
@@ -173,29 +176,10 @@ object MachineParams {
       *   The machine parameters
       */
     def defaultParamsFor(
-        plutus: Language,
+        language: Language,
         protocolVersion: MajorProtocolVersion
     ): MachineParams = {
-        val variant = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(protocolVersion, plutus)
-        variant match
-            case BuiltinSemanticsVariant.A =>
-                MachineParams(
-                  machineCosts = CekMachineCosts.defaultMachineCostsA,
-                  builtinCostModel = BuiltinCostModel.defaultCostModelA,
-                  semanticVariant = variant
-                )
-            case BuiltinSemanticsVariant.B =>
-                MachineParams(
-                  machineCosts = CekMachineCosts.defaultMachineCostsB,
-                  builtinCostModel = BuiltinCostModel.defaultCostModelB,
-                  semanticVariant = variant
-                )
-            case BuiltinSemanticsVariant.C =>
-                MachineParams(
-                  machineCosts = CekMachineCosts.defaultMachineCostsC,
-                  builtinCostModel = BuiltinCostModel.defaultCostModelC,
-                  semanticVariant = variant
-                )
+        fromCostModels(CardanoInfo.mainnet.protocolParams.costModels, language, protocolVersion)
     }
 
     /** Creates default machine parameters for a given Plutus version and protocol version.
@@ -250,14 +234,42 @@ object MachineParams {
     /** Creates [[MachineParams]] from a [[ProtocolParams]] and a [[Language]]
       */
     def fromProtocolParams(pparams: ProtocolParams, language: Language): MachineParams = {
-        val costs = pparams.costModels.models(language.languageId)
+        fromCostModels(pparams.costModels, language, pparams.protocolVersion.toMajor)
+    }
+
+    /** Creates MachineParams from [[CostModels]] and [[Language]].
+      *
+      * This function configures the Plutus virtual machine with the appropriate cost models and
+      * semantic variants based on the protocol version and Plutus language version. This is crucial
+      * for accurate script execution cost calculation and validation.
+      *
+      * @param costModels
+      *   Cost models for different Plutus versions
+      * @param language
+      *   Plutus language version (V1, V2, or V3)
+      * @param protocolVersion
+      *   Major protocol version for semantic variant selection
+      * @return
+      *   Configured MachineParams for script execution
+      */
+    def fromCostModels(
+        costModels: CostModels,
+        language: Language,
+        protocolVersion: MajorProtocolVersion
+    ): MachineParams = {
         val params = language match
-            case Language.PlutusV1 => PlutusV1Params.fromSeq(costs)
-            case Language.PlutusV2 => PlutusV2Params.fromSeq(costs)
-            case Language.PlutusV3 => PlutusV3Params.fromSeq(costs)
+            case Language.PlutusV1 =>
+                val costs = costModels.models(language.ordinal)
+                PlutusV1Params.fromSeq(costs)
+            case Language.PlutusV2 =>
+                val costs = costModels.models(language.ordinal)
+                PlutusV2Params.fromSeq(costs)
+            case Language.PlutusV3 =>
+                val costs = costModels.models(language.ordinal)
+                PlutusV3Params.fromSeq(costs)
 
         val semvar = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
-          MajorProtocolVersion(pparams.protocolVersion.major),
+          protocolVersion,
           language
         )
         val builtinCostModel = BuiltinCostModel.fromPlutusParams(params, language, semvar)
@@ -265,7 +277,6 @@ object MachineParams {
         MachineParams(
           machineCosts = machineCosts,
           builtinCostModel = builtinCostModel,
-          semanticVariant = semvar
         )
     }
 
@@ -592,18 +603,6 @@ class CekMachine(
     import CekState.*
     import CekValue.*
     import Context.*
-
-    def this(
-        params: MachineParams,
-        budgetSpender: BudgetSpender,
-        logger: Logger,
-        platformSpecific: PlatformSpecific
-    ) = this(
-      params,
-      budgetSpender,
-      logger,
-      new BuiltinsMeaning(params.builtinCostModel, platformSpecific, params.semanticVariant)
-    )
 
     /** Evaluates a UPLC term.
       *

@@ -264,7 +264,6 @@ object Interop {
         MachineParams(
           machineCosts = machineCosts,
           builtinCostModel = builtinCostModel,
-          semanticVariant = semvar
         )
     }
 

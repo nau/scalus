@@ -69,7 +69,7 @@ class PlutusScriptEvaluator(
     // Each VM is configured with version-specific cost models and protocol parameters
     private lazy val plutusV1VM =
         PlutusVM.makePlutusV1VM(
-          translateMachineParamsFromCostModels(
+          MachineParams.fromCostModels(
             costModels,
             PlutusV1,
             protocolMajorVersion
@@ -78,7 +78,7 @@ class PlutusScriptEvaluator(
 
     private lazy val plutusV2VM =
         PlutusVM.makePlutusV2VM(
-          translateMachineParamsFromCostModels(
+          MachineParams.fromCostModels(
             costModels,
             PlutusV2,
             protocolMajorVersion
@@ -87,7 +87,7 @@ class PlutusScriptEvaluator(
 
     private lazy val plutusV3VM =
         PlutusVM.makePlutusV3VM(
-          translateMachineParamsFromCostModels(
+          MachineParams.fromCostModels(
             costModels,
             PlutusV3,
             protocolMajorVersion
@@ -415,8 +415,8 @@ class PlutusScriptEvaluator(
             Result.Success(resultTerm, spender.getSpentBudget, Map.empty, logger.getLogs.toSeq)
         catch
             case e: StackTraceMachineError =>
-                println()
-                println(s"Script ${vm.language} ${redeemer.tag} evaluation failed: ${e.getMessage}")
+//                println()
+//                println(s"Script ${vm.language} ${redeemer.tag} evaluation failed: ${e.getMessage}")
 //                println(e.env.view.reverse.take(20).mkString("\n"))
                 throw new PlutusScriptEvaluationException(e.getMessage, e, logger.getLogs)
             case NonFatal(e) =>

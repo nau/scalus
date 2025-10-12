@@ -1,7 +1,7 @@
 package scalus.uplc.eval
 
 import scalus.builtin.{platform, PlatformSpecific, given}
-import scalus.cardano.ledger.Language
+import scalus.cardano.ledger.{CardanoInfo, Language}
 import scalus.uplc.{BuiltinSemanticsVariant, BuiltinsMeaning}
 import scalus.uplc.Constant
 import scalus.uplc.DeBruijn
@@ -137,12 +137,18 @@ object PlutusVM {
       * @return
       *   A configured Plutus V1 VM instance
       */
-    def makePlutusV1VM(params: MachineParams): PlutusVM = new PlutusVM(
-      Language.PlutusV1,
-      params,
-      params.semanticVariant,
-      platform
-    )
+    def makePlutusV1VM(params: MachineParams): PlutusVM = {
+        val semanticVariant = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
+          CardanoInfo.mainnet.majorProtocolVersion,
+          Language.PlutusV1
+        )
+        new PlutusVM(
+          Language.PlutusV1,
+          params,
+          semanticVariant,
+          platform
+        )
+    }
 
     /** Creates a Plutus V1 VM with default parameters.
       *
@@ -150,13 +156,11 @@ object PlutusVM {
       *   A Plutus V1 VM instance with default post-Conway parameters
       */
     def makePlutusV1VM(): PlutusVM = {
-        val params = MachineParams.defaultPlutusV1PostConwayParams
-        new PlutusVM(
-          Language.PlutusV1,
-          params,
-          params.semanticVariant,
-          platform
+        val params = MachineParams.fromProtocolParams(
+          CardanoInfo.mainnet.protocolParams,
+          Language.PlutusV1
         )
+        makePlutusV1VM(params)
     }
 
     /** Creates a Plutus V2 VM with custom parameters.
@@ -166,27 +170,31 @@ object PlutusVM {
       * @return
       *   A configured Plutus V2 VM instance
       */
-    def makePlutusV2VM(params: MachineParams): PlutusVM =
+    def makePlutusV2VM(params: MachineParams): PlutusVM = {
+        val semanticVariant = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
+          CardanoInfo.mainnet.majorProtocolVersion,
+          Language.PlutusV2
+        )
         new PlutusVM(
           Language.PlutusV2,
           params,
-          params.semanticVariant,
+          semanticVariant,
           platform
         )
+    }
 
     /** Creates a Plutus V2 VM with default parameters.
       *
       * @return
       *   A Plutus V2 VM instance with default post-Conway parameters
       */
-    def makePlutusV2VM(): PlutusVM =
-        val params = MachineParams.defaultPlutusV2PostConwayParams
-        new PlutusVM(
-          Language.PlutusV2,
-          params,
-          params.semanticVariant,
-          platform
+    def makePlutusV2VM(): PlutusVM = {
+        val params = MachineParams.fromProtocolParams(
+          CardanoInfo.mainnet.protocolParams,
+          Language.PlutusV2
         )
+        makePlutusV2VM(params)
+    }
 
     /** Creates a Plutus V3 VM with custom parameters.
       *
@@ -195,13 +203,18 @@ object PlutusVM {
       * @return
       *   A configured Plutus V3 VM instance
       */
-    def makePlutusV3VM(params: MachineParams): PlutusVM =
+    def makePlutusV3VM(params: MachineParams): PlutusVM = {
+        val semanticVariant = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
+          CardanoInfo.mainnet.majorProtocolVersion,
+          Language.PlutusV3
+        )
         new PlutusVM(
           Language.PlutusV3,
           params,
-          params.semanticVariant,
+          semanticVariant,
           platform
         )
+    }
 
     /** Creates a Plutus V3 VM with default parameters.
       *
@@ -209,12 +222,10 @@ object PlutusVM {
       *   A Plutus V3 VM instance with default parameters
       */
     def makePlutusV3VM(): PlutusVM = {
-        val params = MachineParams.defaultPlutusV3Params
-        new PlutusVM(
-          Language.PlutusV3,
-          params,
-          params.semanticVariant,
-          platform
+        val params = MachineParams.fromProtocolParams(
+          CardanoInfo.mainnet.protocolParams,
+          Language.PlutusV3
         )
+        makePlutusV3VM(params)
     }
 }
