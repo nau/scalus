@@ -7,8 +7,11 @@ import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, PubKeyWitness, TransactionUnspentOutput, Wallet as WalletTrait, Witness}
 import scalus.uplc.eval.ExBudget
 import scalus.ledger.api.v3
+import scalus.uplc.Program
+import scalus.plutusV3
+import scalus.testkit.ScalusTest
 
-object TestUtil {
+object TestUtil extends ScalusTest {
 
     val testProtocolParams: ProtocolParams = CardanoInfo.mainnet.protocolParams
 
@@ -109,5 +112,16 @@ object TestUtil {
           CardanoInfo.mainnet.slotConfig,
           CardanoInfo.mainnet.majorProtocolVersion
         )
+    }
+
+    def runValidator(
+        validatorProgram: Program,
+        tx: Transaction,
+        utxo: UTxO,
+        wallet: WalletTrait,
+        scriptInput: TransactionInput
+    ) = {
+        val scriptContext = TestUtil.getScriptContext(tx, utxo, scriptInput)
+        validatorProgram.term.plutusV3.runWithDebug(scriptContext)
     }
 }

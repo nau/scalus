@@ -448,7 +448,7 @@ object TransactionBuilder:
             protocolParams: ProtocolParams,
             diffHandler: (Long, Transaction) => Either[TxBalancingError, Transaction],
             evaluator: PlutusScriptEvaluator,
-            validators: Seq[Validator]
+            validators: Seq[Validator] = Seq.empty
         ): Either[TransactionException | TxBalancingError, Context] =
             for {
                 balancedCtx <- this

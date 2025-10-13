@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.ByteString
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.txbuilder.BuilderContext
+import scalus.cardano.ledger.txbuilder.{BuilderContext, Wallet}
 import scalus.examples.TestUtil
 import scalus.ledger.api.v1.PosixTime
 import scalus.testkit.ScalusTest
@@ -73,6 +73,9 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
             .getOrElse(???)
     }
 
+    def runValidator(tx: Transaction, utxo: UTxO, wallet: Wallet, scriptInput: TransactionInput) =
+        TestUtil.runValidator(HtlcValidator.script, tx, utxo, wallet, scriptInput)
+
     test("receiver reveals preimage before timeout") {
         val lockTx = lockHtlc()
         val htlcUtxo = TestUtil.getScriptUtxo(lockTx)
@@ -83,8 +86,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         val wallet = TestUtil.createTestWallet(receiverAddress, receiverWalletInput)
         val utxos: UTxO = Map(htlcUtxo) ++ wallet.utxo
 
-        val scriptContext = TestUtil.getScriptContext(revealTx, utxos, htlcUtxo._1)
-        val result = HtlcValidator.script.runWithDebug(scriptContext)
+        val result = runValidator(revealTx, utxos, wallet, htlcUtxo._1)
 
         assert(result.isSuccess)
 
@@ -154,8 +156,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         val wallet = TestUtil.createTestWallet(committerAddress, committerWalletInput)
         val utxos: UTxO = Map(htlcUtxo) ++ wallet.utxo
 
-        val scriptContext = TestUtil.getScriptContext(timeoutTx, utxos, htlcUtxo._1)
-        val result = HtlcValidator.script.runWithDebug(scriptContext)
+        val result = runValidator(timeoutTx, utxos, wallet, htlcUtxo._1)
 
         assert(result.isSuccess)
 

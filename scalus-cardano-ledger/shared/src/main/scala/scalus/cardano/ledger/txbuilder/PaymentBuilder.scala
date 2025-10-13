@@ -114,8 +114,7 @@ case class PaymentBuilder(
                 .finalizeContext(
                   protocolParams = context.env.protocolParams,
                   diffHandler = diffHandler,
-                  evaluator = context.env.evaluator,
-                  validators = Seq.empty // Could be made configurable
+                  evaluator = context.env.evaluator
                 )
                 .left
                 .map {
