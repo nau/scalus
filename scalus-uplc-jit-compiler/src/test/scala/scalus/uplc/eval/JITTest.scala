@@ -8,7 +8,7 @@ import scalus.uplc.Term
 import scala.util.Try
 
 class JITTest extends AnyFunSuiteLike {
-    private given PlutusVM = PlutusVM.makePlutusV3VM()
+    private given vm: PlutusVM = PlutusVM.makePlutusV3VM()
 
     test("UPLC JIT compilation works") {
         val uplc: Term = compile:
@@ -17,7 +17,7 @@ class JITTest extends AnyFunSuiteLike {
 
         assert(uplc.evaluateDebug.isFailure)
         val logger = Log()
-        val r = Try(JIT.jitUplc(uplc)(logger, NoBudgetSpender, summon[PlutusVM].machineParams))
+        val r = Try(JIT.jitUplc(uplc)(logger, NoBudgetSpender, vm.machineParams))
         assert(r.isFailure)
         assert(logger.getLogs.mkString == "Not implemented")
     }

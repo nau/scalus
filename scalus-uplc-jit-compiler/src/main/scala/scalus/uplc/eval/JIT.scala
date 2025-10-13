@@ -69,6 +69,105 @@ object JIT {
         case Lam(f: Any => Any)
         case Builtin(f: Any => Any)
 
+    /** Get type information for a builtin from CardanoBuiltins.
+      *
+      * @param fun
+      *   The builtin function
+      * @return
+      *   A tuple of (numTypeVars, arity) where numTypeVars is the number of type parameters and
+      *   arity is the number of regular parameters
+      */
+    private def getBuiltinTypeInfo(fun: DefaultFun): (Int, Int) = {
+        import scalus.uplc.Meaning.allBuiltins
+        val runtime = allBuiltins.BuiltinMeanings(fun)
+        (runtime.typeScheme.numTypeVars, runtime.typeScheme.arity)
+    }
+
+    /** Generate the builtin method name from DefaultFun by lowercasing the first letter.
+      *
+      * @param fun
+      *   The builtin function
+      * @return
+      *   The method name in Builtins object
+      */
+    private def builtinMethodName(fun: DefaultFun): String = {
+        val name = fun.toString
+        s"${name.head.toLower}${name.tail}"
+    }
+
+    /** Generate code for a builtin function.
+      *
+      * @param fun
+      *   The builtin function
+      * @return
+      *   The generated code expression
+      */
+    private def genBuiltinCode(fun: DefaultFun)(using Quotes): Expr[Any] = {
+        import quotes.reflect.*
+
+        val methodName = builtinMethodName(fun)
+        val (numTypeVars, arity) = getBuiltinTypeInfo(fun)
+
+        // Get the Builtins object and select the method
+        val builtinsTerm = '{ Builtins }.asTerm
+        val methodSymbol = builtinsTerm.tpe.typeSymbol.methodMember(methodName).head
+        val methodSelect = builtinsTerm.select(methodSymbol)
+
+        var resultTerm: quotes.reflect.Term = methodSelect
+
+        // For arity > 1, we need to eta-expand the method to a function, then call .curried
+        // For example, for a method ifThenElse[A](cond: Boolean, thenBranch: A, elseBranch: A): A
+        // We first need to apply type arguments if any: ifThenElse[Any]
+        // then eta-expand to get a Function3[Boolean, Any, Any, Any]
+        // then select .curried to get Function1[Boolean, Function1[Any, Function1[Any, Any]]]
+
+
+        // Eta-expand the method term to convert it to a function
+        // e.g., Function3[Boolean, Any, Any, Any]
+        val etaExpanded = resultTerm.etaExpand(Symbol.spliceOwner)
+        resultTerm = etaExpanded
+        if arity > 1 then
+            // Apply type arguments as TypeRepr.of[Any]
+            resultTerm = resultTerm.appliedToTypes(List.fill(numTypeVars)(TypeRepr.of[Any]))
+            // Now select .curried on the function
+            // to get Function1[Boolean, Function1[Any, Function1[Any, Any]]]
+            val curriedSymbol = resultTerm.tpe.typeSymbol.methodMember("curried").headOption
+            curriedSymbol match
+                case Some(sym) =>
+                    resultTerm = resultTerm.select(sym)
+                case None =>
+                    // Couldn't find curried method
+                    println(
+                      s"Warning: Could not find 'curried' method for builtin $fun with arity $arity"
+                    )
+                    ()
+        // Wrap with () => for each type variable
+        // () => ifThenElse[Any].curried
+        // () => (Boolean) => (Any) => (Any) => Any
+        for _ <- 0 until numTypeVars do
+            val capturedTerm = resultTerm // Capture the current term for the lambda body
+            val mtpe = MethodType(List())(_ => List(), _ => TypeRepr.of[Any])
+            resultTerm = Lambda(
+              Symbol.spliceOwner,
+              mtpe,
+              { case (methSym, _) =>
+                  capturedTerm.changeOwner(methSym)
+              }
+            )
+        try resultTerm.asExprOf[Any]
+        catch
+            case e: Exception =>
+                println(s"Error generating code for builtin $fun: ${e.getMessage}")
+                println(resultTerm.show)
+                throw e
+    }
+
+    /** Generate code from a UPLC term.
+      *
+      * We convert LamAbs to Scala lambdas, Apply to function application, Delay to () =>, Force to
+      * .apply(), Var to variable lookup in the environment, Const to constant expressions and
+      * Builtin to calls to the Builtins object methods.
+      */
     private def genCodeFromTerm(
         term: Term
     )(using Quotes): Expr[(Logger, BudgetSpender, MachineParams) => Any] = {
@@ -154,34 +253,12 @@ object JIT {
                         )
                         $expr
                     }
-                case Term.Builtin(DefaultFun.AddInteger) => '{ Builtins.addInteger.curried }
-                case Term.Builtin(DefaultFun.EqualsData) => '{ Builtins.equalsData.curried }
-                case Term.Builtin(DefaultFun.LessThanInteger) =>
-                    '{ Builtins.lessThanInteger.curried }
-                case Term.Builtin(DefaultFun.EqualsInteger) => '{ Builtins.equalsInteger.curried }
-                case Term.Builtin(DefaultFun.EqualsByteString) =>
-                    '{ Builtins.equalsByteString.curried }
-                case Term.Builtin(DefaultFun.IfThenElse) =>
-                    '{ () => (c: Boolean) => (t: Any) => (f: Any) => Builtins.ifThenElse(c, t, f) }
+                // Special handling for Trace because we use the logger instead of calling the builtin
                 case Term.Builtin(DefaultFun.Trace) =>
                     '{ () => (s: String) => (a: Any) =>
                         ${ logger }.log(s); a
                     }
-                case Term.Builtin(DefaultFun.FstPair) => '{ () => () => Builtins.fstPair }
-                case Term.Builtin(DefaultFun.SndPair) => '{ () => () => Builtins.sndPair }
-                case Term.Builtin(DefaultFun.ChooseList) =>
-                    '{ () => () => Builtins.chooseList.curried }
-                case Term.Builtin(DefaultFun.Sha2_256)     => '{ Builtins.sha2_256 }
-                case Term.Builtin(DefaultFun.HeadList)     => '{ () => Builtins.headList }
-                case Term.Builtin(DefaultFun.TailList)     => '{ () => Builtins.tailList }
-                case Term.Builtin(DefaultFun.UnConstrData) => '{ Builtins.unConstrData }
-                case Term.Builtin(DefaultFun.UnListData)   => '{ Builtins.unListData }
-                case Term.Builtin(DefaultFun.UnIData)      => '{ Builtins.unIData }
-                case Term.Builtin(DefaultFun.UnBData)      => '{ Builtins.unBData }
-                case Term.Builtin(bi) =>
-                    sys.error(
-                      s"Builtin $bi is not yet supported by the JIT compiler. Please add implementation in the Builtin pattern matching section."
-                    )
+                case Term.Builtin(fun) => genBuiltinCode(fun)
                 case Term.Error => '{ throw new RuntimeException("UPLC Error term evaluated") }
                 case Term.Constr(tag, args) =>
                     val expr = Expr.ofTuple(
