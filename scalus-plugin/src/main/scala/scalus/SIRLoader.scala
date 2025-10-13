@@ -9,6 +9,7 @@ import java.io.InputStream
 import java.net.URL
 import scala.util.control.NonFatal
 
+/*
 case class SIRLoaderOptions(
     classPath: List[String],
     /** additional directory */
@@ -93,3 +94,5 @@ class SIRLoader(options: SIRLoaderOptions):
     }
 
 end SIRLoader
+
+*/

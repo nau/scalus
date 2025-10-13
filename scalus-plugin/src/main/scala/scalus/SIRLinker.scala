@@ -9,6 +9,7 @@ import scala.annotation.unused
 import scala.collection.mutable
 import scalus.sir.SIRVersion
 
+/*
 case class SIRLinkerOptions(
     useUniversalDataConversion: Boolean,
     debugLevel: Int
@@ -234,3 +235,4 @@ class SIRLinker(options: SIRLinkerOptions, sirLoader: SIRLoader)(using ctx: Cont
     }
 
 }
+*/

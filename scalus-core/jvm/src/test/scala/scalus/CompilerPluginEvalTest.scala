@@ -30,6 +30,7 @@ class CompilerPluginEvalTest extends AnyFunSuite {
 
     val deadbeef = Constant.ByteString(hex"deadbeef")
 
+    
     test("compile Tuple2 construction/matching") {
         val compiled = compile {
             type Pair = (Boolean, Boolean)
@@ -52,6 +53,7 @@ class CompilerPluginEvalTest extends AnyFunSuite {
         val evaled = compiled.toUplc().evaluate
         assert(evaled == scalus.uplc.Term.Const(Constant.ByteString(hex"deadbeef")))
     }
+    
 
     test("compile match on ADT") {
 
@@ -63,7 +65,7 @@ class CompilerPluginEvalTest extends AnyFunSuite {
                 case Cons(h, _) => h
                 case Nil        => BigInt(0)
         }
-        // println(compiled.show)
+        println(compiled.show)
         val compiledToUplc = compiled.toUplc()
         // println(s"uplc:${compiledToUplc.show} ")
         try
@@ -90,6 +92,7 @@ class CompilerPluginEvalTest extends AnyFunSuite {
                 throw e
     }
 
+    
     test("compile wildcard match on ADT") {
         import scalus.prelude.These
         val compiled = compile {
@@ -257,5 +260,6 @@ class CompilerPluginEvalTest extends AnyFunSuite {
         val r3 = (uplc $ arg3).evaluate
         assert(r3 == Term.Const(Constant.Integer(-1)))
     }
+    
 
 }
