@@ -301,9 +301,11 @@ class BlocksValidation extends AnyFunSuite {
                         errors += error
                         println(s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}")
                     case e: IllegalStateException =>
-                        if e.getMessage.startsWith("Reference UTXO not found for input") then
+                        if e.getMessage.startsWith("Reference UTXO not found for input") then {
+                            println(s"${path.getFileName}: $e")
+                            println("Cannot resolve UTXO, stopping test ...")
                             break()
-                        else println(s"${path.getFileName}: $e")
+                        } else println(s"${path.getFileName}: $e")
                     case e: Exception => println(s"${path.getFileName}: $e")
                 }
         println(
