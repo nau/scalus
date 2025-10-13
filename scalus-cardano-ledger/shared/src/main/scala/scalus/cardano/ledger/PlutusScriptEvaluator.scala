@@ -140,6 +140,12 @@ class PlutusScriptEvaluator(
           s"Built lookup table with ${lookupTable.scripts.size} scripts and ${lookupTable.datums.size} datums"
         )
 
+        // Pre-compute TxInfo for each Plutus version to reuse across redeemers
+        // This is lazily initialized only if needed
+        lazy val txInfoV1 = getTxInfoV1(tx, datumsMapping, utxos, slotConfig, protocolMajorVersion)
+        lazy val txInfoV2 = getTxInfoV2(tx, datumsMapping, utxos, slotConfig, protocolMajorVersion)
+        lazy val txInfoV3 = getTxInfoV3(tx, datumsMapping, utxos, slotConfig, protocolMajorVersion)
+
         // Evaluate each redeemer
         var remainingBudget = initialBudget
 
@@ -210,7 +216,7 @@ class PlutusScriptEvaluator(
                         )
 
                 val (evaluatedRedeemer, sc) =
-                    evalRedeemer(tx, datumsMapping, utxos, redeemer, plutusScript, datum)
+                    evalRedeemer(tx, txInfoV1, txInfoV2, txInfoV3, redeemer, plutusScript, datum)
 
                 // Log execution unit differences for debugging
                 if evaluatedRedeemer.exUnits != redeemer.exUnits then
@@ -239,24 +245,40 @@ class PlutusScriptEvaluator(
       *   3. Applies the script arguments (datum, redeemer, context)
       *   4. Executes the script using the appropriate Plutus VM
       *   5. Returns the redeemer with computed execution units
+      *
+      * @param tx
+      *   The transaction being evaluated
+      * @param txInfoV1
+      *   Pre-computed TxInfo for Plutus V1 (lazily initialized)
+      * @param txInfoV2
+      *   Pre-computed TxInfo for Plutus V2 (lazily initialized)
+      * @param txInfoV3
+      *   Pre-computed TxInfo for Plutus V3 (lazily initialized)
+      * @param redeemer
+      *   The redeemer to evaluate
+      * @param plutusScript
+      *   The Plutus script to execute
+      * @param datum
+      *   Optional datum for spending scripts
       */
     private def evalRedeemer(
         tx: Transaction,
-        datums: Seq[(DataHash, Data)],
-        utxos: Map[TransactionInput, TransactionOutput],
+        txInfoV1: => v1.TxInfo,
+        txInfoV2: => v2.TxInfo,
+        txInfoV3: => v3.TxInfo,
         redeemer: Redeemer,
         plutusScript: PlutusScript,
         datum: Option[Data]
     ): (Redeemer, ScriptContext) = {
         val result = plutusScript match
             case Script.PlutusV1(script) =>
-                evalPlutusV1Script(tx, datums, utxos, redeemer, script, datum)
+                evalPlutusV1Script(tx, txInfoV1, redeemer, script, datum)
 
             case Script.PlutusV2(script) =>
-                evalPlutusV2Script(tx, datums, utxos, redeemer, script, datum)
+                evalPlutusV2Script(tx, txInfoV2, redeemer, script, datum)
 
             case Script.PlutusV3(script) =>
-                evalPlutusV3Script(tx, datums, utxos, redeemer, script, datum)
+                evalPlutusV3Script(tx, txInfoV3, redeemer, script, datum)
 
         val cost = result._1.budget
         log.debug(s"Evaluation result: $result")
@@ -281,17 +303,26 @@ class PlutusScriptEvaluator(
     }
 
     /** Evaluate a Plutus V1 script with the V1 script context.
+      *
+      * @param tx
+      *   The transaction being evaluated
+      * @param txInfoV1
+      *   Pre-computed TxInfo for Plutus V1
+      * @param redeemer
+      *   The redeemer to evaluate
+      * @param script
+      *   The CBOR-encoded script bytecode
+      * @param datum
+      *   Optional datum for spending scripts
       */
     private def evalPlutusV1Script(
         tx: Transaction,
-        datums: Seq[(ByteString, Data)],
-        utxos: Map[TransactionInput, TransactionOutput],
+        txInfoV1: v1.TxInfo,
         redeemer: Redeemer,
         script: ByteString,
         datum: Option[Data]
     ): (Result, v1.ScriptContext) = {
-        // Build V1 script context
-        val txInfoV1 = getTxInfoV1(tx, datums, utxos, slotConfig, protocolMajorVersion)
+        // Build V1 script context using pre-computed TxInfo
         val purpose = getScriptPurposeV1(tx, redeemer)
         val scriptContext = v1.ScriptContext(txInfoV1, purpose)
         val ctxData = scriptContext.toData
@@ -313,17 +344,26 @@ class PlutusScriptEvaluator(
     }
 
     /** Evaluate a Plutus V2 script with the V2 script context.
+      *
+      * @param tx
+      *   The transaction being evaluated
+      * @param txInfoV2
+      *   Pre-computed TxInfo for Plutus V2
+      * @param redeemer
+      *   The redeemer to evaluate
+      * @param script
+      *   The CBOR-encoded script bytecode
+      * @param datum
+      *   Optional datum for spending scripts
       */
     private def evalPlutusV2Script(
         tx: Transaction,
-        datums: Seq[(ByteString, Data)],
-        utxos: Map[TransactionInput, TransactionOutput],
+        txInfoV2: v2.TxInfo,
         redeemer: Redeemer,
         script: ByteString,
         datum: Option[Data]
     ): (Result, v2.ScriptContext) = {
-        // Build V2 script context
-        val txInfoV2 = getTxInfoV2(tx, datums, utxos, slotConfig, protocolMajorVersion)
+        // Build V2 script context using pre-computed TxInfo
         val purpose = getScriptPurposeV2(tx, redeemer)
         val scriptContext = v2.ScriptContext(txInfoV2, purpose)
         val ctxData = scriptContext.toData
@@ -345,17 +385,26 @@ class PlutusScriptEvaluator(
     }
 
     /** Evaluate a Plutus V3 script with the V3 script context.
+      *
+      * @param tx
+      *   The transaction being evaluated
+      * @param txInfoV3
+      *   Pre-computed TxInfo for Plutus V3
+      * @param redeemer
+      *   The redeemer to evaluate
+      * @param script
+      *   The CBOR-encoded script bytecode
+      * @param datum
+      *   Optional datum for spending scripts
       */
     private def evalPlutusV3Script(
         tx: Transaction,
-        datums: Seq[(ByteString, Data)],
-        utxos: Map[TransactionInput, TransactionOutput],
+        txInfoV3: v3.TxInfo,
         redeemer: Redeemer,
         script: ByteString,
         datum: Option[Data]
     ): (Result, v3.ScriptContext) = {
-        // Build V3 script context
-        val txInfoV3 = getTxInfoV3(tx, datums, utxos, slotConfig, protocolMajorVersion)
+        // Build V3 script context using pre-computed TxInfo
         val scriptInfo = getScriptInfoV3(tx, redeemer, datum)
         val scriptContext = v3.ScriptContext(txInfoV3, redeemer.data, scriptInfo)
         val ctxData = scriptContext.toData
