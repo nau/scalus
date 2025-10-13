@@ -305,7 +305,7 @@ final class SIRCompiler(
             }
         }
 
-        // val bindings = localBindings.foldRight(List.empty[LocalBinding]) {
+        //val bindings = localBindings.foldRight(List.empty[LocalBinding]) {
         //    (element, bindings) => element +: bindings
         // }
 
@@ -3140,6 +3140,7 @@ final class SIRCompiler(
             LocalBindingFlags.ErasedOnDataRepr
         else LocalBindingFlags.None
     }
+    
 
     def gatherExternalModules(
         myModuleName: String,
