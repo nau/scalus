@@ -512,13 +512,24 @@ lazy val docs = project // documentation project
 // Benchmarks for Cardano Plutus VM Evaluator
 lazy val bench = project
     .in(file("bench"))
-    .dependsOn(scalus.jvm, scalusUplcJitCompiler)
+    .dependsOn(
+      scalus.jvm,
+      scalusUplcJitCompiler,
+      scalusCardanoLedger.jvm,
+      // Depend on test scope to use ResourcesUtxoResolver and test resources (block/UTxO CBOR files)
+      `scalus-bloxbean-cardano-client-lib` % "compile->compile;compile->test"
+    )
     .enablePlugins(JmhPlugin)
     .disablePlugins(MimaPlugin) // disable Migration Manager for Scala
     .settings(
       name := "scalus-bench",
       PluginDependency,
-      publish / skip := true
+      publish / skip := true,
+      libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17",
+      libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0",
+      libraryDependencies += "com.fasterxml.jackson.core" % "jackson-databind" % "2.20.0",
+      libraryDependencies += "io.bullet" %%% "borer-core" % "1.16.1",
+      libraryDependencies += "io.bullet" %%% "borer-derivation" % "1.16.1"
     )
 
 // Cardano Ledger domain model and CBOR serialization
