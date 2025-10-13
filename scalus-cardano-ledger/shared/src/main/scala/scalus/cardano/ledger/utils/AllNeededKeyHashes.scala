@@ -8,7 +8,7 @@ import scala.util.boundary.break
 object AllNeededKeyHashes {
     def allNeededKeyHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadCollateralInputsUTxOException,
@@ -19,7 +19,7 @@ object AllNeededKeyHashes {
 
     def allNeededKeyHashesView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadCollateralInputsUTxOException,
@@ -42,7 +42,7 @@ object AllNeededKeyHashes {
 
     def allNeededInputsKeyHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadInputsUTxOException, Set[AddrKeyHash | StakeKeyHash]] = {
         neededInputsKeyHashes(
           transaction.id,
@@ -54,7 +54,7 @@ object AllNeededKeyHashes {
 
     def allNeededCollateralInputsKeyHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadCollateralInputsUTxOException, Set[
       AddrKeyHash | StakeKeyHash
     ]] = {
@@ -127,7 +127,7 @@ object AllNeededKeyHashes {
     ](
         transactionId: TransactionHash,
         inputs: Set[TransactionInput],
-        utxo: UTxO,
+        utxo: Utxos,
         missingUTxOException: TransactionHash => ExceptionT
     ): Either[ExceptionT, Set[AddrKeyHash | StakeKeyHash]] = boundary {
         val result = for

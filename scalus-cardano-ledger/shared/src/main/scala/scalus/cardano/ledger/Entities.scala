@@ -302,7 +302,7 @@ type Utxo = (TransactionInput, TransactionOutput)
 type GovState = Unit
 type StakeMap = Map[Credential, Coin]
 case class UTxOState(
-    utxo: UTxO, // UtxO entries
+    utxo: Utxos, // UtxO entries
     deposited: Coin, // Lazy field used only for assertions
     fees: Coin, // Accumulated transaction fees
     govState: GovState, // Governance state

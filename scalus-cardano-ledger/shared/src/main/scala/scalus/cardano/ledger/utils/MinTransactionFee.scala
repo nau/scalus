@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 object MinTransactionFee {
     def apply(
         transaction: Transaction,
-        utxo: UTxO,
+        utxo: Utxos,
         protocolParams: ProtocolParams
     ): Either[
       TransactionException.BadInputsUTxOException |

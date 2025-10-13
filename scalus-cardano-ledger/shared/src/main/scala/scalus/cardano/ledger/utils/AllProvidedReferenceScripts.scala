@@ -8,7 +8,7 @@ import scala.util.boundary.break
 object AllProvidedReferenceScripts {
     def allProvidedReferenceScriptsMap(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -21,7 +21,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceScripts(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -32,7 +32,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceScriptHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -43,7 +43,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceScriptHashesView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -54,7 +54,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferencePlutusScriptsMap(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -67,7 +67,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferencePlutusScripts(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -78,7 +78,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferencePlutusScriptsView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -92,7 +92,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferencePlutusScriptHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -103,7 +103,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferencePlutusScriptHashesView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -114,7 +114,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceNativeScriptsMap(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -127,7 +127,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceNativeScripts(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -138,7 +138,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceNativeScriptsView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -152,7 +152,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceNativeScriptHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -163,7 +163,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceNativeScriptHashesView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -174,7 +174,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceScriptsView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -196,7 +196,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedInputsReferenceScriptsMap(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadInputsUTxOException, Map[ScriptHash, Script]] = {
         allProvidedInputsReferenceScripts(transaction, utxo).map(
           _.map(script => script.scriptHash -> script).toMap
@@ -205,7 +205,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedInputsReferenceScripts(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadInputsUTxOException, Set[Script]] = {
         providedReferenceScripts(
           transaction.id,
@@ -217,14 +217,14 @@ object AllProvidedReferenceScripts {
 
     def allProvidedInputsReferenceScriptHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadInputsUTxOException, Set[ScriptHash]] = {
         allProvidedInputsReferenceScriptHashesView(transaction, utxo).map(_.toSet)
     }
 
     def allProvidedInputsReferenceScriptHashesView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadInputsUTxOException, View[ScriptHash]] = {
         allProvidedInputsReferenceScripts(
           transaction,
@@ -234,7 +234,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceInputsReferenceScriptsMap(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadReferenceInputsUTxOException, Map[ScriptHash, Script]] = {
         allProvidedReferenceInputsReferenceScripts(transaction, utxo).map(
           _.map(script => script.scriptHash -> script).toMap
@@ -243,7 +243,7 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceInputsReferenceScripts(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadReferenceInputsUTxOException, Set[Script]] = {
         providedReferenceScripts(
           transaction.id,
@@ -255,14 +255,14 @@ object AllProvidedReferenceScripts {
 
     def allProvidedReferenceInputsReferenceScriptHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadReferenceInputsUTxOException, Set[ScriptHash]] = {
         allProvidedReferenceInputsReferenceScriptHashesView(transaction, utxo).map(_.toSet)
     }
 
     def allProvidedReferenceInputsReferenceScriptHashesView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadReferenceInputsUTxOException, View[ScriptHash]] = {
         allProvidedReferenceInputsReferenceScripts(
           transaction,
@@ -276,7 +276,7 @@ object AllProvidedReferenceScripts {
     ](
         transactionId: TransactionHash,
         inputs: Set[TransactionInput],
-        utxo: UTxO,
+        utxo: Utxos,
         missingUTxOException: TransactionHash => ExceptionT
     ): Either[ExceptionT, Set[Script]] = boundary {
         val result = for

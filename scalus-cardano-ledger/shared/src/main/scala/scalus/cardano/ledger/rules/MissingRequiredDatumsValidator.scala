@@ -60,7 +60,7 @@ object MissingRequiredDatumsValidator extends STS.Validator {
     }
 
     private def getInputDataHashesTxBody(
-        utxo: UTxO,
+        utxo: Utxos,
         transaction: Transaction,
         scriptsProvided: Map[ScriptHash, Script]
     ): (Set[ByteString], Set[TransactionInput]) = {
@@ -106,7 +106,7 @@ object MissingRequiredDatumsValidator extends STS.Validator {
     }
 
     private def getSupplementalDataHashes(
-        utxo: UTxO,
+        utxo: Utxos,
         transaction: Transaction
     ): Set[ByteString] = {
         val txBody = transaction.body.value

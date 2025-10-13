@@ -144,7 +144,6 @@ lazy val jvm: Project = project
       scalusPluginTests,
       scalusUplcJitCompiler,
       scalusCardanoLedger.jvm,
-      scalusCardanoLedgerIt,
       scalusTestkit.jvm,
       scalusExamples.jvm,
       scalusDesignPatterns,
@@ -646,23 +645,23 @@ addCommandAlias(
 )
 addCommandAlias(
   "quick",
-  "scalafmtAll;scalafmtSbt;jvm/Test/compile;jvm/testQuick"
+  "scalafmtAll;scalafmtSbt;jvm/Test/compile;scalusCardanoLedgerIt/Test/compile;jvm/testQuick"
 )
 addCommandAlias(
   "cleanpile",
-  "clean;jvm/Test/compile"
+  "clean;jvm/Test/compile;scalusCardanoLedgerIt/Test/compile"
 )
 addCommandAlias(
   "precommit",
-  "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;jvm/Test/compile;scalusPluginTests/test;jvm/test;docs/mdoc"
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtAll;scalafmtSbt;jvm/Test/compile;scalusCardanoLedgerIt/Test/compile;scalusPluginTests/test;jvm/test;docs/mdoc"
 )
 addCommandAlias(
   "ci",
-  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusPluginTests/Test/compile;Test/nativeLink;test;docs/mdoc;mima"
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;Test/compile;scalusCardanoLedgerIt/Test/compile;scalusPluginTests/Test/compile;Test/nativeLink;test;docs/mdoc;mima"
 )
 addCommandAlias(
   "ci-jvm",
-  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;jvm/Test/compile;scalusPluginTests/Test/compile;jvm/test;docs/mdoc;mima"
+  "clean;docs/clean;scalusPluginTests/clean;scalafmtCheckAll;scalafmtSbtCheck;jvm/Test/compile;scalusCardanoLedgerIt/Test/compile;scalusPluginTests/Test/compile;jvm/test;docs/mdoc;mima"
 )
 addCommandAlias(
   "ci-js",

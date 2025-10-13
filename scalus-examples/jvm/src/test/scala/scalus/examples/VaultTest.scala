@@ -49,7 +49,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         new Transactions(context).finalize(vaultUtxo, ownerAddress).getOrElse(???)
     }
 
-    def runValidator(tx: Transaction, utxo: UTxO, wallet: Wallet, scriptInput: TransactionInput) =
+    def runValidator(tx: Transaction, utxo: Utxos, wallet: Wallet, scriptInput: TransactionInput) =
         TestUtil.runValidator(VaultContract.script, tx, utxo, wallet, scriptInput)
 
     test("vault withdrawal request") {
@@ -59,7 +59,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val withdrawTx = withdrawVault(vaultUtxo)
 
         val wallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
-        val utxos: UTxO = Map(vaultUtxo) ++ wallet.utxo
+        val utxos: Utxos = Map(vaultUtxo) ++ wallet.utxo
 
         val result = runValidator(withdrawTx, utxos, wallet, vaultUtxo._1)
 
@@ -88,7 +88,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val depositTx = depositVault(vaultUtxo, depositAmount)
 
         val wallet = TestUtil.createTestWallet(ownerAddress, depositAmount + 50_000_000L)
-        val utxos: UTxO = Map(vaultUtxo) ++ wallet.utxo
+        val utxos: Utxos = Map(vaultUtxo) ++ wallet.utxo
 
         val result = runValidator(depositTx, utxos, wallet, vaultUtxo._1)
 
@@ -137,7 +137,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val withdrawTx = withdrawVault(vaultUtxo)
 
         val withdrawWallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
-        val withdrawUtxos: UTxO = Map(vaultUtxo) ++ withdrawWallet.utxo
+        val withdrawUtxos: Utxos = Map(vaultUtxo) ++ withdrawWallet.utxo
         val withdrawResult = runValidator(withdrawTx, withdrawUtxos, withdrawWallet, vaultUtxo._1)
 
         assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
@@ -147,7 +147,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val finalizeTx = finalizeVault(pendingVaultUtxo)
 
         val finalizeWallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
-        val finalizeUtxos: UTxO = Map(pendingVaultUtxo) ++ finalizeWallet.utxo
+        val finalizeUtxos: Utxos = Map(pendingVaultUtxo) ++ finalizeWallet.utxo
 
         val finalizeResult =
             runValidator(finalizeTx, finalizeUtxos, finalizeWallet, pendingVaultUtxo._1)

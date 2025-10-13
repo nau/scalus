@@ -63,7 +63,7 @@ object MissingKeyHashesValidator extends STS.Validator {
     private def findMissingInputsKeyHashes(
         event: Event,
         allWitnessesKeyHashes: Set[AddrKeyHash],
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadInputsUTxOException, Set[AddrKeyHash | StakeKeyHash]] = {
         AllNeededKeyHashes.allNeededInputsKeyHashes(event, utxo).map {
             _.filterNot(keyHash => allWitnessesKeyHashes.exists(_ == keyHash))
@@ -73,7 +73,7 @@ object MissingKeyHashesValidator extends STS.Validator {
     private def findMissingCollateralInputsKeyHashes(
         event: Event,
         allWitnessesKeyHashes: Set[AddrKeyHash],
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadCollateralInputsUTxOException, Set[
       AddrKeyHash | StakeKeyHash
     ]] = {

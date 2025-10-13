@@ -11,7 +11,7 @@ class Context(
 )
 
 case class State(
-    utxo: UTxO = Map.empty,
+    utxo: Utxos = Map.empty,
     certState: CertState = CertState.empty,
     deposited: Coin = Coin.zero, // Lazy field used only for assertions
     fees: Coin = Coin.zero, // Accumulated transaction fees

@@ -48,7 +48,7 @@ object TestUtil extends ScalusTest {
         private val txUnspentOutput = TransactionUnspentOutput(testInput, testOutput)
 
         override def owner: Address = address
-        override def utxo: UTxO = Map((testInput, testOutput))
+        override def utxo: Utxos = Map((testInput, testOutput))
         override def collateralInputs: Seq[(TransactionUnspentOutput, Witness)] = Seq(
           (txUnspentOutput, PubKeyWitness)
         )
@@ -81,7 +81,7 @@ object TestUtil extends ScalusTest {
 
     def getScriptContext(
         tx: Transaction,
-        utxos: UTxO,
+        utxos: Utxos,
         spentInput: TransactionInput
     ): v3.ScriptContext = {
         val inputs = tx.body.value.inputs
@@ -117,7 +117,7 @@ object TestUtil extends ScalusTest {
     def runValidator(
         validatorProgram: Program,
         tx: Transaction,
-        utxo: UTxO,
+        utxo: Utxos,
         wallet: WalletTrait,
         scriptInput: TransactionInput
     ) = {

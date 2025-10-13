@@ -3,10 +3,9 @@ package scalus.cardano.ledger.txbuilder
 import monocle.Focus.focus
 import monocle.Lens
 import scalus.cardano.ledger.utils.{MinCoinSizedTransactionOutput, MinTransactionFee, TxBalance}
-import scalus.cardano.ledger.{Blake2b_256, CertState, Coin, Era, Hash, HashPurpose, KeepRaw, Language, PlutusScriptEvaluator, ProtocolParams, Redeemer, Redeemers, ScriptDataHashGenerator, Sized, Transaction, TransactionBody, TransactionOutput, TransactionWitnessSet, UTxO, Value}
+import scalus.cardano.ledger.*
 
 import scala.annotation.tailrec
-import scala.collection.immutable.TreeSet
 import scala.util.Try
 
 object LowLevelTxBuilder {
@@ -52,7 +51,7 @@ object LowLevelTxBuilder {
         initial: Transaction,
         changeOutputIdx: Int,
         protocolParams: ProtocolParams,
-        resolvedUtxo: UTxO,
+        resolvedUtxo: Utxos,
         evaluator: PlutusScriptEvaluator,
     ): Either[TxBalancingError, Transaction] = {
         balanceFeeAndChange(
@@ -74,7 +73,7 @@ object LowLevelTxBuilder {
         initial: Transaction,
         diffHandler: (Long, Transaction) => Either[TxBalancingError, Transaction],
         protocolParams: ProtocolParams,
-        resolvedUtxo: UTxO,
+        resolvedUtxo: Utxos,
         evaluator: PlutusScriptEvaluator,
     ): Either[TxBalancingError, Transaction] = {
         var iteration = 0
@@ -156,13 +155,13 @@ def modifyWs(tx: Transaction, f: TransactionWitnessSet => TransactionWitnessSet)
 
 def setFee(amount: Coin)(tx: Transaction) = modifyBody(tx, _.copy(fee = amount))
 
-def calculateChangeLovelace(tx: Transaction, utxo: UTxO, params: ProtocolParams): Long = {
+def calculateChangeLovelace(tx: Transaction, utxo: Utxos, params: ProtocolParams): Long = {
     val produced = TxBalance.produced(tx)
     val consumed = TxBalance.consumed(tx, CertState.empty, utxo, params).toTry.get
     consumed.coin.value - produced.coin.value
 }
 
-def calculateChangeValue(tx: Transaction, utxo: UTxO, params: ProtocolParams): Value = {
+def calculateChangeValue(tx: Transaction, utxo: Utxos, params: ProtocolParams): Value = {
     val produced = TxBalance.produced(tx)
     val consumed = TxBalance.consumed(tx, CertState.empty, utxo, params).toTry.get
     consumed - produced
@@ -171,7 +170,7 @@ def calculateChangeValue(tx: Transaction, utxo: UTxO, params: ProtocolParams): V
 def setupRedeemers(
     protocolParams: ProtocolParams,
     tx: Transaction,
-    utxo: UTxO,
+    utxo: Utxos,
     redeemers: Seq[Redeemer]
 ) = {
     if redeemers.isEmpty then {
@@ -195,7 +194,7 @@ def setupRedeemers(
 }
 
 def computeScriptsWitness(
-    utxo: UTxO,
+    utxo: Utxos,
     evaluator: PlutusScriptEvaluator,
     protocolParams: ProtocolParams
 )(tx: Transaction): Either[TxBalancingError, Transaction] = Try {

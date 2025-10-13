@@ -9,7 +9,7 @@ object AllResolvedScripts {
 
     def allResolvedScriptsMap(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -22,7 +22,7 @@ object AllResolvedScripts {
 
     def allResolvedScripts(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -33,7 +33,7 @@ object AllResolvedScripts {
 
     def allResolvedScriptsView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -47,7 +47,7 @@ object AllResolvedScripts {
 
     def allResolvedScriptHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -58,7 +58,7 @@ object AllResolvedScripts {
 
     def allResolvedScriptHashesView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -69,7 +69,7 @@ object AllResolvedScripts {
 
     def allResolvedPlutusScriptsMap(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -82,7 +82,7 @@ object AllResolvedScripts {
 
     def allResolvedPlutusScripts(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -93,7 +93,7 @@ object AllResolvedScripts {
 
     def allResolvedPlutusScriptsView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -112,7 +112,7 @@ object AllResolvedScripts {
 
     def allResolvedPlutusScriptHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -123,7 +123,7 @@ object AllResolvedScripts {
 
     def allResolvedPlutusScriptHashesView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -134,7 +134,7 @@ object AllResolvedScripts {
 
     def allResolvedNativeScriptsMap(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -147,7 +147,7 @@ object AllResolvedScripts {
 
     def allResolvedNativeScripts(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -158,7 +158,7 @@ object AllResolvedScripts {
 
     def allResolvedNativeScriptsView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -177,7 +177,7 @@ object AllResolvedScripts {
 
     def allResolvedNativeScriptHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,
@@ -188,7 +188,7 @@ object AllResolvedScripts {
 
     def allResolvedNativeScriptHashesView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[
       TransactionException.BadInputsUTxOException |
           TransactionException.BadReferenceInputsUTxOException,

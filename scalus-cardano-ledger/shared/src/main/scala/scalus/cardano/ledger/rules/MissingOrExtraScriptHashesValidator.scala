@@ -81,7 +81,7 @@ object MissingOrExtraScriptHashesValidator extends STS.Validator {
     private object ScriptHashesValidator {
         def apply(
             event: Event,
-            utxo: UTxO
+            utxo: Utxos
         ): Either[
           TransactionException.BadInputsUTxOException |
               TransactionException.BadReferenceInputsUTxOException,

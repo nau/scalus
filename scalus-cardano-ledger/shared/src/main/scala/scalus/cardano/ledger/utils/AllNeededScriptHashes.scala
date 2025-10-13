@@ -8,14 +8,14 @@ import scala.util.boundary.break
 object AllNeededScriptHashes {
     def allNeededScriptHashes(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadInputsUTxOException, Set[ScriptHash]] = {
         allNeededScriptHashesView(transaction, utxo).map(_.toSet)
     }
 
     def allNeededScriptHashesView(
         transaction: Transaction,
-        utxo: UTxO
+        utxo: Utxos
     ): Either[TransactionException.BadInputsUTxOException, View[ScriptHash]] = {
         for allNeededInputsScriptHashes <- allNeededInputsScriptHashes(transaction, utxo)
         yield allNeededInputsScriptHashes.view ++
@@ -28,7 +28,7 @@ object AllNeededScriptHashes {
 
     def allNeededInputsScriptHashes(
         transaction: Transaction,
-        utxo: UTxO,
+        utxo: Utxos,
     ): Either[TransactionException.BadInputsUTxOException, Set[ScriptHash]] = {
         allNeededInputsScriptIndexHashesAndOutputs(transaction, utxo).map {
             indexedHashesAndOutputs =>
@@ -38,7 +38,7 @@ object AllNeededScriptHashes {
 
     def allNeededInputsScriptIndexHashesAndOutputs(
         transaction: Transaction,
-        utxo: UTxO,
+        utxo: Utxos,
     ): Either[TransactionException.BadInputsUTxOException, Set[
       (Int, ScriptHash, TransactionOutput)
     ]] = boundary {

@@ -293,7 +293,7 @@ object TransactionBuilder:
             override def witnessKind: WitnessKind = WitnessKind.ScriptBased
 
     /** A wrapper around a UTxO set that prevents adding conflicting pairs */
-    case class ResolvedUtxos private (utxos: UTxO) {
+    case class ResolvedUtxos private (utxos: Utxos) {
 
         /**   - If the UTxO does not exist in the map, add it.
           *   - If the UTxO exists in the map with a different output associated, return None
@@ -328,7 +328,7 @@ object TransactionBuilder:
     object ResolvedUtxos:
         val empty: ResolvedUtxos = ResolvedUtxos(Map.empty)
 
-        def apply(utxos: UTxO): ResolvedUtxos = new ResolvedUtxos(utxos)
+        def apply(utxos: Utxos): ResolvedUtxos = new ResolvedUtxos(utxos)
 
     /** An opaque context in which the builder operates.
       *
@@ -422,7 +422,7 @@ object TransactionBuilder:
         }
 
         /** Conversion help to Scalus [[Utxo]] */
-        def getUtxo: UTxO = this.resolvedUtxos.utxos
+        def getUtxo: Utxos = this.resolvedUtxos.utxos
 
         /** Validate a context according so a set of ledger rules */
         def validate(

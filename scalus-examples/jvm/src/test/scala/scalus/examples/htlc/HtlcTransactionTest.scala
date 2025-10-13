@@ -73,7 +73,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
             .getOrElse(???)
     }
 
-    def runValidator(tx: Transaction, utxo: UTxO, wallet: Wallet, scriptInput: TransactionInput) =
+    def runValidator(tx: Transaction, utxo: Utxos, wallet: Wallet, scriptInput: TransactionInput) =
         TestUtil.runValidator(HtlcValidator.script, tx, utxo, wallet, scriptInput)
 
     test("receiver reveals preimage before timeout") {
@@ -84,7 +84,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         val receiverWalletInput = 50_000_000L
         val wallet = TestUtil.createTestWallet(receiverAddress, receiverWalletInput)
-        val utxos: UTxO = Map(htlcUtxo) ++ wallet.utxo
+        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
 
         val result = runValidator(revealTx, utxos, wallet, htlcUtxo._1)
 
@@ -154,7 +154,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         val committerWalletInput = 50_000_000L
         val wallet = TestUtil.createTestWallet(committerAddress, committerWalletInput)
-        val utxos: UTxO = Map(htlcUtxo) ++ wallet.utxo
+        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
 
         val result = runValidator(timeoutTx, utxos, wallet, htlcUtxo._1)
 

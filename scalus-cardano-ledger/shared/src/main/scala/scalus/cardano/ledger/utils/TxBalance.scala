@@ -10,7 +10,7 @@ object TxBalance {
     def consumed(
         tx: Transaction,
         certState: CertState,
-        utxo: UTxO,
+        utxo: Utxos,
         protocolParams: ProtocolParams
     ): Either[BadInputsUTxOException, Value] = boundary {
         val txBody = tx.body.value

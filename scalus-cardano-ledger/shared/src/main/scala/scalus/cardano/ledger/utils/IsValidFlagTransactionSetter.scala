@@ -6,7 +6,7 @@ import scalus.uplc.eval.ExBudget
 object IsValidFlagTransactionSetter {
     def setIsValidTransactionFlag(
         transaction: Transaction,
-        utxo: UTxO,
+        utxo: Utxos,
         slotConfig: SlotConfig,
         protocolParameters: ProtocolParams
     ): Transaction = {

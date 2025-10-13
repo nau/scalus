@@ -1,6 +1,6 @@
 package scalus.cardano.ledger.rules
 
-import scalus.cardano.ledger.{RedeemerTag, ScriptHash, Transaction, TransactionException, UTxO}
+import scalus.cardano.ledger.{RedeemerTag, ScriptHash, Transaction, TransactionException, Utxos}
 import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllResolvedScripts}
 
 // It's part of Babbage.hasExactSetOfRedeemers in cardano-ledger
@@ -43,7 +43,7 @@ object ExactSetOfRedeemersValidator extends STS.Validator {
 
     private def buildNeededRedeemers(
         transaction: Transaction,
-        utxo: UTxO,
+        utxo: Utxos,
         plutusScriptHashes: Set[ScriptHash]
     ): Set[(RedeemerTag, Int)] = {
         val spendRedeemers = AllNeededScriptHashes
