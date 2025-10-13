@@ -47,7 +47,6 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
     private val listSirModuleWithDepsType = defn.ListClass.typeRef.appliedTo(sirModuleWithDepsType)
 
     def transformTypeDef(tree: tpd.TypeDef)(using Context): tpd.Tree = {
-        println(s"scaluePlugin: preprocessing ${tree.symbol.fullName}")
         // If the template has a compile annotation, we need to add a variable for SIR
         tree.rhs match
             case template: tpd.Template =>
@@ -115,17 +114,11 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
         validatorSymbols.find(s => tree.symbol.isSubClass(s)) match {
             case Some(validatorSym) =>
                 if tree.symbol.is(Module) && tree.symbol.isSubClass(validatorSym) then {
-                    println(
-                      s"checking for non-overriden Validator methods in ${tree.symbol.fullName}"
-                    )
                     val methods = validatorSym.info.decls
                         .filter { m =>
                             if m.is(Flags.Method) then {
                                 // true
                                 val retval = m.is(Flags.Deferred) && m.is(Flags.Inline)
-                                println(
-                                  s"checking method: ${m}, flagset=${m.flagsString}, retval=$retval"
-                                )
                                 retval
                             } else false
 
@@ -144,37 +137,13 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
                         !existingMethodSigs.contains((m.name.toString, m.info.signature)) &&
                         !m.is(Flags.Private)
                     }
-                    println(
-                      s"methods in validator: ${methods.map(m => s"${m.name}:${m.info.signature}")}"
-                    )
-                    println(s"existing methods: ${existingMethods
-                            .map(m => s"${m.name}:${m.info.signature}")}")
-                    println(s"existing method sigs: ${existingMethodSigs}")
-                    println(
-                      s"to implement: ${toImplement.map(m => s"${m.name}:${m.info.signature}")}"
-                    )
                     toImplement.map { m =>
                         // Get the method type as seen from the subclass perspective
                         val methodTypeInSubclass =
                             m.info.asSeenFrom(tree.symbol.thisType, validatorSym)
                         val methodType = methodTypeInSubclass.widen.asInstanceOf[MethodType]
                         val retType = methodType.resType
-                        val body = retType match
-                            case ConstantType(Constant(())) =>
-                                generateThrow("a1")
-                                /*
-                                tpd.Block(
-                                  List.empty,
-                                  tpd.Literal(Constant(()))
-                                ).withSpan(tree.span)
-
-                                 */
-                            case _ =>
-                                // we need to throw excepton here:
-                                generateThrow("abstract method in Validator")
-
-                                // all abstract methods in Validator return Unit
-                                // tpd.Literal(Constant(())).withSpan(tree.span)
+                        val body = generateThrow("abstract method in Validator")
                         val methodSymbol = Symbols
                             .newSymbol(
                               tree.symbol,
@@ -183,14 +152,11 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
                               methodType
                             )
                             .enteredAfter(thisPhase)
-
                         // Add BodyAnnot annotation so the method can be inlined
                         methodSymbol.addAnnotation(
                           Annotations.ConcreteBodyAnnotation(body)
                         )
-
                         val newMethod = DefDef(methodSymbol, paramss => body).withSpan(tree.span)
-                        println(s"adding method: ${newMethod.show}")
                         newMethod
                     }
                 } else Nil

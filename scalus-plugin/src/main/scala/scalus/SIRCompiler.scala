@@ -292,7 +292,7 @@ final class SIRCompiler(
             SIRType.TypeVar(tps.name.show, Some(tps.hashCode), false)
         }
         val sirTypeVars = (typeParamsSymbols zip sirTypeParams).toMap
-        println(s"processing type def: type-symbol=${td.tpe.typeSymbol.fullName}")
+
         val baseEnv = Env.empty.copy(
           thisTypeSymbol = td.tpe.typeSymbol,
           typeVars = sirTypeVars,
