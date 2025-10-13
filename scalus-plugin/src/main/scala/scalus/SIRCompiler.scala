@@ -275,6 +275,7 @@ final class SIRCompiler(
         val start = System.currentTimeMillis()
         val tpl = td.rhs.asInstanceOf[Template]
 
+        
         val staticInheritanceParents = td.tpe.parents.flatMap { p =>
             val hasAnnotation = p.typeSymbol.hasAnnotation(CompileAnnot)
             if hasAnnotation then
