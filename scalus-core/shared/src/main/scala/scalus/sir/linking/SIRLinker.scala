@@ -45,11 +45,7 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
     private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[String, SIR]] =
         mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
-<<<<<<< HEAD
     private val debugLevel: Int = if options.debugLevel != 0 then options.debugLevel else 0
-=======
-    private val debugLevel: Int = if  options.debugLevel != 0 then options.debugLevel else 20
->>>>>>> f2d6e410 ( fully commented out linker in compiler plugin)
 
     private var errorLog: List[(String, SIRPosition)] = List.empty
 
@@ -69,13 +65,9 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
 
     def link(sir: SIR, pos: SIRPosition): SIR = {
         if debugLevel > 1 then
-<<<<<<< HEAD
             println(
               s"Linking SIR at ${pos.show}, options=$options, modules: ${moduleDefs.keys.mkString(", ")}"
             )
-=======
-            println(s"Linking SIR at ${pos.show}, options=$options, modules: ${moduleDefs.keys.mkString(", ")}")
->>>>>>> f2d6e410 ( fully commented out linker in compiler plugin)
             moduleDefs.get("scalus.prelude.List$") match
                 case Some(m) =>
                     println(s"Prelude module found with defs: ${m.defs.map(_.name).mkString(", ")}")
