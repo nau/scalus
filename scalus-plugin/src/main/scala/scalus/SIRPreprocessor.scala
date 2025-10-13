@@ -37,6 +37,9 @@ import scalus.serialization.flat.FlatInstances.ModuleHashSetReprFlat
   * }
   * }}}
   * sir_ and dpes_ wi
+  * 
+  * Also, add default implementations for non-overriden inline abstract methods in Validator
+  * subclasses.
   */
 class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx: Context) {
 

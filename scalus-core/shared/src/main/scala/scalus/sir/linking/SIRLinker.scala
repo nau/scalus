@@ -14,6 +14,16 @@ case class SIRLinkerOptions(
     debugLevel: Int,
 )
 
+object SIRLinkerOptions {
+    def fromCompilerOptions(compilerOptions: scalus.Compiler.Options): SIRLinkerOptions = {
+        SIRLinkerOptions(
+          useUniversalDataConversion = compilerOptions.runtimeLinker,
+          printErrors = true,
+          debugLevel = compilerOptions.debugLevel
+        )
+    }
+}
+
 /** Links SIR definitions and data declarations into a single SIR module.
   *
   * This class is responsible for linking SIR definitions and data declarations to create a single
@@ -34,6 +44,8 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
     private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[String, SIR]] =
         mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
+    private val debugLevel: Int = if  options.debugLevel != 0 then options.debugLevel else 20
+
     private var errorLog: List[(String, SIRPosition)] = List.empty
 
     def retrieveErrors: List[(String, SIRPosition)] = {
@@ -49,7 +61,12 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
     }
 
     def link(sir: SIR, pos: SIRPosition): SIR = {
-        if options.debugLevel > 1 then println(s"Linking SIR at ${pos.show}, options=$options")
+        if debugLevel > 1 then
+            println(s"Linking SIR at ${pos.show}, options=$options, modules: ${moduleDefs.keys.mkString(", ")}")
+            moduleDefs.get("scalus.prelude.List$") match
+                case Some(m) =>
+                    println(s"Prelude module found with defs: ${m.defs.map(_.name).mkString(", ")}")
+                case None => println("Prelude module not found")
         val processed = traverseAndLink(sir, pos)
         val full: SIR = globalDefs.values.foldRight(processed) { case (state, acc) =>
             state match

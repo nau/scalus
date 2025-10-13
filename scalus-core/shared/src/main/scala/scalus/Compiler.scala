@@ -54,6 +54,18 @@ object Compiler:
     def compile(e: Any): SIR = throwCompilerPluginMissingException()
 
     /** Compiles the given expression to a [[SIR]] at compile time using the Scalus compiler plugin,
+      * with explicit compiler options.
+      *
+      * @param options
+      *   The compiler options to use.
+      * @param e
+      *   The expression to compile.
+      * @return
+      *   The compiled [[SIR]].
+      */
+    def compile2(options: Options, e: Any): SIR = throwCompilerPluginMissingException()
+
+    /** Compiles the given expression to a [[SIR]] at compile time using the Scalus compiler plugin,
       * producing debug output during the compilation.
       *
       * @param e
@@ -62,6 +74,18 @@ object Compiler:
       *   The compiled [[SIR]].
       */
     def compileDebug(e: Any): SIR = throwCompilerPluginMissingException()
+
+    /** Compiles the given expression to a [[SIR]] at compile time using the Scalus compiler plugin,
+      * with explicit compiler options and debug output.
+      *
+      * @param options
+      *   The compiler options to use.
+      * @param e
+      *   The expression to compile.
+      * @return
+      *   The compiled [[SIR]].
+      */
+    def compile2Debug(options: Options, e: Any): SIR = throwCompilerPluginMissingException()
 
     /** Compiles the given expression to a [[SIRType]] at compile time using the Scalus compiler
       * plugin.
