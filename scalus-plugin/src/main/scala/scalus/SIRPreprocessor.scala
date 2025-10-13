@@ -50,7 +50,6 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
     private val listSirModuleWithDepsType = defn.ListClass.typeRef.appliedTo(sirModuleWithDepsType)
 
     def transformTypeDef(tree: tpd.TypeDef)(using Context): tpd.Tree = {
-        println(s"scaluePlugin: preprocessing ${tree.symbol.fullName}")
         // If the template has a compile annotation, we need to add a variable for SIR
         tree.rhs match
             case template: tpd.Template =>
@@ -118,8 +117,6 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
         validatorSymbols.find(s => tree.symbol.isSubClass(s)) match {
             case Some(validatorSym) =>
                 if tree.symbol.is(Module) && tree.symbol.isSubClass(validatorSym) then {
-                      s"checking for non-overriden Validator methods in ${tree.symbol.fullName}"
-                    )
                     val methods = validatorSym.info.decls
                         .filter { m =>
                             if m.is(Flags.Method) then {
@@ -158,7 +155,6 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
                               methodType
                             )
                             .enteredAfter(thisPhase)
-
                         // Add BodyAnnot annotation so the method can be inlined
                         methodSymbol.addAnnotation(
                           Annotations.ConcreteBodyAnnotation(body)
