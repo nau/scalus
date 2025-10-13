@@ -12,7 +12,11 @@ class Transactions(context: BuilderContext) {
     val script = PlutusV3(VaultContract.script.cborByteString)
     val scriptAddress = Address(context.env.network, Credential.ScriptHash(script.scriptHash))
 
-    def lock(value: Value, owner: Address = wallet.owner): Either[String, Transaction] = {
+    def lock(
+        value: Value,
+        waitTime: BigInt,
+        owner: Address = wallet.owner
+    ): Either[String, Transaction] = {
         val inputsToSpend = wallet.selectInputs(value).get
         val builder = inputsToSpend.foldLeft(PaymentBuilder(context)) {
             case (builder, (utxo, witness)) =>
@@ -21,32 +25,49 @@ class Transactions(context: BuilderContext) {
         val ownerCredentialHash = owner match {
             case addr: scalus.cardano.address.ShelleyAddress =>
                 scalus.builtin.ByteString.fromArray(addr.payment.asHash.bytes)
-            case _ =>
-                return Left("Only Shelley addresses are supported")
         }
-        val datum = Vault.Datum(ownerCredentialHash, Vault.State.Idle, BigInt(value.coin.value))
+        val datum = Datum(
+          ownerCredentialHash,
+          State.Idle,
+          BigInt(value.coin.value),
+          waitTime,
+          BigInt(0)
+        )
         builder.payToScript(scriptAddress, value, datum.toData).build()
     }
 
     def withdraw(
-        vaultUtxo: (TransactionInput, TransactionOutput)
+        vaultUtxo: (TransactionInput, TransactionOutput),
+        validityStartSlot: Long
     ): Either[String, Transaction] = {
         val currentDatum = vaultUtxo._2 match {
             case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) =>
-                d.to[Vault.Datum]
+                d.to[Datum]
             case _ =>
                 return Left("Vault UTxO must have an inline datum")
         }
 
-        val newDatum = currentDatum.copy(state = Vault.State.Pending)
+        // Calculate the absolute finalization deadline
+        val requestTime =
+            BigInt(context.env.evaluator.slotConfig.slotToTime(validityStartSlot))
+        val finalizationDeadline = requestTime + currentDatum.waitTime
+
+        val newDatum = currentDatum.copy(
+          state = State.Pending,
+          finalizationDeadline = finalizationDeadline
+        )
         val vaultValue = vaultUtxo._2.value
 
-        val redeemer = Vault.Redeemer.Withdraw.toData
+        val redeemer = Redeemer.Withdraw.toData
         PaymentBuilder(context)
             .spendScriptOutputs(
               vaultUtxo,
               redeemer,
               script
+            )
+            .withStep(
+              scalus.cardano.ledger.txbuilder.TransactionBuilderStep
+                  .ValidityStartSlot(validityStartSlot)
             )
             .payToScript(scriptAddress, vaultValue, newDatum.toData)
             .build()
@@ -58,7 +79,7 @@ class Transactions(context: BuilderContext) {
     ): Either[String, Transaction] = {
         val currentDatum = vaultUtxo._2 match {
             case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) =>
-                d.to[Vault.Datum]
+                d.to[Datum]
             case _ =>
                 return Left("Vault UTxO must have an inline datum")
         }
@@ -67,9 +88,14 @@ class Transactions(context: BuilderContext) {
         val newValue = currentValue + additionalValue
         val newAmount = BigInt(newValue.coin.value)
 
-        val newDatum = currentDatum.copy(amount = newAmount)
+        // Preserve waitTime and finalizationDeadline
+        val newDatum = currentDatum.copy(
+          amount = newAmount,
+          waitTime = currentDatum.waitTime,
+          finalizationDeadline = currentDatum.finalizationDeadline
+        )
 
-        val redeemer = Vault.Redeemer.Deposit.toData
+        val redeemer = Redeemer.Deposit.toData
         PaymentBuilder(context)
             .spendScriptOutputs(vaultUtxo, redeemer, script)
             .payToScript(scriptAddress, newValue, newDatum.toData)
@@ -78,20 +104,30 @@ class Transactions(context: BuilderContext) {
 
     def finalize(
         vaultUtxo: (TransactionInput, TransactionOutput),
-        ownerAddress: Address
+        ownerAddress: Address,
+        overrideValiditySlot: Option[Long] = None
     ): Either[String, Transaction] = {
         val currentDatum = vaultUtxo._2 match {
             case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) =>
-                d.to[Vault.Datum]
+                d.to[Datum]
             case _ =>
                 return Left("Vault UTxO must have an inline datum")
         }
 
         val vaultValue = vaultUtxo._2.value
 
-        val redeemer = Vault.Redeemer.Finalize.toData
+        val calculatedSlot =
+            context.env.evaluator.slotConfig
+                .timeToSlot(currentDatum.finalizationDeadline.toLong) + 1
+        val finalizationSlot = overrideValiditySlot.getOrElse(calculatedSlot)
+
+        val redeemer = Redeemer.Finalize.toData
         PaymentBuilder(context)
             .spendScriptOutputs(vaultUtxo, redeemer, script)
+            .withStep(
+              scalus.cardano.ledger.txbuilder.TransactionBuilderStep
+                  .ValidityStartSlot(finalizationSlot)
+            )
             .payTo(ownerAddress, vaultValue)
             .build()
     }

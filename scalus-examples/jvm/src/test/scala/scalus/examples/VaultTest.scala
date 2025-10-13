@@ -3,7 +3,7 @@ package scalus.examples
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Wallet}
-import scalus.examples.vault.{Transactions, Vault, VaultContract}
+import scalus.examples.vault.{Datum, Redeemer, State, Transactions, Vault, VaultContract}
 import scalus.testkit.ScalusTest
 
 class VaultTest extends AnyFunSuite, ScalusTest {
@@ -13,6 +13,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     private val ownerAddress = TestUtil.createTestAddress("a" * 56)
 
     private val defaultInitialAmount: BigInt = BigInt(10_000_000L)
+    private val defaultWaitTime: BigInt = BigInt(10_000L)
 
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
@@ -20,16 +21,21 @@ class VaultTest extends AnyFunSuite, ScalusTest {
       optimizeUplc = false
     )
 
-    def lockVault(amount: BigInt): Transaction = {
+    def lockVault(amount: BigInt, waitTime: BigInt = defaultWaitTime): Transaction = {
         val wallet = TestUtil.createTestWallet(ownerAddress, amount + 50_000_000L)
         val context = BuilderContext(env, wallet)
-        Transactions(context).lock(Value(Coin(amount.toLong)), ownerAddress).getOrElse(???)
+        Transactions(context)
+            .lock(Value(Coin(amount.toLong)), waitTime, ownerAddress)
+            .getOrElse(???)
     }
 
-    def withdrawVault(vaultUtxo: (TransactionInput, TransactionOutput)): Transaction = {
+    def withdrawVault(
+        vaultUtxo: (TransactionInput, TransactionOutput),
+        validityStartSlot: Long
+    ): Transaction = {
         val wallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
         val context = BuilderContext(env, wallet)
-        new Transactions(context).withdraw(vaultUtxo).getOrElse(???)
+        new Transactions(context).withdraw(vaultUtxo, validityStartSlot).getOrElse(???)
     }
 
     def depositVault(
@@ -43,10 +49,18 @@ class VaultTest extends AnyFunSuite, ScalusTest {
             .getOrElse(???)
     }
 
-    def finalizeVault(vaultUtxo: (TransactionInput, TransactionOutput)): Transaction = {
+    def finalizeVault(
+        vaultUtxo: (TransactionInput, TransactionOutput),
+        overrideValiditySlot: Option[Long] = None
+    ): Transaction = {
         val wallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
         val context = BuilderContext(env, wallet)
-        new Transactions(context).finalize(vaultUtxo, ownerAddress).getOrElse(???)
+        new Transactions(context)
+            .finalize(vaultUtxo, ownerAddress, overrideValiditySlot)
+            .fold(
+              error => throw new Exception(s"Finalize failed: $error"),
+              tx => tx
+            )
     }
 
     def runValidator(tx: Transaction, utxo: Utxos, wallet: Wallet, scriptInput: TransactionInput) =
@@ -56,7 +70,8 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 
-        val withdrawTx = withdrawVault(vaultUtxo)
+        val currentSlot = 1000L
+        val withdrawTx = withdrawVault(vaultUtxo, currentSlot)
 
         val wallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
         val utxos: Utxos = Map(vaultUtxo) ++ wallet.utxo
@@ -68,14 +83,18 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val newVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
         newVaultUtxo._2 match {
             case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) =>
-                val newDatum = d.to[Vault.Datum]
+                val newDatum = d.to[Datum]
                 assert(
-                  newDatum.state == Vault.State.Pending,
+                  newDatum.state == State.Pending,
                   s"Vault state should be Pending, got ${newDatum.state}"
                 )
                 assert(
                   newDatum.amount == defaultInitialAmount,
                   "Vault amount should remain unchanged"
+                )
+                assert(
+                  newDatum.finalizationDeadline > 0,
+                  "Finalization deadline should be set"
                 )
         }
     }
@@ -97,9 +116,9 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         newVaultUtxo._2 match {
             case TransactionOutput.Babbage(_, value, Some(DatumOption.Inline(d)), _) =>
-                val newDatum = d.to[Vault.Datum]
+                val newDatum = d.to[Datum]
                 assert(
-                  newDatum.state == Vault.State.Idle,
+                  newDatum.state == State.Idle,
                   s"Vault state should remain Idle, got ${newDatum.state}"
                 )
                 assert(
@@ -130,11 +149,42 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         )
     }
 
+    test("vault finalization fails before wait time elapses") {
+        val lockTx = lockVault(defaultInitialAmount)
+        val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
+
+        val withdrawSlot = 1000L
+        val withdrawTx = withdrawVault(vaultUtxo, withdrawSlot)
+
+        val withdrawWallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
+        val withdrawUtxos: UTxO = Map(vaultUtxo) ++ withdrawWallet.utxo
+        val withdrawResult = runValidator(withdrawTx, withdrawUtxos, withdrawWallet, vaultUtxo._1)
+
+        assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
+
+        val pendingVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
+
+        // premature finalization
+        val wallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
+        val context = BuilderContext(env, wallet)
+        val earlySlot = Some(withdrawSlot + 1) // Just after withdrawal, before wait time
+        val result =
+            new Transactions(context).finalize(pendingVaultUtxo, ownerAddress, earlySlot)
+
+        assert(result.isLeft, "Finalize before wait time should fail")
+        val errorMsg = result.swap.getOrElse("")
+        assert(
+          errorMsg.contains("Error evaluated") || errorMsg.contains("wait time"),
+          s"Expected time constraint failure, got: $errorMsg"
+        )
+    }
+
     test("vault finalization succeeds after withdrawal request") {
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 
-        val withdrawTx = withdrawVault(vaultUtxo)
+        val withdrawSlot = 1000L
+        val withdrawTx = withdrawVault(vaultUtxo, withdrawSlot)
 
         val withdrawWallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
         val withdrawUtxos: Utxos = Map(vaultUtxo) ++ withdrawWallet.utxo

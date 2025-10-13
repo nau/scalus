@@ -2,16 +2,35 @@ package scalus.examples.vault
 
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.builtin.{ByteString, Data}
-import scalus.examples.vault.Vault.Redeemer.{Cancel, Deposit, Finalize, Withdraw}
+import scalus.examples.vault.Redeemer.{Cancel, Deposit, Finalize, Withdraw}
 import scalus.ledger.api
 import scalus.ledger.api.v1.Credential.ScriptCredential
-import scalus.ledger.api.v1.{Credential, Value}
+import scalus.ledger.api.v1.{Credential, Interval, IntervalBoundType, PosixTime, Value}
 import scalus.ledger.api.v2.{OutputDatum, TxOut}
 import scalus.ledger.api.v3.{TxInInfo, TxInfo, TxOutRef}
 import scalus.ledger.api.{v1, v2}
 import scalus.prelude.{===, fail, require, Validator}
 import scalus.uplc.Program
 import scalus.*
+
+case class Datum(
+    owner: ByteString,
+    state: State,
+    amount: BigInt,
+    waitTime: PosixTime,
+    finalizationDeadline: PosixTime
+) derives FromData,
+      ToData
+
+enum Redeemer derives FromData, ToData:
+    case Deposit
+    case Withdraw
+    case Finalize
+    case Cancel
+
+enum State derives FromData, ToData:
+    case Idle
+    case Pending
 
 /** A contract for keeping funds.
   *
@@ -29,23 +48,6 @@ import scalus.*
 // todo: allow key-authorized withdrawals
 @Compile
 object Vault extends Validator {
-
-    case class Datum(
-        owner: ByteString,
-        state: State,
-        amount: BigInt
-    ) derives FromData,
-          ToData
-
-    enum Redeemer derives FromData, ToData:
-        case Deposit
-        case Withdraw
-        case Finalize
-        case Cancel
-
-    enum State derives FromData, ToData:
-        case Idle
-        case Pending
 
     override def spend(
         d: prelude.Option[Data],
@@ -90,10 +92,19 @@ object Vault extends Validator {
         )
         requireEntireVaultIsSpent(datum, ownInput.resolved)
         out.datum match {
-            case api.v2.OutputDatum.OutputDatum(datum) =>
+            case api.v2.OutputDatum.OutputDatum(d) =>
+                val newDatum = d.to[Datum]
                 require(
-                  datum.to[Datum].amount == value.getLovelace,
+                  newDatum.amount == value.getLovelace,
                   "Datum amount must match output lovelace amount"
+                )
+                require(
+                  newDatum.waitTime == datum.waitTime,
+                  "Deposit transactions must not change the wait time"
+                )
+                require(
+                  newDatum.finalizationDeadline == datum.finalizationDeadline,
+                  "Deposit transactions must not change the finalization deadline"
                 )
             case _ =>
                 fail("Deposit transaction must have an inline datum with the new amount")
@@ -123,11 +134,20 @@ object Vault extends Validator {
           out,
           "Withdrawal transactions must have a vault output"
         )
+
+        val requestTime = tx.validRange.getEarliestTime
+        val finalizationDeadline = requestTime + datum.waitTime
+
         out.datum match {
-            case OutputDatum.OutputDatum(datum) =>
+            case OutputDatum.OutputDatum(d) =>
+                val newDatum = d.to[Datum]
                 require(
-                  datum.to[Datum].state.isPending,
+                  newDatum.state.isPending,
                   "Output must have datum with State = Pending"
+                )
+                require(
+                  newDatum.finalizationDeadline == finalizationDeadline,
+                  "Finalization deadline must be request time plus wait time"
                 )
             case _ => fail("Output must have datum with State = Pending")
         }
@@ -141,6 +161,11 @@ object Vault extends Validator {
             case OutputDatum.OutputDatum(datum) => require(datum.to[Datum].state.isPending)
             case _                              => fail("Contract has no datum.")
         }
+
+        require(
+          tx.validRange.isAfter(datum.finalizationDeadline),
+          "Finalization can only happen after the finalization deadline"
+        )
 
         val scriptOutputs = tx.outputs.filter(out =>
             out.address.credential === ownInput.resolved.address.credential
@@ -191,6 +216,10 @@ object Vault extends Validator {
                   newDatum.state.isIdle,
                   "Idle transactions must change the vault state to Idle"
                 )
+                require(
+                  newDatum.waitTime == datum.waitTime,
+                  "Cancel transactions must not change the wait time"
+                )
             case _ =>
                 fail(
                   "Cancel transactions must have an inline datum with the correct state and amount"
@@ -233,6 +262,18 @@ object Vault extends Validator {
         def isIdle: Boolean = s match {
             case State.Idle    => true
             case State.Pending => false
+        }
+    }
+
+    extension (i: Interval) {
+        def getEarliestTime: PosixTime = i.from.boundType match {
+            case IntervalBoundType.Finite(t) => t
+            case _                           => BigInt(0)
+        }
+
+        def isAfter(timePoint: PosixTime): Boolean = i.from.boundType match {
+            case IntervalBoundType.Finite(time) => timePoint < time
+            case _                              => false
         }
     }
 }
