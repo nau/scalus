@@ -9,7 +9,6 @@ object ProtocolParamsViewHashesMatchValidator extends STS.Validator {
 
     override def validate(context: Context, state: State, event: Event): Result = {
         val utxo = state.utxo
-        val era = Era.Conway
         val protocolParams = context.env.params
         val expectedScriptDataHash = event.body.value.scriptDataHash
 
@@ -17,7 +16,6 @@ object ProtocolParamsViewHashesMatchValidator extends STS.Validator {
             actualScriptDataHash <- ScriptDataHashGenerator.computeScriptDataHash(
               event,
               utxo,
-              era,
               protocolParams
             )
 

@@ -144,6 +144,7 @@ lazy val jvm: Project = project
       scalusPluginTests,
       scalusUplcJitCompiler,
       scalusCardanoLedger.jvm,
+      scalusCardanoLedgerIt,
       scalusTestkit.jvm,
       scalusExamples.jvm,
       scalusDesignPatterns,

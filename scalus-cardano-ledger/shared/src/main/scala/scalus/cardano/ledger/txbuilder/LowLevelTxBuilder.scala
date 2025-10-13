@@ -168,28 +168,29 @@ def calculateChangeValue(tx: Transaction, utxo: UTxO, params: ProtocolParams): V
     consumed - produced
 }
 
-def setupRedeemers(protocolParams: ProtocolParams, tx: Transaction, redeemers: Seq[Redeemer]) = {
+def setupRedeemers(
+    protocolParams: ProtocolParams,
+    tx: Transaction,
+    utxo: UTxO,
+    redeemers: Seq[Redeemer]
+) = {
     if redeemers.isEmpty then {
         tx
     } else {
         val rawRedeemers = KeepRaw(Redeemers.from(redeemers))
-        val usedModels = ScriptDataHashGenerator.getUsedCostModels(
-          protocolParams,
-          tx.witnessSet,
-          TreeSet.empty[Language]
-        )
-        val scriptDataHash: Hash[Blake2b_256, HashPurpose.ScriptDataHash] =
-            ScriptDataHashGenerator.computeScriptDataHash(
-              Era.Conway,
-              Some(rawRedeemers),
-              tx.witnessSet.plutusData,
-              usedModels
-            )
+        val txWithRedeemers =
+            tx.copy(witnessSet = tx.witnessSet.copy(redeemers = Some(rawRedeemers)))
+        val scriptDataHash =
+            ScriptDataHashGenerator
+                .computeScriptDataHash(
+                  txWithRedeemers,
+                  utxo,
+                  protocolParams,
+                )
+                .toTry
+                .get
 
-        tx.copy(
-          body = KeepRaw(tx.body.value.copy(scriptDataHash = Some(scriptDataHash))),
-          witnessSet = tx.witnessSet.copy(redeemers = Some(rawRedeemers)),
-        )
+        txWithRedeemers.copy(body = KeepRaw(tx.body.value.copy(scriptDataHash = scriptDataHash)))
     }
 }
 
@@ -199,5 +200,5 @@ def computeScriptsWitness(
     protocolParams: ProtocolParams
 )(tx: Transaction): Either[TxBalancingError, Transaction] = Try {
     val redeemers = evaluator.evalPlutusScripts(tx, utxo)
-    setupRedeemers(protocolParams, tx, redeemers)
+    setupRedeemers(protocolParams, tx, utxo, redeemers)
 }.toEither.left.map(TxBalancingError.Failed.apply)

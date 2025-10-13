@@ -9,74 +9,82 @@ import scalus.cardano.ledger.utils.{AllNeededScriptHashes, AllResolvedScripts}
 
 object ScriptDataHashGenerator {
 
-    @deprecated
-    def getUsedCostModels(
-        pparams: ProtocolParams,
-        w: TransactionWitnessSet,
-        refLangs: TreeSet[Language]
-    ): CostModels = {
-        // FIXME:  reuse code from ledger rules
-        val v1: TreeSet[Language] =
-            if w.plutusV1Scripts.nonEmpty then TreeSet(Language.PlutusV1) else TreeSet.empty
-        val v2: TreeSet[Language] =
-            if w.plutusV2Scripts.nonEmpty then TreeSet(Language.PlutusV2) else TreeSet.empty
-        val v3: TreeSet[Language] =
-            if w.plutusV3Scripts.nonEmpty then TreeSet(Language.PlutusV3) else TreeSet.empty
-        // must be sorted to ensure the same order of cost models
-        // must preserve order of languages during traversal, so we use ListMap
-        val models = (refLangs ++ v1 ++ v2 ++ v3).view
-            .map(l => l.ordinal -> pparams.costModels.models(l.ordinal))
-            .to(ListMap)
-        CostModels(models)
-    }
-
+    /** Computes the script data hash for the given redeemers, datums, and used cost models.
+      *
+      * The script data hash is computed as the Blake2b-256 hash of the concatenation of:
+      *   - the CBOR encoding of the redeemers (or an empty map if none)
+      *   - the CBOR encoding of the datums (or an empty string if none)
+      *   - the CBOR encoding of the cost models
+      *
+      * @note
+      *   It's a low-level function that does not check if the redeemers and datums are actually
+      *   used in the transaction. Use it if you know what you're doing.
+      */
     def computeScriptDataHash(
-        era: Era,
         redeemers: Option[KeepRaw[Redeemers]],
         datums: KeepRaw[TaggedSet[KeepRaw[Data]]],
-        costModels: CostModels
+        usedCostModels: CostModels
     ): ScriptDataHash = {
-        require(
-          era.value >= Era.Conway.value,
-          s"Script data hash generation is not supported for eras before Conway, got era: $era"
-        )
         /* ; script data format:
          * ; [ redeemers | datums | language views ]
          * ; The redeemers are exactly the data present in the transaction witness set.
          * ; Similarly for the datums, if present. If no datums are provided, the middle
          * ; field is an empty string.
          */
-
         val redeemerBytes = redeemers match
             case Some(value) => value.raw
             case None        => Array(0xa0.toByte) // Empty map in CBOR
         val plutusDataBytes =
             if datums.value.toIndexedSeq.isEmpty then Array.empty[Byte]
             else datums.raw
-        val costModelsBytes = costModels.getLanguageViewEncoding
+        val costModelsBytes = usedCostModels.getLanguageViewEncoding
         val encodedBytes = redeemerBytes ++ plutusDataBytes ++ costModelsBytes
         Hash(platform.blake2b_256(ByteString.unsafeFromArray(encodedBytes)))
     }
 
+    /** Computes the script data hash for the given transaction witness set, protocol parameters,
+      * used languages, redeemers, and datums.
+      *
+      * If there are no redeemers, no datums, and no cost models, returns None.
+      *
+      * @note
+      *   Use it if you know what you're doing.
+      */
     def computeScriptDataHash(
         witnessSet: TransactionWitnessSet,
-        era: Era,
         protocolParams: ProtocolParams,
-        refLangs: TreeSet[Language],
+        usedLanguages: TreeSet[Language],
         redeemers: Option[KeepRaw[Redeemers]],
         datums: KeepRaw[TaggedSet[KeepRaw[Data]]]
     ): Option[ScriptDataHash] = {
-        val costModels = getUsedCostModels(protocolParams, witnessSet, refLangs)
+        val costModels = CostModels(
+          usedLanguages.view
+              .map(l => l.ordinal -> protocolParams.costModels.models(l.ordinal))
+              .to(ListMap)
+        )
 
         if redeemers.isEmpty && datums.value.toIndexedSeq.isEmpty && costModels.models.isEmpty then
             None
-        else Some(computeScriptDataHash(era, redeemers, datums, costModels))
+        else Some(computeScriptDataHash(redeemers, datums, costModels))
     }
 
+    /** Computes the script data hash for the given transaction and UTxO set.
+      *
+      * If there are no redeemers, no datums, and no cost models, returns None.
+      *
+      * @param transaction
+      *   The transaction to compute the script data hash for.
+      * @param utxo
+      *   The UTxO set to use for resolving inputs and reference inputs.
+      * @param protocolParams
+      *   The protocol parameters to use for getting the cost models.
+      * @return
+      *   Either a BadInputsUTxOException or BadReferenceInputsUTxOException if some inputs or
+      *   reference inputs are missing in the UTxO set, or an Option[ScriptDataHash] if successful.
+      */
     def computeScriptDataHash(
         transaction: Transaction,
-        utxo: UTxO,
-        era: Era,
+        utxo: Utxos,
         protocolParams: ProtocolParams
     ): Either[
       TransactionException.BadInputsUTxOException |
@@ -95,19 +103,11 @@ object ScriptDataHashGenerator {
               utxo
             )
         yield
-            val languages = TreeSet.from(
+            val usedLanguages = TreeSet.from(
               allResolvedPlutusScripts
                   .filter(plutusScript => allNeededScriptHashes.contains(plutusScript.scriptHash))
                   .map(_.language)
             )
-
-            computeScriptDataHash(
-              witnessSet,
-              era,
-              protocolParams,
-              languages,
-              redeemers,
-              datums
-            )
+            computeScriptDataHash(witnessSet, protocolParams, usedLanguages, redeemers, datums)
     }
 }

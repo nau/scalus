@@ -2,12 +2,10 @@ package scalus.testing.integration
 
 import co.nstant.in.cbor.{model as cbor, CborException}
 import com.bloxbean.cardano.client.api.UtxoSupplier
-import com.bloxbean.cardano.client.api.util.CostModelUtil.{PlutusV1CostModel, PlutusV2CostModel, PlutusV3CostModel}
 import com.bloxbean.cardano.client.backend.api.DefaultUtxoSupplier
 import com.bloxbean.cardano.client.backend.blockfrost.common.Constants
 import com.bloxbean.cardano.client.backend.blockfrost.service.BFBackendService
 import com.bloxbean.cardano.client.crypto.Blake2bUtil
-import com.bloxbean.cardano.client.plutus.spec.CostMdls
 import com.bloxbean.cardano.client.spec.Era
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.yaci.core.model.serializers.util.WitnessUtil.getArrayBytes
@@ -20,12 +18,11 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CardanoInfo, CostModels, ExUnits, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluationException, PlutusScriptEvaluator, ProtocolParams, RedeemerTag, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
-import scalus.ledger.api.{v3, ScriptContext}
+import scalus.cardano.ledger.{EvaluatorMode, SlotConfig, Transaction, TransactionBody, TransactionWitnessSet, *}
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v3.ScriptInfo
+import scalus.ledger.api.{v3, ScriptContext}
 import scalus.uplc.eval.ExBudget
-import scalus.utils.Hex.toHex
 import scalus.utils.Utils
 
 import java.math.BigInteger
@@ -33,12 +30,11 @@ import java.nio.channels.FileChannel
 import java.nio.file.*
 import java.util
 import java.util.stream.Collectors
-import scala.collection.immutable.TreeSet
 import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
 import scala.math.Ordering.Implicits.*
-import scala.util.{boundary, Using}
 import scala.util.boundary.{break, Break}
+import scala.util.{boundary, Using}
 
 /** Setup BLOCKFROST_API_KEY environment variable before running this test. In SBT shell:
   *   - set `scalus-bloxbean-cardano-client-lib`/envVars := Map("BLOCKFROST_API_KEY" -> "apikey")
@@ -510,41 +506,31 @@ class BlocksValidation extends AnyFunSuite {
           )
         )
 
-        val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
-          this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-        )
+        val utxoResolver = ScalusUtxoResolver(utxoSupplier, scriptSupplier)
+
+        val params = CardanoInfo.mainnet.protocolParams
 
         val blocks = filterBlocks()
         println(s"Validating script data hashes of ${blocks.size} blocks")
         for path <- blocks do
             try
                 val blockBytes = Files.readAllBytes(path)
-                val bbTxs = readTransactionsFromBlockCbor(blockBytes)
+                given OriginalCborByteArray = OriginalCborByteArray(blockBytes)
                 val block = BlockFile.fromCborArray(blockBytes).block
-                for (((txb, w), bbtx), idx) <- block.transactionBodies.view
-                        .map(_.value)
-                        .zip(block.transactionWitnessSets)
-                        .zip(bbTxs)
-                        .zipWithIndex
-                do
+                for (tx, idx) <- block.transactions.zipWithIndex do
+                    val utxos = utxoResolver.resolveUtxos(tx)
+                    val (txb, w) = (tx.body.value, tx.witnessSet)
 //                    pprint.pprintln(txb)
 //                    pprint.pprintln(w)
                     txb.scriptDataHash match
 
                         case Some(scriptDataHash) =>
-                            val refScriptTypes =
-                                getRefScriptTypes(utxoSupplier, scriptSupplier, txb)
-
-                            val costModels =
-                                ScriptDataHashGenerator.getUsedCostModels(params, w, refScriptTypes)
-                            val calculatedHash = ScriptDataHashGenerator.computeScriptDataHash(
-                              ledger.Era.Conway,
-                              w.redeemers,
-                              w.plutusData,
-                              costModels
-                            )
-
-                            val bbgenerated: Array[Byte] = generateBloxBeanHash(bbtx, bbtx.tx)
+                            val calculatedHash =
+                                ScriptDataHashGenerator
+                                    .computeScriptDataHash(tx, utxos, params)
+                                    .toOption
+                                    .flatten
+                                    .get
 
                             val desc =
                                 (if w.plutusV1Scripts.nonEmpty then "v1" else "")
@@ -554,19 +540,13 @@ class BlocksValidation extends AnyFunSuite {
                                         else "")
                                     ++ (if w.redeemers.nonEmpty then "R" else "")
 
-                            val sameAsBloxbean =
-                                calculatedHash.toHex == bbgenerated.toHex // at least same as bloxbean
                             val scalusHasCorrectHash =
                                 scriptDataHash.toHex == calculatedHash.toHex // mine is correct
-                            val color =
-                                if scalusHasCorrectHash then Console.GREEN
-                                else if sameAsBloxbean then Console.YELLOW
-                                else Console.RED
+                            val color = if scalusHasCorrectHash then Console.GREEN else Console.RED
 
                             if !scalusHasCorrectHash then
                                 println(
-                                  s"$idx: $desc ${color}data hash: ${scriptDataHash.toHex}, calculated: ${calculatedHash.toHex} " +
-                                      s"bbgen: ${bbgenerated.toHex}${Console.RESET}"
+                                  s"$idx: $desc ${color}data hash: ${scriptDataHash.toHex}, calculated: ${calculatedHash.toHex}${Console.RESET}"
                                 )
                         case _ =>
 
@@ -582,62 +562,6 @@ class BlocksValidation extends AnyFunSuite {
           s"Stats: num scripts ${stats.size}, succ: ${stats.values.map(_.succ).sum}, failed: ${stats.values.map(_.fail).sum}"
         )
         assert(stats.values.map(_.fail).sum == 0)
-    }
-
-    private def getRefScriptTypes(
-        utxoSupplier: UtxoSupplier,
-        scriptSupplier: ScriptSupplier,
-        txb: ledger.TransactionBody
-    ): TreeSet[Language] = {
-        import scala.jdk.OptionConverters.RichOptional
-        val refScripts = (txb.inputs.toSortedSet.view ++ txb.referenceInputs.toSortedSet.view)
-            .flatMap { refInputs =>
-                utxoSupplier
-                    .getTxOutput(refInputs.transactionId.toHex, refInputs.index)
-                    .toScala
-                    .flatMap(utxo => Option(utxo.getReferenceScriptHash))
-                    .map { refScriptHash =>
-                        Hash.scriptHash(ByteString.fromHex(refScriptHash))
-                    }
-            }
-            .map { refScriptHash =>
-                scriptSupplier.getScript(refScriptHash.toHex)
-            }
-            .toSet
-        val refScriptTypes = refScripts
-            .map(s => Language.fromId(s.getLanguage.getKey))
-            .to(TreeSet)
-        refScriptTypes
-    }
-
-    private def generateBloxBeanHash(bbtx: BlockTx, transaction: Transaction) = {
-        val costMdls = new CostMdls()
-
-        if transaction.getWitnessSet.getPlutusV1Scripts != null && transaction.getWitnessSet.getPlutusV1Scripts.size > 0
-        then {
-            costMdls.add(PlutusV1CostModel)
-        }
-
-        if transaction.getWitnessSet.getPlutusV2Scripts != null && transaction.getWitnessSet.getPlutusV2Scripts.size > 0
-        then {
-            costMdls.add(PlutusV2CostModel)
-        }
-
-        if transaction.getWitnessSet.getPlutusV3Scripts != null && transaction.getWitnessSet.getPlutusV3Scripts.size > 0
-        then {
-            costMdls.add(PlutusV3CostModel)
-        }
-
-        // FIXME: this is not complete because we need to include scripts from inputs and reference inputs
-
-        import com.bloxbean.cardano.client.plutus.util.ScriptDataHashGenerator.generate
-        val bbgenerated = generate(
-          Era.Conway,
-          bbtx.tx.getWitnessSet.getRedeemers,
-          bbtx.tx.getWitnessSet.getPlutusDataList,
-          costMdls
-        )
-        bbgenerated
     }
 
     def findInterestingBlocks(): Unit = {

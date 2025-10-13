@@ -295,7 +295,10 @@ object TransactionException {
     final case class IllegalArgumentException(message: String) extends TransactionException(message)
 }
 
+@deprecated("Use Utxos instead", "0.12.1")
 type UTxO = Map[TransactionInput, TransactionOutput]
+type Utxos = Map[TransactionInput, TransactionOutput]
+type Utxo = (TransactionInput, TransactionOutput)
 type GovState = Unit
 type StakeMap = Map[Credential, Coin]
 case class UTxOState(
