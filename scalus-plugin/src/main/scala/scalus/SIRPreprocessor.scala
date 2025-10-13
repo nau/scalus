@@ -50,7 +50,6 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
     private val listSirModuleWithDepsType = defn.ListClass.typeRef.appliedTo(sirModuleWithDepsType)
 
     def transformTypeDef(tree: tpd.TypeDef)(using Context): tpd.Tree = {
-        println(s"scaluePlugin: preprocessing ${tree.symbol.fullName}")
         // If the template has a compile annotation, we need to add a variable for SIR
         tree.rhs match
             case template: tpd.Template =>
