@@ -2,6 +2,7 @@ package scalus
 
 import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.tpd
+import dotty.tools.dotc.ast.tpd.TreeOps
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.*
@@ -12,6 +13,7 @@ import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.transform.{ElimByName, Pickler, PostTyper}
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.dotc.typer.Implicits
+import dotty.tools.dotc.inlines.Inlines
 import dotty.tools.io.ClassPath
 import scalus.serialization.flat.FlatInstances
 import scalus.serialization.flat.FlatInstances.SIRHashConsedFlat
@@ -44,6 +46,43 @@ object Plugin {
     val SIR_MODULE_VAL_NAME = "sirModule"
     val SIR_DEPS_VAL_NAME = "sirDeps"
 
+
+    def retrieveCompilerOptions(
+        posTree: tpd.Tree,
+        isCompilerDebug: Boolean
+    )(using Context): tpd.Tree = {
+        val compilerOptionType = requiredClassRef("scalus.Compiler.Options")
+        if !ctx.phase.allowsImplicitSearch then
+            println(
+              s"ScalusPhase: Implicit search is not allowed in phase ${ctx.phase.phaseName}. "
+            )
+        summon[Context].typer.inferImplicit(
+          compilerOptionType,
+          tpd.EmptyTree,
+          posTree.span
+        ) match {
+            case Implicits.SearchSuccess(tree, ref, level, isExtension) =>
+                if isCompilerDebug then
+                    report.echo(s"Found compiler options: ${tree.show}")
+                tree
+            case failure @ Implicits.SearchFailure(_) =>
+                if isCompilerDebug then {
+                    report.warning(
+                      s"ScalusPhase: No compiler options found, using default options",
+                      posTree.srcPos.startPos
+                    )
+                    report.warning(s"search result: ${failure.show}")
+                }
+                val scalusCompilerModule = requiredModule("scalus.Compiler")
+                val defaultOptionsMethod = scalusCompilerModule.requiredMethod("defaultOptions")
+                tpd.ref(scalusCompilerModule)
+                  .select(defaultOptionsMethod)
+                  .withSpan(posTree.span)
+        }
+
+    }
+
+
 }
 
 /** A prepare phase which should run before pickling to create additional variables in objects,
@@ -59,6 +98,8 @@ class ScalusPreparePhase(debugLevel: Int) extends PluginPhase with IdentityDenot
 
     override def changesMembers: Boolean = true
 
+    override def allowsImplicitSearch: Boolean = true
+
     override def prepareForTypeDef(tree: tpd.TypeDef)(using Context): Context = {
         // bug in dotty: sometimes we called with the wrong phase in context
         if summon[Context].phase != this then
@@ -72,6 +113,27 @@ class ScalusPreparePhase(debugLevel: Int) extends PluginPhase with IdentityDenot
             val preprocessor = new SIRPreprocessor(this, debugLevel)
             preprocessor.transformTypeDef(tree)
         else tree
+    }
+
+    override def transformApply(tree: tpd.Apply)(using Context): tpd.Tree = {
+        val compilerModule = requiredModule("scalus.Compiler")
+        val compileSymbol = compilerModule.requiredMethod("compile")
+        val compile2Symbol = compilerModule.requiredMethod("compile2")
+        val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
+        val compile2DebugSymbol = compilerModule.requiredMethod("compile2Debug")
+
+        if tree.symbol == compileSymbol then
+            val optionsTree = Plugin.retrieveCompilerOptions(tree, isCompilerDebug = false)
+            val newArgs = optionsTree :: tree.args
+            val newFun = tpd.ref(compile2Symbol).withSpan(tree.fun.span)
+            cpy.Apply(tree)(fun = newFun, args = newArgs).withSpan(tree.span)
+        else if tree.symbol == compileDebugSymbol then
+            val optionsTree = Plugin.retrieveCompilerOptions(tree, isCompilerDebug = true)
+            val newArgs = optionsTree :: tree.args
+            val newFun = tpd.ref(compile2DebugSymbol).withSpan(tree.fun.span)
+            cpy.Apply(tree)(fun = newFun, args = newArgs).withSpan(tree.span)
+        else 
+            tree
     }
 
 }
@@ -107,9 +169,9 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             else
                 if debugLevel > 0 then
                     report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
-                val options = retrieveCompilerOptions(tree, debugLevel > 0)
-                val sirLoader = createSirLoader
-                val compiler = new SIRCompiler(sirLoader, options)
+                val options = SIRCompilerOptions()
+                //val sirLoader = createSirLoader
+                val compiler = new SIRCompiler(options)
                 compiler.compileModule(tree)
                 ctx
         catch
@@ -124,54 +186,49 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         else ctx
     }
 
-    /** Replaces calls to `compile` and `compileDebug` with a fully linked Flat-encoded [[SIR]]
+    /** Replaces calls to `compile`, `compile2`, `compileDebug`, and `compile2Debug` with a fully linked Flat-encoded [[SIR]]
       * representation.
       */
     override def transformApply(tree: tpd.Apply)(using Context): tpd.Tree =
         try
             val compilerModule = requiredModule("scalus.Compiler")
             val compileSymbol = compilerModule.requiredMethod("compile")
+            val compile2Symbol = compilerModule.requiredMethod("compile2")
             val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
-            val isCompileDebug = tree.fun.symbol == compileDebugSymbol
+            val compile2DebugSymbol = compilerModule.requiredMethod("compile2Debug")
 
-            if tree.fun.symbol == compileSymbol || isCompileDebug then
-                // report.echo(tree.showIndented(2))
-                val options = retrieveCompilerOptions(tree, isCompileDebug)
+            
 
-                val localDebugLevel =
-                    if options.debugLevel == 0 && debugLevel == 0 && isCompileDebug then 10
-                    else if options.debugLevel > debugLevel then options.debugLevel
+            if tree.fun.symbol == compile2Symbol || tree.fun.symbol == compile2DebugSymbol then
+                    // report.echo(s"transformApply: ${tree.showIndented(2)}")
+
+                  val isCompileDebug = tree.fun.symbol == compile2DebugSymbol
+                  val localDebugLevel =
+                    if debugLevel == 0 && isCompileDebug then 10
                     else debugLevel
 
-                val code = tree.args.head
-                val sirLoader = createSirLoader
-                val compiler = new SIRCompiler(sirLoader, options)
-                val start = System.currentTimeMillis()
-                val sirResult =
-                    val sirOnly = compiler.compileToSIR(code, isCompileDebug)
-                    if options.linkInRuntime then sirOnly
-                    else
-                        val linked = SIRLinker(
-                          SIRLinkerOptions(options.universalDataRepresentation, localDebugLevel),
-                          sirLoader
-                        ).link(sirOnly, tree.srcPos)
-                        RemoveRecursivity(linked)
+                  val (optionsTree, code) = (tree.args(0), tree.args(1))
+                  //val sirLoader = createSirLoader
+                  val compiler = new SIRCompiler()
+                  val start = System.currentTimeMillis()
+                  val sirResult = compiler.compileToSIR(code, isCompileDebug)
 
-                if isCompileDebug then
+                  if isCompileDebug then
                     val time = System.currentTimeMillis() - start
                     report.echo(
-                      s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms, options=${options}"
+                      s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"
                     )
 
-                val flatTree = convertFlatToTree(
-                  sirResult,
-                  SIRHashConsedFlat,
-                  requiredModule("scalus.sir.ToExprHSSIRFlat"),
-                  tree.span,
-                  isCompileDebug
-                )
-                val result =
-                    if options.linkInRuntime then
+                  val flatTree = convertFlatToTree(
+                    sirResult,
+                    SIRHashConsedFlat,
+                    requiredModule("scalus.sir.ToExprHSSIRFlat"),
+                    tree.span,
+                    isCompileDebug
+                  )
+
+                  val result =
+                    if true then
                         val myModuleName = s"${tree.srcPos.sourcePos.source}:${tree.srcPos.line}"
                         val dependencyEntries = compiler.gatherExternalModulesFromSir(
                           myModuleName,
@@ -190,7 +247,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                         val SIRLinkerMethod = SIRLinkerModule.requiredMethod("link")
                         val sirPos =
                             createSIRPositionTree(SIRPosition.fromSrcPos(tree.srcPos), tree.span)
-                        val linkerOptionsTree = createLinkerOptionsTree(options, tree.srcPos)
+                        val linkerOptionsTree = createLinkerOptionsTree(optionsTree, tree.srcPos)
                         val sirLinkerCall = tpd
                             .ref(SIRLinkerMethod)
                             .appliedTo(
@@ -202,7 +259,23 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                             .withSpan(tree.span)
                         sirLinkerCall
                     else flatTree
-                result
+                  result
+                /*  
+                case Apply(fun, args) if fun.symbol == compileSymbol || fun.symbol == compileDebugSymbol =>
+                    report.error(
+                      s"ScalusPhase: Expected two list of arguments for ${fun.symbol.fullName}, but found one",
+                      tree.srcPos
+                    )
+                    println(s"tree: ${tree.show}")
+                    tree  
+                */
+            else if tree.fun.symbol == compileSymbol || tree.fun.symbol == compileDebugSymbol then
+                report.error(
+                  s"ScalusPhase: Impossible, symbols should be rewritten to compile2 instead ${tree.fun.symbol.fullName}",
+                  tree.srcPos
+                )
+                println(s"tree: ${tree.show}")
+                tree                      
             else tree
         catch
             case scala.util.control.NonFatal(ex) =>
@@ -248,6 +321,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                     tree
         } else tree
 
+    /*
     private def createSirLoader(using Context): SIRLoader = {
         new SIRLoader(
           SIRLoaderOptions(
@@ -257,7 +331,12 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
           )
         )
     }
+    */
 
+
+    
+
+    /*
     private def retrieveCompilerOptions(
         posTree: Tree,
         isCompilerDebug: Boolean
@@ -560,22 +639,19 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             )
         retval
     }
+    */
 
     def createLinkerOptionsTree(
-        options: SIRCompilerOptions,
+        optionsTree: tpd.Tree,
         pos: SrcPos
     )(using Context): tpd.Tree = {
         import tpd.*
         val linkerOptionsModule = requiredModule("scalus.sir.linking.SIRLinkerOptions")
-        val linkerOptionsTree = ref(linkerOptionsModule).select(
-          linkerOptionsModule.requiredMethod("apply")
+        val linkerCreateTree = ref(linkerOptionsModule).select(
+          linkerOptionsModule.requiredMethod("fromCompilerOptions")
         )
-        val args = List(
-          Literal(Constant(options.universalDataRepresentation)), // universalDataRepresentation
-          Literal(Constant(true)), // print errors
-          Literal(Constant(options.debugLevel)), // debug level
-        )
-        Apply(linkerOptionsTree, args).withSpan(pos.span)
+        val args = List(optionsTree)
+        Apply(linkerCreateTree, args).withSpan(pos.span)
     }
 
 }

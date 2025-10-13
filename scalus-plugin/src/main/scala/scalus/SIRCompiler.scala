@@ -94,7 +94,6 @@ object SIRCompilerOptions {
 }
 
 final class SIRCompiler(
-    sirLoader: SIRLoader,
     options: SIRCompilerOptions = SIRCompilerOptions.default
 )(using
     ctx: Context
@@ -275,7 +274,7 @@ final class SIRCompiler(
         val start = System.currentTimeMillis()
         val tpl = td.rhs.asInstanceOf[Template]
 
-        
+        /*        
         val staticInheritanceParents = td.tpe.parents.flatMap { p =>
             val hasAnnotation = p.typeSymbol.hasAnnotation(CompileAnnot)
             if hasAnnotation then
@@ -285,7 +284,7 @@ final class SIRCompiler(
                       s"Unsopported parent: ${p.typeSymbol.fullName.toString}, we support only builtin prelude validators as base classes "
                     )
             else None
-        }
+        }*/
 
         val typeParams = td.tpe.typeParams
         val typeParamsSymbols = typeParams.map(_.paramRef.typeSymbol)
@@ -301,13 +300,16 @@ final class SIRCompiler(
         )
 
         val bindings = tpl.body.flatMap { tree =>
-            compileTreeInModule(baseEnv, td, tree)
+            compileTreeInModule(baseEnv, td, tree).map{ lb =>
+               Binding(lb.fullName.name, lb.tp, lb.body)
+            }
         }
 
-        // val bindings = localBindings.foldRight(List.empty[LocalBinding]) {
+        //val bindings = localBindings.foldRight(List.empty[LocalBinding]) {
         //    (element, bindings) => element +: bindings
         // }
 
+        /*
         val possibleOverrides = staticInheritanceParents.flatMap { p =>
             bindings.map { lb =>
                 p.typeSymbol.fullName.show + "." + lb.name -> lb
@@ -366,9 +368,10 @@ final class SIRCompiler(
                     Binding(b.fullName.name, b.tp, newBody)
                 else Binding(b.fullName.name, b.tp, b.body)
             } ++ nonOverridedSupers.map(b => Binding(b.fullName.name, b.tp, b.body))
+        */
 
         val time = System.currentTimeMillis() - start
-        if bindingsWithSpecialized.isEmpty then {
+        if bindings.isEmpty then {
             report.echo(
               s"skipping empty Scalus module ${td.name} in ${time}ms"
             )
@@ -378,7 +381,7 @@ final class SIRCompiler(
                 Module(
                   SIRVersion,
                   moduleName,
-                  bindingsWithSpecialized
+                  bindings
                 )
 
             val moduleTree = convertFlatToTree(
@@ -404,7 +407,7 @@ final class SIRCompiler(
 
             if options.debugLevel > 0 then
                 report.echo(
-                  s"compiled Scalus module ${td.name} [${td.symbol.fullName.toString}] definitions: ${bindingsWithSpecialized.map(_.name)} in ${time}ms"
+                  s"compiled Scalus module ${td.name} [${td.symbol.fullName.toString}] definitions: ${bindings.map(_.name)} in ${time}ms"
                 )
     }
 
@@ -2841,6 +2844,7 @@ final class SIRCompiler(
         )
     }
 
+    /*
     private def applyStaticInheritanceInModule(
         parentSym: Symbol,
         module: scalus.sir.Module,
@@ -2869,7 +2873,10 @@ final class SIRCompiler(
             )
         }
     }
+    */
 
+
+    /*
     private def applyStaticInheritanceInSIR(
         parentSym: Symbol,
         sir: SIR,
@@ -3129,12 +3136,14 @@ final class SIRCompiler(
                 val newSIR = SIR.Cast(newExpr, tp, anns)
                 (newSIR, exprChanged)
     }
+    */
 
     private def calculateLocalBindingFlags(tp: Type): LocalBingingFlags = {
         if tp.baseType(FromDataSymbol).exists || tp.baseType(ToDataSymbol).exists then
             LocalBindingFlags.ErasedOnDataRepr
         else LocalBindingFlags.None
     }
+    
 
     def gatherExternalModules(
         myModuleName: String,
@@ -3251,7 +3260,7 @@ final class SIRCompiler(
                             // this invocation will be replaced by linker if backend use universal data representation.
                             //   (i.e. if this is S3LoweringBackend)
                             // we generate SIR for all backends,  so -- not produce error, this ExternalVars will be
-                            // replaced
+                            // replacedf
                             val moduleSym = Symbols.requiredModule(
                               "scalus.builtin.internal.UniversalDataConversion"
                             )
