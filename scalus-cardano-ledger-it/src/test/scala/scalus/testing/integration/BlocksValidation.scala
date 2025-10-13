@@ -20,7 +20,7 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CardanoInfo, CostModels, ExUnits, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluator, ProtocolParams, RedeemerTag, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CardanoInfo, CostModels, ExUnits, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluationException, PlutusScriptEvaluator, ProtocolParams, RedeemerTag, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
 import scalus.ledger.api.{v3, ScriptContext}
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v3.ScriptInfo
@@ -37,7 +37,8 @@ import scala.collection.immutable.TreeSet
 import scala.collection.{immutable, mutable}
 import scala.jdk.CollectionConverters.*
 import scala.math.Ordering.Implicits.*
-import scala.util.Using
+import scala.util.{boundary, Using}
+import scala.util.boundary.{break, Break}
 
 /** Setup BLOCKFROST_API_KEY environment variable before running this test. In SBT shell:
   *   - set `scalus-bloxbean-cardano-client-lib`/envVars := Map("BLOCKFROST_API_KEY" -> "apikey")
@@ -60,7 +61,7 @@ class BlocksValidation extends AnyFunSuite {
 
     private lazy val resourcesPath = Paths.get(dataPath)
 
-    lazy val pprinter = pprint.copy(defaultHeight = Int.MaxValue)
+    private lazy val pprinter = pprint.copy(defaultHeight = Int.MaxValue)
 
     private def showScriptContext(sc: ScriptContext): String =
         ScriptContext.foldMap(sc)(
@@ -280,27 +281,34 @@ class BlocksValidation extends AnyFunSuite {
         val evalScalus = evalBlockWithScalus(r, e)
 
         var totalTx = 0
-        val blocks = filterBlocks()
-        println(s"Validating native scripts of ${blocks.size} blocks")
-        for path <- blocks do
-            val blockBytes = Files.readAllBytes(path)
-            for case (tx, key, actualExUnits, expectedExUnits, sc) <- evalScalus(blockBytes) do
+        val blocks = getAllBlocksPaths()
+        println(s"Validating scripts of ${blocks.size} blocks")
+        boundary:
+            for path <- blocks do
                 try {
-                    totalTx += 1
-                    if actualExUnits > expectedExUnits then {
-                        val error =
-                            s"AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits"
-                        errors += error
-                        println(
-                          s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}"
-                        )
-                        println(showScriptContext(sc))
-                    }
+                    val blockBytes = Files.readAllBytes(path)
+                    for case (tx, key, actualExUnits, expectedExUnits, sc) <- evalScalus(blockBytes)
+                    do
+                        totalTx += 1
+                        if actualExUnits > expectedExUnits then {
+                            val error =
+                                s"AAAA!!!! block $path, tx ${tx.id} ${key._1} budget: $actualExUnits > $expectedExUnits"
+                            errors += error
+                            println(
+                              s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}"
+                            )
+                            println(showScriptContext(sc))
+                        }
                 } catch {
-                    case e: Exception =>
-                    // val error = s"Error in block $path, tx ${tx.id}: ${e.getMessage}"
-                    // errors += error
-                    // println(s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}")
+                    case e: PlutusScriptEvaluationException =>
+                        val error = s"${path.getFileName}: $e"
+                        errors += error
+                        println(s"\n${Console.RED}[error# ${errors.size}] ${error}${Console.RESET}")
+                    case e: IllegalStateException =>
+                        if e.getMessage.startsWith("Reference UTXO not found for input") then
+                            break()
+                        else println(s"${path.getFileName}: $e")
+                    case e: Exception => println(s"${path.getFileName}: $e")
                 }
         println(
           s"\n${Console.GREEN}Total txs: $totalTx, errors ${errors.size}, blocks: ${blocks.size}, epoch: $epoch${Console.RESET}"
