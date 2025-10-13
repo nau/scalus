@@ -88,6 +88,8 @@ case class TxBuilder(
                 )
                 .left
                 .map {
+                    case TxBalancingError.EvaluationFailed(psee) =>
+                        s"Plutus script evaluation failed: ${psee.getMessage}, execution trace: ${psee.logs.mkString(" <CR> ")}"
                     case TxBalancingError.Failed(cause) => cause.getMessage
                     case TxBalancingError.CantBalance(lastDiff) =>
                         s"Can't balance: last diff $lastDiff"

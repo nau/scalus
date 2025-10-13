@@ -126,6 +126,9 @@ object LowLevelTxBuilder {
 
 // Transaction balancing error types
 enum TxBalancingError {
+    // Now it's only Plutus, but may become `Plutus... | SthElse...` in the future
+    case EvaluationFailed(cause: PlutusScriptEvaluationException)
+    // TODO: this constructor gets all other errors - rename?
     case Failed(cause: Throwable)
     case CantBalance(lastDiff: Long)
     case InsufficientFunds(diff: Long, minRequired: Long)
@@ -200,4 +203,8 @@ def computeScriptsWitness(
 )(tx: Transaction): Either[TxBalancingError, Transaction] = Try {
     val redeemers = evaluator.evalPlutusScripts(tx, utxo)
     setupRedeemers(protocolParams, tx, utxo, redeemers)
-}.toEither.left.map(TxBalancingError.Failed.apply)
+}.toEither.left.map(t =>
+    t match
+        case psee: PlutusScriptEvaluationException => TxBalancingError.EvaluationFailed(psee)
+        case other                                 => TxBalancingError.Failed(other)
+)

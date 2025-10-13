@@ -125,6 +125,8 @@ case class PaymentBuilder(
     }
 
     private def explainBalancingError(error: TxBalancingError): String = error match {
+        case TxBalancingError.EvaluationFailed(psee) =>
+            s"Plutus script evaluation failed: ${psee.getMessage}, execution trace: ${psee.logs.mkString(" <CR> ")}"
         case TxBalancingError.Failed(cause) =>
             s"Transaction balancing failed: ${cause.getMessage}"
         case TxBalancingError.CantBalance(lastDiff) =>
