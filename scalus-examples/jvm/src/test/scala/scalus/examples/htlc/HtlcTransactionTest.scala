@@ -103,8 +103,8 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         assert(totalReceiverOutput > receiverWalletInput)
     }
 
-    val lockTx = lockHtlc()
     test("receiver fails with wrong preimage") {
+        val lockTx = lockHtlc()
         val htlcUtxo = TestUtil.getScriptUtxo(lockTx)
 
         val wrongPreimage = genByteStringOfN(32).sample.get
