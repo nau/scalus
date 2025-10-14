@@ -1,31 +1,19 @@
 package scalus.cardano.ledger.txbuilder
 
-import scalus.cardano.ledger.txbuilder.*
-import scalus.cardano.ledger.txbuilder.RedeemerPurpose.{ForCert, ForMint}
-import scalus.cardano.ledger.txbuilder.TransactionBuilder.{build, modify, Context}
-import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.*
-import scalus.cardano.ledger.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
-import scalus.cardano.ledger.txbuilder.TxBuildError.{IncorrectScriptHash, UnneededDeregisterWitness, WrongNetworkId, WrongOutputType}
-import io.bullet.borer.Cbor
 import monocle.syntax.all.*
 import monocle.{Focus, Lens}
-import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
-import scalus.cardano.address.Network.{Mainnet, Testnet}
-import scalus.cardano.address.ShelleyDelegationPart.{Key, Null}
-import scalus.cardano.address.{Network, ShelleyAddress, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.Certificate.UnregCert
-import scalus.cardano.ledger.DatumOption.Inline
-import scalus.cardano.ledger.RedeemerTag.{Cert, Spend}
-import scalus.cardano.ledger.Timelock.AllOf
-import scalus.cardano.ledger.TransactionOutput.Babbage
+import scalus.cardano.ledger.RedeemerTag.Spend
+import scalus.cardano.ledger.txbuilder.*
+import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.*
+import scalus.cardano.ledger.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
 import scalus.|>
 
-import scala.collection.immutable.{SortedMap, SortedSet}
+import scala.collection.immutable.SortedSet
 
 private def addInput(input: TransactionInput): Transaction => Transaction =
     txBodyL

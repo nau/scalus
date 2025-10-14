@@ -1,35 +1,34 @@
 package scalus.cardano.ledger.txbuilder
 
-import scalus.cardano.ledger.txbuilder.*
-import scalus.cardano.ledger.txbuilder.ScriptSource.*
-import scalus.cardano.ledger.txbuilder.Datum.DatumInlined
-import scalus.cardano.ledger.txbuilder.RedeemerPurpose.{ForCert, ForMint}
-import scalus.cardano.ledger.txbuilder.TransactionBuilder.{build, modify, Context, ResolvedUtxos, WitnessKind}
-import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.*
-import scalus.cardano.ledger.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
-import scalus.cardano.ledger.txbuilder.TxBuildError.{AttachedScriptNotFound, IncorrectScriptHash, UnneededDeregisterWitness, WrongNetworkId, WrongOutputType}
 import io.bullet.borer.Cbor
 import monocle.syntax.all.*
 import monocle.{Focus, Lens}
-import org.scalacheck.Gen
 import org.scalacheck.Arbitrary.arbitrary
-import scalus.cardano.ledger.ArbitraryInstances.given
+import org.scalacheck.Gen
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.Network.{Mainnet, Testnet}
 import scalus.cardano.address.ShelleyDelegationPart.{Key, Null}
 import scalus.cardano.address.{Network, ShelleyAddress, ShelleyPaymentPart}
+import scalus.cardano.ledger.ArbitraryInstances.given
 import scalus.cardano.ledger.Certificate.UnregCert
 import scalus.cardano.ledger.DatumOption.Inline
-import scalus.cardano.ledger.RedeemerTag.Cert
-import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.{ReferenceOutput, Spend}
 import scalus.cardano.ledger.Timelock.AllOf
 import scalus.cardano.ledger.TransactionOutput.Babbage
-import scalus.|>
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalus.cardano.ledger.txbuilder.*
+import scalus.cardano.ledger.txbuilder.Datum.DatumInlined
+import scalus.cardano.ledger.txbuilder.RedeemerPurpose.{ForCert, ForMint}
+import scalus.cardano.ledger.txbuilder.ScriptSource.*
+import scalus.cardano.ledger.txbuilder.SomeBuildError.SomeStepError
+import scalus.cardano.ledger.txbuilder.StepError.*
 import scalus.cardano.ledger.txbuilder.TestPeer.Alice
+import scalus.cardano.ledger.txbuilder.TransactionBuilder.{build, Context, ResolvedUtxos, WitnessKind}
+import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.{Mint, *}
 import scalus.cardano.ledger.{Mint as TxBodyMint, *}
+import scalus.|>
+
 import scala.collection.immutable.{SortedMap, SortedSet}
 
 class TransactionBuilderTest extends AnyFunSuite, ScalaCheckPropertyChecks {
@@ -43,11 +42,11 @@ class TransactionBuilderTest extends AnyFunSuite, ScalaCheckPropertyChecks {
     def testBuilderStepsFail(
         label: String,
         steps: Seq[TransactionBuilderStep],
-        error: TxBuildError
+        error: StepError
     ): Unit =
         test(label) {
             val res = TransactionBuilder.build(Mainnet, steps)
-            assert(res == Left(error))
+            assert(res == Left(SomeStepError(error)))
         }
 
     def testBuilderSteps(
@@ -185,7 +184,7 @@ class TransactionBuilderTest extends AnyFunSuite, ScalaCheckPropertyChecks {
     testBuilderStepsFail(
       label = "PKH output x2",
       steps = List(Spend(pkhUtxo, PubKeyWitness), Spend(pkhUtxo, PubKeyWitness)),
-      error = TxBuildError.InputAlreadyExists(pkhUtxo.input)
+      error = InputAlreadyExists(pkhUtxo.input)
     )
 
     testBuilderStepsFail(
@@ -492,6 +491,7 @@ class TransactionBuilderTest extends AnyFunSuite, ScalaCheckPropertyChecks {
     )
 
     val mintSigners = Set(ExpectedSigner(genAddrKeyHash.sample.get))
+
     // Mint the given amount of tokens from script 1
     def mintScript1(amount: Long, redeemer: Data = Data.List(List.empty)): Mint =
         Mint(
@@ -508,7 +508,7 @@ class TransactionBuilderTest extends AnyFunSuite, ScalaCheckPropertyChecks {
     testBuilderStepsFail(
       label = "Mint 0 directly",
       steps = List(mintScript1(0)),
-      error = TxBuildError.CannotMintZero(scriptHash1, AssetName.empty)
+      error = CannotMintZero(scriptHash1, AssetName.empty)
     )
 
     testBuilderSteps(
@@ -652,11 +652,11 @@ class TransactionBuilderTest extends AnyFunSuite, ScalaCheckPropertyChecks {
         )
     }
 
-    test("A script based utxo can't be used as a collateral") {
-        val step = AddCollateral(utxo = script1Utxo)
-        val res = TransactionBuilder.build(Mainnet, List(step))
-        assert(res == Left(TxBuildError.CollateralNotPubKey(script1Utxo)))
-    }
+    testBuilderStepsFail(
+      label = "A script based utxo can't be used as a collateral",
+      steps = List(AddCollateral(utxo = script1Utxo)),
+      error = CollateralNotPubKey(script1Utxo)
+    )
 
     // =======================================================================
     // Group: "Deregister"
@@ -853,7 +853,9 @@ val testnetContext: ContextTuple =
     Context.empty(Testnet).toTuple |> transactionL.replace(testnetTransaction)
 
 private def fromRight[A, B](e: Either[A, B]): B =
-    e match { case Right(x) => x }
+    e match {
+        case Right(x) => x
+    }
 
 // The fields of a Context, to cut down on noise
 private type ContextTuple = (
