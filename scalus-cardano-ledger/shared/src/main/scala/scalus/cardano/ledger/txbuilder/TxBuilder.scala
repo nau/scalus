@@ -62,7 +62,7 @@ case class TxBuilder(
             txContext <- TransactionBuilder
                 .build(context.env.network, walletInputSteps ++ steps)
                 .left
-                .map(_.explain)
+                .map(_.toString)
 
             changeOutput = Sized(
               TransactionOutput(

@@ -100,7 +100,7 @@ case class PaymentBuilder(
             txContext <- TransactionBuilder
                 .build(context.env.network, allSteps.toSeq)
                 .left
-                .map(_.explain)
+                .map(_.toString)
 
             diffHandler = (diff: Long, tx: Transaction) =>
                 Change.handleChange(
@@ -114,13 +114,11 @@ case class PaymentBuilder(
                 .finalizeContext(
                   protocolParams = context.env.protocolParams,
                   diffHandler = diffHandler,
-                  evaluator = context.env.evaluator
+                  evaluator = context.env.evaluator,
+                  validators = Seq.empty
                 )
                 .left
-                .map {
-                    case e: TxBalancingError     => s"Balancing failed: ${explainBalancingError(e)}"
-                    case e: TransactionException => s"Validation failed: ${e.getMessage}"
-                }
+                .map(_.toString)
         } yield finalCtx.transaction
     }
 
