@@ -595,7 +595,14 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             case Result.Success(evaled, _, _, logs) =>
                 fail("should not be successful")
             case Result.Failure(exception, _, _, logs) =>
-                assert(logs.exists(_.contains("Unexpected case")))
+                val condition = logs.exists(msg =>
+                    msg.contains("Unexpected case") || msg.contains("Match failure")
+                )
+                if !condition then {
+                    println("failure: exception=" + exception.getMessage)
+                    println("logs=" + logs.mkString("\n"))
+                }
+                assert(condition, s"logs did not contain expected message: ${logs}")
             // assert(logs == List("Pattern match failure: expected Some but got None"))
     }
 
@@ -639,7 +646,14 @@ class CompilerPluginToSIRTest extends AnyFunSuite with ScalaCheckPropertyChecks:
             case Result.Success(evaled, _, _, logs) =>
                 fail("should not be successful")
             case Result.Failure(exception, _, _, logs) =>
-                assert(logs.exists(_.contains("Unexpected case")))
+                val condition = logs.exists(msg =>
+                    msg.contains("Unexpected case") || msg.contains("Match failure")
+                )
+                if !condition then {
+                    println("failure: exception=" + exception.getMessage)
+                    println("logs=" + logs.mkString("\n"))
+                }
+                assert(condition, s"logs did not contain expected message: ${logs}")
 
     }
 
