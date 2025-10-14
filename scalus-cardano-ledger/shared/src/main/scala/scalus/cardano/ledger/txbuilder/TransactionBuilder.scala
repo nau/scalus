@@ -1906,12 +1906,10 @@ enum SomeBuildError:
     override def toString: String = this match {
         case SomeStepError(e) =>
             s"Step processing error: ${e.getClass.getSimpleName} - ${e.explain}"
-        case BalancingError(TxBalancingError.Failed(unknown)) =>
-            unknown match {
-                case psee: PlutusScriptEvaluationException =>
-                    s"Plutus script evaluation failed: ${psee.getMessage}, execution trace: ${psee.logs.mkString(" <CR> ")}"
-                case other => s"Unexpected exception during balancing: ${other.getMessage}"
-            }
+        case BalancingError(TxBalancingError.EvaluationFailed(psee)) =>
+            s"Plutus script evaluation failed: ${psee.getMessage}, execution trace: ${psee.logs.mkString(" <CR> ")}"
+        case BalancingError(TxBalancingError.Failed(other)) =>
+            s"Exception during balancing: ${other.getMessage}"
         case BalancingError(TxBalancingError.CantBalance(lastDiff)) =>
             s"Can't balance: last diff $lastDiff"
         case BalancingError(TxBalancingError.InsufficientFunds(diff, required)) =>
