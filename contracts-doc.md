@@ -8,7 +8,7 @@ written using Scalus.
 
 A Scalus validator is an object that extends the `Validator` trait, annotated with `@Compile`.
 
-When defining the contract, one can define logic for 6 distinct purposes by overriding a corresponding method. Each
+When defining a contract, you can define logic for 6 distinct purposes by overriding a corresponding method. Each
 method corresponds to a respective Plutus Redeemer Tag type:
 
 - `spend`
@@ -20,8 +20,8 @@ method corresponds to a respective Plutus Redeemer Tag type:
 
 Each validator method takes `ScriptContext` as a parameter.
 
-Note: when overriding the `Validator` methods, one has to define a function that does not take a script context
-directly, e.g. for spending, you override the following function:
+**Note:** when overriding the `Validator` methods, you need to define a function that does not take a script context
+directly. For example, for spending, you override the following function:
 
 ```scala
 def spend(
@@ -32,11 +32,11 @@ def spend(
          ): Unit
 ```
 
-Datum, redeemer, txinfo and ownref are values that are derived from the script context for convenience and contain no
-information that couldn't be derived from the context only.
+The `datum`, `redeemer`, `tx` (TxInfo), and `ownRef` are values that are derived from the script context for convenience and contain no
+information that couldn't be derived from the context alone.
 
-Thus, a typical contract will consist of a number of functions, often just of 1 function. A successful contract returns
-a `Unit`, while errors are indicated by throwing errors, more on that later.
+A typical contract consists of one or more functions, often just a single function. A successful contract returns
+`Unit`, while errors are indicated by throwing exceptions (we'll explore this in more detail below).
 
 Let's take a look at an example contract, `HTLCValidator`, to illustrate the concepts above.
 
@@ -61,7 +61,7 @@ case class ContractDatum(
                           receiver: PubKeyHash,
                           image: Image,
                           timeout: PosixTime
-                        )derives FromData, ToData
+                        ) derives FromData, ToData
 
 // Redeemer
 enum Action derives FromData, ToData:
@@ -115,30 +115,29 @@ end HtlcValidator
 At the very top of the file, you can see imports, which are present in most Scala programs.
 Then, we declare *type aliases*, which enhance our types with semantics relevant to the contract.
 
-After that, we see a definition of the datum and redeemer types, which are then used to turn the `Data` corresponding to
-a Redeemer to an instance of that types, allowing us to utilize Scalas strict type system.
+After that, we see a definition of the datum and redeemer types, which are then used to convert the `Data` corresponding to
+a Redeemer into an instance of that type, allowing us to utilize Scala's strict type system.
 
-In the body of the `object HTLCValidator`, where object is a Scala keyword meaning a stateless type with no instances,
+In the body of the `object HtlcValidator`, where `object` is a Scala keyword meaning a stateless type with no instances,
 we can see the `override spend` declaration, which contains the logic of the contract.
 
-After deserializing the datum and the redeemer using the Scalus' `to[ContractDatum]` and `to[Action]`, which are
-available
-for every type that `derive`s `FromData`, we see the branching of behaviour. The branching is done via pattern
-matching -- a feature of the Scala language that allows, for algebraic data types, to express the behaviour depending on
+After deserializing the datum and the redeemer using Scalus's `to[ContractDatum]` and `to[Action]` methods, which are
+available for every type that `derive`s `FromData`, we see the branching of behavior. The branching is done via pattern
+matching—a feature of the Scala language that allows, for algebraic data types, expressing behavior depending on
 the type of the variable at runtime.
 
 For each of the two redeemers, we define the requirements necessary for the `Spend` transaction to be successful.
 If any of the required conditions don't hold true, the validator execution ends with an error. The list of all errors
 is enumerated at the bottom of the contract, each containing a message describing why the spending was forbidden.
 
-Each validator is, in essence, a boolean function -- it either allows to perform the desired action, e.g. spend
-the script locked funds, or forbids it.
+Each validator is, in essence, a boolean function—it either allows performing the desired action (e.g., spending
+the script-locked funds) or forbids it.
 
 Thus, the logic is just a sequence of binary checks.
 In Scalus, this usually means a series of `require` calls, where the first parameter is the boolean invariant to check,
 and the second parameter is the error that is thrown if the condition is false.
 
-In the HTLCValidator, you can see it clearly: the timeout is only valid if the initiating transaction is signed by the
+In the `HtlcValidator`, you can see this clearly: the timeout is only valid if the initiating transaction is signed by the
 correct key and the necessary amount of time has passed.
 This is neatly expressed in 2 lines of Scala code:
 
@@ -147,7 +146,6 @@ require(tx.isSignedBy(committer), UnsignedCommitterTransaction)
 require(tx.validRange.isAfter(timeout), InvalidCommitterTimePoint)
 ```
 
-Note:
-a transaction does not have `isSignedBy` by default, but since we're writing a Scala program, we can declare and
-extension method and add a method to an object, simplifying the code, allowing us to express the requirements in one
+**Note:** a transaction does not have `isSignedBy` by default, but since we're writing a Scala program, we can declare an
+extension method to add functionality to an object, simplifying the code and allowing us to express the requirements in one
 simple statement.
