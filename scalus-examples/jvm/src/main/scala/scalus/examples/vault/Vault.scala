@@ -208,7 +208,7 @@ object Vault extends Validator {
     private val FinalizationDeadlineChanged =
         "Deposit transactions must not change the finalization deadline"
 
-    private val WaitTimeChanged = "Deposit transactions must not change the wait time"
+    private val WaitTimeChanged = "Deposit or Cancel transactions must not change the wait time"
 
     private val VaultAmountChanged = "Datum amount must match output lovelace amount"
 
@@ -242,7 +242,7 @@ object Vault extends Validator {
 
     private val WrongOutputAmount = "Cancel transactions must not change the vault amount"
 
-    private val WaitTimeChanged = "Cancel transactions must not change the wait time"
+    // private val WaitTimeChanged = "Cancel transactions must not change the wait time"
 
     private val StateNotIdle = "Idle transactions must change the vault state to Idle"
 
@@ -293,10 +293,12 @@ object VaultContract:
       optimizeUplc = false
     )
 
-    val script: Program =
-        compiled
-            .toUplc(
-              generateErrorTraces = true,
-              backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-            )
-            .plutusV3
+    lazy val script: Program = createScript
+
+    private def createScript: Program = {
+        val sir = compiled
+        sir.toUplc(
+          generateErrorTraces = true,
+          backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
+        ).plutusV3
+    }

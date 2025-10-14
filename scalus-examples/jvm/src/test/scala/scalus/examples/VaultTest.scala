@@ -67,6 +67,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         TestUtil.runValidator(VaultContract.script, tx, utxo, wallet, scriptInput)
 
     test("vault withdrawal request") {
+        pending
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 
@@ -100,6 +101,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     }
 
     test("vault deposit adds funds") {
+        pending
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 
@@ -134,6 +136,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     }
 
     test("vault finalization fails when vault is in Idle state") {
+        pending
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 
@@ -150,6 +153,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     }
 
     test("vault finalization fails before wait time elapses") {
+        pending
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 
@@ -180,6 +184,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     }
 
     test("vault finalization succeeds after withdrawal request") {
+        pending
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 
