@@ -65,74 +65,55 @@ object Vault extends Validator {
     }
 
     private def deposit(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
-        val ownInput = tx.findOwnInput(ownRef).getOrFail("Own input not found")
+        val ownInput = tx.findOwnInput(ownRef).getOrFail(OwnInputNotFound)
 
         val scriptOutputs = tx.outputs.filter(out =>
             out.address.credential === ownInput.resolved.address.credential
         )
 
-        require(
-          scriptOutputs.size == BigInt(1),
-          "Deposit transaction must have exactly 1 output to the vault script"
-        )
+        require(scriptOutputs.size == BigInt(1), NotExactlyOneVaultOutput)
 
         val out = scriptOutputs.head
         requireSameOwner(out, datum)
-        requireOutputToOwnAddress(
-          ownInput,
-          out,
-          "Deposit transactions can only be made to the vault"
-        )
+        requireOutputToOwnAddress(ownInput, out, WrongDepositDestination)
 
         val value = out.value
-        require(value.withoutLovelace.isZero, "Deposits must only contain ADA")
-        require(
-          value.getLovelace > ownInput.resolved.value.getLovelace,
-          "Deposits must add ADA to the vault"
-        )
+        require(value.withoutLovelace.isZero, CannotAddTokens)
+        require(value.getLovelace > ownInput.resolved.value.getLovelace, AdaNotConserved)
         requireEntireVaultIsSpent(datum, ownInput.resolved)
         out.datum match {
             case api.v2.OutputDatum.OutputDatum(d) =>
                 val newDatum = d.to[Datum]
-                require(
-                  newDatum.amount == value.getLovelace,
-                  "Datum amount must match output lovelace amount"
-                )
-                require(
-                  newDatum.waitTime == datum.waitTime,
-                  "Deposit transactions must not change the wait time"
-                )
+                require(newDatum.amount == value.getLovelace, VaultAmountChanged)
+                require(newDatum.waitTime == datum.waitTime, WaitTimeChanged)
                 require(
                   newDatum.finalizationDeadline == datum.finalizationDeadline,
-                  "Deposit transactions must not change the finalization deadline"
+                  FinalizationDeadlineChanged
                 )
             case _ =>
-                fail("Deposit transaction must have an inline datum with the new amount")
+                fail(NoDatumProvided)
         }
     }
 
     private def withdraw(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         require(
           datum.state.isIdle,
-          "Cannot withdraw, another withdrawal request is pending"
+          WithdrawalAlreadyPending
         )
-        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
+        val ownInput = tx.findOwnInput(ownRef).getOrFail(OwnInputNotFound)
 
         val scriptOutputs = tx.outputs.filter(out =>
             out.address.credential === ownInput.resolved.address.credential
         )
 
-        require(
-          scriptOutputs.size == BigInt(1),
-          "Withdrawal transaction must contain exactly 1 output to the vault script"
-        )
+        require(scriptOutputs.size == BigInt(1), NotExactlyOneVaultOutput)
 
         val out = scriptOutputs.head
         requireSameOwner(out, datum)
         requireOutputToOwnAddress(
           ownInput,
           out,
-          "Withdrawal transactions must have a vault output"
+          NotExactlyOneVaultOutput
         )
 
         val requestTime = tx.validRange.getEarliestTime
@@ -141,49 +122,38 @@ object Vault extends Validator {
         out.datum match {
             case OutputDatum.OutputDatum(d) =>
                 val newDatum = d.to[Datum]
-                require(
-                  newDatum.state.isPending,
-                  "Output must have datum with State = Pending"
-                )
+                require(newDatum.state.isPending, MustBePending)
                 require(
                   newDatum.finalizationDeadline == finalizationDeadline,
-                  "Finalization deadline must be request time plus wait time"
+                  IncorrectDatumFinalization
                 )
-            case _ => fail("Output must have datum with State = Pending")
+            case _ => fail(MustBePending)
         }
     }
 
     private def finalize(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
-        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
+        val ownInput = tx.findOwnInput(ownRef).getOrFail(OwnInputNotFound)
 
         // We can only finalize pending vaults.
         ownInput.resolved.datum match {
-            case OutputDatum.OutputDatum(datum) => require(datum.to[Datum].state.isPending)
-            case _                              => fail("Contract has no datum.")
+            case OutputDatum.OutputDatum(datum) =>
+                require(datum.to[Datum].state.isPending, ContractMustBePending)
+            case _ => fail(ContractMustBePending)
         }
 
-        require(
-          tx.validRange.isAfter(datum.finalizationDeadline),
-          "Finalization can only happen after the finalization deadline"
-        )
+        require(tx.validRange.isAfter(datum.finalizationDeadline), DeadlineNotPassed)
 
         val scriptOutputs = tx.outputs.filter(out =>
             out.address.credential === ownInput.resolved.address.credential
         )
 
         // Finalize should close the vault - no outputs back to the script
-        require(
-          scriptOutputs.size == BigInt(0),
-          "Withdrawal finalization must not send funds back to the vault"
-        )
+        require(scriptOutputs.size == BigInt(0), WithdrawalsMustNotSendBackToVault)
 
         // Ensure there's at least one output to the owner address
         val ownerOutputs =
             tx.outputs.filter(out => addressEquals(out.address.credential, datum.owner))
-        require(
-          ownerOutputs.size > BigInt(0),
-          "Withdrawal finalization must send funds to the vault owner"
-        )
+        require(ownerOutputs.size > BigInt(0), WrongAddressWithdrawal)
     }
 
     private def cancel(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
@@ -194,43 +164,28 @@ object Vault extends Validator {
             out.address.credential === ownInput.resolved.address.credential
         )
 
-        require(
-          scriptOutputs.size == BigInt(1),
-          "Cancel transaction must have exactly 1 output to the vault script"
-        )
+        require(scriptOutputs.size == BigInt(1), NotExactlyOneVaultOutput)
 
         val out = scriptOutputs.head
         requireSameOwner(out, datum)
         out.datum match {
             case ledger.api.v2.OutputDatum.OutputDatum(d) =>
                 val newDatum = d.to[Datum]
-                require(
-                  newDatum.amount == datum.amount,
-                  "Cancel transactions must not change the vault amount"
-                )
+                require(newDatum.amount == datum.amount, VaultAmountChanged)
                 require(
                   out.value.getLovelace == datum.amount,
-                  "Cancel transactions must not change the vault amount"
+                  WrongOutputAmount
                 )
-                require(
-                  newDatum.state.isIdle,
-                  "Idle transactions must change the vault state to Idle"
-                )
-                require(
-                  newDatum.waitTime == datum.waitTime,
-                  "Cancel transactions must not change the wait time"
-                )
-            case _ =>
-                fail(
-                  "Cancel transactions must have an inline datum with the correct state and amount"
-                )
+                require(newDatum.state.isIdle, StateNotIdle)
+                require(newDatum.waitTime == datum.waitTime, WaitTimeChanged)
+            case _ => fail(NoDatumProvided)
         }
     }
 
     private def requireEntireVaultIsSpent(datum: Datum, output: TxOut) = {
         val amountToSpend = datum.amount
         val adaSpent = output.value.getLovelace
-        require(amountToSpend == adaSpent, "Must spend entire vault")
+        require(amountToSpend == adaSpent, AdaLeftover)
     }
 
     private def requireOutputToOwnAddress(ownInput: TxInInfo, out: TxOut, message: String) =
@@ -241,10 +196,61 @@ object Vault extends Validator {
             case scalus.ledger.api.v2.OutputDatum.OutputDatum(newDatum) =>
                 require(
                   newDatum.to[Datum].owner == datum.owner,
-                  "Vault transactions cannot change the vault owner"
+                  VaultOwnerChanged
                 )
-            case _ => fail("Vault transactions must have an inline datum")
+            case _ => fail(NoInlineDatum)
         }
+
+    private val NoDatumExists = "Contract has no datum"
+
+    private val NoDatumProvided = "Vault transactions must have an inline datum"
+
+    private val FinalizationDeadlineChanged =
+        "Deposit transactions must not change the finalization deadline"
+
+    private val WaitTimeChanged = "Deposit transactions must not change the wait time"
+
+    private val VaultAmountChanged = "Datum amount must match output lovelace amount"
+
+    private val CannotAddTokens = "Deposits must only contain ADA"
+
+    private val AdaNotConserved = "Deposits must add ADA to the vault"
+
+    private val WrongDepositDestination = "Deposit transactions can only be made to the vault"
+
+    private val NotExactlyOneVaultOutput =
+        "Vault transaction must have exactly 1 output to the vault script"
+
+    private val OwnInputNotFound = "Own input not found"
+
+    private val IncorrectDatumFinalization =
+        "Finalization deadline must be request time plus wait time"
+
+    private val MustBePending = "Output must have datum with State = Pending"
+
+    private val WithdrawalAlreadyPending = "Cannot withdraw, another withdrawal request is pending"
+
+    private val WrongAddressWithdrawal =
+        "Withdrawal finalization must send funds to the vault owner"
+
+    private val WithdrawalsMustNotSendBackToVault =
+        "Withdrawal finalization must not send funds back to the vault"
+
+    private val DeadlineNotPassed = "Finalization can only happen after the finalization deadline"
+
+    private val ContractMustBePending = "Contract must be Pending"
+
+    private val WrongOutputAmount = "Cancel transactions must not change the vault amount"
+
+    private val WaitTimeChanged = "Cancel transactions must not change the wait time"
+
+    private val StateNotIdle = "Idle transactions must change the vault state to Idle"
+
+    private val NoInlineDatum = "Vault transactions must have an inline datum"
+
+    private val VaultOwnerChanged = "Vault transactions cannot change the vault owner"
+
+    private val AdaLeftover = "Must spend entire vault"
 
     private def addressEquals(left: Credential, right: ByteString) = {
         left match {
