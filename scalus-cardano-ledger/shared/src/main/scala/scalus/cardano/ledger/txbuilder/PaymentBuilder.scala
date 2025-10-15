@@ -90,8 +90,7 @@ case class PaymentBuilder(
             val updatedRedeemers = specs.foldLeft(txContext.redeemers) { (redeemers, spec) =>
                 val realRedeemerData = spec.redeemerBuilder(sortedTx)
                 redeemers.map {
-                    case dr @  (_, RedeemerPurpose.ForSpend(input))
-                        if input == spec.utxo.input =>
+                    case dr if input == spec.utxo.input =>
                         dr.copy(datum = realRedeemerData)
                     case other => other
                 }
