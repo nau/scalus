@@ -62,7 +62,7 @@ object Vault extends Validator {
         }
     }
 
-    private def deposit(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def deposit(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         val ownInput = tx.findOwnInput(ownRef).getOrFail("Own input not found")
 
         val scriptOutputs = tx.outputs.filter(out =>
@@ -100,7 +100,7 @@ object Vault extends Validator {
         }
     }
 
-    private def withdraw(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def withdraw(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         require(
           datum.state.isIdle,
           "Cannot withdraw, another withdrawal request is pending"
@@ -133,7 +133,7 @@ object Vault extends Validator {
         }
     }
 
-    private def finalize(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def finalize(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
 
         // We can only finalize pending vaults.
@@ -161,7 +161,7 @@ object Vault extends Validator {
         )
     }
 
-    private def cancel(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def cancel(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
 
         // Filter outputs to only those going to the script address
@@ -238,7 +238,8 @@ object Vault extends Validator {
 }
 
 object VaultContract:
-    inline def compiled(using scalus.Compiler.Options) = scalus.Compiler.compile(Vault.validate)
+    inline def compiled(using options: scalus.Compiler.Options) =
+        scalus.Compiler.compileWithOptions(options, Vault.validate)
 
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
@@ -246,7 +247,7 @@ object VaultContract:
       optimizeUplc = false
     )
 
-    val script: Program =
+    def script: Program =
         compiled
             .toUplc(
               generateErrorTraces = true,

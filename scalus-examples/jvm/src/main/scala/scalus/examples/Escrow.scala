@@ -231,7 +231,8 @@ object Escrow extends Validator:
     }
 
 object EscrowScript {
-    inline def compiled(using scalus.Compiler.Options) = compile(Escrow.validate)
+    inline def compiled(using scalus.Compiler.Options) =
+        scalus.Compiler.compileWithOptions(summon[scalus.Compiler.Options], Escrow.validate)
     inline def doubleCborHex(using scalus.Compiler.Options) =
         compiled.toUplc(true).plutusV3.doubleCborHex
 }

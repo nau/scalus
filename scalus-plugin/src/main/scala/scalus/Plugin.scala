@@ -4,20 +4,16 @@ import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.tpd
 import dotty.tools.dotc.ast.tpd.TreeOps
 import dotty.tools.dotc.core.*
-import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.*
 import dotty.tools.dotc.core.DenotTransformers.IdentityDenotTransformer
 import dotty.tools.dotc.core.Symbols.*
-import dotty.tools.dotc.core.Names.Name
 import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.transform.{ElimByName, Pickler, PostTyper}
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.dotc.typer.Implicits
-import dotty.tools.dotc.inlines.Inlines
-import dotty.tools.io.ClassPath
 import scalus.serialization.flat.FlatInstances
 import scalus.serialization.flat.FlatInstances.SIRHashConsedFlat
-import scalus.sir.{RemoveRecursivity, SIRDefaultOptions, SIRPosition}
+import scalus.sir.SIRPosition
 
 import scala.collection.immutable
 import scala.language.implicitConversions
@@ -208,17 +204,23 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             val compileSymbol = compilerModule.requiredMethod("compile")
             val compileWithOptionsSymbol = compilerModule.requiredMethod("compileWithOptions")
             val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
-            val compileDebugWithOptionsSymbol = compilerModule.requiredMethod("compileDebugWithOptions")
+            val compileDebugWithOptionsSymbol =
+                compilerModule.requiredMethod("compileDebugWithOptions")
 
-            if tree.fun.symbol == compileWithOptionsSymbol || tree.fun.symbol == compileDebugWithOptionsSymbol then
+            if tree.fun.symbol == compileWithOptionsSymbol || tree.fun.symbol == compileDebugWithOptionsSymbol
+                || tree.fun.symbol == compileSymbol || tree.fun.symbol == compileDebugSymbol
+            then
                 // report.echo(s"transformApply: ${tree.showIndented(2)}")
 
-                val isCompileDebug = tree.fun.symbol == compileDebugWithOptionsSymbol
-                val localDebugLevel =
-                    if debugLevel == 0 && isCompileDebug then 10
-                    else debugLevel
+                val isCompileDebug =
+                    tree.fun.symbol == compileDebugWithOptionsSymbol || tree.fun.symbol == compileDebugSymbol
+                val isWithOptions =
+                    tree.fun.symbol == compileWithOptionsSymbol || tree.fun.symbol == compileDebugWithOptionsSymbol
 
-                val (optionsTree, code) = (tree.args(0), tree.args(1))
+                val (optionsTree, code) = {
+                    if isWithOptions then (tree.args(0), tree.args(1))
+                    else (Plugin.retrieveCompilerOptions(tree, isCompileDebug), tree.args(0))
+                }
                 // val sirLoader = createSirLoader
                 val compiler = new SIRCompiler()
                 val start = System.currentTimeMillis()
@@ -280,13 +282,6 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                     println(s"tree: ${tree.show}")
                     tree
              */
-            else if tree.fun.symbol == compileSymbol || tree.fun.symbol == compileDebugSymbol then
-                report.error(
-                  s"ScalusPhase: Impossible, symbols should be rewritten to compileWithOptions instead ${tree.fun.symbol.fullName}",
-                  tree.srcPos
-                )
-                println(s"tree: ${tree.show}")
-                tree
             else tree
         catch
             case scala.util.control.NonFatal(ex) =>

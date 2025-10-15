@@ -25,15 +25,15 @@ class SameCborTest extends AnyFunSuite {
         }
 
         // Print and save SIR for analysis
-        //val sirPretty = sir1.pretty.render(120)
-        //println("=== SIR Output ===")
-        //println(sirPretty)
-        //println("==================")
+        // val sirPretty = sir1.pretty.render(120)
+        // println("=== SIR Output ===")
+        // println(sirPretty)
+        // println("==================")
 
         // Save to file for detailed analysis
-        //val sirFile = java.nio.file.Paths.get("/tmp/dispute-resolution-validator-sir.txt")
-        //java.nio.file.Files.writeString(sirFile, sirPretty)
-        //println(s"SIR saved to: $sirFile")
+        // val sirFile = java.nio.file.Paths.get("/tmp/dispute-resolution-validator-sir.txt")
+        // java.nio.file.Files.writeString(sirFile, sirPretty)
+        // println(s"SIR saved to: $sirFile")
 
         val uplc1_1 = sir1.toUplcOptimized()
         val uplc1_2 = sir1.toUplcOptimized()

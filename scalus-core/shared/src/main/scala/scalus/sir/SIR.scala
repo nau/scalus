@@ -493,9 +493,16 @@ object SIR:
                     val (newBindings, newLocalNames) =
                         bindings.foldLeft((initBindings, localNames)) {
                             case ((accBindings, ln), b) =>
-                                val nLn = ln + b.name
-                                val nValue = processSir(b.value, nLn)
-                                (accBindings :+ Binding(b.name, b.tp, nValue), nLn)
+                                // For recursive lets, the binding name is in scope when processing the value
+                                // For non-recursive lets, the binding name is NOT in scope when processing the value
+                                if flags.isRec then
+                                    val nLn = ln + b.name
+                                    val nValue = processSir(b.value, nLn)
+                                    (accBindings :+ Binding(b.name, b.tp, nValue), nLn)
+                                else
+                                    val nValue = processSir(b.value, ln)
+                                    val nLn = ln + b.name
+                                    (accBindings :+ Binding(b.name, b.tp, nValue), nLn)
                         }
                     val newBody = processSir(body, newLocalNames)
                     Let(newBindings.toList, newBody, flags, anns)
