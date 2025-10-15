@@ -122,6 +122,48 @@ object LowLevelTxBuilder {
 
         loop(initial)
     }
+
+    private def computeScriptsWitness(
+        utxos: Utxos,
+        evaluator: PlutusScriptEvaluator,
+        protocolParams: ProtocolParams
+    )(tx: Transaction): Either[TxBalancingError, Transaction] = Try {
+        val redeemers = evaluator.evalPlutusScripts(tx, utxos)
+        setupRedeemers(protocolParams, tx, utxos, redeemers)
+    }.toEither.left.map(t =>
+        t match
+            case psee: PlutusScriptEvaluationException => TxBalancingError.EvaluationFailed(psee)
+            case other                                 => TxBalancingError.Failed(other)
+    )
+
+    private def setupRedeemers(
+        protocolParams: ProtocolParams,
+        tx: Transaction,
+        utxos: Utxos,
+        redeemers: Seq[Redeemer]
+    ) = {
+        if redeemers.isEmpty then {
+            tx
+        } else {
+            val rawRedeemers = KeepRaw(Redeemers.from(redeemers))
+            val txWithRedeemers =
+                tx.copy(witnessSet = tx.witnessSet.copy(redeemers = Some(rawRedeemers)))
+            val scriptDataHash =
+                ScriptDataHashGenerator
+                    .computeScriptDataHash(
+                      txWithRedeemers,
+                      utxos,
+                      protocolParams,
+                    )
+                    .toTry
+                    .get
+
+            txWithRedeemers.copy(body =
+                KeepRaw(tx.body.value.copy(scriptDataHash = scriptDataHash))
+            )
+        }
+    }
+
 }
 
 // Transaction balancing error types
@@ -169,42 +211,3 @@ def calculateChangeValue(tx: Transaction, utxo: Utxos, params: ProtocolParams): 
     val consumed = TxBalance.consumed(tx, CertState.empty, utxo, params).toTry.get
     consumed - produced
 }
-
-def setupRedeemers(
-    protocolParams: ProtocolParams,
-    tx: Transaction,
-    utxo: Utxos,
-    redeemers: Seq[Redeemer]
-) = {
-    if redeemers.isEmpty then {
-        tx
-    } else {
-        val rawRedeemers = KeepRaw(Redeemers.from(redeemers))
-        val txWithRedeemers =
-            tx.copy(witnessSet = tx.witnessSet.copy(redeemers = Some(rawRedeemers)))
-        val scriptDataHash =
-            ScriptDataHashGenerator
-                .computeScriptDataHash(
-                  txWithRedeemers,
-                  utxo,
-                  protocolParams,
-                )
-                .toTry
-                .get
-
-        txWithRedeemers.copy(body = KeepRaw(tx.body.value.copy(scriptDataHash = scriptDataHash)))
-    }
-}
-
-def computeScriptsWitness(
-    utxo: Utxos,
-    evaluator: PlutusScriptEvaluator,
-    protocolParams: ProtocolParams
-)(tx: Transaction): Either[TxBalancingError, Transaction] = Try {
-    val redeemers = evaluator.evalPlutusScripts(tx, utxo)
-    setupRedeemers(protocolParams, tx, utxo, redeemers)
-}.toEither.left.map(t =>
-    t match
-        case psee: PlutusScriptEvaluationException => TxBalancingError.EvaluationFailed(psee)
-        case other                                 => TxBalancingError.Failed(other)
-)

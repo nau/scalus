@@ -9,7 +9,6 @@ package scalus.cardano.ledger.txbuilder
 import cats.*
 import cats.data.*
 import cats.implicits.*
-import com.bloxbean.cardano.client.util.HexUtil
 import io.bullet.borer.{Cbor, Encoder}
 import monocle.syntax.all.*
 import monocle.{Focus, Lens}
@@ -402,7 +401,7 @@ object TransactionBuilder:
                   initial = txWithDummySignatures,
                   diffHandler = diffHandler,
                   protocolParams = protocolParams,
-                  resolvedUtxo = this.getUtxo,
+                  resolvedUtxo = this.getUtxos,
                   evaluator = evaluator
                 )
                 txWithoutDummySignatures = removeDummySignatures(
@@ -419,8 +418,8 @@ object TransactionBuilder:
             )
         }
 
-        /** Conversion help to Scalus [[Utxo]] */
-        def getUtxo: Utxos = this.resolvedUtxos.utxos
+        /** Conversion help to Scalus [[Utxos]] */
+        def getUtxos: Utxos = this.resolvedUtxos.utxos
 
         /** Validate a context according so a set of ledger rules */
         def validate(
@@ -432,7 +431,7 @@ object TransactionBuilder:
               this.transaction.body.value.fee,
               UtxoEnv(1L, protocolParams, certState, network)
             )
-            val state = SState(this.getUtxo, certState)
+            val state = SState(this.getUtxos, certState)
             validators
                 .map(_.validate(context, state, this.transaction))
                 .collectFirst { case l: Left[?, ?] => l.value }
@@ -448,8 +447,6 @@ object TransactionBuilder:
             evaluator: PlutusScriptEvaluator,
             validators: Seq[Validator]
         ): Either[SomeBuildError, Context] =
-            println(s"before balancing: ${HexUtil.encodeHexString(this.transaction.toCbor)}")
-
             for {
                 balancedCtx <- this
                     .setMinAdaAll(protocolParams)
