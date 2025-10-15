@@ -1,14 +1,22 @@
 package scalus.builtin
 
 import scalus.Compile
-import scalus.utils.Hex
-import scalus.prelude.{Eq, Ord, Order, Show}
-import scalus.prelude.Prelude
+import scalus.prelude.*
+import scalus.utils.Hex.toHex
 
 import scala.annotation.threadUnsafe
 import scala.compiletime.asMatchable
 
-// TODO: replace Array on IArray
+/** An immutable sequence of bytes.
+  *
+  * This class is used as a UPLC builtin type to represent binary data and it can be used in both
+  * onchain and offchain code.
+  *
+  * @note
+  *   methods of this class are only available offchain with the exception of `==` and `!=`.
+  *
+  * For onchain operations use the extension methods in the companion object
+  */
 class ByteString private[builtin] (val bytes: Array[Byte]) {
 
     /** Gets byte by index
@@ -34,7 +42,7 @@ class ByteString private[builtin] (val bytes: Array[Byte]) {
       *
       * Offchain operation, not available onchain.
       */
-    @threadUnsafe val toHex: String = if bytes.isEmpty then "" else Hex.bytesToHex(bytes)
+    @threadUnsafe val toHex: String = bytes.toHex
 
     /** Converts the ByteString to a binary string representation
       *
@@ -206,9 +214,4 @@ object ByteString extends ByteStringOffchainApi {
     extension (b: BigInt)
         /** Prepends a BigInt to a ByteString and returns a new ByteString */
         inline infix def +:(bs: ByteString): ByteString = Builtins.consByteString(b, bs)
-
-    extension (sc: StringContext)
-        inline def utf8(args: Any*): ByteString =
-            fromString(sc.s(args*))
-
 }

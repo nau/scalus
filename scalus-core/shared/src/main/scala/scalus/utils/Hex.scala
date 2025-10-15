@@ -42,6 +42,7 @@ object Hex {
           */
         def hexToBytes: Array[Byte] = {
             val hexString = hex.replaceAll("\\s+", "")
+            if hexString.isEmpty then return Array.emptyByteArray
             try
                 if (hexString.length & 1) != 0 then sys.error("string length is not even")
                 hexString.grouped(2).map(Integer.parseInt(_, 16).toByte).toArray
@@ -51,6 +52,7 @@ object Hex {
         }
 
     def bytesToHex(bytes: Array[Byte]): String = {
+        if bytes.isEmpty then return "" // return cached empty string, don't allocate
         val hexChars = new Array[Char](bytes.length * 2)
         var j = 0
         while j < bytes.length do

@@ -15,7 +15,7 @@ private trait ByteStringOffchainApi {
       *   This field is specially treated by the Scalus compiler plugin, thus it's not required to
       *   be in the @Compile module.
       */
-    val empty = new ByteString(Array.empty)
+    val empty = new ByteString(Array.emptyByteArray)
 
     /** Creates a ByteString from an [[Array[Byte]]
       *
@@ -72,7 +72,10 @@ private trait ByteStringOffchainApi {
       *   This method is specially treated by the Scalus compiler plugin, thus it's not required to
       *   be in the @Compile module.
       */
-    def fromString(s: String): ByteString = new ByteString(s.getBytes("UTF-8"))
+    def fromString(s: String): ByteString = {
+        if s.isEmpty then return empty // return cached empty ByteString, don't allocate
+        new ByteString(s.getBytes("UTF-8"))
+    }
 
     extension (sc: StringContext)
         /** Hex string interpolator
@@ -88,9 +91,20 @@ private trait ByteStringOffchainApi {
           * @note
           *   This method is specially treated by the Scalus compiler plugin, thus it's not required
           *   to be in the @Compile module.
+          *
+          * It supports string interpolation only offchain, so you can do `hex"0102"` onchain and
+          * offchain, but `val x = "01"; hex"$x"` only offchain.
           */
         def hex(args: Any*): ByteString =
             fromHex(sc.s(args*))
+
+        /** Creates a ByteString from a UTF-8 encoded string using string interpolation
+          *
+          * @note
+          *   Works only offchain.
+          */
+        def utf8(args: Any*): ByteString =
+            fromString(sc.s(args*))
 
     given Encoder[ByteString] with
         def write(w: Writer, value: ByteString): Writer =
