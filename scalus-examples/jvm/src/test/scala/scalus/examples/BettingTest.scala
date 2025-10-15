@@ -7,7 +7,6 @@ import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.builtin.Data.toData
 import scalus.ledger.api.v1.Address
-import scalus.ledger.api.v1.IntervalBoundType.*
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v1.PubKeyHash.*
 import scalus.ledger.api.v2.OutputDatum
@@ -63,6 +62,9 @@ class BettingTest extends AnyFunSuite, ScalusTest:
             scriptInfo = ScriptInfo.MintingScript(policyId = policyId)
           )
         )
+        if result.isFailure then
+            result.logs.foreach(println)
+            println(result)
         assert(result.isSuccess, "Script execution should succeed for initial minting")
 
     test("Verify that player2 can join an existing bet"):
@@ -132,6 +134,9 @@ class BettingTest extends AnyFunSuite, ScalusTest:
             )
           )
         )
+        if result.isFailure then
+            result.logs.foreach(println)
+            println(result)
         assert(result.isSuccess, "Script execution should succeed for player2 joining spending")
 
     test("Verify that the oracle can announce winner and trigger payout"):
@@ -192,5 +197,7 @@ class BettingTest extends AnyFunSuite, ScalusTest:
             )
           )
         )
-        println(result.logs)
+        if result.isFailure then
+            result.logs.foreach(println)
+            println(result)
         assert(result.isSuccess, "Script execution should succeed for announce winner spending")

@@ -123,8 +123,6 @@
                 scalafmt
                 scalafix
                 coursier
-                scala-cli
-                ammonite
                 bloop
                 niv
                 nixpkgs-fmt

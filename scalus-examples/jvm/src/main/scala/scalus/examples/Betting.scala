@@ -13,8 +13,6 @@ import scalus.prelude.*
 import scalus.prelude.Option.*
 import scalus.{show as _, *}
 
-// https://github.com/cardano-foundation/cardano-template-and-ecosystem-monitoring/blob/main/bet/onchain/aiken/validators/bet.ak
-
 /** Represents the state of a two-player betting game The bet starts with player1 creating it, then
   * player2 can join The oracle decides the winner and triggers the payout.
   *
@@ -49,7 +47,10 @@ enum Action derives FromData, ToData:
 @Compile
 object Action
 
-/** Main betting validator */
+/** Main betting validator
+  * @see
+  *   [[https://github.com/cardano-foundation/cardano-template-and-ecosystem-monitoring/blob/main/bet/onchain/aiken/validators/bet.ak Bet]]
+  */
 @Compile
 object Betting extends Validator:
     /** Spending validator: Controls how the bet UTXO can be spent Handles both
