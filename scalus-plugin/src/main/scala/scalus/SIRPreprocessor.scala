@@ -9,6 +9,7 @@ import dotty.tools.dotc.core.Decorators.*
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
+import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import scalus.sir.{Module as SIRModule, *}
@@ -142,10 +143,17 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
                     }
                     toImplement.map { m =>
                         // Get the method type as seen from the subclass perspective
+<<<<<<< HEAD
                         println("implementing method: " + m.fullName)
                         val methodTypeInSubclass =
                             m.info.asSeenFrom(tree.symbol.thisType, validatorSym)
                         val methodType = methodTypeInSubclass.widen.asInstanceOf[MethodType]
+=======
+                        val methodTypeInSubclass =
+                            m.info.asSeenFrom(tree.symbol.thisType, validatorSym)
+                        val methodType = methodTypeInSubclass.widen.asInstanceOf[MethodType]
+                        val retType = methodType.resType
+>>>>>>> 1b684e0ffb29645a2a45bc955d2d2fc3d06111f3
                         val body = generateThrow("abstract method in Validator")
                         val methodSymbol = Symbols
                             .newSymbol(
