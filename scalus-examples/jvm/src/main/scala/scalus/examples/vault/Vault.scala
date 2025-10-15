@@ -208,8 +208,6 @@ object Vault extends Validator {
     private val FinalizationDeadlineChanged =
         "Deposit transactions must not change the finalization deadline"
 
-    private val WaitTimeChanged = "Deposit or Cancel transactions must not change the wait time"
-
     private val VaultAmountChanged = "Datum amount must match output lovelace amount"
 
     private val CannotAddTokens = "Deposits must only contain ADA"
@@ -242,7 +240,7 @@ object Vault extends Validator {
 
     private val WrongOutputAmount = "Cancel transactions must not change the vault amount"
 
-    // private val WaitTimeChanged = "Cancel transactions must not change the wait time"
+    private val WaitTimeChanged = "Wait time must remain the same"
 
     private val StateNotIdle = "Idle transactions must change the vault state to Idle"
 
