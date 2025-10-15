@@ -7,7 +7,8 @@ import scalus.cardano.ledger.*
 
 case class TxBuilder(
     context: BuilderContext,
-    steps: Seq[TransactionBuilderStep] = Seq.empty
+    steps: Seq[TransactionBuilderStep] = Seq.empty,
+    manualInputs: Seq[(TransactionInput, TransactionOutput)] = Seq.empty
 ) {
 
     def collectFrom(
@@ -49,9 +50,9 @@ case class TxBuilder(
     }
 
     private def walletInputSteps: Seq[TransactionBuilderStep] =
-        context.wallet.inputs.toSeq.map { input =>
+        manualInputs.map { case (input, output) =>
             TransactionBuilderStep.Spend(
-              TransactionUnspentOutput(input.input, input.output),
+              TransactionUnspentOutput(input, output),
               PubKeyWitness
             )
         }
@@ -65,7 +66,7 @@ case class TxBuilder(
 
             changeOutput = Sized(
               TransactionOutput(
-                address = context.wallet.changeAddress,
+                address = context.wallet.owner,
                 value = Value(Coin(0))
               )
             )

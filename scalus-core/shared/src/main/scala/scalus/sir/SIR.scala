@@ -3,9 +3,15 @@ package scalus.sir
 //import scalus.uplc.Constant.Integer
 import scalus.uplc.{Constant, DefaultFun}
 
-val SIRVersion: (Int, Int) = (3, 0)
+val SIRVersion: (Int, Int) = (4, 0)
 
-case class Module(version: (Int, Int), name: String, defs: List[Binding])
+case class Module(
+    version: (Int, Int),
+    name: String,
+    linked: Boolean,
+    requireBackend: Option[String],
+    defs: List[Binding]
+)
 
 case class Binding(name: String, tp: SIRType, value: SIR) {
 
@@ -221,29 +227,6 @@ object SIR:
         if moduleName == "scalus.prelude" then
             throw new RuntimeException(
               s"ExternalVar: scalus.prelude, moduleName ${moduleName}, name=${name} at " + anns.pos.show
-            )
-        else if moduleName == "scalus.ledger.api.v1.IntervalTest._$testFun$proxy1" then
-            throw new RuntimeException(
-              s"ExternalVar: moduleName ${moduleName}, name=${name} at " + anns.pos.show
-            )
-        // else if moduleName == "scalus.regression.hydrozoa20250804" && name == "scalus.regression.hydrozoa20250804.DisputeResolutionValidator"
-        // then {
-        //    println(s"strange module name catched,  ${moduleName}/${name}, tp=${tp}")
-        //    throw new RuntimeException(
-        //      s"ExternalVar: moduleName ${moduleName}, name=${name} at " + anns.pos.show
-        //    )
-        // }
-        else if moduleName == "scalus.cardano.blueprint" && name == "scalus.cardano.blueprint.EmptyValidator"
-        then
-            println(s"strange module name catched,  ${moduleName}/${name}, tp=${tp}")
-            throw new RuntimeException(
-              s"ExternalVar: moduleName ${moduleName}, name=${name} at " + anns.pos.show
-            )
-        else if name == "scalus.regression.hydrozoa20250804.DisputeResolutionValidator$.propose"
-        then
-            println(s"strange module name catched, ${moduleName}/${name}, tp=${tp}")
-            throw new RuntimeException(
-              s"ExternalVar: moduleName ${moduleName}, name=${name} at " + anns.pos.show
             )
 
         override def toString: String = s"ExternalVar($moduleName, $name, ${tp.show})"

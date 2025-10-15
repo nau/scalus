@@ -2,10 +2,10 @@ package scalus.sir
 
 import scalus.uplc.DefaultUni
 import scalus.uplc.TypeScheme as UplcTypeScheme
-import scalus.sir.SIRType.{TypeLambda, TypeVar}
+import scalus.sir.SIRType.TypeVar
 
 import java.util
-import scala.annotation.{tailrec, threadUnsafe}
+import scala.annotation.tailrec
 
 sealed trait SIRType {
 
@@ -25,9 +25,6 @@ sealed trait SIRType {
                   s"Expected type variable at the left of =>>:, got $other"
                 )
 
-    @threadUnsafe lazy val numTypeVars: Int = this match
-        case TypeLambda(params, t) => params.length + t.numTypeVars
-        case _                     => 0
 }
 
 sealed trait SIRVarStorage
@@ -531,7 +528,7 @@ object SIRType {
       * @param trace - trace for recursive entries
       * @return
       */
-    @tailrec
+    @scala.annotation.tailrec
     def isPolyFunOrFun(
         tp: SIRType,
         trace: java.util.IdentityHashMap[SIRType, SIRType] = new util.IdentityHashMap()
@@ -916,7 +913,6 @@ object SIRType {
                         SIRType.Fun(fromDefaultUni(f), fromDefaultUni(arg))
     }
 
-    @deprecated("Use SIRType instead", "0.12.1")
     def fromUplcTypeScheme(uplcTypeSchema: UplcTypeScheme): SIRType = {
         uplcTypeSchema match
             case UplcTypeScheme.Type(argType) => fromDefaultUni(argType)
@@ -959,7 +955,7 @@ object SIRType {
         }
     }
 
-    @tailrec
+    @scala.annotation.tailrec
     def retrieveDataDecl(tp: SIRType): Either[String, DataDecl] = {
         tp match {
             case tp: SumCaseClass => Right(tp.decl)
@@ -971,7 +967,7 @@ object SIRType {
         }
     }
 
-    @tailrec
+    @scala.annotation.tailrec
     def retrieveConstrDecl(tp: SIRType): Either[String, ConstrDecl] = {
         tp match {
             case tp: CaseClass => Right(tp.constrDecl)
@@ -1301,7 +1297,7 @@ object SIRType {
         val typeProxies = new util.IdentityHashMap[SIRType, SIRType]()
         val stack = scala.collection.mutable.Stack[SIRType](tp)
 
-        @tailrec
+        @scala.annotation.tailrec
         def advance(tp: SIRType): Unit = {
             if !found then
                 tp match {

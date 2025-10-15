@@ -1,59 +1,25 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.address.Address
-import com.bloxbean.cardano.client.address.AddressType
-import com.bloxbean.cardano.client.address.Credential
-import com.bloxbean.cardano.client.address.CredentialType
+import com.bloxbean.cardano.client.address.{Address, AddressType, Credential, CredentialType}
 import com.bloxbean.cardano.client.crypto.Blake2bUtil.blake2bHash224
 import com.bloxbean.cardano.client.plutus.spec.*
-import com.bloxbean.cardano.client.spec.Rational
-import com.bloxbean.cardano.client.spec.UnitInterval
+import com.bloxbean.cardano.client.spec.{Rational, UnitInterval}
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.spec.cert.*
-import com.bloxbean.cardano.client.transaction.spec.governance.DRep
-import com.bloxbean.cardano.client.transaction.spec.governance.DRepType
-import com.bloxbean.cardano.client.transaction.spec.governance.ProposalProcedure
-import com.bloxbean.cardano.client.transaction.spec.governance.Vote
-import com.bloxbean.cardano.client.transaction.spec.governance.Voter
-import com.bloxbean.cardano.client.transaction.spec.governance.VoterType
-import com.bloxbean.cardano.client.transaction.spec.governance.VotingProcedure
-import com.bloxbean.cardano.client.transaction.spec.governance.VotingProcedures
-import com.bloxbean.cardano.client.transaction.spec.governance.actions.GovAction
-import com.bloxbean.cardano.client.transaction.spec.governance.actions.GovActionId
-import com.bloxbean.cardano.client.transaction.spec.governance.actions.HardForkInitiationAction
-import com.bloxbean.cardano.client.transaction.spec.governance.actions.InfoAction
-import com.bloxbean.cardano.client.transaction.spec.governance.actions.NewConstitution
-import com.bloxbean.cardano.client.transaction.spec.governance.actions.NoConfidence
-import com.bloxbean.cardano.client.transaction.spec.governance.actions.ParameterChangeAction
-import com.bloxbean.cardano.client.transaction.spec.governance.actions.TreasuryWithdrawalsAction
-import com.bloxbean.cardano.client.transaction.spec.governance.actions.UpdateCommittee
+import com.bloxbean.cardano.client.transaction.spec.governance.*
+import com.bloxbean.cardano.client.transaction.spec.governance.actions.*
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import io.bullet.borer.Cbor
-import scalus.builtin
 import scalus.builtin.Builtins.*
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.builtin.Data.ToData
-import scalus.builtin.Data.toData
-import scalus.builtin.BuiltinPair
-import scalus.cardano.ledger.{MajorProtocolVersion, Script}
-import scalus.ledger
+import scalus.builtin.{BuiltinPair, ByteString, Data}
+import scalus.builtin.Data.{toData, ToData}
+import scalus.cardano.ledger.{CostModels, Language, MajorProtocolVersion, Script}
 import scalus.ledger.api
-import scalus.cardano.ledger.Language
-import scalus.ledger.api.v1
-import scalus.ledger.api.v1.DCert
-import scalus.ledger.api.v1.ScriptPurpose
-import scalus.ledger.api.v1.StakingCredential
-import scalus.ledger.api.v2
-import scalus.ledger.api.v3
+import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
+import scalus.ledger.api.{v1, v2, v3}
 import scalus.ledger.api.v3.GovernanceActionId
-import scalus.prelude
-import scalus.prelude.SortedMap
-import scalus.prelude.List
-import scalus.prelude.asScalus
-import scalus.uplc.{BuiltinSemanticsVariant, PlutusV1Params}
-import scalus.uplc.PlutusV2Params
-import scalus.uplc.PlutusV3Params
+import scalus.{builtin, ledger, prelude}
+import scalus.prelude.{asScalus, List, SortedMap}
 import scalus.uplc.eval.*
 
 import java.math.BigInteger
@@ -232,40 +198,34 @@ object Interop {
                 BytesPlutusData.of(b.bytes)
     }
 
+    /** Converts Bloxbean's [[CostMdls]] to Scalus [[CostModels]] */
+    def getCostModels(costMdls: CostMdls): CostModels = {
+        val models = Map.newBuilder[Int, IndexedSeq[Long]]
+
+        // Iterate through all Bloxbean Language enum values
+        for bloxbeanLang <- com.bloxbean.cardano.client.plutus.spec.Language.values() do
+            try {
+                val costs = costMdls.get(bloxbeanLang)
+                if costs != null then
+                    // Use the language key from Bloxbean as the language ID
+                    models += (bloxbeanLang.getKey -> immutable.ArraySeq.unsafeWrapArray(
+                      costs.getCosts
+                    ))
+            } catch {
+                case _: Exception => // Language not present, skip
+            }
+
+        CostModels(models.result())
+    }
+
     /** Creates [[MachineParams]] from a [[CostMdls]] and a [[Language]] */
     def translateMachineParamsFromCostMdls(
         costMdls: CostMdls,
         plutus: Language,
         protocolVersion: MajorProtocolVersion
     ): MachineParams = {
-        val (lang, params) = plutus match
-            case Language.PlutusV1 =>
-                val costs = costMdls.get(com.bloxbean.cardano.client.plutus.spec.Language.PLUTUS_V1)
-                Language.PlutusV1 -> PlutusV1Params.fromSeq(
-                  immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
-                )
-            case Language.PlutusV2 =>
-                val costs = costMdls.get(com.bloxbean.cardano.client.plutus.spec.Language.PLUTUS_V2)
-                Language.PlutusV2 -> PlutusV2Params.fromSeq(
-                  immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
-                )
-            case Language.PlutusV3 =>
-                val costs = costMdls.get(com.bloxbean.cardano.client.plutus.spec.Language.PLUTUS_V3)
-                Language.PlutusV3 -> PlutusV3Params.fromSeq(
-                  immutable.ArraySeq.unsafeWrapArray(costs.getCosts)
-                )
-
-        val semvar = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
-          protocolVersion,
-          plutus
-        )
-        val builtinCostModel = BuiltinCostModel.fromPlutusParams(params, lang, semvar)
-        val machineCosts = CekMachineCosts.fromPlutusParams(params)
-        MachineParams(
-          machineCosts = machineCosts,
-          builtinCostModel = builtinCostModel,
-          semanticVariant = semvar
-        )
+        val costModels = getCostModels(costMdls)
+        MachineParams.fromCostModels(costModels, plutus, protocolVersion)
     }
 
     def getCredential(cred: Credential): v1.Credential = {
@@ -378,19 +338,12 @@ object Interop {
         )
     }
 
+    private val ADA_ZERO = ByteString.empty -> List(ByteString.empty -> BigInt(0))
+
     def getMintValue(value: util.List[MultiAsset]): v1.Value = {
-        getValue(
-          // add Lovelace asset if not present, don't ask me why :(
-          value.asScala.toSeq
-              .appended(
-                MultiAsset
-                    .builder()
-                    .policyId("")
-                    .assets(util.List.of(Asset.builder().name("").value(BigInteger.ZERO).build()))
-                    .build()
-              )
-              .asJava
-        )
+        // Always include ADA entry with zero value for minting
+        val x = getValue(value).toSortedMap.toList.map(x => x._1 -> x._2.toList)
+        v1.Value.unsafeFromList(x.prepended(ADA_ZERO))
     }
 
     def getTxOutV1(out: TransactionOutput): v1.TxOut = {

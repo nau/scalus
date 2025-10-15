@@ -3,10 +3,10 @@ package scalus
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
-import scalus.builtin.{Builtins, ByteString}
+import scalus.builtin.ByteString
 import scalus.ledger.api.v1.*
 import scalus.uplc.*
-import scalus.uplc.eval.{PlutusVM, Result}
+import scalus.uplc.eval.PlutusVM
 
 import scala.language.implicitConversions
 

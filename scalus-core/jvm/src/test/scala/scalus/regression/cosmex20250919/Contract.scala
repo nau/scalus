@@ -8,7 +8,7 @@ import scalus.ledger.api.v1.IntervalBoundType.Finite
 import scalus.ledger.api.v2
 import scalus.ledger.api.v2.Value.*
 import scalus.ledger.api.v3.*
-import scalus.prelude.{*, given}
+import scalus.prelude.*
 import scalus.uplc.Program
 
 type DiffMilliSeconds = BigInt

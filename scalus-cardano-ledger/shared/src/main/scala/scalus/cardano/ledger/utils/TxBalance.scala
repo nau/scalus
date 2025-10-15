@@ -2,7 +2,6 @@ package scalus.cardano.ledger.utils
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.TransactionException.BadInputsUTxOException
 
-import scala.annotation.tailrec
 import scala.util.boundary
 import scala.util.boundary.break
 

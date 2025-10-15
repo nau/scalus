@@ -1,19 +1,18 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.api.{TransactionEvaluator, UtxoSupplier}
 import com.bloxbean.cardano.client.api.exception.ApiException
 import com.bloxbean.cardano.client.api.model.{EvaluationResult, ProtocolParams, Result, Utxo}
 import com.bloxbean.cardano.client.api.util.CostModelUtil
+import com.bloxbean.cardano.client.api.{TransactionEvaluator, UtxoSupplier}
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.{Transaction, TransactionInput, TransactionOutput}
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.client.util.JsonUtil
 import scalus.builtin.ByteString
-import scalus.cardano.ledger.{CostModels, MajorProtocolVersion, PlutusScriptEvaluator}
+import scalus.cardano.ledger.{CardanoInfo, MajorProtocolVersion, PlutusScriptEvaluator}
 import scalus.ledger.api.ScriptContext
 import scalus.uplc.eval.ExBudget
 
-import java.math.BigInteger
 import java.util
 import java.util.List
 import scala.beans.BeanProperty
@@ -181,13 +180,13 @@ class ScalusTransactionEvaluator(
     )
 
     private lazy val txEvaluator2 = PlutusScriptEvaluator(
-      scalus.cardano.ledger.SlotConfig.Mainnet,
+      CardanoInfo.mainnet.slotConfig,
       initialBudget = ExBudget.fromCpuAndMemory(
         protocolParams.getMaxTxExSteps.toLong,
         protocolParams.getMaxTxExMem.toLong
       ),
       protocolMajorVersion = MajorProtocolVersion(protocolParams.getProtocolMajorVer.intValue()),
-      costModels = CostModels.fromProtocolParams(params)
+      costModels = params.costModels
     )
     private val utxoResolver = CclUtxoResolver(utxoSupplier, scriptSupplier)
     private lazy val utxoResolver2 = ScalusUtxoResolver(utxoSupplier, scriptSupplier)

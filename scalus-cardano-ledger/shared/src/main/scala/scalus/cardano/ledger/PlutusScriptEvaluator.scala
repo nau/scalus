@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 
 import scalus.builtin.Data.toData
-import scalus.builtin.{ByteString, Data}
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Language.*
@@ -15,7 +15,6 @@ import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
 import scribe.Logger
 
-import java.nio.file.{Files, Paths}
 import scala.collection.immutable
 import scala.util.control.NonFatal
 
@@ -70,7 +69,7 @@ class PlutusScriptEvaluator(
     // Each VM is configured with version-specific cost models and protocol parameters
     private lazy val plutusV1VM =
         PlutusVM.makePlutusV1VM(
-          translateMachineParamsFromCostModels(
+          MachineParams.fromCostModels(
             costModels,
             PlutusV1,
             protocolMajorVersion
@@ -79,7 +78,7 @@ class PlutusScriptEvaluator(
 
     private lazy val plutusV2VM =
         PlutusVM.makePlutusV2VM(
-          translateMachineParamsFromCostModels(
+          MachineParams.fromCostModels(
             costModels,
             PlutusV2,
             protocolMajorVersion
@@ -88,7 +87,7 @@ class PlutusScriptEvaluator(
 
     private lazy val plutusV3VM =
         PlutusVM.makePlutusV3VM(
-          translateMachineParamsFromCostModels(
+          MachineParams.fromCostModels(
             costModels,
             PlutusV3,
             protocolMajorVersion
@@ -416,8 +415,8 @@ class PlutusScriptEvaluator(
             Result.Success(resultTerm, spender.getSpentBudget, Map.empty, logger.getLogs.toSeq)
         catch
             case e: StackTraceMachineError =>
-                println()
-                println(s"Script ${vm.language} ${redeemer.tag} evaluation failed: ${e.getMessage}")
+//                println()
+//                println(s"Script ${vm.language} ${redeemer.tag} evaluation failed: ${e.getMessage}")
 //                println(e.env.view.reverse.take(20).mkString("\n"))
                 throw new PlutusScriptEvaluationException(e.getMessage, e, logger.getLogs)
             case NonFatal(e) =>
@@ -432,12 +431,8 @@ class PlutusScriptEvaluator(
         txhash: String,
         language: Language
     ): Unit = {
-        Files.write(
-          Paths.get(s"script-$txhash-$language-${redeemer.tag}-${redeemer.index}.flat"),
-          program.flatEncoded,
-          java.nio.file.StandardOpenOption.CREATE,
-          java.nio.file.StandardOpenOption.TRUNCATE_EXISTING
-        )
+        val filename = s"script-$txhash-$language-${redeemer.tag}-${redeemer.index}.flat"
+        platform.writeFile(filename, program.flatEncoded)
     }
 
     /** Extract all scripts from transaction and UTxOs.

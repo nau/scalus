@@ -1,16 +1,17 @@
-package scalus.examples
+package scalus.examples.vault
 
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.builtin.{ByteString, Data}
-import scalus.examples.Vault.Redeemer.{Cancel, Deposit, Finalize, Withdraw}
+import scalus.examples.vault.Vault.Redeemer.{Cancel, Deposit, Finalize, Withdraw}
 import scalus.ledger.api
 import scalus.ledger.api.v1.Credential.ScriptCredential
 import scalus.ledger.api.v1.{Credential, Value}
 import scalus.ledger.api.v2.{OutputDatum, TxOut}
 import scalus.ledger.api.v3.{TxInInfo, TxInfo, TxOutRef}
 import scalus.ledger.api.{v1, v2}
-import scalus.prelude.{===, require, Validator}
-import scalus.{ledger, prelude, Compile}
+import scalus.prelude.{===, fail, require, Validator}
+import scalus.uplc.Program
+import scalus.*
 
 /** A contract for keeping funds.
   *
@@ -31,7 +32,6 @@ object Vault extends Validator {
 
     case class Datum(
         owner: ByteString,
-        sender: ByteString,
         state: State,
         amount: BigInt
     ) derives FromData,
@@ -53,7 +53,6 @@ object Vault extends Validator {
         tx: TxInfo,
         ownRef: TxOutRef
     ): Unit = {
-        scalus.prelude.log("zero")
         val datum = d.get.to[Datum]
         redeemer.to[Redeemer] match {
             case Deposit  => deposit(tx, ownRef, datum)
@@ -64,23 +63,30 @@ object Vault extends Validator {
     }
 
     private def deposit(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
-        // todo for now, let's only allow a single output to the script.
-        //    later, allow multiple
-        require(tx.outputs.size == BigInt(1), "Deposits must have exactly one output.")
-        val ownInput = tx.findOwnInput(ownRef).getOrFail("Own input not found.")
-        val out = tx.outputs.head
+        val ownInput = tx.findOwnInput(ownRef).getOrFail("Own input not found")
+
+        val scriptOutputs = tx.outputs.filter(out =>
+            out.address.credential === ownInput.resolved.address.credential
+        )
+
+        require(
+          scriptOutputs.size == BigInt(1),
+          "Deposit transaction must have exactly 1 output to the vault script"
+        )
+
+        val out = scriptOutputs.head
         requireSameOwner(out, datum)
         requireOutputToOwnAddress(
           ownInput,
           out,
-          "Deposit transactions can only be made to the vault."
+          "Deposit transactions can only be made to the vault"
         )
 
         val value = out.value
-        require(value.withoutLovelace.isZero, "Deposits must only contain ADA.")
+        require(value.withoutLovelace.isZero, "Deposits must only contain ADA")
         require(
           value.getLovelace > ownInput.resolved.value.getLovelace,
-          "Deposits must add ADA to the vault."
+          "Deposits must add ADA to the vault"
         )
         requireEntireVaultIsSpent(datum, ownInput.resolved)
         out.datum match {
@@ -90,70 +96,104 @@ object Vault extends Validator {
                   "Datum amount must match output lovelace amount"
                 )
             case _ =>
-                require(false, "Deposit transaction must have an inline datum with the new amount")
+                fail("Deposit transaction must have an inline datum with the new amount")
         }
     }
 
     private def withdraw(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         require(
           datum.state.isIdle,
-          "Cannot withdraw, another withdrawal request is pending."
+          "Cannot withdraw, another withdrawal request is pending"
         )
-        require(tx.outputs.size == BigInt(1), "Withdrawals transaction must contain 1 output.")
-        val out = tx.outputs.head
+        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
+
+        val scriptOutputs = tx.outputs.filter(out =>
+            out.address.credential === ownInput.resolved.address.credential
+        )
+
+        require(
+          scriptOutputs.size == BigInt(1),
+          "Withdrawal transaction must contain exactly 1 output to the vault script"
+        )
+
+        val out = scriptOutputs.head
         requireSameOwner(out, datum)
-        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input.")
         requireOutputToOwnAddress(
           ownInput,
           out,
-          "Withdrawal transactions must have a vault output."
+          "Withdrawal transactions must have a vault output"
         )
         out.datum match {
             case OutputDatum.OutputDatum(datum) =>
                 require(
                   datum.to[Datum].state.isPending,
-                  "Output must have datum with State = Pending."
+                  "Output must have datum with State = Pending"
                 )
-            case _ => require(false, "Output must have datum with State = Pending.")
+            case _ => fail("Output must have datum with State = Pending")
         }
     }
 
     private def finalize(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
-        // let's also enforce a single output, although this operation needs it least of all
-        require(
-          tx.outputs.size == BigInt(1),
-          "Withdrawal finalization transactions must have exactly one output."
+        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
+
+        // We can only finalize pending vaults.
+        ownInput.resolved.datum match {
+            case OutputDatum.OutputDatum(datum) => require(datum.to[Datum].state.isPending)
+            case _                              => fail("Contract has no datum.")
+        }
+
+        val scriptOutputs = tx.outputs.filter(out =>
+            out.address.credential === ownInput.resolved.address.credential
         )
-        val out = tx.outputs.head
+
+        // Finalize should close the vault - no outputs back to the script
         require(
-          addressEquals(out.address.credential, datum.sender),
-          "Attempted withdrawal to an unexpected address."
+          scriptOutputs.size == BigInt(0),
+          "Withdrawal finalization must not send funds back to the vault"
+        )
+
+        // Ensure there's at least one output to the owner address
+        val ownerOutputs =
+            tx.outputs.filter(out => addressEquals(out.address.credential, datum.owner))
+        require(
+          ownerOutputs.size > BigInt(0),
+          "Withdrawal finalization must send funds to the vault owner"
         )
     }
 
     private def cancel(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
-        require(tx.outputs.size == BigInt(1), "Cancel transactions must have exactly one output.")
-        val out = tx.outputs.head
+        val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
+
+        // Filter outputs to only those going to the script address
+        val scriptOutputs = tx.outputs.filter(out =>
+            out.address.credential === ownInput.resolved.address.credential
+        )
+
+        require(
+          scriptOutputs.size == BigInt(1),
+          "Cancel transaction must have exactly 1 output to the vault script"
+        )
+
+        val out = scriptOutputs.head
         requireSameOwner(out, datum)
         out.datum match {
             case ledger.api.v2.OutputDatum.OutputDatum(d) =>
                 val newDatum = d.to[Datum]
                 require(
                   newDatum.amount == datum.amount,
-                  "Cancel transactions must not change the vault amount."
+                  "Cancel transactions must not change the vault amount"
                 )
                 require(
                   out.value.getLovelace == datum.amount,
-                  "Cancel transactions must not change the vault amount."
+                  "Cancel transactions must not change the vault amount"
                 )
                 require(
                   newDatum.state.isIdle,
                   "Idle transactions must change the vault state to Idle"
                 )
             case _ =>
-                require(
-                  false,
-                  "Cancel transactions must have an inline datum with the correct state and amount."
+                fail(
+                  "Cancel transactions must have an inline datum with the correct state and amount"
                 )
         }
     }
@@ -161,7 +201,7 @@ object Vault extends Validator {
     private def requireEntireVaultIsSpent(datum: Datum, output: TxOut) = {
         val amountToSpend = datum.amount
         val adaSpent = output.value.getLovelace
-        require(amountToSpend == adaSpent, "Must spend entire vault.")
+        require(amountToSpend == adaSpent, "Must spend entire vault")
     }
 
     private def requireOutputToOwnAddress(ownInput: TxInInfo, out: TxOut, message: String) =
@@ -172,9 +212,9 @@ object Vault extends Validator {
             case scalus.ledger.api.v2.OutputDatum.OutputDatum(newDatum) =>
                 require(
                   newDatum.to[Datum].owner == datum.owner,
-                  "Vault transactions cannot change the vault owner."
+                  "Vault transactions cannot change the vault owner"
                 )
-            case _ => require(false, "Vault transactions must have an inline datum.")
+            case _ => fail("Vault transactions must have an inline datum")
         }
 
     private def addressEquals(left: Credential, right: ByteString) = {
@@ -199,3 +239,17 @@ object Vault extends Validator {
 
 object VaultContract:
     inline def compiled(using scalus.Compiler.Options) = scalus.Compiler.compile(Vault.validate)
+
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = false
+    )
+
+    val script: Program =
+        compiled
+            .toUplc(
+              generateErrorTraces = true,
+              backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
+            )
+            .plutusV3

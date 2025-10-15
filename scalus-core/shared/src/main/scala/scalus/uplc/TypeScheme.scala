@@ -1,6 +1,5 @@
 package scalus.uplc
 
-@deprecated("Use SIRType instead", "0.12.1")
 enum TypeScheme:
     case Type(argType: DefaultUni)
     case App(f: TypeScheme, arg: TypeScheme)

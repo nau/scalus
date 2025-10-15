@@ -24,9 +24,18 @@ object CardanoMutator extends STS.Mutator {
             _ <- WrongNetworkValidator.validate(context, state, event)
             _ <- WrongNetworkWithdrawalValidator.validate(context, state, event)
             _ <- WrongNetworkInTxBodyValidator.validate(context, state, event)
+            _ <- ExactSetOfRedeemersValidator.validate(context, state, event)
+            _ <- ExUnitsTooBigValidator.validate(context, state, event)
+            _ <- MetadataValidator.validate(context, state, event)
+            _ <- MissingRequiredDatumsValidator.validate(context, state, event)
+            _ <- OutputBootAddrAttrsSizeValidator.validate(context, state, event)
+            _ <- ProtocolParamsViewHashesMatchValidator.validate(context, state, event)
+            _ <- ScriptsWellFormedValidator.validate(context, state, event)
+            _ <- TooManyCollateralInputsValidator.validate(context, state, event)
             state <- RemoveInputsFromUtxoMutator.transit(context, state, event)
             state <- AddOutputsToUtxoMutator.transit(context, state, event)
             state <- FeeMutator.transit(context, state, event)
+            state <- PlutusScriptsTransactionMutator.transit(context, state, event)
         yield state
     }
 }

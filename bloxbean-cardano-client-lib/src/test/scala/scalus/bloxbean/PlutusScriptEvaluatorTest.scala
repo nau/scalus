@@ -16,10 +16,8 @@ import java.nio.file.Paths
 import scala.collection.immutable.SortedSet
 
 class PlutusScriptEvaluatorTest extends AnyFunSuite {
-    private val params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
-      this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-    )
-    private val costModels = CostModels.fromProtocolParams(params)
+    private val params: ProtocolParams = CardanoInfo.mainnet.protocolParams
+    private val costModels = params.costModels
 
     lazy val apiKey = System.getenv("BLOCKFROST_API_KEY") ?? sys.error(
       "BLOCKFROST_API_KEY is not set, please set it before running the test"
@@ -27,9 +25,9 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
 
     test("TxEvaluator PlutusV2") {
         val evaluator = PlutusScriptEvaluator(
-          SlotConfig.Mainnet,
+          CardanoInfo.mainnet.slotConfig,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = costModels
         )
 
@@ -84,9 +82,9 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
 
     test("TxEvaluator PlutusV3") {
         val evaluator = PlutusScriptEvaluator(
-          SlotConfig.Mainnet,
+          CardanoInfo.mainnet.slotConfig,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = costModels
         )
 
@@ -171,9 +169,9 @@ class PlutusScriptEvaluatorTest extends AnyFunSuite {
 //        val utxos = bloxbeanResolveUtxo(tx)
         val utxos = resolveUtxoFromResources(tx)
         val evaluator = PlutusScriptEvaluator(
-          SlotConfig.Mainnet,
+          CardanoInfo.mainnet.slotConfig,
           initialBudget = ExBudget.fromCpuAndMemory(10_000000000L, 10_000000L),
-          protocolMajorVersion = MajorProtocolVersion.plominPV,
+          protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
           costModels = costModels,
           debugDumpFilesForTesting = false
         )

@@ -4,5 +4,9 @@
   "main": "evaluate.js",
   "dependencies": {
     "scalus": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
   }
 }

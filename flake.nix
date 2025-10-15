@@ -47,15 +47,17 @@
 
               # Common JVM options for both app and sbt JVM
               commonJvmOpts = [
-                # Memory settings - large heap for Scala compilation and IR processing
-                "-Xms4G"                            # Initial heap size (reduces early GC pressure)
+                # Memory settings - use percentage of physical RAM for portability
+                "-XX:InitialRAMPercentage=25.0"     # Initial heap: 25% of physical RAM
+                "-XX:MaxRAMPercentage=75.0"         # Max heap: 75% of physical RAM
                 "-Xss64m"                           # Stack size for deep recursive calls in compiler
 
                 # Enable experimental features for Java 23
                 "-XX:+UnlockExperimentalVMOptions"  # Allow use of experimental VM options
 
                 # Garbage Collection - ZGC for ultra-low latency
-                "-XX:+UseZGC"                       # Use Z Garbage Collector (concurrent, low-latency)
+#                "-XX:+UseZGC"                       # Use Z Garbage Collector (concurrent, low-latency)
+                "-XX:+UseG1GC"                       # Use G1 Garbage Collector (stable, good for large heaps)
 
                 # Memory optimizations
                 "-XX:+UseStringDeduplication"       # Deduplicate identical strings to save memory
@@ -154,9 +156,9 @@
 
               # Common JVM options for CI environment (Java 11 - more conservative settings)
               ciCommonJvmOpts = [
-                # Conservative memory settings for CI environments
-                "-Xmx12G"                            # Maximum heap size (smaller than dev for CI resource limits)
-                "-Xms2G"                            # Initial heap size (conservative for CI)
+                # Memory settings - use percentage of physical RAM for portability
+                "-XX:InitialRAMPercentage=25.0"     # Initial heap: 25% of physical RAM
+                "-XX:MaxRAMPercentage=75.0"         # Max heap: 75% of physical RAM
                 "-Xss64m"                           # Stack size for deep recursive calls in compiler
 
                 # Garbage Collection - G1GC for Java 11 stability

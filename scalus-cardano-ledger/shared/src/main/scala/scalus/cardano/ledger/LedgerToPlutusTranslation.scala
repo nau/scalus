@@ -10,9 +10,7 @@ import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.GovernanceActionId
 import scalus.prelude.{asScalus, List, SortedMap}
-import scalus.uplc.BuiltinSemanticsVariant
 import scalus.uplc.eval.*
-import scalus.uplc.{PlutusV1Params, PlutusV2Params, PlutusV3Params}
 import scalus.{builtin, ledger, prelude}
 
 import scala.collection.{immutable, mutable}
@@ -51,33 +49,13 @@ object LedgerToPlutusTranslation {
       * @return
       *   Configured MachineParams for script execution
       */
+    @deprecated("Use MachineParams.fromCostModels instead", "scalus 0.12.1")
     def translateMachineParamsFromCostModels(
         costModels: CostModels,
         language: Language,
         protocolVersion: MajorProtocolVersion
     ): MachineParams = {
-        val params = language match
-            case Language.PlutusV1 =>
-                val costs = costModels.models(language.ordinal)
-                PlutusV1Params.fromSeq(costs)
-            case Language.PlutusV2 =>
-                val costs = costModels.models(language.ordinal)
-                PlutusV2Params.fromSeq(costs)
-            case Language.PlutusV3 =>
-                val costs = costModels.models(language.ordinal)
-                PlutusV3Params.fromSeq(costs)
-
-        val semvar = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
-          protocolVersion,
-          language
-        )
-        val builtinCostModel = BuiltinCostModel.fromPlutusParams(params, language, semvar)
-        val machineCosts = CekMachineCosts.fromPlutusParams(params)
-        MachineParams(
-          machineCosts = machineCosts,
-          builtinCostModel = builtinCostModel,
-          semanticVariant = semvar
-        )
+        MachineParams.fromCostModels(costModels, language, protocolVersion)
     }
 
     /** Convert scalus.cardano.ledger.Credential to scalus.ledger.api.v1.Credential.

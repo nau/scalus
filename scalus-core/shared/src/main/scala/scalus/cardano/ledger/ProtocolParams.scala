@@ -14,7 +14,7 @@ case class ProtocolParams(
     collateralPercentage: Long,
     committeeMaxTermLength: Long,
     committeeMinSize: Long,
-    costModels: Map[String, IndexedSeq[Long]],
+    costModels: CostModels,
     dRepActivity: Long,
     dRepDeposit: Long,
     dRepVotingThresholds: DRepVotingThresholds,
@@ -42,7 +42,7 @@ case class ProtocolParams(
     txFeeFixed: Long,
     txFeePerByte: Long,
     utxoCostPerByte: Long
-) derives ReadWriter
+)
 
 object ProtocolParams {
 
@@ -58,12 +58,12 @@ object ProtocolParams {
 
     /** Reads ProtocolParams from JSON string in Cardano CLI format */
     def fromCardanoCliJson(json: String): ProtocolParams = {
-        read[ProtocolParams](json)
+        read[ProtocolParams](json)(using cardanoCliParamsReadWriter)
     }
 
     /** Reads ProtocolParams from JSON string in Cardano CLI format */
     def fromCardanoCliJson(json: InputStream): ProtocolParams = {
-        read[ProtocolParams](json)
+        read[ProtocolParams](json)(using cardanoCliParamsReadWriter)
     }
 
     val blockfrostParamsReadWriter: ReadWriter[ProtocolParams] =
@@ -73,8 +73,8 @@ object ProtocolParams {
                 "collateral_percent" -> params.collateralPercentage,
                 "committee_max_term_length" -> params.committeeMaxTermLength.toString,
                 "committee_min_size" -> params.committeeMinSize.toString,
-                "cost_models" -> params.costModels.map { (k, v) =>
-                    k -> v.map(v => ujson.Num(v.toDouble))
+                "cost_models" -> params.costModels.models.map { (k, v) =>
+                    Language.fromId(k).show -> v.map(v => ujson.Num(v.toDouble))
                 },
                 "drep_activity" -> params.dRepActivity.toString,
                 "drep_deposit" -> params.dRepDeposit.toString,
@@ -127,9 +127,11 @@ object ProtocolParams {
                 committeeMaxTermLength =
                     json("committee_max_term_length").strOpt.map(_.toLong).getOrElse(0L),
                 committeeMinSize = json("committee_min_size").strOpt.map(_.toLong).getOrElse(0L),
-                costModels = json("cost_models").obj.map { case (k, v) =>
-                    k -> v.obj.values.map(_.num.toLong).toIndexedSeq
-                }.toMap,
+                costModels = CostModels(
+                  json("cost_models").obj.map { case (k, v) =>
+                      Language.valueOf(k).languageId -> v.obj.values.map(_.num.toLong).toIndexedSeq
+                  }.toMap
+                ),
                 dRepActivity = json("drep_activity").strOpt.map(_.toLong).getOrElse(0L),
                 dRepDeposit = json("drep_deposit").strOpt.map(_.toLong).getOrElse(0L),
                 dRepVotingThresholds = DRepVotingThresholds(
@@ -215,6 +217,12 @@ object ProtocolParams {
                 utxoCostPerByte = json("coins_per_utxo_size").str.toLong
               )
         )
+
+    val cardanoCliParamsReadWriter: ReadWriter[ProtocolParams] = {
+        // Provide implicit ReadWriter for CostModels in Cardano CLI format
+        given ReadWriter[CostModels] = CostModels.cardanoCliReadWriter
+        macroRW
+    }
 
     @deprecated("Use fromBlockfrostJson or blockfrostParamsReadWriter instead", "0.12")
     val blockfrostParamsRW: ReadWriter[ProtocolParams] = blockfrostParamsReadWriter

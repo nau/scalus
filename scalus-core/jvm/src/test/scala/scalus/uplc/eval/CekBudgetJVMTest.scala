@@ -4,12 +4,9 @@ package eval
 import cats.syntax.all.*
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
-import scalus.builtin.JVMPlatformSpecific
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.Term.*
 import scalus.uplc.eval.CekMachineCosts.defaultMachineCosts.*
-
-import scala.util.{Success, Try}
 
 class CekBudgetJVMTest extends AnyFunSuite:
     private def check(term: Term, expected: ExBudget): Unit = {
@@ -17,18 +14,10 @@ class CekBudgetJVMTest extends AnyFunSuite:
         test(
           s"Check machine budget for terms ${term.pretty.flatten.render(100)} is $expectedBudget"
         ) {
-            val debruijnedTerm = DeBruijn.deBruijnTerm(term)
-            val spender = CountingBudgetSpender()
-            val cek = CekMachine(
-              MachineParams.defaultPlutusV2PostConwayParams,
-              spender,
-              NoLogger,
-              JVMPlatformSpecific
-            )
-            val res = UplcCli.evalFlat(Program((1, 0, 0), term))
-            (Try(cek.evaluateTerm(debruijnedTerm)), res) match
-                case (Success(t1), UplcEvalResult.Success(t2, budget2)) =>
-                    val budget = spender.getSpentBudget
+            given PlutusVM = PlutusVM.makePlutusV2VM()
+            val res = UplcCli.evalFlat(term.plutusV2)
+            (term.evaluateDebug, res) match
+                case (Result.Success(t1, budget, _, _), UplcEvalResult.Success(t2, budget2)) =>
                     assert(
                       budget == expectedBudget,
                       s"for term $term"

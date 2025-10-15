@@ -1,7 +1,6 @@
 package scalus.regression.gr20251006
 
 import scalus.Compile
-import scalus.ScalusDebug
 import scalus.builtin.Builtins.*
 import scalus.builtin.ByteString
 import scalus.builtin.BLS12_381_G1_Element

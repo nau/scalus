@@ -95,4 +95,4 @@ class SIRLoader(options: SIRLoaderOptions):
 
 end SIRLoader
 
-*/
+ */

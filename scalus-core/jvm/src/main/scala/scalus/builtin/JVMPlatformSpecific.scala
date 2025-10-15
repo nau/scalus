@@ -11,6 +11,7 @@ import supranational.blst.P2
 import supranational.blst.PT
 
 import java.math.BigInteger
+import java.nio.file.{Files, Paths}
 
 object Builtins extends Builtins(using JVMPlatformSpecific)
 class Builtins(using ps: PlatformSpecific) extends AbstractBuiltins(using ps)
@@ -231,6 +232,25 @@ trait JVMPlatformSpecific extends PlatformSpecific {
     override def ripemd_160(byteString: ByteString): ByteString = {
         val digest = new RIPEMD160.Digest()
         ByteString.unsafeFromArray(digest.digest(byteString.bytes))
+    }
+
+    override def readFile(path: String): Array[Byte] = {
+        Files.readAllBytes(Paths.get(path))
+    }
+
+    override def writeFile(path: String, bytes: Array[Byte]): Unit = {
+        Files.write(Paths.get(path), bytes)
+        ()
+    }
+
+    override def appendFile(path: String, bytes: Array[Byte]): Unit = {
+        Files.write(
+          Paths.get(path),
+          bytes,
+          java.nio.file.StandardOpenOption.CREATE,
+          java.nio.file.StandardOpenOption.APPEND
+        )
+        ()
     }
 }
 

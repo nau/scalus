@@ -1,21 +1,18 @@
 package scalus
 
+import org.scalatest.funsuite.AnyFunSuite
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
 import scalus.builtin.{Builtins, ByteString, JVMPlatformSpecific}
-import scalus.cardano.ledger.Language
+import scalus.cardano.ledger.{CardanoInfo, Language}
 import scalus.ledger.api.v1.*
-import scalus.uplc.eval.MachineParams
-//import scalus.ledger.api.v3.SpendingScriptInfo
-import scalus.sir.SIR.*
 import scalus.sir.*
+import scalus.sir.SIR.*
 import scalus.uplc.*
 import scalus.uplc.eval.Result.Success
-import scalus.uplc.eval.{PlutusVM, Result}
+import scalus.uplc.eval.{MachineParams, PlutusVM, Result}
 
 import scala.language.implicitConversions
-
-import org.scalatest.funsuite.AnyFunSuite
 
 class CompilerPluginEvalTest extends AnyFunSuite {
 
@@ -193,10 +190,14 @@ class CompilerPluginEvalTest extends AnyFunSuite {
 
         given PlutusVM =
             val params = MachineParams.defaultPlutusV3Params
+            val semanticVariant = BuiltinSemanticsVariant.fromProtocolAndPlutusVersion(
+              CardanoInfo.mainnet.majorProtocolVersion,
+              Language.PlutusV3
+            )
             new PlutusVM(
               Language.PlutusV3,
               params,
-              params.semanticVariant,
+              semanticVariant,
               platform
             )
 

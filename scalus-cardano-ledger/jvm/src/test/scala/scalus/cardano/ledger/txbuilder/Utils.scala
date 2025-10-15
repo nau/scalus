@@ -21,16 +21,14 @@ import scalus.uplc.eval.ExBudget
 
 import scala.language.postfixOps
 
-val blockfrost544Params: ProtocolParams = ProtocolParams.fromBlockfrostJson(
-  this.getClass.getResourceAsStream("/blockfrost-params-epoch-544.json")
-)
+val blockfrost544Params: ProtocolParams = CardanoInfo.mainnet.protocolParams
 
-val costModels = CostModels.fromProtocolParams(blockfrost544Params)
+val costModels = blockfrost544Params.costModels
 
 val evaluator = PlutusScriptEvaluator(
-  SlotConfig.Mainnet,
+  CardanoInfo.mainnet.slotConfig,
   initialBudget = ExBudget.enormous,
-  protocolMajorVersion = MajorProtocolVersion.plominPV,
+  protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
   costModels = costModels
 )
 

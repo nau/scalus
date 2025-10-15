@@ -1,2 +1,26 @@
--Xmx12G
+# Memory settings - use percentage of physical RAM for portability
+# Initial heap: 25% of physical RAM
+-XX:InitialRAMPercentage=25.0
+# Max heap: 75% of physical RAM
+-XX:MaxRAMPercentage=75.0
 -Xss64M
+
+-XX:+UseG1GC
+
+# Memory optimizations
+-XX:+UseStringDeduplication
+-XX:+UseCompressedOops
+-XX:+UseCompressedClassPointers
+
+# Code cache settings for better JIT performance
+-XX:ReservedCodeCacheSize=512m
+-XX:InitialCodeCacheSize=64m
+
+# Compilation settings
+-XX:+TieredCompilation
+
+# Startup optimization
+-XX:TieredStopAtLevel=1
+
+# SBT-specific optimizations
+-Dsbt.boot.lock=false

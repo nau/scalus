@@ -233,6 +233,26 @@ trait NodeJsPlatformSpecific extends PlatformSpecific {
 
     override def ripemd_160(byteString: ByteString): ByteString =
         Ripemd160.ripemd160(byteString.toUint8Array).toByteString
+
+    override def readFile(path: String): Array[Byte] = {
+        val fs = js.Dynamic.global.require("fs")
+        val buffer = fs.readFileSync(path).asInstanceOf[Uint8Array]
+        new Int8Array(buffer.buffer, buffer.byteOffset, buffer.length).toArray
+    }
+
+    override def writeFile(path: String, bytes: Array[Byte]): Unit = {
+        val fs = js.Dynamic.global.require("fs")
+        val int8Array = new Int8Array(bytes.toJSArray)
+        val uint8Array = new Uint8Array(int8Array.buffer, int8Array.byteOffset, int8Array.length)
+        fs.writeFileSync(path, uint8Array)
+    }
+
+    override def appendFile(path: String, bytes: Array[Byte]): Unit = {
+        val fs = js.Dynamic.global.require("fs")
+        val int8Array = new Int8Array(bytes.toJSArray)
+        val uint8Array = new Uint8Array(int8Array.buffer, int8Array.byteOffset, int8Array.length)
+        fs.appendFileSync(path, uint8Array)
+    }
 }
 
 object NodeJsPlatformSpecific extends NodeJsPlatformSpecific
