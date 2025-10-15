@@ -1,6 +1,6 @@
 package scalus.patterns
 
-import scalus.Compiler.compile
+import scalus.Compiler.{compile, compileWithOptions}
 import scalus.builtin.Builtins
 import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
@@ -301,7 +301,7 @@ object LinkedList extends DataParameterizedValidator:
                     case _ => fail("There's must be a token key for the policy output")
             case _ => fail("There's must be a lovelace value for each policy output")
 
-    override def mint(
+    inline override def mint(
         cfgData: Data,
         redeemer: Data,
         policy: PolicyId,
@@ -478,7 +478,8 @@ object LinkedListContract:
         import scalus.builtin.ToData.toData
         compile(LinkedList.validate).toUplc().plutusV3 $ param.toData
 
-    inline def compiled(using scalus.Compiler.Options) = compile(LinkedList.validate)
+    inline def compiled(using options: scalus.Compiler.Options) =
+        compileWithOptions(options, LinkedList.validate)
 
     def application: Application = Application
         .ofSingleValidator[Config, NodeAction](

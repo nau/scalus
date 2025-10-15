@@ -129,43 +129,33 @@ trait DataParameterizedValidator {
         redeemer: Data,
         policyId: PolicyId,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.mint")
-    }
+    ): Unit
 
     inline def reward(
         param: Data,
         redeemer: Data,
         stakingKey: Credential,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.reward")
-    }
+    ): Unit
 
     inline def certify(
         param: Data,
         redeemer: Data,
         cert: TxCert,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.certify")
-    }
+    ): Unit
 
     inline def vote(
         param: Data,
         redeemer: Data,
         voter: Voter,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.vote")
-    }
+    ): Unit
 
     inline def propose(
         param: Data,
         proposalProcedure: ProposalProcedure,
         tx: TxInfo
-    ): Unit = {
-        fail("Empty Validator.propose")
-    }
+    ): Unit
 
 }

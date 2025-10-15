@@ -3227,7 +3227,7 @@ final class SIRCompiler(
         dependencies: Map[String, SIR.ExternalVar],
         srcPos: SrcPos
     ): Tree = {
-        var requireV3Lowering = false
+        // var requireV3Lowering = false
         val moduleWithDepsRefs = dependencies.map { case (name, externalVar) =>
             name -> {
                 val cName = name.replace("$", "")
