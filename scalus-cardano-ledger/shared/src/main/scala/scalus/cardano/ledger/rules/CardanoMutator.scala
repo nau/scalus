@@ -8,18 +8,7 @@ object CardanoMutator extends STS.Mutator {
     override final type Error = TransactionException
 
     override def transit(context: Context, state: State, event: Event): Result = {
-        // Apply all validators first
-        val validationResult = allValidators.values.foldLeft(Right(()): Either[Error, Unit]) {
-            (acc, validator) =>
-                acc.flatMap(_ => validator.validate(context, state, event))
-        }
-
-        // If validation passes, apply all mutators
-        validationResult.flatMap { _ =>
-            allMutators.values.foldLeft(Right(state): Either[Error, State]) { (acc, mutator) =>
-                acc.flatMap(currentState => mutator.transit(context, currentState, event))
-            }
-        }
+        STS.Mutator.transit[Error](allValidators.values, allMutators.values, context, state, event)
     }
 
     private val packageName = getClass.getPackage.getName

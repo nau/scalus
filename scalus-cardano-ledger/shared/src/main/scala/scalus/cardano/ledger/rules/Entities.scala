@@ -60,7 +60,42 @@ object STS {
         override final def apply(context: Context, state: State, event: Event): Result =
             validate(context, state, event)
 
-        protected final val success: Result = Right(())
+        protected final def success: Result = Validator.success
+    }
+
+    object Validator {
+        def apply[ErrorT <: TransactionException](
+            validator: (Validator#Context, Validator#State, Validator#Event) => (Validator {
+                type Error = ErrorT
+            })#Result
+        ): Validator { type Error = ErrorT } = new Validator {
+            override final type Error = ErrorT
+
+            override def validate(context: Context, state: State, event: Event): Result =
+                validator(context, state, event)
+        }
+
+        def apply[ErrorT <: TransactionException](
+            validators: Iterable[Validator { type Error <: ErrorT }]
+        ): Validator { type Error = ErrorT } = new Validator {
+            override final type Error = ErrorT
+
+            override def validate(context: Context, state: State, event: Event): Result =
+                Validator.validate[ErrorT](validators, context, state, event)
+        }
+
+        def validate[ErrorT <: TransactionException](
+            validators: Iterable[Validator { type Error <: ErrorT }],
+            context: Validator#Context,
+            state: Validator#State,
+            event: Validator#Event
+        ): (Validator { type Error = ErrorT })#Result = {
+            validators.foldLeft(success: (Validator { type Error = ErrorT })#Result) {
+                (acc, validator) => acc.flatMap(_ => validator.validate(context, state, event))
+            }
+        }
+
+        val success: (Validator { type Error = Nothing })#Result = Right(())
     }
 
     trait Mutator extends STS {
@@ -71,6 +106,64 @@ object STS {
         override final def apply(context: Context, state: State, event: Event): Result =
             transit(context, state, event)
 
-        protected final def success(state: State): Result = Right(state)
+        protected final def success(state: State): Result = Mutator.success(state)
+    }
+
+    object Mutator {
+        def apply[ErrorT <: TransactionException](
+            mutator: (Mutator#Context, Mutator#State, Mutator#Event) => (Mutator {
+                type Error = ErrorT
+            })#Result
+        ): Mutator { type Error = ErrorT } = new Mutator {
+            override final type Error = ErrorT
+
+            override def transit(context: Context, state: State, event: Event): Result =
+                mutator(context, state, event)
+        }
+
+        def apply[ErrorT <: TransactionException](
+            mutators: Iterable[Mutator { type Error <: ErrorT }]
+        ): Mutator { type Error = ErrorT } = new Mutator {
+            override final type Error = ErrorT
+
+            override def transit(context: Context, state: State, event: Event): Result =
+                Mutator.transit[ErrorT](mutators, context, state, event)
+        }
+
+        def apply[ErrorT <: TransactionException](
+            validators: Iterable[Validator { type Error <: ErrorT }],
+            mutators: Iterable[Mutator { type Error <: ErrorT }]
+        ): Mutator { type Error = ErrorT } = new Mutator {
+            override final type Error = ErrorT
+
+            override def transit(context: Context, state: State, event: Event): Result =
+                Mutator.transit[ErrorT](validators, mutators, context, state, event)
+        }
+
+        def transit[ErrorT <: TransactionException](
+            mutators: Iterable[Mutator { type Error <: ErrorT }],
+            context: Mutator#Context,
+            state: Mutator#State,
+            event: Mutator#Event
+        ): (Mutator { type Error = ErrorT })#Result = {
+            mutators.foldLeft(success(state): (Mutator { type Error = ErrorT })#Result) {
+                (acc, mutator) =>
+                    acc.flatMap(currentState => mutator.transit(context, currentState, event))
+            }
+        }
+
+        def transit[ErrorT <: TransactionException](
+            validators: Iterable[Validator { type Error <: ErrorT }],
+            mutators: Iterable[Mutator { type Error <: ErrorT }],
+            context: Mutator#Context,
+            state: Mutator#State,
+            event: Mutator#Event
+        ): (Mutator { type Error = ErrorT })#Result = {
+            Validator.validate[ErrorT](validators, context, state, event).flatMap { _ =>
+                Mutator.transit[ErrorT](mutators, context, state, event)
+            }
+        }
+
+        def success(state: STS#State): (Mutator { type Error = Nothing })#Result = Right(state)
     }
 }
