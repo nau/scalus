@@ -9,47 +9,52 @@ import scalus.builtin.Data.toData
 import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v2.TxOut
 import scalus.ledger.api.v3.*
-import scalus.ledger.api.v3.TxId.*
 import scalus.prelude.*
 import scalus.prelude.Option.*
-import scalus.testkit.ScalusTest
+import scalus.testkit.{Mock, ScalusTest}
 
 import scala.language.implicitConversions
 
 class LinkedListTest extends AnyFunSuite, ScalusTest:
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
-      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering,
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,
       debug = false
     )
+    import Cons.{cons, head}
+    import scalus.uplc.eval.ExBudget
 
-    val policyId = hex"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
-    val txId = txid"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d"
-    val initOutputRef = TxOutRef(id = txId, idx = 1)
+    val policyId = Mock.mockScriptHash(1)
+    val txRef = Mock.mockTxOutRef(2, 1)
+    val initRef = Mock.mockTxOutRef(1, 1)
+    val parentRef = Mock.mockTxOutRef(3, 1)
+    val royalty = Mock.mockScriptHash(2)
+    val scriptAddress = Address.fromScriptHash(policyId)
     val config = Config(
-      init = initOutputRef,
+      init = initRef,
       deadline = 86_400_000L,
-      penalty = Address.fromScriptHash(utf8"P")
+      penalty = Address.fromScriptHash(royalty)
     )
-    val user1 = hex"a65ca58a4e9c755fa830173d2a5caed458ac0c73f97db7faae2e7e3b"
-    val user2 = hex"e18d73505be6420225ed2a42c8e975e4c6f9148ab38e951ea2572e54"
+    val user1 = Mock.mockPubKeyHash(1).hash
+    val user2 = Mock.mockPubKeyHash(2).hash
 
-    def key(token: TokenName): TokenName = LinkedList.nodeToken ++ token
+    def key(token: TokenName): TokenName = LinkedList.nodeToken() ++ token
 
     test("Verify that a linked list can be properly initialized"):
-        val mintedValue = Value(cs = policyId, tn = LinkedList.nodeToken, v = 1)
+        val mintedValue = Value(cs = policyId, tn = LinkedList.nodeToken(), v = 1)
+        val cell: Cons = head()
         val headOutput = TxOut(
-          address = Address.fromScriptHash(utf8"B"),
+          address = scriptAddress,
           value = Value.lovelace(4_000_000) + mintedValue,
-          datum = OutputDatum.OutputDatum(SetNode(key = None, link = None).toData)
+          datum = OutputDatum.OutputDatum(cell.toData)
         )
         val tx = TxInfo.placeholder.copy(
           inputs = List(
             TxInInfo(
-              outRef = initOutputRef,
+              outRef = initRef,
               resolved = TxOut(
-                address = Address.fromScriptHash(utf8"C"),
+                address = scriptAddress,
                 value = Value.lovelace(4_000_000),
                 datum = OutputDatum.NoOutputDatum
               )
@@ -57,154 +62,297 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
           ),
           outputs = List.single(headOutput),
           mint = mintedValue,
-          id = txId
+          id = txRef.id
         )
-        val result = LinkedListContract.compiled.runScript(
-          scriptContext = ScriptContext(
-            txInfo = tx,
-            redeemer = NodeAction.Init.toData,
-            scriptInfo = ScriptInfo.MintingScript(policyId)
-          ),
-          param = Some(config.toData)
+        val result = LinkedListContract
+            .make(config)
+            .runWithDebug(
+              scriptContext = ScriptContext(
+                txInfo = tx,
+                redeemer = NodeAction.Init.toData,
+                scriptInfo = ScriptInfo.MintingScript(policyId)
+              )
+            )
+        if result.isFailure then
+            result.logs.foreach(println)
+            println(result)
+        else println(result.budget)
+        val budget = ExBudget.fromCpuAndMemory(139593806, 498075)
+        assert(
+          result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
+          "Performance regression"
         )
-        if result.isFailure then result.logs.foreach(println)
         assert(result.isSuccess, "Linked list initialization should succeed")
 
     test("Verify that a linked list can be properly de-initialized (burn)"):
-        val burnValue = Value(cs = policyId, tn = LinkedList.nodeToken, v = -1)
+        val burnValue = Value(cs = policyId, tn = LinkedList.nodeToken(), v = -1)
+        val cell: Cons = head()
         val nodeOut = TxOut(
-          address = Address.fromScriptHash(utf8"B"),
+          address = scriptAddress,
           value = Value.lovelace(4_000_000) + burnValue,
-          datum = OutputDatum.OutputDatum(SetNode(key = None, link = None).toData)
+          datum = OutputDatum.OutputDatum(cell.toData)
         )
         val tx = TxInfo.placeholder.copy(
-          inputs = List(TxInInfo(initOutputRef, nodeOut)),
+          inputs = List(TxInInfo(initRef, nodeOut)),
           mint = burnValue,
-          id = txId
+          id = txRef.id
         )
-        val result = LinkedListContract.compiled.runScript(
-          scriptContext = ScriptContext(
-            txInfo = tx,
-            redeemer = NodeAction.Deinit.toData,
-            scriptInfo = ScriptInfo.MintingScript(policyId)
-          ),
-          param = Some(config.toData)
+        val result = LinkedListContract
+            .make(config)
+            .runWithDebug(
+              scriptContext = ScriptContext(
+                txInfo = tx,
+                redeemer = NodeAction.Deinit.toData,
+                scriptInfo = ScriptInfo.MintingScript(policyId)
+              )
+            )
+        if result.isFailure then
+            result.logs.foreach(println)
+            println(result)
+        else println(result.budget)
+        val budget = ExBudget.fromCpuAndMemory(80700891, 284080)
+        assert(
+          result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
+          "Performance regression"
         )
-        if result.isFailure then result.logs.foreach(println)
         assert(result.isSuccess, "Linked list de-initialization should succeed")
 
     test("Verify that de-initialization fails if the list is not empty"):
-        val nonEmptyNode = SetNode(
-          key = Some(user1),
-          link = Some(user2)
+        val nonEmptyCell = cons(
+          key = user1,
+          ref = Some(user2)
         )
         val nodeValue = Value.lovelace(9_000_000) + Value(cs = policyId, tn = key(user2), v = -1)
         val nodeOut = TxOut(
-          address = Address.fromScriptHash(utf8"I"),
+          address = scriptAddress,
           value = nodeValue,
-          datum = OutputDatum.OutputDatum(nonEmptyNode.toData)
+          datum = OutputDatum.OutputDatum(nonEmptyCell.toData)
         )
-        val burnValue = Value(cs = policyId, tn = LinkedList.nodeToken, v = -1)
+        val burnValue = Value(cs = policyId, tn = LinkedList.nodeToken(), v = -1)
         val tx = TxInfo.placeholder.copy(
-          inputs = List(TxInInfo(initOutputRef, nodeOut)),
+          inputs = List(TxInInfo(initRef, nodeOut)),
           mint = burnValue,
-          id = txId
+          id = txRef.id
         )
-        val result = LinkedListContract.compiled.runScript(
-          scriptContext = ScriptContext(
-            txInfo = tx,
-            redeemer = NodeAction.Deinit.toData,
-            scriptInfo = ScriptInfo.MintingScript(policyId)
-          ),
-          param = Some(config.toData)
+        val result = LinkedListContract
+            .make(config)
+            .runWithDebug(
+              scriptContext = ScriptContext(
+                txInfo = tx,
+                redeemer = NodeAction.Deinit.toData,
+                scriptInfo = ScriptInfo.MintingScript(policyId)
+              )
+            )
+        if result.isSuccess then
+            result.logs.foreach(println)
+            println(result)
+        else println(result.budget)
+        val budget = ExBudget.fromCpuAndMemory(58708518, 205516)
+        assert(
+          result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
+          "Performance regression"
         )
-        if result.isSuccess then result.logs.foreach(println)
         assert(result.isFailure, "De-initialization should fail if the list is not empty")
 
-    test("Verify that a new node can be inserted into the linked list"):
-        val coveringNode = SetNode(key = Some(user1), link = None)
-        val coveringValue = Value.lovelace(9_000_000) + Value(cs = policyId, tn = key(user1), v = 1)
-        val coveringOutput = TxOut(
-          Address.fromScriptHash(utf8"I"),
-          coveringValue,
-          OutputDatum.OutputDatum(coveringNode.toData)
+    test("Verify that the first node can be inserted into the linked list"):
+        val parentCell: Cons = head()
+        val parentValue =
+            Value.lovelace(4_000_000) + Value(cs = policyId, tn = LinkedList.nodeToken(), v = 1)
+        val parentOutput = TxOut(
+          scriptAddress,
+          parentValue,
+          OutputDatum.OutputDatum(parentCell.toData)
         )
-        val coveringRef = TxOutRef(id = txid"", idx = 1)
-        val newNode = SetNode(key = Some(user2), link = None)
-        val insertValue = Value.lovelace(9_000_000) + Value(cs = policyId, tn = key(user2), v = 1)
-        val newNodeOutput = TxOut(
-          Address.fromScriptHash(utf8"I"),
+        val newCell = cons(user1)
+        val insertValue = Value.lovelace(9_000_000) + Value(cs = policyId, tn = key(user1), v = 1)
+        val newOutput = TxOut(
+          scriptAddress,
           insertValue,
-          OutputDatum.OutputDatum(newNode.toData)
+          OutputDatum.OutputDatum(newCell.toData)
         )
         val tx = TxInfo.placeholder.copy(
-          inputs = List.single(TxInInfo(coveringRef, coveringOutput)),
+          inputs = List.single(TxInInfo(parentRef, parentOutput)),
           outputs = List(
-            coveringOutput.copy(datum =
-                OutputDatum.OutputDatum(SetNode(key = Some(user1), link = Some(user2)).toData)
+            parentOutput.copy(datum = OutputDatum.OutputDatum(head(newCell.key).toData)),
+            newOutput
+          ),
+          mint = Value(cs = policyId, tn = key(user1), v = 1),
+          validRange = Interval.entirelyBetween(1000L, 2000L),
+          signatories = List.single(PubKeyHash(user1)),
+          id = txRef.id
+        )
+        val result = LinkedListContract
+            .make(config)
+            .runWithDebug(
+              scriptContext = ScriptContext(
+                txInfo = tx,
+                redeemer = NodeAction.Insert(PubKeyHash(user1), parentCell).toData,
+                scriptInfo = ScriptInfo.MintingScript(policyId)
+              )
+            )
+        if result.isFailure then
+            result.logs.foreach(println)
+            println(result)
+        else println(result.budget)
+        val budget = ExBudget.fromCpuAndMemory(297789946, 1028573)
+        assert(
+          result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
+          "Performance regression"
+        )
+        assert(result.isSuccess, "Linked list insertion should succeed")
+
+    test("Verify that a new node insertion fails for an empty key"):
+        val parentCell: Cons = head()
+        val parentValue =
+            Value.lovelace(4_000_000) + Value(cs = policyId, tn = LinkedList.nodeToken(), v = 1)
+        val parentOutput = TxOut(
+          scriptAddress,
+          parentValue,
+          OutputDatum.OutputDatum(parentCell.toData)
+        )
+        val emptyKey = hex""
+        val newCell = cons(emptyKey)
+        val insertValue =
+            Value.lovelace(9_000_000) + Value(cs = policyId, tn = key(emptyKey), v = 1)
+        val newOutput = TxOut(
+          scriptAddress,
+          insertValue,
+          OutputDatum.OutputDatum(newCell.toData)
+        )
+        val tx = TxInfo.placeholder.copy(
+          inputs = List.single(TxInInfo(parentRef, parentOutput)),
+          outputs = List(
+            parentOutput.copy(datum = OutputDatum.OutputDatum(head(newCell.key).toData)),
+            newOutput
+          ),
+          mint = Value(cs = policyId, tn = key(emptyKey), v = 1),
+          validRange = Interval.entirelyBetween(1000L, 2000L),
+          signatories = List.single(PubKeyHash(emptyKey)),
+          id = txRef.id
+        )
+        val result = LinkedListContract
+            .make(config)
+            .runWithDebug(
+              scriptContext = ScriptContext(
+                txInfo = tx,
+                redeemer = NodeAction.Insert(PubKeyHash(emptyKey), parentCell).toData,
+                scriptInfo = ScriptInfo.MintingScript(policyId)
+              )
+            )
+        if result.isSuccess then
+            result.logs.foreach(println)
+            println(result)
+        else println(result.budget)
+        val budget = ExBudget.fromCpuAndMemory(141510242, 499280)
+        assert(
+          result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
+          "Performance regression"
+        )
+        assert(result.isFailure, "Insertion should fail if key is empty")
+
+    test("Verify that a new node can be inserted into the linked list"):
+        val parentCell = cons(user1)
+        val parentValue = Value.lovelace(9_000_000) + Value(cs = policyId, tn = key(user1), v = 1)
+        val parentOutput = TxOut(
+          scriptAddress,
+          parentValue,
+          OutputDatum.OutputDatum(parentCell.toData)
+        )
+        val newCell = cons(user2)
+        val insertValue = Value.lovelace(9_000_000) + Value(cs = policyId, tn = key(user2), v = 1)
+        val newOutput = TxOut(
+          scriptAddress,
+          insertValue,
+          OutputDatum.OutputDatum(newCell.toData)
+        )
+        val tx = TxInfo.placeholder.copy(
+          inputs = List.single(TxInInfo(parentRef, parentOutput)),
+          outputs = List(
+            parentOutput.copy(datum =
+                OutputDatum.OutputDatum(cons(key = user1, ref = Some(user2)).toData)
             ),
-            newNodeOutput
+            newOutput
           ),
           mint = Value(cs = policyId, tn = key(user2), v = 1),
           validRange = Interval.entirelyBetween(1000L, 2000L),
           signatories = List.single(PubKeyHash(user2)),
-          id = txId
+          id = txRef.id
         )
-        val result = LinkedListContract.compiled.runScript(
-          scriptContext = ScriptContext(
-            txInfo = tx,
-            redeemer = NodeAction.Insert(PubKeyHash(user2), coveringNode).toData,
-            scriptInfo = ScriptInfo.MintingScript(policyId)
-          ),
-          param = Some(config.toData)
+        val result = LinkedListContract
+            .make(config)
+            .runWithDebug(
+              scriptContext = ScriptContext(
+                txInfo = tx,
+                redeemer = NodeAction.Insert(PubKeyHash(user2), parentCell).toData,
+                scriptInfo = ScriptInfo.MintingScript(policyId)
+              )
+            )
+        if result.isFailure then
+            result.logs.foreach(println)
+            println(result)
+        else println(result.budget)
+        val budget = ExBudget.fromCpuAndMemory(299906087, 1035934)
+        assert(
+          result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
+          "Performance regression"
         )
-        if result.isFailure then result.logs.foreach(println)
         assert(result.isSuccess, "Linked list insertion should succeed")
 
     test("Verify that a node can be removed from the linked list"):
-        val coveringNode = SetNode(key = Some(user1), link = Some(user2))
-        val removeNode = SetNode(key = Some(user2), link = None)
-        val coveringValue = Value.lovelace(9_000_000) + Value(cs = policyId, tn = key(user1), v = 1)
+        val parentCell = cons(key = user1, ref = Some(user2))
+        val removeCell = cons(key = user2)
+        val parentValue = Value.lovelace(9_000_000) + Value(cs = policyId, tn = key(user1), v = 1)
         val removeValue = Value.lovelace(9_000_000) + Value(cs = policyId, tn = key(user2), v = 1)
-        val coveringOutput = TxOut(
-          Address.fromScriptHash(utf8"I"),
-          coveringValue,
-          OutputDatum.OutputDatum(coveringNode.toData)
+        val parentOutput = TxOut(
+          scriptAddress,
+          parentValue,
+          OutputDatum.OutputDatum(parentCell.toData)
         )
         val removeOutput = TxOut(
-          Address.fromScriptHash(utf8"I"),
+          scriptAddress,
           removeValue,
-          OutputDatum.OutputDatum(removeNode.toData)
+          OutputDatum.OutputDatum(removeCell.toData)
         )
-        val coveringRef = TxOutRef(id = txid"", idx = 1)
-        val removeRef = TxOutRef(id = txid"", idx = 1)
-        val updatedNode = SetNode(key = Some(user1), link = None)
+        val removeRef = Mock.mockTxOutRef(3, 2)
+        val updatedCell = cons(user1)
         val updatedOutput = TxOut(
-          Address.fromScriptHash(utf8"I"),
-          coveringValue,
-          OutputDatum.OutputDatum(updatedNode.toData)
+          scriptAddress,
+          parentValue,
+          OutputDatum.OutputDatum(updatedCell.toData)
         )
         val burnValue = Value(cs = policyId, tn = key(user2), v = -1)
         val tx = TxInfo.placeholder.copy(
           inputs = List(
             TxInInfo(removeRef, removeOutput),
-            TxInInfo(coveringRef, coveringOutput)
+            TxInInfo(parentRef, parentOutput)
           ),
           outputs = List.single(updatedOutput),
           mint = burnValue,
           validRange = Interval.entirelyBetween(1000L, 2000L),
           signatories = List.single(PubKeyHash(user2)),
-          id = txId
+          id = txRef.id
         )
-        val result = LinkedListContract.compiled.runScript(
-          scriptContext = ScriptContext(
-            txInfo = tx,
-            redeemer = NodeAction
-                .Remove(PubKeyHash(user2), SetNode(key = Some(user1), link = None))
-                .toData,
-            scriptInfo = ScriptInfo.MintingScript(policyId)
-          ),
-          param = Some(config.toData)
+        val result = LinkedListContract
+            .make(config)
+            .runWithDebug(
+              scriptContext = ScriptContext(
+                txInfo = tx,
+                redeemer = NodeAction
+                    .Remove(PubKeyHash(user2), updatedCell)
+                    .toData,
+                scriptInfo = ScriptInfo.MintingScript(policyId)
+              )
+            )
+        if result.isFailure then
+            result.logs.foreach(println)
+            println(result)
+        else println(result.budget)
+        val budget = ExBudget.fromCpuAndMemory(289908055, 993799)
+        assert(
+          result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
+          "Performance regression"
         )
-        if result.isFailure then result.logs.foreach(println)
         assert(result.isSuccess, "Linked list removal should succeed")
+
+        // test rm empty key
+        // test insert duplicate key

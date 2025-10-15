@@ -3,9 +3,7 @@ package scalus.examples
 import scalus.*
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data.toData
-import scalus.builtin.Builtins.blake2b_224
-import scalus.builtin.Builtins.appendByteString
-import scalus.builtin.{ByteString, Data}
+import scalus.builtin.Data
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.ledger.api.v1.Value.getLovelace
 import scalus.ledger.api.v1.Address
@@ -21,32 +19,6 @@ import scalus.prelude.Option.*
 
 import scala.language.implicitConversions
 import org.scalatest.funsuite.AnyFunSuite
-
-object Mock {
-    val rootKeyHash: ByteString =
-        hex"a2c20c77887ace1cd986193e4e75babd8993cfd56995cd5cfce609c2"
-
-    val rootTxHash: ByteString =
-        hex"5a077cbcdffb88b104f292aacb9687ce93e2191e103a30a0cc5505c18b719f98"
-
-    private def mockHash(variation: BigInt, root: ByteString): ByteString =
-        val variationBytes = ByteString.fromArray(variation.toByteArray)
-        blake2b_224(appendByteString(variationBytes, root))
-
-    private def mockKeyHash(variation: BigInt): ByteString =
-        mockHash(variation, rootKeyHash)
-
-    private def mockTxHash(variation: BigInt): TxId =
-        TxId(mockHash(variation, rootTxHash))
-
-    def mockPubKeyHash(variation: BigInt): PubKeyHash = PubKeyHash(mockKeyHash(variation))
-
-    def mockScriptHash(variation: BigInt): ValidatorHash =
-        mockKeyHash(variation + 200)
-
-    def mockTxOutRef(variation: BigInt, idx: BigInt): TxOutRef =
-        TxOutRef(mockTxHash(variation), idx)
-}
 
 class VestingTest extends AnyFunSuite, ScalusTest {
     private val ownerPKH: PubKeyHash = Mock.mockPubKeyHash(0)

@@ -193,8 +193,11 @@ object ByteString extends ByteStringOffchainApi {
         /** Returns the length of the ByteString */
         inline def length: BigInt = Builtins.lengthOfByteString(self)
 
-        /** Checks if the ByteString is empty */
+        /** Checks if this ByteString is empty */
         inline def isEmpty: Boolean = self.length == BigInt(0)
+
+        /** Checks if this ByteString is empty */
+        inline def nonEmpty: Boolean = !isEmpty
 
         /** Concatenates two ByteStrings and returns a new ByteString */
         inline infix def ++(that: ByteString): ByteString =
