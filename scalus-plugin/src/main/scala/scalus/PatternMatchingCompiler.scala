@@ -2100,7 +2100,7 @@ class PatternMatchingCompiler(val compiler: SIRCompiler)(using Context) {
             //  TODO: better estimation of treshold
             //   lambda u (dtree u)
             val embedding =
-                if treeSize >= 5 then SirCaseDecisionTree.EmbeddingType.ByReference
+                if treeSize >= 10 then SirCaseDecisionTree.EmbeddingType.ByReference
                 else SirCaseDecisionTree.EmbeddingType.Inline
             val name = ctx.freshName(s"caseDTRef${index}_")
             prevDc.appended((compiledDecisionTree, embedding, name))

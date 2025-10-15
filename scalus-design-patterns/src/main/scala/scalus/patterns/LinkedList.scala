@@ -474,6 +474,13 @@ object LinkedList extends DataParameterizedValidator:
 
 object LinkedListContract:
 
+    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      generateErrorTraces = true,
+      optimizeUplc = true,
+      debug = false
+    )
+
     inline def make(param: Config)(using scalus.Compiler.Options) =
         import scalus.builtin.ToData.toData
         compile(LinkedList.validate).toUplc().plutusV3 $ param.toData
