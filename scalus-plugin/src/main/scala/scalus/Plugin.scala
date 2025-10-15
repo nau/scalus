@@ -226,7 +226,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 val start = System.currentTimeMillis()
                 val sirResult = compiler.compileToSIR(code, isCompileDebug)
 
-                  if isCompileDebug then
+                if isCompileDebug then
                     val time = System.currentTimeMillis() - start
                     report.echo(
                       s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"
