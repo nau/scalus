@@ -18,6 +18,7 @@ import scala.language.implicitConversions
 class LinkedListTest extends AnyFunSuite, ScalusTest:
     inline given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+      // targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,
       debug = false
