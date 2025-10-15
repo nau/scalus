@@ -136,6 +136,15 @@ object Lowering {
                         }
                         value
                     case None =>
+                        // Check if this is a UniversalDataConversion function used outside Apply
+                        if moduleName == "scalus.builtin.internal.UniversalDataConversion$" then
+                            throw LoweringException(
+                              s"UniversalDataConversion function '$name' appears as a standalone variable at ${ev.anns.pos.file}:${ev.anns.pos.startLine + 1}. " +
+                                  s"These functions must be applied to an argument and cannot be used as values " +
+                                  s"(e.g., passed as argument, returned, or stored). " +
+                                  s"This usually indicates the function is being used incorrectly in the code.",
+                              ev.anns.pos
+                            )
                         throw LoweringException(
                           s"External variable $name not found in the scope at ${ev.anns.pos.file}:${ev.anns.pos.startLine}",
                           ev.anns.pos

@@ -16,13 +16,13 @@ case class SIRLinkerOptions(
 )
 
 /** Links SIR definitions and data declarations into a single SIR module.
-  *
+ *
   * This class is responsible for linking SIR definitions and data declarations to create a single
-  * SIR module.
-  *
+ * SIR module.
+ *
   * It traverses the SIR tree and links external definitions and data declarations to the global
-  * definitions and data declarations.
-  */
+ * definitions and data declarations.
+ */
 class SIRLinker(options: SIRLinkerOptions, sirLoader: SIRLoader)(using ctx: Context) {
 
     private val globalDefs: mutable.LinkedHashMap[FullName, CompileDef] =
@@ -235,4 +235,4 @@ class SIRLinker(options: SIRLinkerOptions, sirLoader: SIRLoader)(using ctx: Cont
     }
 
 }
-*/
+ */

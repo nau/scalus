@@ -46,7 +46,6 @@ object Plugin {
     val SIR_MODULE_VAL_NAME = "sirModule"
     val SIR_DEPS_VAL_NAME = "sirDeps"
 
-
     def retrieveCompilerOptions(
         posTree: tpd.Tree,
         isCompilerDebug: Boolean
@@ -62,8 +61,7 @@ object Plugin {
           posTree.span
         ) match {
             case Implicits.SearchSuccess(tree, ref, level, isExtension) =>
-                if isCompilerDebug then
-                    report.echo(s"Found compiler options: ${tree.show}")
+                if isCompilerDebug then report.echo(s"Found compiler options: ${tree.show}")
                 tree
             case failure @ Implicits.SearchFailure(_) =>
                 if isCompilerDebug then {
@@ -76,12 +74,11 @@ object Plugin {
                 val scalusCompilerModule = requiredModule("scalus.Compiler")
                 val defaultOptionsMethod = scalusCompilerModule.requiredMethod("defaultOptions")
                 tpd.ref(scalusCompilerModule)
-                  .select(defaultOptionsMethod)
-                  .withSpan(posTree.span)
+                    .select(defaultOptionsMethod)
+                    .withSpan(posTree.span)
         }
 
     }
-
 
 }
 
@@ -118,22 +115,38 @@ class ScalusPreparePhase(debugLevel: Int) extends PluginPhase with IdentityDenot
     override def transformApply(tree: tpd.Apply)(using Context): tpd.Tree = {
         val compilerModule = requiredModule("scalus.Compiler")
         val compileSymbol = compilerModule.requiredMethod("compile")
-        val compile2Symbol = compilerModule.requiredMethod("compile2")
+        val compileWithOptionsSymbol = compilerModule.requiredMethod("compileWithOptions")
         val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
-        val compile2DebugSymbol = compilerModule.requiredMethod("compile2Debug")
+        val compileDebugWithOptionsSymbol = compilerModule.requiredMethod("compileDebugWithOptions")
+
+        // Logging to diagnose transformation issues
+        if debugLevel > 0 then
+            println(
+              s"ScalusPrepare.transformApply: checking tree at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line}"
+            )
+            println(s"  tree.symbol = ${tree.symbol.showFullName}")
+            println(s"  compileSymbol = ${compileSymbol.showFullName}")
+            println(s"  tree.symbol == compileSymbol: ${tree.symbol == compileSymbol}")
 
         if tree.symbol == compileSymbol then
+            if debugLevel > 0 then
+                println(
+                  s"  -> Transforming compile to compile2 at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line}"
+                )
             val optionsTree = Plugin.retrieveCompilerOptions(tree, isCompilerDebug = false)
             val newArgs = optionsTree :: tree.args
-            val newFun = tpd.ref(compile2Symbol).withSpan(tree.fun.span)
+            val newFun = tpd.ref(compileWithOptionsSymbol).withSpan(tree.fun.span)
             cpy.Apply(tree)(fun = newFun, args = newArgs).withSpan(tree.span)
         else if tree.symbol == compileDebugSymbol then
+            if debugLevel > 0 then
+                println(
+                  s"  -> Transforming compileDebug to compile2Debug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line}"
+                )
             val optionsTree = Plugin.retrieveCompilerOptions(tree, isCompilerDebug = true)
             val newArgs = optionsTree :: tree.args
-            val newFun = tpd.ref(compile2DebugSymbol).withSpan(tree.fun.span)
+            val newFun = tpd.ref(compileDebugWithOptionsSymbol).withSpan(tree.fun.span)
             cpy.Apply(tree)(fun = newFun, args = newArgs).withSpan(tree.span)
-        else 
-            tree
+        else tree
     }
 
 }
@@ -170,7 +183,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                 if debugLevel > 0 then
                     report.echo(s"Scalus: ${ctx.compilationUnit.source.file.name}")
                 val options = SIRCompilerOptions()
-                //val sirLoader = createSirLoader
+                // val sirLoader = createSirLoader
                 val compiler = new SIRCompiler(options)
                 compiler.compileModule(tree)
                 ctx
@@ -186,48 +199,46 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
         else ctx
     }
 
-    /** Replaces calls to `compile`, `compile2`, `compileDebug`, and `compile2Debug` with a fully linked Flat-encoded [[SIR]]
-      * representation.
+    /** Replaces calls to `compile`, `compile2`, `compileDebug`, and `compile2Debug` with a fully
+      * linked Flat-encoded [[SIR]] representation.
       */
     override def transformApply(tree: tpd.Apply)(using Context): tpd.Tree =
         try
             val compilerModule = requiredModule("scalus.Compiler")
             val compileSymbol = compilerModule.requiredMethod("compile")
-            val compile2Symbol = compilerModule.requiredMethod("compile2")
+            val compileWithOptionsSymbol = compilerModule.requiredMethod("compileWithOptions")
             val compileDebugSymbol = compilerModule.requiredMethod("compileDebug")
-            val compile2DebugSymbol = compilerModule.requiredMethod("compile2Debug")
+            val compileDebugWithOptionsSymbol = compilerModule.requiredMethod("compileDebugWithOptions")
 
-            
+            if tree.fun.symbol == compileWithOptionsSymbol || tree.fun.symbol == compileDebugWithOptionsSymbol then
+                // report.echo(s"transformApply: ${tree.showIndented(2)}")
 
-            if tree.fun.symbol == compile2Symbol || tree.fun.symbol == compile2DebugSymbol then
-                    // report.echo(s"transformApply: ${tree.showIndented(2)}")
-
-                  val isCompileDebug = tree.fun.symbol == compile2DebugSymbol
-                  val localDebugLevel =
+                val isCompileDebug = tree.fun.symbol == compileDebugWithOptionsSymbol
+                val localDebugLevel =
                     if debugLevel == 0 && isCompileDebug then 10
                     else debugLevel
 
-                  val (optionsTree, code) = (tree.args(0), tree.args(1))
-                  //val sirLoader = createSirLoader
-                  val compiler = new SIRCompiler()
-                  val start = System.currentTimeMillis()
-                  val sirResult = compiler.compileToSIR(code, isCompileDebug)
+                val (optionsTree, code) = (tree.args(0), tree.args(1))
+                // val sirLoader = createSirLoader
+                val compiler = new SIRCompiler()
+                val start = System.currentTimeMillis()
+                val sirResult = compiler.compileToSIR(code, isCompileDebug)
 
-                  if isCompileDebug then
+                if isCompileDebug then
                     val time = System.currentTimeMillis() - start
                     report.echo(
                       s"Scalus compileDebug at ${tree.srcPos.sourcePos.source}:${tree.srcPos.line} in $time ms"
                     )
 
-                  val flatTree = convertFlatToTree(
-                    sirResult,
-                    SIRHashConsedFlat,
-                    requiredModule("scalus.sir.ToExprHSSIRFlat"),
-                    tree.span,
-                    isCompileDebug
-                  )
+                val flatTree = convertFlatToTree(
+                  sirResult,
+                  SIRHashConsedFlat,
+                  requiredModule("scalus.sir.ToExprHSSIRFlat"),
+                  tree.span,
+                  isCompileDebug
+                )
 
-                  val result =
+                val result =
                     if true then
                         val myModuleName = s"${tree.srcPos.sourcePos.source}:${tree.srcPos.line}"
                         val dependencyEntries = compiler.gatherExternalModulesFromSir(
@@ -259,23 +270,23 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
                             .withSpan(tree.span)
                         sirLinkerCall
                     else flatTree
-                  result
-                /*  
+                result
+            /*
                 case Apply(fun, args) if fun.symbol == compileSymbol || fun.symbol == compileDebugSymbol =>
                     report.error(
                       s"ScalusPhase: Expected two list of arguments for ${fun.symbol.fullName}, but found one",
                       tree.srcPos
                     )
                     println(s"tree: ${tree.show}")
-                    tree  
-                */
+                    tree
+             */
             else if tree.fun.symbol == compileSymbol || tree.fun.symbol == compileDebugSymbol then
                 report.error(
-                  s"ScalusPhase: Impossible, symbols should be rewritten to compile2 instead ${tree.fun.symbol.fullName}",
+                  s"ScalusPhase: Impossible, symbols should be rewritten to compileWithOptions instead ${tree.fun.symbol.fullName}",
                   tree.srcPos
                 )
                 println(s"tree: ${tree.show}")
-                tree                      
+                tree
             else tree
         catch
             case scala.util.control.NonFatal(ex) =>
@@ -331,10 +342,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
           )
         )
     }
-    */
-
-
-    
+     */
 
     /*
     private def retrieveCompilerOptions(
@@ -639,7 +647,7 @@ class ScalusPhase(debugLevel: Int) extends PluginPhase {
             )
         retval
     }
-    */
+     */
 
     def createLinkerOptionsTree(
         optionsTree: tpd.Tree,

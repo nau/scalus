@@ -37,7 +37,7 @@ import scalus.serialization.flat.FlatInstances.ModuleHashSetReprFlat
   * }
   * }}}
   * sir_ and dpes_ wi
-  * 
+  *
   * Also, add default implementations for non-overriden inline abstract methods in Validator
   * subclasses.
   */
@@ -62,7 +62,7 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
                     )
                 sirSym.addAnnotation(ignoreAnnot)
                 sirSym.enteredAfter(thisPhase)
-                val module = SIRModule(SIRVersion, "init", List.empty)
+                val module = SIRModule(SIRVersion, "init", false, None, List.empty)
                 val moduleToExprSym = Symbols.requiredModule("scalus.sir.ModuleToExpr")
                 val moduleTree =
                     convertFlatToTree(
