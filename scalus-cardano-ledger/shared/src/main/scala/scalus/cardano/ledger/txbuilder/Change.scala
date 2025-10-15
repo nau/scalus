@@ -29,9 +29,9 @@ object Change {
             }
         } else if diff > 0 then {
             if changeOutputIdx >= 0 then {
-                updateChangeOutput(tx, changeOutputIdx, diff, protocolParams)
+                updateChangeOutput(tx, changeOutputIdx, diff)
             } else {
-                createChangeOutput(tx, changeAddress, diff, protocolParams)
+                createChangeOutput(tx, changeAddress, diff)
             }
         } else {
             if changeOutputIdx >= 0 then {
@@ -46,7 +46,6 @@ object Change {
         tx: Transaction,
         changeOutputIdx: Int,
         amountToAdd: Long,
-        protocolParams: ProtocolParams
     ): Either[TxBalancingError, Transaction] = {
         val currentOutput = tx.body.value.outputs(changeOutputIdx).value
         val newCoinValue = currentOutput.value.coin.value + amountToAdd
@@ -69,7 +68,6 @@ object Change {
         tx: Transaction,
         changeAddress: Address,
         amount: Long,
-        protocolParams: ProtocolParams
     ): Either[TxBalancingError, Transaction] = {
         val changeOutput: TransactionOutput = TransactionOutput.Babbage(
           address = changeAddress,

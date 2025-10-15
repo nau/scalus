@@ -4,7 +4,7 @@ import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.txbuilder.{BuilderContext, Environment, PubKeyWitness, TransactionUnspentOutput, Wallet as WalletTrait, Witness}
+import scalus.cardano.ledger.txbuilder.{Environment, PubKeyWitness, TransactionUnspentOutput, Wallet as WalletTrait, Witness}
 import scalus.uplc.eval.ExBudget
 import scalus.ledger.api.v3
 import scalus.uplc.Program

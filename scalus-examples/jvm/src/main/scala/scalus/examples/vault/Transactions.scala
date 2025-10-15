@@ -25,6 +25,7 @@ class Transactions(context: BuilderContext) {
         val ownerCredentialHash = owner match {
             case addr: scalus.cardano.address.ShelleyAddress =>
                 scalus.builtin.ByteString.fromArray(addr.payment.asHash.bytes)
+            case _ => return Left("Shelley addresses only.")
         }
         val datum = Datum(
           ownerCredentialHash,
@@ -58,7 +59,7 @@ class Transactions(context: BuilderContext) {
         )
         val vaultValue = vaultUtxo._2.value
 
-        val redeemer = Redeemer.Withdraw.toData
+        val redeemer = Redeemer.InitiateWithdrawal.toData
         PaymentBuilder(context)
             .spendScriptOutputs(
               vaultUtxo,
@@ -121,7 +122,7 @@ class Transactions(context: BuilderContext) {
                 .timeToSlot(currentDatum.finalizationDeadline.toLong) + 1
         val finalizationSlot = overrideValiditySlot.getOrElse(calculatedSlot)
 
-        val redeemer = Redeemer.Finalize.toData
+        val redeemer = Redeemer.FinalizeWithdrawal.toData
         PaymentBuilder(context)
             .spendScriptOutputs(vaultUtxo, redeemer, script)
             .withStep(

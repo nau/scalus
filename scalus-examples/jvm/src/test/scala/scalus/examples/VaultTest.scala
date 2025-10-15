@@ -3,7 +3,7 @@ package scalus.examples
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Wallet}
-import scalus.examples.vault.{Datum, Redeemer, State, Transactions, Vault, VaultContract}
+import scalus.examples.vault.{Datum, State, Transactions, VaultContract}
 import scalus.testkit.ScalusTest
 
 class VaultTest extends AnyFunSuite, ScalusTest {
@@ -67,7 +67,6 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         TestUtil.runValidator(VaultContract.script, tx, utxo, wallet, scriptInput)
 
     test("vault withdrawal request") {
-        pending
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 
@@ -97,6 +96,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
                   newDatum.finalizationDeadline > 0,
                   "Finalization deadline should be set"
                 )
+            case _ => fail("unreachable")
         }
     }
 
