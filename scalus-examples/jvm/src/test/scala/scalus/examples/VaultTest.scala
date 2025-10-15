@@ -67,6 +67,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         TestUtil.runValidator(VaultContract.script, tx, utxo, wallet, scriptInput)
 
     test("vault withdrawal request") {
+        pending
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 

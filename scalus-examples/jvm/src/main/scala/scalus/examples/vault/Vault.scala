@@ -172,40 +172,40 @@ object Vault extends Validator {
             case _ => fail(NoInlineDatum)
         }
 
-    private inline val NoDatumExists = "Contract has no datum"
+    inline val NoDatumExists = "Contract has no datum"
 
-    private inline val NoDatumProvided = "Vault transactions must have an inline datum"
+    inline val NoDatumProvided = "Vault transactions must have an inline datum"
 
-    private inline val FinalizationDeadlineChanged =
+    inline val FinalizationDeadlineChanged =
         "Deposit transactions must not change the finalization deadline"
 
-    private inline val VaultAmountChanged = "Datum amount must match output lovelace amount"
+    inline val VaultAmountChanged = "Datum amount must match output lovelace amount"
 
-    private inline val CannotAddTokens = "Deposits must only contain ADA"
+    inline val CannotAddTokens = "Deposits must only contain ADA"
 
-    private inline val AdaNotConserved = "Deposits must add ADA to the vault"
+    inline val AdaNotConserved = "Deposits must add ADA to the vault"
 
-    private inline val WrongDepositDestination =
+    inline val WrongDepositDestination =
         "Deposit transactions can only be made to the vault"
 
-    private inline val NotExactlyOneVaultOutput =
+    inline val NotExactlyOneVaultOutput =
         "Vault transaction must have exactly 1 output to the vault script"
 
-    private inline val OwnInputNotFound = "Own input not found"
+    inline val OwnInputNotFound = "Own input not found"
 
-    private inline val IncorrectDatumFinalization =
+    inline val IncorrectDatumFinalization =
         "Finalization deadline must be request time plus wait time"
 
-    private inline val MustBePending = "Output must have datum with State = Pending"
+    inline val MustBePending = "Output must have datum with State = Pending"
 
-    private inline val WithdrawalAlreadyPending =
+    inline val WithdrawalAlreadyPending =
         "Cannot withdraw, another withdrawal request is pending"
 
-    private inline val WrongAddressWithdrawal =
+    inline val WrongAddressWithdrawal =
         "Withdrawal finalization must send funds to the vault owner"
-    private inline val WithdrawalsMustNotSendBackToVault =
+    inline val WithdrawalsMustNotSendBackToVault =
         "Withdrawal finalization must not send funds back to the vault"
-    private inline val DeadlineNotPassed =
+    inline val DeadlineNotPassed =
         "Finalization can only happen after the finalization deadline"
     private inline val ContractMustBePending = "Contract must be Pending"
     private inline val WrongOutputAmount = "Cancel transactions must not change the vault amount"
