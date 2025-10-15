@@ -1,6 +1,7 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
+import scalus.serialization.flat.{w7l, DecoderState, EncoderState, Flat}
 
 import java.math.BigInteger
 
@@ -276,4 +277,32 @@ object Word64 {
                     Word64.fromBigInteger(reader.read[BigInteger]())
                 case other =>
                     reader.validationFailure(s"Expected integer for Word64, got $other")
+
+    given Flat[Word64] with {
+
+        def bitSize(a: Word64): Int =
+            val vs = w7l(a.value)
+            vs.length * 8
+
+        // Encoded as: data NonEmptyList = Elem Word7 | Cons Word7 NonEmptyList
+        def encode(a: Word64, encode: EncoderState): Unit =
+            val vs = w7l(a.value)
+            var i = 0
+            while i < vs.length do
+                encode.bits(8, vs(i))
+                i += 1
+
+        def decode(decode: DecoderState): Word64 =
+            var w = decode.bits8(8)
+            var r = 0L
+            var shl = 0
+            while (w & 0x80) != 0 do
+                r = r | ((w & 0x7f) << shl)
+                shl += 7
+                w = decode.bits8(8)
+
+            r = r | ((w & 0x7f) << shl)
+            Word64(r)
+    }
+
 }

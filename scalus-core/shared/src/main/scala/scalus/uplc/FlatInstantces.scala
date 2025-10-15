@@ -2,6 +2,7 @@ package scalus.uplc
 
 import io.bullet.borer.Cbor
 import scalus.builtin.Data
+import scalus.cardano.ledger.Word64
 import scalus.serialization.flat.{DecoderState, EncoderState, Flat, Natural, given}
 import scalus.serialization.flat
 import scalus.uplc.CommonFlatInstances.*
@@ -34,7 +35,7 @@ object FlatInstantces:
                           s"Variable '${name.name}' has index ${name.index}, which indicates an unbound/free variable. " +
                           s"This usually means the variable is not properly bound in the scope."
                     )
-                termTagWidth + summon[Flat[Natural]].bitSize(Natural(BigInt(name.index)))
+                termTagWidth + summon[Flat[Word64]].bitSize(Word64(name.index))
             case Const(c)     => termTagWidth + flatConstant.bitSize(c)
             case Apply(f, x)  => termTagWidth + bitSize(f) + bitSize(x)
             case LamAbs(x, t) => termTagWidth + bitSize(t)
@@ -43,7 +44,7 @@ object FlatInstantces:
             case Builtin(bn)  => termTagWidth + summon[Flat[DefaultFun]].bitSize(bn)
             case Error        => termTagWidth
             case Constr(tag, args) =>
-                termTagWidth + summon[Flat[Long]].bitSize(tag) + summon[Flat[List[Term]]]
+                termTagWidth + summon[Flat[Word64]].bitSize(Word64(tag)) + summon[Flat[List[Term]]]
                     .bitSize(args)
             case Case(arg, cases) =>
                 termTagWidth + bitSize(arg) + summon[Flat[List[Term]]].bitSize(cases)
@@ -58,7 +59,7 @@ object FlatInstantces:
                               s"This usually means the variable is not properly bound in the scope."
                         )
                     enc.bits(termTagWidth, 0)
-                    summon[Flat[Natural]].encode(Natural(BigInt(name.index)), enc)
+                    summon[Flat[Word64]].encode(Word64(name.index), enc)
                 case Term.Delay(term) =>
                     enc.bits(termTagWidth, 1)
                     encode(term, enc)
@@ -81,7 +82,7 @@ object FlatInstantces:
                     flat.encode(bn, enc)
                 case Constr(tag, args) =>
                     enc.bits(termTagWidth, 8)
-                    flat.encode(tag, enc)
+                    flat.encode[Word64](Word64(tag), enc)
                     flat.encode(args, enc)
                 case Case(arg, cases) =>
                     enc.bits(termTagWidth, 9)
@@ -92,7 +93,7 @@ object FlatInstantces:
             val tag = decoder.bits8(termTagWidth)
             tag match
                 case 0 =>
-                    val index = summon[Flat[Natural]].decode(decoder).n.toInt
+                    val index = summon[Flat[Word64]].decode(decoder).value.toInt
                     val name = s"i$index"
                     Term.Var(NamedDeBruijn(name, index))
                 case 1 =>
@@ -117,7 +118,10 @@ object FlatInstantces:
                 case 7 =>
                     Term.Builtin(flat.decode(decoder))
                 case 8 =>
-                    Term.Constr(tag = flat.decode(decoder), args = flat.decode(decoder))
+                    Term.Constr(
+                      tag = flat.decode[Word64](decoder).value,
+                      args = flat.decode(decoder)
+                    )
                 case 9 =>
                     Term.Case(arg = decode(decoder), cases = flat.decode(decoder))
 
