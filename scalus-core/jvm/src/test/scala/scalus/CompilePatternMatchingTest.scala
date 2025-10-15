@@ -470,4 +470,41 @@ class CompilePatternMatchingTest extends AnyFunSuite {
     }
      */
 
+    test("List in List pattern matching") {
+        import scalus.prelude.*
+        val compiled = compile { (l: List[List[BigInt]]) =>
+            l match
+                case List.Cons(headNode, List.Nil) => ()
+                case _                             => scalus.prelude.fail("123")
+        }
+
+        // println(compiled.pretty.render(100))
+
+        val uplc = compiled.toUplc(generateErrorTraces = true)
+
+        // Test case 1: List with exactly one inner list (should match first case and return Unit)
+        val arg1 = compile {
+            List.Cons(List.Cons(BigInt(1), List.Nil), List.Nil)
+        }.toUplc()
+        assert((uplc $ arg1).evaluate == Term.Const(Constant.Unit))
+
+        // Test case 2: Empty list (should match default case and fail)
+        val arg2 = compile {
+            List.Nil: List[List[BigInt]]
+        }.toUplc()
+        val result2 = (uplc $ arg2).evaluateDebug
+        assert(result2.isFailure)
+
+        // Test case 3: List with multiple inner lists (should match default case and fail)
+        val arg3 = compile {
+            List.Cons(
+              List.Cons(BigInt(1), List.Nil),
+              List.Cons(List.Cons(BigInt(2), List.Nil), List.Nil)
+            )
+        }.toUplc()
+        val result3 = (uplc $ arg3).evaluateDebug
+        assert(result3.isFailure)
+
+    }
+
 }

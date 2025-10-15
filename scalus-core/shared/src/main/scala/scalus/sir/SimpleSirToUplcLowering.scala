@@ -103,8 +103,10 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                 val matchedConstructors = mutable.HashSet.empty[String]
                 val expandedCases = mutable.ArrayBuffer.empty[SIR.Case]
                 val isUnchecked = anns.data.contains("unchecked")
+                val existsWidlcardCase = cases.exists(_.pattern == Pattern.Wildcard)
                 val enhanchedCases =
-                    if isUnchecked && cases.length < allConstructors.size then
+                    if isUnchecked && cases.length < allConstructors.size && !existsWidlcardCase
+                    then
                         cases :+ SIR.Case(
                           Pattern.Wildcard,
                           SIR.Error("Unexpected case", anns),
@@ -126,11 +128,16 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false):
                             )
                         case SIR.Case(Pattern.Wildcard, rhs, anns) =>
                             // If we have a wildcard case, it must be the last one
-                            if idx != enhanchedCases.length - 1 then
+                            if idx != enhanchedCases.length - 1 then {
+                                println(
+                                  s"Wildcard case must be the last in match expression at ${anns.pos.file}:${anns.pos.startLine}, ${anns.pos.startColumn}\n" +
+                                      s"Match expression: ${sir.show}\n" +
+                                      s"Cases: ${enhanchedCases.map(_.pattern).mkString(", ")}"
+                                )
                                 throw new IllegalArgumentException(
                                   s"Wildcard case must be the last and only one in match expression at ${anns.pos.file}:${anns.pos.startLine}, ${anns.pos.startColumn}"
                                 )
-                            else
+                            } else
                                 // Convert Wildcard to the rest of the cases/constructors
                                 val missingConstructors = allConstructors.filter(c =>
                                     !matchedConstructors.contains(c.name)

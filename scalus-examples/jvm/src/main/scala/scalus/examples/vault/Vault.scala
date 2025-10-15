@@ -291,10 +291,12 @@ object VaultContract:
       optimizeUplc = false
     )
 
-    val script: Program =
-        compiled
-            .toUplc(
-              generateErrorTraces = true,
-              backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-            )
-            .plutusV3
+    lazy val script: Program = createScript
+
+    private def createScript: Program = {
+        val sir = compiled
+        sir.toUplc(
+          generateErrorTraces = true,
+          backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
+        ).plutusV3
+    }

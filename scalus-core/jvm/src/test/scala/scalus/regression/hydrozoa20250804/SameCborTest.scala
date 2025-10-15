@@ -23,6 +23,9 @@ class SameCborTest extends AnyFunSuite {
         val sir1 = compile {
             DisputeResolutionValidator.validate
         }
+
+        // println(s"SIR: ${sir1.pretty.render(100)}")
+
         val uplc1_1 = sir1.toUplcOptimized()
         val uplc1_2 = sir1.toUplcOptimized()
 

@@ -187,7 +187,7 @@ case class ThreeArgumentPlutusScriptWitness(
 
 /** Specifies how the transaction should find the source code for the script.
   */
-sealed trait ScriptSource[+A <: PlutusScript | Script.Native]
+sealed trait ScriptSource[+A <: Script]
 
 object ScriptSource {
 
@@ -259,8 +259,7 @@ object TransactionBuilder:
         case class CertificateOperation(cert: Certificate) extends Operation:
             override def explain: String = "This stake certificate"
 
-        // TODO: should be `address: StakeAddress`?
-        case class Withdraw(address: Address) extends Operation:
+        case class Withdraw(address: StakeAddress) extends Operation:
             override def explain: String = "This stake rewards withdrawal"
 
         case class Proposing(proposal: ProposalProcedure) extends Operation:
@@ -294,7 +293,7 @@ object TransactionBuilder:
             override def witnessKind: WitnessKind = WitnessKind.ScriptBased
 
     /** A wrapper around a UTxO set that prevents adding conflicting pairs */
-    case class ResolvedUtxos private (utxos: UTxO) {
+    case class ResolvedUtxos private (utxos: Utxos) {
 
         /**   - If the UTxO does not exist in the map, add it.
           *   - If the UTxO exists in the map with a different output associated, return None
@@ -328,7 +327,7 @@ object TransactionBuilder:
 
     object ResolvedUtxos:
         val empty: ResolvedUtxos = ResolvedUtxos(Map.empty)
-        def apply(utxos: UTxO): ResolvedUtxos = new ResolvedUtxos(utxos)
+        def apply(utxos: Utxos): ResolvedUtxos = new ResolvedUtxos(utxos)
 
     /** An opaque context in which the builder operates.
       *
@@ -421,7 +420,7 @@ object TransactionBuilder:
         }
 
         /** Conversion help to Scalus [[Utxo]] */
-        def getUtxo: UTxO = this.resolvedUtxos.utxos
+        def getUtxo: Utxos = this.resolvedUtxos.utxos
 
         /** Validate a context according so a set of ledger rules */
         def validate(
@@ -786,7 +785,7 @@ object TransactionBuilder:
               unsafeCtxBodyL
                   .refocus(_.outputs)
                   // Intentionally not using pushUnique: we can create multiple outputs of the same shape
-                  .modify(outputs => outputs.toSeq :+ Sized(send.output))
+                  .modify(outputs => outputs :+ Sized(send.output))
             )
         } yield ()
 
@@ -1395,12 +1394,7 @@ object TransactionBuilder:
                             val detachedRedeemer = DetachedRedeemer(
                               datum = witness.redeemer,
                               purpose = credAction match {
-                                  case Operation.Withdraw(address) =>
-                                      val stakeAddress = address match {
-                                          case ShelleyAddress(_, _, _)           => ??? // FIXME:
-                                          case stakeAddress @ StakeAddress(_, _) => stakeAddress
-                                          case ByronAddress(_)                   => ??? // FIXME:
-                                      }
+                                  case Operation.Withdraw(stakeAddress) =>
                                       RedeemerPurpose.ForReward(
                                         RewardAccount(stakeAddress)
                                       )
@@ -1478,7 +1472,7 @@ object TransactionBuilder:
       */
     private def assertScriptHashMatchesSource(
         neededScriptHash: ScriptHash,
-        scriptSource: ScriptSource[PlutusScript | Script.Native]
+        scriptSource: ScriptSource[Script]
     ): BuilderM[Unit] =
         scriptSource match {
             case ScriptSource.NativeScriptValue(script) =>
@@ -1494,12 +1488,7 @@ object TransactionBuilder:
         scriptHash: ScriptHash,
         script: Script
     ): BuilderM[Unit] = {
-        val computedHash = script match {
-            case nativeScript: Script.Native => nativeScript.scriptHash
-            case plutusScript: PlutusScript  => plutusScript.scriptHash
-        }
-
-        if scriptHash != computedHash then {
+        if scriptHash != script.scriptHash then {
             liftF0(
               Left(IncorrectScriptHash(script, scriptHash))
             )
