@@ -274,7 +274,7 @@ final class SIRCompiler(
         val start = System.currentTimeMillis()
         val tpl = td.rhs.asInstanceOf[Template]
 
-        /*        
+        /*
         val staticInheritanceParents = td.tpe.parents.flatMap { p =>
             val hasAnnotation = p.typeSymbol.hasAnnotation(CompileAnnot)
             if hasAnnotation then
@@ -300,12 +300,12 @@ final class SIRCompiler(
         )
 
         val bindings = tpl.body.flatMap { tree =>
-            compileTreeInModule(baseEnv, td, tree).map{ lb =>
-               Binding(lb.fullName.name, lb.tp, lb.body)
+            compileTreeInModule(baseEnv, td, tree).map { lb =>
+                Binding(lb.fullName.name, lb.tp, lb.body)
             }
         }
 
-        //val bindings = localBindings.foldRight(List.empty[LocalBinding]) {
+        // val bindings = localBindings.foldRight(List.empty[LocalBinding]) {
         //    (element, bindings) => element +: bindings
         // }
 
@@ -328,7 +328,7 @@ final class SIRCompiler(
                       None
                     )
                   
-                     */
+         */
                     None
                 case Right(module) =>
                     val parentTypeParams = p.typeParams
@@ -368,7 +368,7 @@ final class SIRCompiler(
                     Binding(b.fullName.name, b.tp, newBody)
                 else Binding(b.fullName.name, b.tp, b.body)
             } ++ nonOverridedSupers.map(b => Binding(b.fullName.name, b.tp, b.body))
-        */
+         */
 
         val time = System.currentTimeMillis() - start
         if bindings.isEmpty then {
@@ -381,6 +381,8 @@ final class SIRCompiler(
                 Module(
                   SIRVersion,
                   moduleName,
+                  false,
+                  None,
                   bindings
                 )
 
@@ -741,10 +743,6 @@ final class SIRCompiler(
                 )
             // local def, use the name
             case (true, false) =>
-                if e.symbol.name.toString == "publicRest" then
-                    println(
-                      s"compileIdentOrQualifiedSelect: local var ${e.symbol} $name $fullName, term: ${e.show}, loc/glob: $isInLocalEnv/$isInGlobalEnv, env.get(name): ${env.vars.get(name).map(x => SIRType.unrollTypeProxy(x).show)}"
-                    )
                 val localType = env.vars(name)
                 (
                   SIR.Var(
@@ -2873,8 +2871,7 @@ final class SIRCompiler(
             )
         }
     }
-    */
-
+     */
 
     /*
     private def applyStaticInheritanceInSIR(
@@ -3136,14 +3133,13 @@ final class SIRCompiler(
                 val newSIR = SIR.Cast(newExpr, tp, anns)
                 (newSIR, exprChanged)
     }
-    */
+     */
 
     private def calculateLocalBindingFlags(tp: Type): LocalBingingFlags = {
         if tp.baseType(FromDataSymbol).exists || tp.baseType(ToDataSymbol).exists then
             LocalBindingFlags.ErasedOnDataRepr
         else LocalBindingFlags.None
     }
-    
 
     def gatherExternalModules(
         myModuleName: String,
@@ -3223,11 +3219,15 @@ final class SIRCompiler(
 
     }
 
+    /** Build tree which represent 'ModuleWithDeps' constant with dependencies for current module.
+      * return (tree for moduleWithDeps, optionsl limitation for backend.)
+      */
     def buildDepsTree(
         currentModuleName: String,
         dependencies: Map[String, SIR.ExternalVar],
         srcPos: SrcPos
     ): Tree = {
+        var requireV3Lowering = false
         val moduleWithDepsRefs = dependencies.map { case (name, externalVar) =>
             name -> {
                 val cName = name.replace("$", "")
@@ -3264,7 +3264,13 @@ final class SIRCompiler(
                             val moduleSym = Symbols.requiredModule(
                               "scalus.builtin.internal.UniversalDataConversion"
                             )
-                            Module(SIRVersion, moduleSym.fullName.toString, List.empty)
+                            Module(
+                              SIRVersion,
+                              moduleSym.fullName.toString,
+                              false,
+                              Some("S3LoweringBackend"),
+                              List.empty
+                            )
                         else
                             report.error(
                               s"Module ${cName}, referenced from var ${externalVar.name} at  ${externalVar.anns.pos.show} is not found\n" +
@@ -3272,7 +3278,7 @@ final class SIRCompiler(
                               srcPos
                             )
                             // write empty module instean.
-                            Module(SIRVersion, s"notfound:${cName}", List.empty)
+                            Module(SIRVersion, s"notfound:${cName}", false, None, List.empty)
                     val moduleToExprSym = Symbols.requiredModule("scalus.sir.ModuleToExpr")
                     val moduleTree = {
                         convertFlatToTree(

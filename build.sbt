@@ -279,7 +279,7 @@ lazy val scalus = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       scalaVersion := scalaVersion.value,
       scalacOptions ++= commonScalacOptions,
       scalacOptions += "-Xmax-inlines:100", // needed for upickle derivation of CostModel
-      // scalacOptions += "-P:scalus:debugLevel=50",
+      // scalacOptions += "-P:scalus:debugLevel=1",
 
       // Improve incremental compilation for cross-platform builds
       Compile / incOptions := {

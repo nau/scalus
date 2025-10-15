@@ -1517,20 +1517,26 @@ object FlatInstances:
         override def bitSizeHC(a: Module, hs: HashConsed.State): Int = {
             summon[Flat[(Int, Int)]].bitSize(a.version) +
                 summon[Flat[String]].bitSize(a.name) +
+                summon[Flat[Boolean]].bitSize(a.linked) +
+                summon[Flat[Option[String]]].bitSize(a.requireBackend) +
                 HashConsedReprFlat.listRepr(BindingFlat).bitSizeHC(a.defs, hs)
         }
 
         override def encodeHC(a: Module, enc: HashConsedEncoderState): Unit =
             summon[Flat[(Int, Int)]].encode(a.version, enc.encode)
             summon[Flat[String]].encode(a.name, enc.encode)
+            summon[Flat[Boolean]].encode(a.linked, enc.encode)
+            summon[Flat[Option[String]]].encode(a.requireBackend, enc.encode)
             HashConsedReprFlat.listRepr(BindingFlat).encodeHC(a.defs, enc)
 
         override def decodeHC(decoder: HashConsedDecoderState): HashConsedRef[Module] = {
             val version = summon[Flat[(Int, Int)]].decode(decoder.decode)
             val name = summon[Flat[String]].decode(decoder.decode)
+            val linked = summon[Flat[Boolean]].decode(decoder.decode)
+            val requireBackend = summon[Flat[Option[String]]].decode(decoder.decode)
             val defs = HashConsedReprFlat.listRepr(BindingFlat).decodeHC(decoder)
             HashConsedRef.deferred((hs, l, ps) =>
-                Module(version, name, defs.finValue(hs, l + 1, ps))
+                Module(version, name, linked, requireBackend, defs.finValue(hs, l + 1, ps))
             )
         }
 

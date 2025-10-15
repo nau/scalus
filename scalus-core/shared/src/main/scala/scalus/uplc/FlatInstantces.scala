@@ -28,6 +28,12 @@ object FlatInstantces:
         def bitSize(a: Term): Int = a match
             case Var(name) =>
                 // in Plutus See Note [Index (Word64) (de)serialized through Natural]
+                if name.index < 0 then
+                    throw new IllegalArgumentException(
+                      s"Cannot serialize UPLC Var with negative de Bruijn index. " +
+                          s"Variable '${name.name}' has index ${name.index}, which indicates an unbound/free variable. " +
+                          s"This usually means the variable is not properly bound in the scope."
+                    )
                 termTagWidth + summon[Flat[Natural]].bitSize(Natural(BigInt(name.index)))
             case Const(c)     => termTagWidth + flatConstant.bitSize(c)
             case Apply(f, x)  => termTagWidth + bitSize(f) + bitSize(x)
@@ -45,6 +51,12 @@ object FlatInstantces:
         def encode(a: Term, enc: EncoderState): Unit =
             a match
                 case Term.Var(name) =>
+                    if name.index < 0 then
+                        throw new IllegalArgumentException(
+                          s"Cannot serialize UPLC Var with negative de Bruijn index. " +
+                              s"Variable '${name.name}' has index ${name.index}, which indicates an unbound/free variable. " +
+                              s"This usually means the variable is not properly bound in the scope."
+                        )
                     enc.bits(termTagWidth, 0)
                     summon[Flat[Natural]].encode(Natural(BigInt(name.index)), enc)
                 case Term.Delay(term) =>

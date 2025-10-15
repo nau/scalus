@@ -17,7 +17,8 @@ case class SIRLinkerOptions(
 object SIRLinkerOptions {
     def fromCompilerOptions(compilerOptions: scalus.Compiler.Options): SIRLinkerOptions = {
         SIRLinkerOptions(
-          useUniversalDataConversion = compilerOptions.runtimeLinker,
+          useUniversalDataConversion =
+              compilerOptions.targetLoweringBackend == scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
           printErrors = true,
           debugLevel = compilerOptions.debugLevel
         )
@@ -44,9 +45,11 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
     private val moduleDefsCache: mutable.Map[String, mutable.LinkedHashMap[String, SIR]] =
         mutable.LinkedHashMap.empty.withDefaultValue(mutable.LinkedHashMap.empty)
 
-    private val debugLevel: Int = if  options.debugLevel != 0 then options.debugLevel else 20
+    private val debugLevel: Int = if options.debugLevel != 0 then options.debugLevel else 0
 
     private var errorLog: List[(String, SIRPosition)] = List.empty
+
+    private var requireV3Backend: Boolean = false
 
     def retrieveErrors: List[(String, SIRPosition)] = {
         errorLog
@@ -62,7 +65,9 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
 
     def link(sir: SIR, pos: SIRPosition): SIR = {
         if debugLevel > 1 then
-            println(s"Linking SIR at ${pos.show}, options=$options, modules: ${moduleDefs.keys.mkString(", ")}")
+            println(
+              s"Linking SIR at ${pos.show}, options=$options, modules: ${moduleDefs.keys.mkString(", ")}"
+            )
             moduleDefs.get("scalus.prelude.List$") match
                 case Some(m) =>
                     println(s"Prelude module found with defs: ${m.defs.map(_.name).mkString(", ")}")
@@ -120,6 +125,8 @@ class SIRLinker(options: SIRLinkerOptions, moduleDefs: Map[String, Module]) {
                     val msg =
                         s"Unknown external variable in universal data conversion module: ${name}"
                     error(msg, ann.pos, v)
+                // For fromData/toData, we allow them as ExternalVar here
+                // They will be handled during UPLC lowering in Apply position
             else linkDefinition(moduleName, name, pos, tp, ann)
             v
         case v @ SIR.Let(bindings, body, flags, anns) =>
