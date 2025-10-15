@@ -54,11 +54,11 @@ object HtlcValidator extends Validator:
 
     // Helper methods
     extension (self: TxInfo)
-        private def isSignedBy(pubKeyHash: PubKeyHash): Boolean =
+        def isSignedBy(pubKeyHash: PubKeyHash): Boolean =
             self.signatories.exists { _.hash === pubKeyHash }
 
     extension (self: Interval)
-        private infix def isAfter(timePoint: PosixTime): Boolean =
+        infix def isAfter(timePoint: PosixTime): Boolean =
             self.from.boundType match
                 case IntervalBoundType.Finite(time) => timePoint < time
                 case _                              => false
@@ -73,7 +73,7 @@ object HtlcValidator extends Validator:
     inline val InvalidReceiverPreimage = "Invalid receiver preimage"
 
     @Ignore
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,

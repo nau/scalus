@@ -9,7 +9,7 @@ import scalus.cardano.ledger.txbuilder.{BuilderContext, PaymentBuilder}
 
 class Transactions(context: BuilderContext) {
     val wallet = context.wallet
-    val script = PlutusV3(VaultContract.script.cborByteString)
+    lazy val script = PlutusV3(VaultContract.script.cborByteString)
     val scriptAddress = Address(context.env.network, Credential.ScriptHash(script.scriptHash))
 
     def lock(

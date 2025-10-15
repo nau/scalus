@@ -85,7 +85,8 @@ object Compiler:
       * @return
       *   The compiled [[SIR]].
       */
-    def compileDebugWithOptions(options: Options, e: Any): SIR = throwCompilerPluginMissingException()
+    def compileDebugWithOptions(options: Options, e: Any): SIR =
+        throwCompilerPluginMissingException()
 
     /** Compiles the given expression to a [[SIRType]] at compile time using the Scalus compiler
       * plugin.

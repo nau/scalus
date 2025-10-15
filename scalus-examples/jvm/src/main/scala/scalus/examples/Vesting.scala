@@ -9,7 +9,7 @@ import scalus.ledger.api.v2.OutputDatum
 import scalus.builtin.Data
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.ledger.api.v1.Value.getLovelace
-import scalus.Compiler.compile
+import scalus.Compiler.compileWithOptions
 import scalus.cardano.blueprint.{Application, Blueprint}
 
 case class VestingDatum(
@@ -124,7 +124,9 @@ object Vesting extends Validator:
 
 object VestingContract:
 
-    inline def compiled(using scalus.Compiler.Options) = compile(Vesting.validate)
+    inline def compiled(using options: scalus.Compiler.Options) = {
+        compileWithOptions(options, Vesting.validate)
+    }
 
     def application: Application = Application
         .ofSingleValidator[VestingDatum, VestingRedeemer](
