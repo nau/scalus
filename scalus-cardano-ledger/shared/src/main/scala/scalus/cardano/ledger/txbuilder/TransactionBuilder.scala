@@ -367,6 +367,10 @@ object TransactionBuilder:
             this |> Focus[Context](_.expectedSigners).modify(_ ++ additionalSigners)
         }
 
+        def replaceRedeemers(newRedeemers: Seq[DetachedRedeemer]): Context = {
+            this |> Focus[Context](_.redeemers).replace(newRedeemers)
+        }
+
         /** Ensure that all transaction outputs in the context have min ada. */
         def setMinAdaAll(protocolParams: ProtocolParams): Context = {
             this |> unsafeCtxBodyL
