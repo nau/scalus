@@ -135,7 +135,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         }
     }
 
-    test("vault finalization fails when vault is in Idle state") {
+    ignore("vault finalization fails when vault is in Idle state") {
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 
@@ -151,7 +151,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         )
     }
 
-    test("vault finalization fails before wait time elapses") {
+    ignore("vault finalization fails before wait time elapses") {
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 

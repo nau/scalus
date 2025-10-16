@@ -8,6 +8,7 @@ import scalus.cardano.ledger.txbuilder.{BuilderContext, Wallet}
 import scalus.examples.TestUtil
 import scalus.ledger.api.v1.PosixTime
 import scalus.testkit.ScalusTest
+import scalus.plutusV3
 
 class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
@@ -86,7 +87,8 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         val wallet = TestUtil.createTestWallet(receiverAddress, receiverWalletInput)
         val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
 
-        val result = runValidator(revealTx, utxos, wallet, htlcUtxo._1)
+        val scriptContext = TestUtil.getScriptContext(revealTx, utxos, htlcUtxo._1)
+        val result = HtlcValidator.script.term.plutusV3.runWithDebug(scriptContext)
 
         assert(result.isSuccess)
 
@@ -107,23 +109,18 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         val lockTx = lockHtlc()
         val htlcUtxo = TestUtil.getScriptUtxo(lockTx)
 
-        val wrongPreimage = genByteStringOfN(32).sample.get
+        val wrongPreimage = genByteStringOfN(12).sample.get
+        val revealTx = revealHtlc(htlcUtxo, wrongPreimage)
 
         val receiverWalletInput = 50_000_000L
         val wallet = TestUtil.createTestWallet(receiverAddress, receiverWalletInput)
-        val context = BuilderContext(env, wallet)
-        val validityStartSlot =
-            CardanoInfo.mainnet.slotConfig.timeToSlot(beforeTimeout.toLong)
+        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
 
-        val revealResult = new Transactions(context)
-            .reveal(htlcUtxo, wrongPreimage, receiverAddress, receiverPkh, validityStartSlot)
+        val scriptContext = TestUtil.getScriptContext(revealTx, utxos, htlcUtxo._1)
+        val result = HtlcValidator.script.term.plutusV3.runWithDebug(scriptContext)
 
-        assert(revealResult.isLeft)
-        revealResult match {
-            case Left(message) => assert(message.contains("Error evaluated"))
-            case _             => fail()
-        }
-
+        assert(result.isFailure)
+        assert(result.logs.last.contains(HtlcValidator.InvalidReceiverPreimage))
     }
 
     test("receiver fails after timeout") {
@@ -132,18 +129,21 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         val receiverWalletInput = 50_000_000L
         val wallet = TestUtil.createTestWallet(receiverAddress, receiverWalletInput)
+        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
+
         val context = BuilderContext(env, wallet)
         val validityStartSlot =
             CardanoInfo.mainnet.slotConfig.timeToSlot(afterTimeout.toLong)
 
-        val revealResult = new Transactions(context)
+        val revealTx = new Transactions(context)
             .reveal(htlcUtxo, validPreimage, receiverAddress, receiverPkh, validityStartSlot)
+            .getOrElse(???)
 
-        assert(revealResult.isLeft)
-        revealResult match {
-            case Left(errorMsg) => assert(errorMsg.contains("Error evaluated"))
-            case _              => fail()
-        }
+        val scriptContext = TestUtil.getScriptContext(revealTx, utxos, htlcUtxo._1)
+        val result = HtlcValidator.script.term.plutusV3.runWithDebug(scriptContext)
+
+        assert(result.isFailure)
+        assert(result.logs.last.contains(HtlcValidator.InvalidReceiverTimePoint))
     }
 
     test("committer reclaims after timeout") {
@@ -156,7 +156,8 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         val wallet = TestUtil.createTestWallet(committerAddress, committerWalletInput)
         val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
 
-        val result = runValidator(timeoutTx, utxos, wallet, htlcUtxo._1)
+        val scriptContext = TestUtil.getScriptContext(timeoutTx, utxos, htlcUtxo._1)
+        val result = HtlcValidator.script.term.plutusV3.runWithDebug(scriptContext)
 
         assert(result.isSuccess)
 
@@ -178,19 +179,20 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         val committerWalletInput = 50_000_000L
         val wallet = TestUtil.createTestWallet(committerAddress, committerWalletInput)
-        val context = BuilderContext(env, wallet)
+        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
 
+        val context = BuilderContext(env, wallet)
         val validityStartSlot =
             CardanoInfo.mainnet.slotConfig.timeToSlot(beforeTimeout.toLong)
 
-        val timeoutResult = new Transactions(context)
+        val timeoutTx = new Transactions(context)
             .timeout(htlcUtxo, committerAddress, committerPkh, validityStartSlot)
+            .getOrElse(???)
 
-        assert(timeoutResult.isLeft)
+        val scriptContext = TestUtil.getScriptContext(timeoutTx, utxos, htlcUtxo._1)
+        val result = HtlcValidator.script.term.plutusV3.runWithDebug(scriptContext)
 
-        val errorMsg = timeoutResult match {
-            case Left(errorMsg) => assert(errorMsg.contains("Error evaluated"))
-            case _              => fail()
-        }
+        assert(result.isFailure)
+        assert(result.logs.last.contains(HtlcValidator.InvalidCommitterTimePoint))
     }
 }

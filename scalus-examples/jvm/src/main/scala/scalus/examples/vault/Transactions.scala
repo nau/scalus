@@ -50,7 +50,7 @@ class Transactions(context: BuilderContext) {
 
         // Calculate the absolute finalization deadline
         val requestTime =
-            BigInt(context.env.evaluator.slotConfig.slotToTime(validityStartSlot))
+            BigInt(context.env.slotConfig.slotToTime(validityStartSlot))
         val finalizationDeadline = requestTime + currentDatum.waitTime
 
         val newDatum = currentDatum.copy(
@@ -118,7 +118,7 @@ class Transactions(context: BuilderContext) {
         val vaultValue = vaultUtxo._2.value
 
         val calculatedSlot =
-            context.env.evaluator.slotConfig
+            context.env.slotConfig
                 .timeToSlot(currentDatum.finalizationDeadline.toLong) + 1
         val finalizationSlot = overrideValiditySlot.getOrElse(calculatedSlot)
 

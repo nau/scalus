@@ -17,12 +17,8 @@ object TestUtil extends ScalusTest {
 
     val testEnvironment: Environment = Environment(
       protocolParams = testProtocolParams,
-      evaluator = PlutusScriptEvaluator(
-        CardanoInfo.mainnet.slotConfig,
-        initialBudget = ExBudget.enormous,
-        protocolMajorVersion = CardanoInfo.mainnet.majorProtocolVersion,
-        costModels = testProtocolParams.costModels
-      ),
+      slotConfig = CardanoInfo.mainnet.slotConfig,
+      evaluator = (tx: Transaction, utxos: Map[TransactionInput, TransactionOutput]) => Seq.empty,
       network = CardanoInfo.mainnet.network
     )
 
