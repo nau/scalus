@@ -63,7 +63,7 @@ object Vault extends Validator {
         }
     }
 
-    private def deposit(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def deposit(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         val ownInput = tx.findOwnInput(ownRef).getOrFail(OwnInputNotFound)
 
         val out = getVaultOutput(tx, ownRef)
@@ -84,7 +84,7 @@ object Vault extends Validator {
         )
     }
 
-    private def initiateWithdrawal(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def initiateWithdrawal(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         require(
           datum.state.isIdle,
           WithdrawalAlreadyPending
@@ -108,7 +108,7 @@ object Vault extends Validator {
         )
     }
 
-    private def finalize(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def finalize(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         require(datum.state.isPending, ContractMustBePending)
         require(tx.validRange.isAfter(datum.finalizationDeadline), DeadlineNotPassed)
         val ownInput = tx.findOwnInput(ownRef).getOrFail(OwnInputNotFound)
@@ -123,10 +123,10 @@ object Vault extends Validator {
         require(ownerOutputs.size > BigInt(0), WrongAddressWithdrawal)
         val totalToOwner =
             ownerOutputs.foldLeft(BigInt(0))((acc, out) => acc + out.value.getLovelace)
-        require(totalToOwner == datum.amount, VaultAmountChanged)
+        require(totalToOwner >= datum.amount, VaultAmountChanged)
     }
 
-    private def cancel(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def cancel(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         val out = getVaultOutput(tx, ownRef)
         requireSameOwner(out, datum)
         val vaultDatum = getVaultDatum(out)
@@ -139,16 +139,16 @@ object Vault extends Validator {
         require(vaultDatum.waitTime == datum.waitTime, WaitTimeChanged)
     }
 
-    private def requireEntireVaultIsSpent(datum: Datum, output: TxOut) = {
+    def requireEntireVaultIsSpent(datum: Datum, output: TxOut) = {
         val amountToSpend = datum.amount
         val adaSpent = output.value.getLovelace
         require(amountToSpend == adaSpent, AdaLeftover)
     }
 
-    private def requireOutputToOwnAddress(ownInput: TxInInfo, out: TxOut, message: String) =
+    def requireOutputToOwnAddress(ownInput: TxInInfo, out: TxOut, message: String) =
         require(out.address.credential === ownInput.resolved.address.credential, message)
 
-    private def getVaultOutput(tx: TxInfo, ownRef: TxOutRef): TxOut = {
+    def getVaultOutput(tx: TxInfo, ownRef: TxOutRef): TxOut = {
         val ownInput = tx.findOwnInput(ownRef).getOrFail("Cannot find own input")
         val scriptOutputs = tx.outputs.filter(out =>
             out.address.credential === ownInput.resolved.address.credential
@@ -157,12 +157,12 @@ object Vault extends Validator {
         scriptOutputs.head
     }
 
-    private def getVaultDatum(vaultOutput: TxOut) = vaultOutput.datum match {
+    def getVaultDatum(vaultOutput: TxOut) = vaultOutput.datum match {
         case ledger.api.v2.OutputDatum.OutputDatum(d) => d.to[Datum]
         case _                                        => fail(NoDatumProvided)
     }
 
-    private def requireSameOwner(out: TxOut, datum: Datum) =
+    def requireSameOwner(out: TxOut, datum: Datum) =
         out.datum match {
             case scalus.ledger.api.v2.OutputDatum.OutputDatum(newDatum) =>
                 require(
@@ -172,50 +172,39 @@ object Vault extends Validator {
             case _ => fail(NoInlineDatum)
         }
 
+    // Errors
     inline val NoDatumExists = "Contract has no datum"
-
     inline val NoDatumProvided = "Vault transactions must have an inline datum"
-
     inline val FinalizationDeadlineChanged =
         "Deposit transactions must not change the finalization deadline"
-
     inline val VaultAmountChanged = "Datum amount must match output lovelace amount"
-
     inline val CannotAddTokens = "Deposits must only contain ADA"
-
     inline val AdaNotConserved = "Deposits must add ADA to the vault"
-
     inline val WrongDepositDestination =
         "Deposit transactions can only be made to the vault"
-
     inline val NotExactlyOneVaultOutput =
         "Vault transaction must have exactly 1 output to the vault script"
-
     inline val OwnInputNotFound = "Own input not found"
-
     inline val IncorrectDatumFinalization =
         "Finalization deadline must be request time plus wait time"
-
     inline val MustBePending = "Output must have datum with State = Pending"
-
     inline val WithdrawalAlreadyPending =
         "Cannot withdraw, another withdrawal request is pending"
-
     inline val WrongAddressWithdrawal =
         "Withdrawal finalization must send funds to the vault owner"
     inline val WithdrawalsMustNotSendBackToVault =
         "Withdrawal finalization must not send funds back to the vault"
     inline val DeadlineNotPassed =
         "Finalization can only happen after the finalization deadline"
-    private inline val ContractMustBePending = "Contract must be Pending"
-    private inline val WrongOutputAmount = "Cancel transactions must not change the vault amount"
-    private inline val WaitTimeChanged = "Wait time must remain the same"
-    private inline val StateNotIdle = "Idle transactions must change the vault state to Idle"
-    private inline val NoInlineDatum = "Vault transactions must have an inline datum"
-    private inline val VaultOwnerChanged = "Vault transactions cannot change the vault owner"
-    private inline val AdaLeftover = "Must spend entire vault"
+    inline val ContractMustBePending = "Contract must be Pending"
+    inline val WrongOutputAmount = "Cancel transactions must not change the vault amount"
+    inline val WaitTimeChanged = "Wait time must remain the same"
+    inline val StateNotIdle = "Idle transactions must change the vault state to Idle"
+    inline val NoInlineDatum = "Vault transactions must have an inline datum"
+    inline val VaultOwnerChanged = "Vault transactions cannot change the vault owner"
+    inline val AdaLeftover = "Must spend entire vault"
 
-    private def addressEquals(left: Credential, right: ByteString) = {
+    def addressEquals(left: Credential, right: ByteString) = {
         left match {
             case v1.Credential.PubKeyCredential(hash) => hash.hash === right
             case v1.Credential.ScriptCredential(hash) => hash === right
@@ -259,7 +248,7 @@ object VaultContract:
 
     lazy val script: Program = createScript
 
-    private def createScript: Program = {
+    def createScript: Program = {
         val sir = compiled
         sir.toUplc().plutusV3
     }
