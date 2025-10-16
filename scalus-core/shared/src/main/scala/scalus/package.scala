@@ -2,6 +2,7 @@ import org.typelevel.paiges.Doc
 import scalus.cardano.ledger.Language
 import scalus.sir.PrettyPrinter.Style
 import scalus.sir.lowering.*
+import scalus.sir.simpleLowering.{SimpleSirToUplcLowering, SirToUplc110Lowering}
 import scalus.sir.*
 import scalus.uplc.eval.*
 import scalus.uplc.transform.{CaseConstrApply, EtaReduce, ForcedBuiltinsExtractor, Inliner}

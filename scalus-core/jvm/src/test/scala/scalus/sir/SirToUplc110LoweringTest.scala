@@ -6,6 +6,7 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.v3.TxId
+import scalus.sir.simpleLowering.SirToUplc110Lowering
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
 import scalus.uplc.{Constant, DeBruijn, DefaultFun, Term}
