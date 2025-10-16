@@ -4,19 +4,11 @@ import scalus.builtin.Data
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 
-case class DelayedRedeemerSpec(
-    utxo: TransactionUnspentOutput,
-    redeemerBuilder: Transaction => Data,
-    validator: PlutusScript,
-    datum: Option[Data]
-)
-
 case class PaymentBuilder(
     context: BuilderContext,
     wallet: Wallet,
     payments: Seq[(Address, Value, Option[DatumOption])] = Seq.empty,
     scriptInputs: Set[(TransactionUnspentOutput, Witness)] = Set.empty,
-    delayedRedeemers: Seq[DelayedRedeemerSpec] = Seq.empty,
     collateral: Option[(TransactionUnspentOutput, Witness)] = None,
     additionalSteps: Seq[TransactionBuilderStep] = Seq.empty
 ) {
@@ -52,13 +44,14 @@ case class PaymentBuilder(
         validator: PlutusScript,
         datum: Option[Data] = None
     ): PaymentBuilder = {
-        val spec = DelayedRedeemerSpec(
-          utxo = TransactionUnspentOutput(utxo),
-          redeemerBuilder = redeemerBuilder,
-          validator = validator,
-          datum = datum
+        withStep(
+          TransactionBuilderStep.SpendWithDelayedRedeemer(
+            utxo = TransactionUnspentOutput(utxo),
+            redeemerBuilder = redeemerBuilder,
+            validator = validator,
+            datum = datum
+          )
         )
-        copy(delayedRedeemers = delayedRedeemers :+ spec)
     }
 
     def spendOutputs(
@@ -81,29 +74,6 @@ case class PaymentBuilder(
     def withSteps(steps: Seq[TransactionBuilderStep]): PaymentBuilder =
         copy(additionalSteps = additionalSteps ++ steps)
 
-    private def replaceDelayedRedeemers(
-        txContext: TransactionBuilder.Context,
-        specs: Seq[DelayedRedeemerSpec],
-        sortedTx: Transaction
-    ): Either[String, TransactionBuilder.Context] = {
-        try {
-            val updatedRedeemers = specs.foldLeft(txContext.redeemers) { (redeemers, spec) =>
-                val realRedeemerData = spec.redeemerBuilder(sortedTx)
-                redeemers.map {
-                    case dr @ DetachedRedeemer(_, RedeemerPurpose.ForSpend(input))
-                        if input == spec.utxo.input =>
-                        dr.copy(datum = realRedeemerData)
-                    case other => other
-                }
-            }
-
-            Right(txContext.replaceRedeemers(updatedRedeemers))
-        } catch {
-            case e: Exception =>
-                Left(s"Failed to compute delayed redeemer: ${e.getMessage}")
-        }
-    }
-
     def build(): Either[String, Transaction] = {
         val totalRequired = payments.foldLeft(Value.zero)((acc, p) => acc + p._2)
 
@@ -125,18 +95,6 @@ case class PaymentBuilder(
                 }
             }
 
-            delayedInputSteps = delayedRedeemers.map { d =>
-                // a non-unit dummy redeemer data
-                val dummyRedeemerData = Data.I(0)
-                val witness = ThreeArgumentPlutusScriptWitness(
-                  scriptSource = ScriptSource.PlutusScriptValue(d.validator),
-                  redeemer = dummyRedeemerData,
-                  datum = d.datum.map(Datum.DatumValue.apply).getOrElse(Datum.DatumInlined),
-                  additionalSigners = Set.empty
-                )
-                TransactionBuilderStep.Spend(d.utxo, witness)
-            }
-
             outputSteps = payments.map { case (addr, value, datum) =>
                 TransactionBuilderStep.Send(
                   TransactionOutput.Babbage(
@@ -154,19 +112,12 @@ case class PaymentBuilder(
                 .map(x => TransactionBuilderStep.AddCollateral(x._1))
 
             allSteps =
-                inputSteps ++ delayedInputSteps ++ outputSteps ++ collateralSteps ++ additionalSteps
+                inputSteps ++ outputSteps ++ collateralSteps ++ additionalSteps
 
-            txContext <- TransactionBuilder
+            resolvedContext <- TransactionBuilder
                 .build(context.env.network, allSteps.toSeq)
                 .left
                 .map(_.toString)
-
-            resolvedContext <-
-                if delayedRedeemers.nonEmpty then {
-                    replaceDelayedRedeemers(txContext, delayedRedeemers, txContext.transaction)
-                } else {
-                    Right(txContext)
-                }
 
             diffHandler = (diff: Long, tx: Transaction) =>
                 Change.handleChange(

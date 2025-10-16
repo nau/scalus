@@ -52,13 +52,7 @@ class TransactionBuilderTest extends AnyFunSuite, ScalaCheckPropertyChecks {
     def testBuilderSteps(
         label: String,
         steps: Seq[TransactionBuilderStep],
-        expected: (
-            Transaction,
-            Seq[DetachedRedeemer],
-            Network,
-            Set[ExpectedSigner],
-            ResolvedUtxos
-        )
+        expected: ContextTuple
     ): Unit =
         test(label) {
             val res = TransactionBuilder.build(Mainnet, steps)
@@ -235,6 +229,46 @@ class TransactionBuilderTest extends AnyFunSuite, ScalaCheckPropertyChecks {
       steps = List(Spend(pkhUtxo, PubKeyWitness), Spend(pkhUtxoTestNet, PubKeyWitness)),
       error = WrongNetworkId(pkhUtxoTestNet.output.address)
     )
+
+    test("SpendWithDelayedRedeemer sees transaction inputs") {
+        val redeemerBuilder: Transaction => Data = { tx =>
+            val inputCount = tx.body.value.inputs.toSeq.size
+            Data.Constr(0, List(Data.I(inputCount)))
+        }
+
+        val delayedStep = SpendWithDelayedRedeemer(
+          utxo = script1Utxo,
+          redeemerBuilder = redeemerBuilder,
+          validator = script1,
+          datum = None
+        )
+
+        val steps = Seq(
+          Spend(pkhUtxo, PubKeyWitness),
+          delayedStep,
+          Send(
+            Babbage(
+              address = pkhOutput.address,
+              value = Value(Coin(1_000_000L)),
+              datumOption = None,
+              scriptRef = None
+            )
+          )
+        )
+
+        val result = TransactionBuilder.build(Mainnet, steps)
+        val context = result.toOption.get
+        val scriptRedeemer = context.redeemers.collectFirst {
+            case DetachedRedeemer(datum, RedeemerPurpose.ForSpend(input))
+                if input == script1Utxo.input =>
+                datum
+        }
+        scriptRedeemer match {
+            case Some(Data.Constr(0, List(Data.I(inCount)))) =>
+                assert(inCount == 2)
+            case other => fail("unreachable")
+        }
+    }
 
     // ============================================================================
     // Spending with ref script from referenced utxo
@@ -863,5 +897,6 @@ private type ContextTuple = (
     Seq[DetachedRedeemer],
     Network,
     Set[ExpectedSigner],
-    ResolvedUtxos
+    ResolvedUtxos,
+    Seq[DelayedRedeemerSpec]
 )
