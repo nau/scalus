@@ -350,7 +350,7 @@ enum CekValue {
     case VDelay(term: Term, env: CekValEnv)
     case VLamAbs(name: String, term: Term, env: CekValEnv)
     case VBuiltin(bn: DefaultFun, term: () => Term, runtime: BuiltinRuntime)
-    case VConstr(tag: Long, args: Seq[CekValue])
+    case VConstr(tag: Word64, args: Seq[CekValue])
 
     override def toString: String = this match
         case VCon(const)            => s"VCon($const)"
@@ -680,8 +680,10 @@ class CekMachine(
             case FrameCases(env, cases, ctx) =>
                 value match
                     case VConstr(tag, args) =>
-                        if 0 <= tag && tag < cases.size then
-                            Compute(transferArgStack(args, ctx), env, cases(tag.toInt))
+                        require(tag < Int.MaxValue, s"Constructor tag too large: $tag")
+                        val index = tag.toInt
+                        if index < cases.size then
+                            Compute(transferArgStack(args, ctx), env, cases(index))
                         else throw new MissingCaseBranch(tag, env)
                     case _ => throw new NonConstrScrutinized(value, env)
     }

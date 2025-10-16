@@ -19,7 +19,7 @@ enum Term:
     case Const(const: Constant) extends Term
     case Builtin(bn: DefaultFun) extends Term
     case Error extends Term
-    case Constr(tag: Long, args: immutable.List[Term])
+    case Constr(tag: Word64, args: immutable.List[Term])
     case Case(arg: Term, cases: immutable.List[Term])
 
     /** Applies the argument to the term. */
