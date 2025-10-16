@@ -6,6 +6,7 @@ import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Wallet}
 import scalus.examples.vault.{Datum, State, Transactions, VaultContract}
 import scalus.testkit.ScalusTest
+import scalus.plutusV3
 
 class VaultTest extends AnyFunSuite, ScalusTest {
 
@@ -77,8 +78,8 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val wallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
         val utxos: Utxos = Map(vaultUtxo) ++ wallet.utxo
 
-        val result = runValidator(withdrawTx, utxos, wallet, vaultUtxo._1)
-
+        val scriptContext = TestUtil.getScriptContext(withdrawTx, utxos, vaultUtxo._1)
+        val result = VaultContract.script.term.plutusV3.runWithDebug(scriptContext)
         assert(result.isSuccess)
 
         val newVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
@@ -111,11 +112,11 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val wallet = TestUtil.createTestWallet(ownerAddress, depositAmount + 50_000_000L)
         val utxos: Utxos = Map(vaultUtxo) ++ wallet.utxo
 
-        val result = runValidator(depositTx, utxos, wallet, vaultUtxo._1)
-
+        val scriptContext = TestUtil.getScriptContext(depositTx, utxos, vaultUtxo._1)
+        val result = VaultContract.script.term.plutusV3.runWithDebug(scriptContext)
         assert(result.isSuccess, s"Deposit should succeed: $result")
-        val newVaultUtxo = TestUtil.getScriptUtxo(depositTx)
 
+        val newVaultUtxo = TestUtil.getScriptUtxo(depositTx)
         newVaultUtxo._2 match {
             case TransactionOutput.Babbage(_, value, Some(DatumOption.Inline(d)), _) =>
                 val newDatum = d.to[Datum]
@@ -135,49 +136,20 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         }
     }
 
-    ignore("vault finalization fails when vault is in Idle state") {
+    test("vault finalization fails when vault is in Idle state") {
         val lockTx = lockVault(defaultInitialAmount)
         val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
 
         val wallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
+        val utxos: Utxos = Map(vaultUtxo) ++ wallet.utxo
         val context = BuilderContext(env, wallet)
-        val result = new Transactions(context).finalize(vaultUtxo, ownerAddress)
+        val finalizeTx = new Transactions(context).finalize(vaultUtxo, ownerAddress).getOrElse(???)
 
-        assert(result.isLeft, "Finalize on Idle vault should fail during transaction building")
-        val errorMsg = result.swap.getOrElse("")
-        assert(
-          errorMsg.contains(Vault.ContractMustBePending),
-          s"Expected script evaluation failure, got: $errorMsg"
-        )
-    }
+        val scriptContext = TestUtil.getScriptContext(finalizeTx, utxos, vaultUtxo._1)
+        val result = VaultContract.script.term.plutusV3.runWithDebug(scriptContext)
 
-    ignore("vault finalization fails before wait time elapses") {
-        val lockTx = lockVault(defaultInitialAmount)
-        val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
-
-        val withdrawSlot = 1000L
-        val withdrawTx = withdrawVault(vaultUtxo, withdrawSlot)
-
-        val withdrawWallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
-        val withdrawUtxos: UTxO = Map(vaultUtxo) ++ withdrawWallet.utxo
-        val withdrawResult = runValidator(withdrawTx, withdrawUtxos, withdrawWallet, vaultUtxo._1)
-
-        assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
-
-        val pendingVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
-
-        // premature finalization
-        val wallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
-        val context = BuilderContext(env, wallet)
-        val earlySlot = Some(withdrawSlot + 1) // Just after withdrawal, before wait time
-        val result =
-            new Transactions(context).finalize(pendingVaultUtxo, ownerAddress, earlySlot)
-
-        assert(result.isLeft, "Finalize before wait time should fail")
-        val errorMsg = result.swap.getOrElse("")
-        assert(
-          errorMsg.endsWith(Vault.DeadlineNotPassed)
-        )
+        assert(result.isFailure, "Finalize on Idle vault should fail during transaction building")
+        assert(result.logs.last.contains(Vault.ContractMustBePending))
     }
 
     test("vault finalization succeeds after withdrawal request") {
@@ -189,8 +161,10 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val withdrawWallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
         val withdrawUtxos: Utxos = Map(vaultUtxo) ++ withdrawWallet.utxo
-        val withdrawResult = runValidator(withdrawTx, withdrawUtxos, withdrawWallet, vaultUtxo._1)
 
+        val withdrawScriptContext =
+            TestUtil.getScriptContext(withdrawTx, withdrawUtxos, vaultUtxo._1)
+        val withdrawResult = VaultContract.script.term.plutusV3.runWithDebug(withdrawScriptContext)
         assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
 
         val pendingVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
@@ -200,9 +174,9 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val finalizeWallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
         val finalizeUtxos: Utxos = Map(pendingVaultUtxo) ++ finalizeWallet.utxo
 
-        val finalizeResult =
-            runValidator(finalizeTx, finalizeUtxos, finalizeWallet, pendingVaultUtxo._1)
-
+        val finalizeScriptContext =
+            TestUtil.getScriptContext(finalizeTx, finalizeUtxos, pendingVaultUtxo._1)
+        val finalizeResult = VaultContract.script.term.plutusV3.runWithDebug(finalizeScriptContext)
         assert(finalizeResult.isSuccess, s"Finalize should succeed: $finalizeResult")
 
         val scriptOutputs = finalizeTx.body.value.outputs.filter(_.value.address.hasScript)
@@ -218,5 +192,40 @@ class VaultTest extends AnyFunSuite, ScalusTest {
           ownerReceivedValue >= defaultInitialAmount.toLong,
           s"Owner should receive at least the vault amount, got $ownerReceivedValue"
         )
+    }
+
+    test("vault finalization fails before wait time elapses") {
+        val lockTx = lockVault(defaultInitialAmount)
+        val vaultUtxo = TestUtil.getScriptUtxo(lockTx)
+
+        val withdrawSlot = 1000L
+        val withdrawTx = withdrawVault(vaultUtxo, withdrawSlot)
+
+        val withdrawWallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
+        val withdrawUtxos = Map(vaultUtxo) ++ withdrawWallet.utxo
+
+        val withdrawScriptContext =
+            TestUtil.getScriptContext(withdrawTx, withdrawUtxos, vaultUtxo._1)
+        val withdrawResult = VaultContract.script.term.plutusV3.runWithDebug(withdrawScriptContext)
+        assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
+
+        val pendingVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
+
+        // premature finalization
+        val wallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
+        val utxos: Utxos = Map(pendingVaultUtxo) ++ wallet.utxo
+        val context = BuilderContext(env, wallet)
+        val earlySlot = Some(withdrawSlot + 1) // Just after withdrawal, before wait time
+        val finalizeTx =
+            new Transactions(context)
+                .finalize(pendingVaultUtxo, ownerAddress, earlySlot)
+                .getOrElse(???)
+
+        val finalizeScriptContext =
+            TestUtil.getScriptContext(finalizeTx, utxos, pendingVaultUtxo._1)
+        val finalizeResult = VaultContract.script.term.plutusV3.runWithDebug(finalizeScriptContext)
+
+        assert(finalizeResult.isFailure, "Finalize before wait time should fail")
+        assert(finalizeResult.logs.last.contains(Vault.DeadlineNotPassed))
     }
 }
