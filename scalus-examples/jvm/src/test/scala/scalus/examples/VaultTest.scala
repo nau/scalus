@@ -1,6 +1,7 @@
 package scalus.examples
 
 import org.scalatest.funsuite.AnyFunSuite
+import scalus.examples.vault.Vault
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Wallet}
 import scalus.examples.vault.{Datum, State, Transactions, VaultContract}
@@ -145,7 +146,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         assert(result.isLeft, "Finalize on Idle vault should fail during transaction building")
         val errorMsg = result.swap.getOrElse("")
         assert(
-          errorMsg.contains("Error evaluated"),
+          errorMsg.contains(Vault.ContractMustBePending),
           s"Expected script evaluation failure, got: $errorMsg"
         )
     }
@@ -175,8 +176,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         assert(result.isLeft, "Finalize before wait time should fail")
         val errorMsg = result.swap.getOrElse("")
         assert(
-          errorMsg.contains("Error evaluated") || errorMsg.contains("wait time"),
-          s"Expected time constraint failure, got: $errorMsg"
+          errorMsg.endsWith(Vault.DeadlineNotPassed)
         )
     }
 
