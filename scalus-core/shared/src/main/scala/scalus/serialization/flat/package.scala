@@ -230,7 +230,7 @@ package object flat:
 
     def w7l(n: Long): List[Byte] =
         val low = n & 0x7f
-        val t = n >> 7
+        val t = n >>> 7
         if t == 0 then low.toByte :: Nil else (low | 0x80).toByte :: w7l(t)
 
     /** ZigZag encoding https://gist.github.com/mfuerstenau/ba870a29e16536fdbaba Maps negative

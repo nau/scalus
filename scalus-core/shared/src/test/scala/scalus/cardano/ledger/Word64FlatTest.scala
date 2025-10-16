@@ -4,13 +4,13 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.cardano.ledger.ArbitraryInstances.given
 import scalus.serialization.flat
-import scalus.serialization.flat.{DecoderState, EncoderState}
+import scalus.serialization.flat.{DecoderState, EncoderState, Flat}
 
 class Word64FlatTest extends AnyFunSuite with ScalaCheckPropertyChecks {
 
     private def roundTripFlat(value: Word64) =
         try {
-            val enc = EncoderState(80)
+            val enc = EncoderState(summon[Flat[Word64]].bitSize(value) / 8)
             flat.encode(value, enc)
             val dec = DecoderState(enc.buffer)
             val decoded = flat.decode[Word64](dec)
