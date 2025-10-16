@@ -41,15 +41,26 @@ object Application {
 }
 
 /** A smart contract compiled with Scalus. */
-trait CompiledContract {
+trait CompiledContract [R, D] {
+    type Redeemer = MintRedeemer | SpendRedeemer | RewardRedeemer | CertRedeemer | VoteRedeemer | ProposeRede
+
     def asProgram: Program
 
     def asScript: PlutusScript
 
     def describeValidator: Validator
 
+    def language: Language
+
     def sir: SIR
+
+    def debugUplc
+
+    def releaseUplc
+
+    def uplcWithoutTrace
 }
+
 case class PlutusV3(
     title: String,
     description: String,
@@ -68,9 +79,57 @@ case class PlutusV3(
           hash = Some(asScript.scriptHash.toHex)
         )
     }
+
+
+
+
+}
+
+
+case class ContractInfo(
+    def title: String
+    def description: String
+)
+
+
+trait HtlcApp {
+
+    def lock()
+    def ulock(): Unit = {
+
+    }
+}
+
+
+class MyApplication(
+                       version: String,
+                       validator: Validator
+                   ) {
+    def getBlueprint() = ???
+
+    def foobar(plutusVersion, debug/release): CompiledContract
+}
+
+class CompiledContract {
+    def uplc
+    def program
+    def script: PlutusScript // v1/v2/v3
+})
+
+
+trait Asdf {
+
+
     def asProgram: Program = uplc.plutusV3
 
     def asScript: Script.PlutusV3 = Script.PlutusV3(asProgram.cborByteString)
+
+    def toUplc(using Compiler.Options): Term = sir.toUplc()
+
+    val debugUplc: Term = sir.toUplc(generateErrorTraces = true)
+    val releaseUplc: Term = sir.toUplc(generateErrorTraces = false)
+
+    def evaluate
 }
 
 object PlutusV3 {
@@ -79,6 +138,26 @@ object PlutusV3 {
         title: String,
         description: String = ""
     )(inline code: Any): PlutusV3 = {
+        val sir = Compiler.compileInline(code)
+        val datumSchema = PlutusDataSchema.derived[D]
+        val redeemerSchema = PlutusDataSchema.derived[R]
+        PlutusV3(title, description, sir, datumSchema, redeemerSchema)
+    }
+
+    inline def create[D, R](
+                               title: String,
+                               description: String = ""
+                           )(inline code: v3.ScriptContext => Unit): PlutusV3 = {
+        val sir = Compiler.compileInline(code)
+        val datumSchema = PlutusDataSchema.derived[D]
+        val redeemerSchema = PlutusDataSchema.derived[R]
+        PlutusV3(title, description, sir, datumSchema, redeemerSchema)
+    }
+
+    inline def create[D, R](
+                               title: String,
+                               description: String = ""
+                           )(inline code: scalus.prelude.Validator): PlutusV3 = {
         val sir = Compiler.compileInline(code)
         val datumSchema = PlutusDataSchema.derived[D]
         val redeemerSchema = PlutusDataSchema.derived[R]

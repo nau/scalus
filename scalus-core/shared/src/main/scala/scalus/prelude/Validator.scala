@@ -7,8 +7,7 @@ import scalus.ledger.api.v3.*
 //erased [not availanle uet]
 trait Validator {
 
-    inline def validate(scData: Data): Unit = {
-        val sc = scData.to[ScriptContext]
+    inline def validate[Redeemer](scData: ScriptContext): Unit = {
         sc.scriptInfo match
             case ScriptInfo.MintingScript(policyId) =>
                 mint(sc.redeemer, policyId, sc.txInfo)
@@ -22,6 +21,12 @@ trait Validator {
                 vote(sc.redeemer, voter, sc.txInfo)
             case ScriptInfo.ProposingScript(index, procedure) =>
                 propose(procedure, sc.txInfo)
+    }
+
+    inline def validate(scData: Data): Unit = {
+        val sc = scData.to[ScriptContext]
+        validate(sc)
+
     }
 
     inline def spend(

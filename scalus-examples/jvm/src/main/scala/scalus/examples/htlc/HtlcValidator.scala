@@ -93,16 +93,44 @@ object HtlcValidator extends Validator:
 
 end HtlcValidator
 
+// 1. Make PlutusV3.create
+// 2. Make compiled() with options
+// 3. Make options Debug/Release
+// 4. Make evaluate(ctx)
 object HtlcContract:
-    val application: Application = {
-        Application.ofSingleValidator[ContractDatum, Action](
-          "Hashed timelocked contract",
-          "Releases funds when recipient reveals hash preimage before deadline, otherwise refunds to sender.",
-          "1.0.0",
-          HtlcValidator.validate
-        )
-    }
 
-    val bluerprint: Blueprint = application.blueprint
+    val contract = PlutusV3.create[ContractDatum, Action](
+      title = "HTLC Validator",
+      description =
+          "Releases funds when recipient reveals hash preimage before deadline, otherwise refunds to sender.",
+      version = "1.0.0",
+    )(HtlcValidator)
+//
+    val compiled = contract.compiled(Options.Debug = Debug)
+    val compiled = contract.compiled(Options.Release)
+    val compiled = contract.compiled(Options.Release).evaluate(ctx)
+    val ctx = tx.toScriptContext(ownRef)
+    val compiled = contract.compiled(Options.Release)
+
+//    compiled.script: Script.PlutusV3
+//    compiled.blueprint: Blueprint
+//    compiled.program: Program
 
 end HtlcContract
+
+// Rename backends:
+given Debug: scalus.Compiler.Options = scalus.Compiler.Options(
+  targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+  generateErrorTraces = true,
+  optimizeUplc = false,
+  debug = false
+)
+
+given Release: scalus.Compiler.Options = scalus.Compiler.Options(
+  targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+  generateErrorTraces = false,
+  optimizeUplc = true,
+  debug = false
+)
+
+txbuilder.payTo(HtlcContract.compiled, datum: ContractDatum)
