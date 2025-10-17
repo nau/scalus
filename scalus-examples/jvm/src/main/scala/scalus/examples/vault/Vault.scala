@@ -2,7 +2,7 @@ package scalus.examples.vault
 
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.builtin.{ByteString, Data}
-import scalus.examples.vault.Redeemer.{Cancel, Deposit, FinalizeWithdrawal, InitiateWithdrawal}
+import scalus.examples.vault.Action.{Cancel, Deposit, FinalizeWithdrawal, InitiateWithdrawal}
 import scalus.ledger.api
 import scalus.ledger.api.v1.Credential.ScriptCredential
 import scalus.ledger.api.v1.{Credential, Interval, IntervalBoundType, PosixTime, Value}
@@ -13,22 +13,22 @@ import scalus.prelude.{===, fail, require, Validator}
 import scalus.uplc.Program
 import scalus.*
 
-case class Datum(
+case class State(
     owner: ByteString,
-    state: State,
+    status: Status,
     amount: BigInt,
     waitTime: PosixTime,
     finalizationDeadline: PosixTime
 ) derives FromData,
       ToData
 
-enum Redeemer derives FromData, ToData:
+enum Action derives FromData, ToData:
     case Deposit
     case InitiateWithdrawal
     case FinalizeWithdrawal
     case Cancel
 
-enum State derives FromData, ToData:
+enum Status derives FromData, ToData:
     case Idle
     case Pending
 
@@ -54,8 +54,8 @@ object Vault extends Validator {
         tx: TxInfo,
         ownRef: TxOutRef
     ): Unit = {
-        val datum = d.get.to[Datum]
-        redeemer.to[Redeemer] match {
+        val datum = d.get.to[State]
+        redeemer.to[Action] match {
             case Deposit            => deposit(tx, ownRef, datum)
             case InitiateWithdrawal => initiateWithdrawal(tx, ownRef, datum)
             case FinalizeWithdrawal => finalize(tx, ownRef, datum)
@@ -63,7 +63,7 @@ object Vault extends Validator {
         }
     }
 
-    def deposit(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def deposit(tx: TxInfo, ownRef: TxOutRef, datum: State) = {
         val ownInput = tx.findOwnInput(ownRef).getOrFail(OwnInputNotFound)
 
         val out = getVaultOutput(tx, ownRef)
@@ -84,9 +84,9 @@ object Vault extends Validator {
         )
     }
 
-    def initiateWithdrawal(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def initiateWithdrawal(tx: TxInfo, ownRef: TxOutRef, datum: State) = {
         require(
-          datum.state.isIdle,
+          datum.status.isIdle,
           WithdrawalAlreadyPending
         )
         val ownInput = tx.findOwnInput(ownRef).getOrFail(OwnInputNotFound)
@@ -104,15 +104,15 @@ object Vault extends Validator {
         }
         val finalizationDeadline = requestTime + datum.waitTime
         val newDatum = getVaultDatum(out)
-        require(newDatum.state.isPending, MustBePending)
+        require(newDatum.status.isPending, MustBePending)
         require(
           newDatum.finalizationDeadline == finalizationDeadline,
           IncorrectDatumFinalization
         )
     }
 
-    def finalize(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
-        require(datum.state.isPending, ContractMustBePending)
+    def finalize(tx: TxInfo, ownRef: TxOutRef, datum: State) = {
+        require(datum.status.isPending, ContractMustBePending)
         require(tx.validRange.isEntirelyAfter(datum.finalizationDeadline), DeadlineNotPassed)
         val ownInput = tx.findOwnInput(ownRef).getOrFail(OwnInputNotFound)
         requireEntireVaultIsSpent(datum, ownInput.resolved)
@@ -129,7 +129,7 @@ object Vault extends Validator {
         require(totalToOwner >= datum.amount, VaultAmountChanged)
     }
 
-    def cancel(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
+    def cancel(tx: TxInfo, ownRef: TxOutRef, datum: State) = {
         val out = getVaultOutput(tx, ownRef)
         requireSameOwner(out, datum)
         val vaultDatum = getVaultDatum(out)
@@ -138,11 +138,11 @@ object Vault extends Validator {
           out.value.getLovelace == datum.amount,
           WrongOutputAmount
         )
-        require(vaultDatum.state.isIdle, StateNotIdle)
+        require(vaultDatum.status.isIdle, StateNotIdle)
         require(vaultDatum.waitTime == datum.waitTime, WaitTimeChanged)
     }
 
-    def requireEntireVaultIsSpent(datum: Datum, output: TxOut) = {
+    def requireEntireVaultIsSpent(datum: State, output: TxOut) = {
         val amountToSpend = datum.amount
         val adaSpent = output.value.getLovelace
         require(amountToSpend == adaSpent, AdaLeftover)
@@ -161,15 +161,15 @@ object Vault extends Validator {
     }
 
     def getVaultDatum(vaultOutput: TxOut) = vaultOutput.datum match {
-        case ledger.api.v2.OutputDatum.OutputDatum(d) => d.to[Datum]
+        case ledger.api.v2.OutputDatum.OutputDatum(d) => d.to[State]
         case _                                        => fail(NoDatumProvided)
     }
 
-    def requireSameOwner(out: TxOut, datum: Datum) =
+    def requireSameOwner(out: TxOut, datum: State) =
         out.datum match {
             case scalus.ledger.api.v2.OutputDatum.OutputDatum(newDatum) =>
                 require(
-                  newDatum.to[Datum].owner == datum.owner,
+                  newDatum.to[State].owner == datum.owner,
                   VaultOwnerChanged
                 )
             case _ => fail(NoInlineDatum)
@@ -214,15 +214,15 @@ object Vault extends Validator {
         }
     }
 
-    extension (s: State) {
+    extension (s: Status) {
         def isPending: Boolean = s match {
-            case State.Idle    => false
-            case State.Pending => true
+            case Status.Idle    => false
+            case Status.Pending => true
         }
 
         def isIdle: Boolean = s match {
-            case State.Idle    => true
-            case State.Pending => false
+            case Status.Idle    => true
+            case Status.Pending => false
         }
     }
 }

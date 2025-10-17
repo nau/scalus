@@ -27,9 +27,9 @@ class Transactions(context: BuilderContext) {
                 scalus.builtin.ByteString.fromArray(addr.payment.asHash.bytes)
             case _ => return Left("Shelley addresses only.")
         }
-        val datum = Datum(
+        val datum = State(
           ownerCredentialHash,
-          State.Idle,
+          Status.Idle,
           BigInt(value.coin.value),
           waitTime,
           BigInt(0)
@@ -43,7 +43,7 @@ class Transactions(context: BuilderContext) {
     ): Either[String, Transaction] = {
         val currentDatum = vaultUtxo._2 match {
             case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) =>
-                d.to[Datum]
+                d.to[State]
             case _ =>
                 return Left("Vault UTxO must have an inline datum")
         }
@@ -54,12 +54,12 @@ class Transactions(context: BuilderContext) {
         val finalizationDeadline = requestTime + currentDatum.waitTime
 
         val newDatum = currentDatum.copy(
-          state = State.Pending,
+          status = Status.Pending,
           finalizationDeadline = finalizationDeadline
         )
         val vaultValue = vaultUtxo._2.value
 
-        val redeemer = Redeemer.InitiateWithdrawal.toData
+        val redeemer = Action.InitiateWithdrawal.toData
         PaymentBuilder(context)
             .spendScriptOutputs(
               vaultUtxo,
@@ -80,7 +80,7 @@ class Transactions(context: BuilderContext) {
     ): Either[String, Transaction] = {
         val currentDatum = vaultUtxo._2 match {
             case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) =>
-                d.to[Datum]
+                d.to[State]
             case _ =>
                 return Left("Vault UTxO must have an inline datum")
         }
@@ -96,7 +96,7 @@ class Transactions(context: BuilderContext) {
           finalizationDeadline = currentDatum.finalizationDeadline
         )
 
-        val redeemer = Redeemer.Deposit.toData
+        val redeemer = Action.Deposit.toData
         PaymentBuilder(context)
             .spendScriptOutputs(vaultUtxo, redeemer, script)
             .payToScript(scriptAddress, newValue, newDatum.toData)
@@ -110,7 +110,7 @@ class Transactions(context: BuilderContext) {
     ): Either[String, Transaction] = {
         val currentDatum = vaultUtxo._2 match {
             case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) =>
-                d.to[Datum]
+                d.to[State]
             case _ =>
                 return Left("Vault UTxO must have an inline datum")
         }
@@ -122,7 +122,7 @@ class Transactions(context: BuilderContext) {
                 .timeToSlot(currentDatum.finalizationDeadline.toLong) + 1
         val finalizationSlot = overrideValiditySlot.getOrElse(calculatedSlot)
 
-        val redeemer = Redeemer.FinalizeWithdrawal.toData
+        val redeemer = Action.FinalizeWithdrawal.toData
         PaymentBuilder(context)
             .spendScriptOutputs(vaultUtxo, redeemer, script)
             .withStep(

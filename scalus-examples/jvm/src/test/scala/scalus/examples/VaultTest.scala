@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.examples.vault.Vault
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.txbuilder.{BuilderContext, Wallet}
-import scalus.examples.vault.{Datum, State, Transactions, VaultContract}
+import scalus.examples.vault.{State, Status, Transactions, VaultContract}
 import scalus.testkit.ScalusTest
 import scalus.plutusV3
 
@@ -85,10 +85,10 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val newVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
         newVaultUtxo._2 match {
             case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) =>
-                val newDatum = d.to[Datum]
+                val newDatum = d.to[State]
                 assert(
-                  newDatum.state == State.Pending,
-                  s"Vault state should be Pending, got ${newDatum.state}"
+                  newDatum.status == Status.Pending,
+                  s"Vault state should be Pending, got ${newDatum.status}"
                 )
                 assert(
                   newDatum.amount == defaultInitialAmount,
@@ -119,10 +119,10 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val newVaultUtxo = TestUtil.getScriptUtxo(depositTx)
         newVaultUtxo._2 match {
             case TransactionOutput.Babbage(_, value, Some(DatumOption.Inline(d)), _) =>
-                val newDatum = d.to[Datum]
+                val newDatum = d.to[State]
                 assert(
-                  newDatum.state == State.Idle,
-                  s"Vault state should remain Idle, got ${newDatum.state}"
+                  newDatum.status == Status.Idle,
+                  s"Vault state should remain Idle, got ${newDatum.status}"
                 )
                 assert(
                   newDatum.amount == defaultInitialAmount + depositAmount,
