@@ -98,7 +98,10 @@ object Vault extends Validator {
           NotExactlyOneVaultOutput
         )
 
-        val requestTime = tx.validRange.getEarliestTime
+        val requestTime = tx.validRange.from.boundType match {
+            case IntervalBoundType.Finite(time) => time
+            case _                              => BigInt(0)
+        }
         val finalizationDeadline = requestTime + datum.waitTime
         val newDatum = getVaultDatum(out)
         require(newDatum.state.isPending, MustBePending)
@@ -110,7 +113,7 @@ object Vault extends Validator {
 
     def finalize(tx: TxInfo, ownRef: TxOutRef, datum: Datum) = {
         require(datum.state.isPending, ContractMustBePending)
-        require(tx.validRange.isAfter(datum.finalizationDeadline), DeadlineNotPassed)
+        require(tx.validRange.isEntirelyAfter(datum.finalizationDeadline), DeadlineNotPassed)
         val ownInput = tx.findOwnInput(ownRef).getOrFail(OwnInputNotFound)
         requireEntireVaultIsSpent(datum, ownInput.resolved)
 
@@ -220,18 +223,6 @@ object Vault extends Validator {
         def isIdle: Boolean = s match {
             case State.Idle    => true
             case State.Pending => false
-        }
-    }
-
-    extension (i: Interval) {
-        def getEarliestTime: PosixTime = i.from.boundType match {
-            case IntervalBoundType.Finite(t) => t
-            case _                           => BigInt(0)
-        }
-
-        def isAfter(timePoint: PosixTime): Boolean = i.from.boundType match {
-            case IntervalBoundType.Finite(time) => timePoint < time
-            case _                              => false
         }
     }
 }
