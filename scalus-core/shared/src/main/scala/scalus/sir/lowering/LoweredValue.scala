@@ -365,7 +365,7 @@ class VariableLoweredValue(
         if ctx.printedIdentifiers.contains(id) then Doc.text(id)
         else
             optRhs match {
-                case None => Doc.text(id)
+                case None      => Doc.text(id)
                 case Some(rhs) =>
                     ctx.printedIdentifiers += id
                     val left = Doc.text(id) + Doc.text("(=")
@@ -944,7 +944,7 @@ object LoweredValue {
             val prevDebug = lctx.debug
 
             def argType(tp: SIRType): SIRType = tp match {
-                case SIRType.Fun(argTp, _) => argTp
+                case SIRType.Fun(argTp, _)            => argTp
                 case SIRType.TypeLambda(params, body) =>
                     SIRType.TypeLambda(params, argType(body))
                 case SIRType.TypeProxy(ref) =>
@@ -1575,7 +1575,7 @@ object LoweredValue {
                   targetType,
                   SIRUnify.Env.empty.withUpcasting
                 ) match
-                    case SIRUnify.UnificationSuccess(env, _) => env
+                    case SIRUnify.UnificationSuccess(env, _)  => env
                     case SIRUnify.UnificationFailure(_, _, _) =>
                         throw LoweringException(
                           s"Cannot unify types ${arg.sirType.show} and ${targetType.show} at $inPos",

@@ -232,7 +232,7 @@ object TwoArguments {
       json => {
           json.obj("type").str match
               case "constant_cost" => ConstantCost(json.obj("arguments").num.toLong)
-              case "linear_in_x" =>
+              case "linear_in_x"   =>
                   LinearInX(read[OneVariableLinearFunction](json.obj("arguments")))
               case "linear_in_y" =>
                   LinearInY(read[OneVariableLinearFunction](json.obj("arguments")))
@@ -364,7 +364,7 @@ object ThreeArguments {
       json => {
           json.obj("type").str match
               case "constant_cost" => ConstantCost(json.obj("arguments").num.toLong)
-              case "linear_in_x" =>
+              case "linear_in_x"   =>
                   LinearInX(read[OneVariableLinearFunction](json.obj("arguments")))
               case "linear_in_y" =>
                   LinearInY(read[OneVariableLinearFunction](json.obj("arguments")))

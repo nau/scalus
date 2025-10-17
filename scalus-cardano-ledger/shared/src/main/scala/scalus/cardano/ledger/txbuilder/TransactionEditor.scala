@@ -194,7 +194,7 @@ object TransactionConversion {
 
         val (validRedeemers, invalidRedeemers) = {
             witnessSet.redeemers.map(_.value) match {
-                case None => (Seq.empty, Seq.empty)
+                case None     => (Seq.empty, Seq.empty)
                 case Some(rs) =>
                     rs.toSeq.partition(redeemer =>
                         RedeemerManagement.detachRedeemer(ctx, redeemer).isDefined
@@ -224,7 +224,7 @@ object TransactionConversion {
 
         for {
             redeemers <- tx.witnessSet.redeemers match {
-                case None => Right(Vector.empty)
+                case None     => Right(Vector.empty)
                 case Some(rs) =>
                     rs.value.toSeq
                         .traverse { redeemer =>
@@ -247,7 +247,7 @@ object TransactionConversion {
         val ctx = RedeemersContext.fromTransaction(editable.transaction)
 
         RedeemerManagement.attachRedeemers(ctx, editable.redeemers) match {
-            case Left(_) => None
+            case Left(_)                  => None
             case Right(attachedRedeemers) =>
                 val currentWitnessSet = editable.transaction.witnessSet
                 val invalidRedeemers =
