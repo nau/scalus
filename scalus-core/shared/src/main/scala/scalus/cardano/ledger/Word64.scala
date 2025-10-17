@@ -280,29 +280,56 @@ object Word64 {
 
     given Flat[Word64] with {
 
-        def bitSize(a: Word64): Int =
-            val vs = w7l(a.value)
-            vs.length * 8
+        /** PlutusCore/Flat/Encoder/Size.hs:89:1
+          *
+          * sWord64 :: Word64 -> NumBits
+          * sWord64 w
+          * | w < 128 = 8
+          * | w < 16384 = 16
+          * | w < 2097152 = 24
+          * | w < 268435456 = 32
+          * | w < 34359738368 = 40
+          * | w < 4398046511104 = 48
+          * | w < 562949953421312 = 56
+          * | w < 72057594037927936 = 64
+          * | w < 9223372036854775808 = 72
+          * | otherwise = 80
+          */
+        def bitSize(a: Word64): Int = bytes(a) * 8
+
+        /** interpret as unsigned 64-bit
+          */
+        private def unsigned64(a: Word64) =
+            BigInt(a.value) & BigInt("FFFFFFFFFFFFFFFF", 16)
+
+        private def bytes(a: Word64): Int = {
+            val w = unsigned64(a)
+            if w < BigInt(128L) then 1
+            else if w < BigInt(16384L) then 2
+            else if w < BigInt(2097152L) then 3
+            else if w < BigInt(268435456L) then 4
+            else if w < BigInt(34359738368L) then 5
+            else if w < BigInt(4398046511104L) then 6
+            else if w < BigInt(562949953421312L) then 7
+            else if w < BigInt(72057594037927936L) then 8
+            else if w < (BigInt(1) << 63) then 9 // 2^63
+            else 10
+        }
 
         // Encoded as: data NonEmptyList = Elem Word7 | Cons Word7 NonEmptyList
         def encode(a: Word64, encode: EncoderState): Unit =
-            val vs = w7l(a.value)
-            var i = 0
-            while i < vs.length do
-                encode.bits(8, vs(i))
-                i += 1
+            for b <- w7l(a.value) do encode.bits(8, b)
 
-        def decode(decode: DecoderState): Word64 =
-            var w = decode.bits8(8)
-            var r = 0L
-            var shl = 0
-            while (w & 0x80) != 0 do
-                r = r | ((w & 0x7f) << shl)
-                shl += 7
-                w = decode.bits8(8)
-
-            r = r | ((w & 0x7f) << shl)
+        def decode(decode: DecoderState): Word64 = {
+            var bs = List.empty[Byte]
+            while
+                val b = decode.bits8(8)
+                bs = b :: bs
+                (b & 0x80) != 0
+            do ()
+            val r = bs.foldLeft(0L): (a, b) =>
+                (a << 7) + (b & 0x7f)
             Word64(r)
+        }
     }
-
 }

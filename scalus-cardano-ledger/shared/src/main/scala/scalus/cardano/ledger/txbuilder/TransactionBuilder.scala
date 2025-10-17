@@ -58,6 +58,22 @@ object TransactionBuilderStep {
             PubKeyWitness
     ) extends TransactionBuilderStep
 
+    /** Spend a utxo guarded by plutus script.
+      *
+      * The [[redeemerBuilder]] is invoked after [[TransactionBuilder.build()]], but before it's
+      * balanced by the low lever builder. As a result, the number and order of inputs, outputs,
+      * certificates etc. is predetermined.
+      *
+      * Use this instead of [[Spend]] when assembling the redeemer requires the knowledge of the
+      * transaction contents, e.g. to include the indices of inputs or outputs.
+      */
+    case class SpendWithDelayedRedeemer(
+        utxo: TransactionUnspentOutput,
+        redeemerBuilder: Transaction => Data,
+        validator: PlutusScript,
+        datum: Option[Data] = None
+    ) extends TransactionBuilderStep
+
     /** Send some funds/data to an address. Multiple identical steps are acceptable. */
     case class Send(output: TransactionOutput) extends TransactionBuilderStep
 
@@ -136,6 +152,13 @@ object TransactionBuilderStep {
             PubKeyWitness
     ) extends TransactionBuilderStep
 }
+
+case class DelayedRedeemerSpec(
+    utxo: TransactionUnspentOutput,
+    redeemerBuilder: Transaction => Data,
+    validator: PlutusScript,
+    datum: Option[Data]
+)
 
 // -----------------------------------------------------------------------------
 // Witness
@@ -341,7 +364,8 @@ object TransactionBuilder:
           *   - The union of transaction.body.value.inputs, transaction.body.value.referenceInputs,
           *     and transaction.body.value.collateralInputs must exactly match resolvedUtxos.inputs
           */
-        resolvedUtxos: ResolvedUtxos
+        resolvedUtxos: ResolvedUtxos,
+        delayedRedeemerSpecs: Seq[DelayedRedeemerSpec] = Seq.empty
     ) {
 
         /** Extract tupled information from a Context. This method is provided to avoid breaking
@@ -352,13 +376,15 @@ object TransactionBuilder:
             Seq[DetachedRedeemer],
             Network,
             Set[ExpectedSigner],
-            ResolvedUtxos
+            ResolvedUtxos,
+            Seq[DelayedRedeemerSpec]
         ) = (
           this.transaction,
           this.redeemers,
           this.network,
           this.expectedSigners,
-          this.resolvedUtxos
+          this.resolvedUtxos,
+          this.delayedRedeemerSpecs
         )
 
         /** Add additional signers to the Context.
@@ -369,6 +395,10 @@ object TransactionBuilder:
 
         def replaceRedeemers(newRedeemers: Seq[DetachedRedeemer]): Context = {
             this |> Focus[Context](_.redeemers).replace(newRedeemers)
+        }
+
+        def addDelayedRedeemer(spec: DelayedRedeemerSpec): Context = {
+            this |> Focus[Context](_.delayedRedeemerSpecs).modify(_ :+ spec)
         }
 
         /** Ensure that all transaction outputs in the context have min ada. */
@@ -472,7 +502,8 @@ object TransactionBuilder:
           redeemers = Seq.empty,
           network = networkId,
           expectedSigners = Set.empty,
-          resolvedUtxos = ResolvedUtxos.empty
+          resolvedUtxos = ResolvedUtxos.empty,
+          delayedRedeemerSpecs = Seq.empty
         )
 
         // Tries to add the output to the resolved utxo set, throwing an error if
@@ -570,9 +601,49 @@ object TransactionBuilder:
                 )
                 // Replace the transaction in the context, keeping the rest
                 _ <- modify0(Focus[Context](_.transaction).replace(res))
+
+                // Replace delayed redeemers if any exist
+                _ <-
+                    if ctx0.delayedRedeemerSpecs.nonEmpty then {
+                        for {
+                            ctx1 <- get0
+                            updatedRedeemers <- liftF0(
+                              replaceDelayedRedeemers(
+                                ctx1.redeemers,
+                                ctx1.delayedRedeemerSpecs,
+                                ctx1.transaction
+                              )
+                            )
+                            _ <- modify0(_.replaceRedeemers(updatedRedeemers))
+                        } yield ()
+                    } else {
+                        pure0(())
+                    }
             } yield ()
         }
         modifyBuilderM.run(ctx).map(_._1).left.map(SomeStepError(_))
+    }
+
+    private def replaceDelayedRedeemers(
+        redeemers: Seq[DetachedRedeemer],
+        specs: Seq[DelayedRedeemerSpec],
+        sortedTx: Transaction
+    ): Either[StepError, Seq[DetachedRedeemer]] = {
+        try {
+            val updatedRedeemers = specs.foldLeft(redeemers) { (redeemers, spec) =>
+                val realRedeemerData = spec.redeemerBuilder(sortedTx)
+                redeemers.map {
+                    case dr @ DetachedRedeemer(_, RedeemerPurpose.ForSpend(input))
+                        if input == spec.utxo.input =>
+                        dr.copy(datum = realRedeemerData)
+                    case other => other
+                }
+            }
+            Right(updatedRedeemers)
+        } catch {
+            case e: Exception =>
+                Left(RedeemerComputationFailed(e.getMessage))
+        }
     }
 
     trait HasBuilderEffect[A]:
@@ -585,6 +656,9 @@ object TransactionBuilder:
 
         case spend: TransactionBuilderStep.Spend =>
             useSpend(spend)
+
+        case delayedSpend: TransactionBuilderStep.SpendWithDelayedRedeemer =>
+            useSpendWithDelayedRedeemer(delayedSpend)
 
         case send: TransactionBuilderStep.Send =>
             useSend(send)
@@ -953,6 +1027,35 @@ object TransactionBuilder:
                             }
                     }
             }
+        } yield ()
+    }
+
+    private def useSpendWithDelayedRedeemer(
+        delayedSpend: TransactionBuilderStep.SpendWithDelayedRedeemer
+    ): BuilderM[Unit] = {
+        val utxo = delayedSpend.utxo
+        val validator = delayedSpend.validator
+        val datum = delayedSpend.datum
+
+        val dummyRedeemerData = Data.I(0)
+
+        val witness = ThreeArgumentPlutusScriptWitness(
+          scriptSource = ScriptSource.PlutusScriptValue(validator),
+          redeemer = dummyRedeemerData,
+          datum = datum.map(Datum.DatumValue.apply).getOrElse(Datum.DatumInlined),
+          additionalSigners = Set.empty
+        )
+
+        val spec = DelayedRedeemerSpec(
+          utxo = utxo,
+          redeemerBuilder = delayedSpend.redeemerBuilder,
+          validator = validator,
+          datum = datum
+        )
+
+        for {
+            _ <- useSpend(TransactionBuilderStep.Spend(utxo, witness))
+            _ <- modify0(_.addDelayedRedeemer(spec))
         } yield ()
     }
 
@@ -1717,6 +1820,11 @@ object StepError {
             case plutusScript: PlutusScript =>
                 s"Provided script hash ($hash) does not match the provided Plutus script ($plutusScript)"
         }
+    }
+
+    case class RedeemerComputationFailed(message: String) extends StepError {
+        override def explain: String =
+            s"Failed to compute delayed redeemer: $message"
     }
 
     case class WrongOutputType(
