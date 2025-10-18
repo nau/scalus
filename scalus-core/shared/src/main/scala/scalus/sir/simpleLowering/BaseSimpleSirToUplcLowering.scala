@@ -28,7 +28,9 @@ abstract class BaseSimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolea
 
     /** Lower the SIR to UPLC Term */
     def lower(): Term =
-        val term = lowerInner(sir)
+        // Apply let floating to optimize lazy let bindings
+        val transformed = LetFloating(sir)
+        val term = lowerInner(transformed)
         if zCombinatorNeeded then
             Term.Apply(Term.LamAbs("__z_combinator__", term), ExprBuilder.ZTerm)
         else term

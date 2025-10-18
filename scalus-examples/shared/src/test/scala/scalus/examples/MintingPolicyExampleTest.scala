@@ -212,11 +212,20 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
               generateErrorTraces = true,
               optimizeUplc = false
             )
+        // println(s"Validator UPLC:\n${validator.pretty.render(100)}")
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
+        // println(s"Applied Validator UPLC:\n${appliedValidator.pretty.render(100)}")
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
-        // assert(flatSize == 846) // Re-enable when lazy let will be supported on SimpleSirToUplcLowering (issue #125)
-        assert(flatSize == 856)
+        // println(s"Flat size: $flatSize")
+        // assert(flatSize == 846)
+        //    Re-enable when lazy let will be supported on SimpleSirToUplcLowering (issue #125)
+        //    In addition to that, we should optimize redurant beta-reductions in UPLC
+        //    (i.e.  (App (lam x x) y)  => y )
+        //    Not sure, if it exists in current UPLC optimization passes, but in this test
+        //    it produces larger code size than non-optimized version.
+        //    (TODO: alows to disable/enable specific UPLC optimizations from Compiler.Options)
+        assert(flatSize == 857)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV1)
     }
 }

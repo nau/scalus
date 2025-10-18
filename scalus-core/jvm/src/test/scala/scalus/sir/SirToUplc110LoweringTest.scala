@@ -140,29 +140,24 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
                 case prelude.List.Cons(h, tl) => BigInt(2)
         }
 
-        // TODO: eliminate the outer lambda
+        // With LetFloating optimization, the scrutinee lazy let is floated into the case
+        // This becomes (lam scrutinee scrutinee) $ (constr 0) in the case scrutinee position
+        val expected = Term.Case(
+          lam("scrutinee")(vr"scrutinee") $ Term.Constr(0, List.empty),
+          List(BigInt(1), λ("h", "tl")(BigInt(2)))
+        )
         val compiled = SirToUplc110Lowering(sir, generateErrorTraces = false).lower()
-        val expected = {
-            Term.LamAbs(
-              "scrutinee",
-              Term.Case(
-                vr"scrutinee",
-                List(
-                  BigInt(1),
-                  λ("h", "tl")(BigInt(2))
-                )
-              )
-            ) $ Term.Constr(Word64.Zero, List.empty)
-        }
 
         val djExpected = DeBruijn.deBruijnTerm(expected)
         val djCompiled = DeBruijn.deBruijnTerm(compiled)
 
         val isEq = Term.alphaEq(djCompiled, djExpected)
 
-        assert(isEq, "lowered term is not equal to expected term")
+        if !isEq then
+            println(s"Expected: ${expected.pretty.render(100)}")
+            println(s"Compiled: ${compiled.pretty.render(100)}")
 
-        // sir lowersTo Term.Case(Term.Constr(0, List.empty), List(BigInt(1), λ("h", "tl")(BigInt(2))))
+        assert(isEq, "lowered term is not equal to expected term")
     }
 
     test("lower newtype Match") {
@@ -177,23 +172,21 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
                 case TxId(id) => BigInt(1)
         }
 
-        // Note, that we have an oyter lambda because of match and inner lambda because of newtype
-        val expected = {
-            Term.LamAbs(
-              "id0",
-              Term.Apply(
-                Term.LamAbs(
-                  "id",
-                  BigInt(1)
-                ),
-                vr"id0"
-              )
-            ) $ Term.Const(Constant.ByteString(hex"DEADBEEF"))
-        }
+        // With LetFloating optimization, the scrutinee lazy let is floated
+        // The newtype unwrapping creates: (lam id BODY) ((lam scrutinee scrutinee) VALUE)
+        val expected = lam("id")(BigInt(1)) $ (lam("scrutinee")(vr"scrutinee") $ hex"DEADBEEF")
+        val compiled = SirToUplc110Lowering(sir, generateErrorTraces = false).lower()
 
-        // TODO: we can optimize this to just hex"DEADBEEF"
-        // sir lowersTo (lam("id")(BigInt(1)) $ hex"DEADBEEF")
-        sir lowersTo expected
+        val djExpected = DeBruijn.deBruijnTerm(expected)
+        val djCompiled = DeBruijn.deBruijnTerm(compiled)
+
+        val isEq = Term.alphaEq(djCompiled, djExpected)
+
+        if !isEq then
+            println(s"Expected: ${expected.pretty.render(100)}")
+            println(s"Compiled: ${compiled.pretty.render(100)}")
+
+        assert(isEq, "lowered term is not equal to expected term")
     }
 
     test("lower newtype Match with wildcard pattern") {
@@ -202,9 +195,8 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
                 case _ => BigInt(1)
         }
 
-        sir lowersTo (Term.LamAbs("scrutinee", BigInt(1)) $ Term.Const(
-          Constant.ByteString(hex"DEADBEEF")
-        ))
+        // With let-floating enabled, the unused scrutinee binding is eliminated
+        sir lowersTo BigInt(1)
     }
 
     test("lower Select") {
