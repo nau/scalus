@@ -2,6 +2,7 @@ package scalus
 package sir
 package simpleLowering
 
+import scalus.cardano.ledger.Word64
 import scalus.sir.SIR.Pattern
 import scalus.uplc.*
 
@@ -50,7 +51,7 @@ class SirToUplc110Lowering(sir: SIR, generateErrorTraces: Boolean = false)
             val tag = data.constructors.indexWhere(_.name == name)
             if tag == -1 then
                 throw new IllegalArgumentException(s"Constructor $name not found in $data")
-            Term.Constr(tag, args.map(lowerInner))
+            Term.Constr(Word64(tag), args.map(lowerInner))
 
     override protected def lowerMatch(matchExpr: SIR.Match): Term =
         /* list match

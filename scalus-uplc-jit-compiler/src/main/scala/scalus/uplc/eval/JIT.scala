@@ -185,7 +185,7 @@ object JIT {
                 case Term.Error => '{ throw new RuntimeException("UPLC Error term evaluated") }
                 case Term.Constr(tag, args) =>
                     val expr = Expr.ofTuple(
-                      Expr(tag) -> Expr.ofList(
+                      Expr(tag.value) -> Expr.ofList(
                         args.map(a => genCode(a, env, logger, budget, params))
                       )
                     )

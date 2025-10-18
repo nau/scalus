@@ -1,5 +1,6 @@
 package scalus.uplc.transform
 
+import scalus.cardano.ledger.Word64
 import scalus.uplc.Term
 import scalus.uplc.Term.{Apply, Builtin, Case, Const, Constr, Delay, Error, Force, LamAbs, Var}
 
@@ -35,7 +36,7 @@ object CaseConstrApply {
                 applyToList(term) match
                     case (f, args) if args.sizeCompare(2) > 0 =>
                         logs += s"Replacing ${args.size} Apply with Case/Constr"
-                        Case(Constr(0, args.map(go)), go(f) :: Nil)
+                        Case(Constr(Word64.Zero, args.map(go)), go(f) :: Nil)
                     case (f, args) =>
                         args.foldLeft(go(f)) { case (acc, arg) => Apply(acc, go(arg)) }
             case LamAbs(name, body) => LamAbs(name, go(body))

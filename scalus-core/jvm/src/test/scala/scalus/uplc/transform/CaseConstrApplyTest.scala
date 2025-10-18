@@ -5,6 +5,7 @@ import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
 import scalus.builtin.ByteString
+import scalus.cardano.ledger.Word64
 import scalus.uplc.Constant
 import scalus.uplc.Term.*
 import scalus.uplc.eval.ExBudget.given
@@ -24,7 +25,7 @@ class CaseConstrApplyTest extends AnyFunSuite {
         assert(
           optimized == Case(
             Constr(
-              0,
+              Word64.Zero,
               List(
                 Const(Constant.Integer(0)),
                 Const(Constant.Integer(1)),

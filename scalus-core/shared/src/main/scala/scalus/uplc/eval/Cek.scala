@@ -310,7 +310,7 @@ class UnknownBuiltin(builtin: DefaultFun, env: CekValEnv)
 
 class EvaluationFailure(env: CekValEnv) extends StackTraceMachineError("Error evaluated", env)
 
-class MissingCaseBranch(val tag: Long, env: CekValEnv)
+class MissingCaseBranch(val tag: Word64, env: CekValEnv)
     extends StackTraceMachineError(
       s"Case expression missing the branch required by the scrutinee tag: $tag",
       env
@@ -350,7 +350,7 @@ enum CekValue {
     case VDelay(term: Term, env: CekValEnv)
     case VLamAbs(name: String, term: Term, env: CekValEnv)
     case VBuiltin(bn: DefaultFun, term: () => Term, runtime: BuiltinRuntime)
-    case VConstr(tag: Long, args: Seq[CekValue])
+    case VConstr(tag: Word64, args: Seq[CekValue])
 
     override def toString: String = this match
         case VCon(const)            => s"VCon($const)"
@@ -462,7 +462,7 @@ private enum Context {
     case FrameAwaitFunTerm(env: CekValEnv, term: Term, ctx: Context)
     case FrameAwaitFunValue(value: CekValue, ctx: Context)
     case FrameForce(ctx: Context)
-    case FrameConstr(env: CekValEnv, tag: Long, rest: Seq[Term], args: ArgStack, ctx: Context)
+    case FrameConstr(env: CekValEnv, tag: Word64, rest: Seq[Term], args: ArgStack, ctx: Context)
     case FrameCases(env: CekValEnv, cases: Seq[Term], ctx: Context)
     case NoFrame
 }
@@ -680,8 +680,10 @@ class CekMachine(
             case FrameCases(env, cases, ctx) =>
                 value match
                     case VConstr(tag, args) =>
-                        if 0 <= tag && tag < cases.size then
-                            Compute(transferArgStack(args, ctx), env, cases(tag.toInt))
+                        require(tag.value < Int.MaxValue, s"Constructor tag too large: $tag")
+                        val index = tag.value.toInt
+                        if index < cases.size then
+                            Compute(transferArgStack(args, ctx), env, cases(index))
                         else throw new MissingCaseBranch(tag, env)
                     case _ => throw new NonConstrScrutinized(value, env)
     }

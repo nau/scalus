@@ -9,6 +9,7 @@ import cats.parse.Rfc5234.alpha
 import cats.parse.Rfc5234.digit
 import cats.parse.Rfc5234.hexdig
 import scalus.builtin.{platform, BLS12_381_G1_Element, BLS12_381_G2_Element, ByteString, Data, PlatformSpecific, given}
+import scalus.cardano.ledger.Word64
 import scalus.uplc.DefaultUni.ProtoList
 import scalus.uplc.DefaultUni.ProtoPair
 import scalus.uplc.DefaultUni.asConstant
@@ -48,7 +49,7 @@ class UplcParser:
         def delayTerm = inParens(symbol("delay") *> self).map(Delay.apply)
         def errorTerm = inParens(symbol("error")).map(_ => Error)
         def constrTerm: P[Term] =
-            inParens(symbol("constr") *> lexeme(long) ~ self.rep0).map((tag, args) =>
+            inParens(symbol("constr") *> lexeme(word64) ~ self.rep0).map((tag, args) =>
                 Constr(tag, args)
             ) <* (P.defer0(
               if 1 <= version._1 && 1 <= version._2 then P.unit
@@ -96,6 +97,7 @@ object UplcParser:
     val whitespaces0: Parser0[Unit] = whitespace.rep0.void
     val number: P[Int] = digits.map(_.toList.mkString.toInt)
     val long: P[Long] = digits.map(_.toList.mkString.toLong)
+    val word64: P[Word64] = long.map(Word64(_))
     val bigint: P[String] = (P.charIn('+', '-').?.with1 ~ digits).map { case (s, d) =>
         s.map(_.toString).getOrElse("") + d
     }

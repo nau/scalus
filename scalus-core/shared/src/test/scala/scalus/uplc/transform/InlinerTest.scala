@@ -6,6 +6,8 @@ import scalus.uplc.TermDSL.given
 import scalus.uplc.Constant.given
 import DefaultFun.*
 import org.scalatest.funsuite.AnyFunSuite
+import scalus.cardano.ledger.Word64
+
 import scala.language.implicitConversions
 
 class InlinerTest extends AnyFunSuite {
@@ -72,7 +74,7 @@ class InlinerTest extends AnyFunSuite {
     }
 
     test("should handle Constr and Case") {
-        val constr = Constr(0, List(42))
+        val constr = Constr(Word64.Zero, List(42))
         assert(Inliner(constr) == constr)
 
         val caseExpr = Case(

@@ -44,7 +44,7 @@ object FlatInstantces:
             case Builtin(bn)  => termTagWidth + summon[Flat[DefaultFun]].bitSize(bn)
             case Error        => termTagWidth
             case Constr(tag, args) =>
-                termTagWidth + summon[Flat[Word64]].bitSize(Word64(tag)) + summon[Flat[List[Term]]]
+                termTagWidth + summon[Flat[Word64]].bitSize(tag) + summon[Flat[List[Term]]]
                     .bitSize(args)
             case Case(arg, cases) =>
                 termTagWidth + bitSize(arg) + summon[Flat[List[Term]]].bitSize(cases)
@@ -82,7 +82,7 @@ object FlatInstantces:
                     flat.encode(bn, enc)
                 case Constr(tag, args) =>
                     enc.bits(termTagWidth, 8)
-                    flat.encode[Word64](Word64(tag), enc)
+                    flat.encode(tag, enc)
                     flat.encode(args, enc)
                 case Case(arg, cases) =>
                     enc.bits(termTagWidth, 9)
@@ -119,7 +119,7 @@ object FlatInstantces:
                     Term.Builtin(flat.decode(decoder))
                 case 8 =>
                     Term.Constr(
-                      tag = flat.decode[Word64](decoder).value,
+                      tag = flat.decode(decoder),
                       args = flat.decode(decoder)
                     )
                 case 9 =>

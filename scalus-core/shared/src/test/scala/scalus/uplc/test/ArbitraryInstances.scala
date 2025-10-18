@@ -7,6 +7,7 @@ import scalus.builtin.Builtins
 import scalus.builtin.ByteString
 import scalus.builtin.Data
 import scalus.builtin.Data.{B, Constr, I, List, Map}
+import scalus.cardano.ledger.Word64
 import scalus.uplc.DefaultUni.{ProtoList, ProtoPair}
 import scalus.uplc.Term.*
 import scalus.prelude.{asScalus, Eq, Ord}
@@ -267,7 +268,7 @@ trait ArbitraryInstances:
         def constrGen(sz: Int, env: immutable.List[String]): Gen[Term] = for
             tag <- Gen.choose(0, 10)
             args <- Gen.listOfN(3, sizedTermGen(sz / 2, env))
-        yield Term.Constr(tag, args)
+        yield Term.Constr(Word64(tag), args)
 
         def caseGen(sz: Int, env: immutable.List[String]): Gen[Term] = for
             arg <- sizedTermGen(sz / 2, env)

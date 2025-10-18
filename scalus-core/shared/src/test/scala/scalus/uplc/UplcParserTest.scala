@@ -8,6 +8,7 @@ import scala.language.implicitConversions
 import scalus.*
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
+import scalus.cardano.ledger.Word64
 import scalus.uplc.Constant.given
 import scalus.uplc.DefaultUni.ProtoList
 import scalus.uplc.DefaultUni.ProtoPair
@@ -67,7 +68,7 @@ class UplcParserTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
         val r = parser.parseProgram("(program 1.1.0 (case (constr 0) (con bool True)))")
         assert(
           r == Right(
-            Program((1, 1, 0), Case(Constr(0, List()), List(Const(Constant.Bool(true)))))
+            Program((1, 1, 0), Case(Constr(Word64.Zero, List()), List(Const(Constant.Bool(true)))))
           )
         )
     }
@@ -81,7 +82,7 @@ class UplcParserTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
             Program(
               (1, 1, 0),
               Case(
-                Constr(0, List(Const(Constant.Integer(0)))),
+                Constr(Word64.Zero, List(Const(Constant.Integer(0)))),
                 List(
                   LamAbs("x", Const(Constant.Integer(1))),
                   LamAbs("x", Const(Constant.Integer(2)))
@@ -231,26 +232,31 @@ class UplcParserTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arbi
         )
     }
 
-    test("Pretty-printer <-> parser isomorphism") {
-
+    test("Pretty-printer <-> parser isomorphism for DefaultUni") {
         forAll { (t: DefaultUni) =>
             val pretty = t.pretty.render(80)
             val parsed = UplcParser.defaultUni.parse(pretty).map(_._2).left.map(e => e.show)
             assert(parsed == Right(t))
         }
+    }
 
+    test("Pretty-printer <-> parser isomorphism for Constant") {
         forAll { (t: Constant) =>
             val pretty = t.pretty.render(80)
             val parsed = UplcParser.constant.parse(pretty).map(_._2).left.map(e => e.show)
             assert(parsed == Right(t))
         }
+    }
 
+    test("Pretty-printer <-> parser isomorphism for Term") {
         forAll { (t: Term) =>
             val pretty = t.show
             val parsed = parser.term.parse(pretty).map(_._2).left.map(e => e.show)
             assert(parsed == Right(t))
         }
+    }
 
+    test("Pretty-printer <-> parser isomorphism for Program") {
         forAll { (t: Program) =>
             val pretty = t.show
             val parsed = parser.parseProgram(pretty)
