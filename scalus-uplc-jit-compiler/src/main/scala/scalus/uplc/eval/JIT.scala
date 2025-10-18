@@ -154,8 +154,8 @@ object JIT {
                         )
                         $expr
                     }
-                case Term.Builtin(DefaultFun.AddInteger) => '{ Builtins.addInteger.curried }
-                case Term.Builtin(DefaultFun.EqualsData) => '{ Builtins.equalsData.curried }
+                case Term.Builtin(DefaultFun.AddInteger)      => '{ Builtins.addInteger.curried }
+                case Term.Builtin(DefaultFun.EqualsData)      => '{ Builtins.equalsData.curried }
                 case Term.Builtin(DefaultFun.LessThanInteger) =>
                     '{ Builtins.lessThanInteger.curried }
                 case Term.Builtin(DefaultFun.EqualsInteger) => '{ Builtins.equalsInteger.curried }
@@ -167,8 +167,8 @@ object JIT {
                     '{ () => (s: String) => (a: Any) =>
                         ${ logger }.log(s); a
                     }
-                case Term.Builtin(DefaultFun.FstPair) => '{ () => () => Builtins.fstPair }
-                case Term.Builtin(DefaultFun.SndPair) => '{ () => () => Builtins.sndPair }
+                case Term.Builtin(DefaultFun.FstPair)    => '{ () => () => Builtins.fstPair }
+                case Term.Builtin(DefaultFun.SndPair)    => '{ () => () => Builtins.sndPair }
                 case Term.Builtin(DefaultFun.ChooseList) =>
                     '{ () => () => Builtins.chooseList.curried }
                 case Term.Builtin(DefaultFun.Sha2_256)     => '{ Builtins.sha2_256 }
@@ -178,7 +178,7 @@ object JIT {
                 case Term.Builtin(DefaultFun.UnListData)   => '{ Builtins.unListData }
                 case Term.Builtin(DefaultFun.UnIData)      => '{ Builtins.unIData }
                 case Term.Builtin(DefaultFun.UnBData)      => '{ Builtins.unBData }
-                case Term.Builtin(bi) =>
+                case Term.Builtin(bi)                      =>
                     sys.error(
                       s"Builtin $bi is not yet supported by the JIT compiler. Please add implementation in the Builtin pattern matching section."
                     )

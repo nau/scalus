@@ -39,7 +39,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false)
         // force Nil | Cons head tail
         val appInner = ctorParams match
             case Nil => Term.Force(Term.Var(NamedDeBruijn(name)))
-            case _ =>
+            case _   =>
                 ctorParams.foldLeft(Term.Var(NamedDeBruijn(name)))((acc, param) =>
                     acc $ Term.Var(NamedDeBruijn(param.name))
                 )
@@ -72,7 +72,7 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false)
             case SIR.Case(Pattern.Constr(constr, bindings, _), body, anns) =>
                 constr.params match
                     case Nil => ~lowerInner(body)
-                    case _ =>
+                    case _   =>
                         bindings.foldRight(lowerInner(body)) { (binding, acc) =>
                             Term.LamAbs(binding, acc)
                         }
