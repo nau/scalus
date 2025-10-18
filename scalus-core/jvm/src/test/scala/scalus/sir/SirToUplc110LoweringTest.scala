@@ -143,7 +143,7 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
         // With LetFloating optimization, the scrutinee lazy let is floated into the case
         // This becomes (lam scrutinee scrutinee) $ (constr 0) in the case scrutinee position
         val expected = Term.Case(
-          lam("scrutinee")(vr"scrutinee") $ Term.Constr(0, List.empty),
+          lam("scrutinee")(vr"scrutinee") $ Term.Constr(Word64.Zero, List.empty),
           List(BigInt(1), λ("h", "tl")(BigInt(2)))
         )
         val compiled = SirToUplc110Lowering(sir, generateErrorTraces = false).lower()
