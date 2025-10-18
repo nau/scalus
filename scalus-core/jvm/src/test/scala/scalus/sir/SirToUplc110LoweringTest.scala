@@ -5,6 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
+import scalus.cardano.ledger.Word64
 import scalus.ledger.api.v3.TxId
 import scalus.sir.simpleLowering.SirToUplc110Lowering
 import scalus.uplc.DefaultFun.*
@@ -99,7 +100,7 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
         val sir = compile { prelude.List.Nil: prelude.List[BigInt] }
         val uplc = SirToUplc110Lowering(sir, generateErrorTraces = false).lower()
         // println("compiled:" + uplc.pretty.render(100))
-        val expected = Term.Constr(0, List.empty)
+        val expected = Term.Constr(Word64.Zero, List.empty)
         // println("expected:" + expected.pretty.render(100))
         sir lowersTo expected
     }
@@ -151,7 +152,7 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
                   λ("h", "tl")(BigInt(2))
                 )
               )
-            ) $ Term.Constr(0, List.empty)
+            ) $ Term.Constr(Word64.Zero, List.empty)
         }
 
         val djExpected = DeBruijn.deBruijnTerm(expected)
@@ -219,7 +220,7 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
             (hex"DEADBEEF", true)._2
         }
         sir lowersTo Term.Case(
-          Term.Constr(0, List(hex"DEADBEEF", true)),
+          Term.Constr(Word64.Zero, List(hex"DEADBEEF", true)),
           List(λ("_1", "_2")(vr"_2"))
         )
     }

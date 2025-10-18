@@ -334,7 +334,7 @@ object PrettyPrinter:
                   lineOrSpace,
                   args.map(pretty(_, style))
                 )
-                inParens(kw("constr") & str(tag) & prettyArgs)
+                inParens(kw("constr") & str(tag.value) & prettyArgs)
             case Case(arg, cases) =>
                 val prettyCases = stack(cases.map(pretty(_, style)))
                 inParens(kw("case") & pretty(arg, style) / prettyCases.indent(2))
