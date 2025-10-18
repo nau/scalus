@@ -158,7 +158,7 @@ class SIRPreprocessor(thisPhase: ScalusPreparePhase, debugLevel: Int)(using ctx:
                         methodSymbol.addAnnotation(
                           Annotations.ConcreteBodyAnnotation(body)
                         )
-                        val newMethod = DefDef(methodSymbol, paramss => body).withSpan(tree.span)
+                        val newMethod = DefDef(methodSymbol, _ => body).withSpan(tree.span)
                         newMethod
                     }
                 } else Nil

@@ -3,8 +3,6 @@ package scalus.builtin
 import scalus.utils.Hex
 import scalus.utils.Hex.hexToBytes
 
-import scala.compiletime.asMatchable
-
 class ByteString private (val bytes: Array[Byte]) {
     def toHex: String = Hex.bytesToHex(bytes)
 }

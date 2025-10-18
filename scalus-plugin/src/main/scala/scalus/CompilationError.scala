@@ -1,7 +1,6 @@
 package scalus
 
 import dotty.tools.dotc.ast.tpd.Tree
-import dotty.tools.dotc.core.Constants
 import dotty.tools.dotc.core.Constants.*
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Types.Type
@@ -142,14 +141,13 @@ case class ReturnNotSupported(tree: Tree, srcPos: SrcPos)(using Context) extends
            |""".stripMargin
 }
 
-case class ExpressionNotSupported(exprType: String, srcPos: SrcPos)(using Context)
-    extends CompilationError {
+case class ExpressionNotSupported(exprType: String, srcPos: SrcPos) extends CompilationError {
     def message: String =
         s"""$exprType is not supported in Scalus scripts
            |Try rewriting your program without using it""".stripMargin
 }
 
-case class UnsupportedBigIntOp(op: String, srcPos: SrcPos)(using Context) extends CompilationError {
+case class UnsupportedBigIntOp(op: String, srcPos: SrcPos) extends CompilationError {
     def message: String =
         s"""BigInt operation '$op' is not supported in Scalus scripts.
            |Only +, -, *, /, %, <, <=, >, >=, ==, != are supported
@@ -171,7 +169,7 @@ case class MissingConstructors(
            |Or add a wildcard pattern, like 'case _ => ...'""".stripMargin
 }
 
-case class GuardsNotSupported(srcPos: SrcPos)(using Context) extends CompilationError {
+case class GuardsNotSupported(srcPos: SrcPos) extends CompilationError {
     def message: String =
         s"""Pattern-matching guards can't be used in Scalus scripts
            |Try rewriting your program without using them
@@ -179,29 +177,26 @@ case class GuardsNotSupported(srcPos: SrcPos)(using Context) extends Compilation
            |""".stripMargin
 }
 
-case class UnsupportedTopLevelBind(name: String, srcPos: SrcPos)(using Context)
-    extends CompilationError {
+case class UnsupportedTopLevelBind(name: String, srcPos: SrcPos) extends CompilationError {
     def message: String =
         s"""You can't bind names in top-level pattern-matching expression in Scalus scripts.
            |Remove the '$name @' binding""".stripMargin
 }
 
-case class LiteralPattern(srcPos: SrcPos)(using Context) extends CompilationError {
+case class LiteralPattern(srcPos: SrcPos) extends CompilationError {
     def message: String =
         s"""Literal patterns can't be used in Scalus scripts.
            |Use a named binding instead""".stripMargin
 }
 
-case class UnsupportedBinding(name: String, srcPos: SrcPos)(using Context)
-    extends CompilationError {
+case class UnsupportedBinding(name: String, srcPos: SrcPos) extends CompilationError {
     def message: String =
         s"""This type of binding of name '$name' is not supported in Scalus scripts.
            |You can only bind names to constructor parameters, like 'case MyType(a, b@Inner(c)) => ...'.
            |Remove the '$name @' binding""".stripMargin
 }
 
-case class UnsupportedMatchExpression(tree: Tree, srcPos: SrcPos)(using Context)
-    extends CompilationError {
+case class UnsupportedMatchExpression(tree: Tree, srcPos: SrcPos) extends CompilationError {
     def message: String =
         s"""Unsupported pattern-matching expression.
            |Try rewriting your program without using it""".stripMargin
@@ -219,9 +214,8 @@ case class LazyValNotSupported(vd: ValDef, srcPos: SrcPos)(using Context) extend
            |Try 'val ${vd.symbol.name} = ...' instead""".stripMargin
 }
 
-case class TypeMismatch(name: String, expected: SIRType, actual: SIRType, srcPos: SrcPos)(using
-    Context
-) extends CompilationError {
+case class TypeMismatch(name: String, expected: SIRType, actual: SIRType, srcPos: SrcPos)
+    extends CompilationError {
     def message: String =
         s"""Type mismatch.
            |symbol: $name
@@ -229,7 +223,7 @@ case class TypeMismatch(name: String, expected: SIRType, actual: SIRType, srcPos
            |Actual: ${actual.show}""".stripMargin
 }
 
-case class ExpectedTypeLambda(name: String, actual: SIRType, srcPos: SrcPos)(using Context)
+case class ExpectedTypeLambda(name: String, actual: SIRType, srcPos: SrcPos)
     extends CompilationError {
     def message: String =
         s"""Type of expression should be type-lambda, but it's not.

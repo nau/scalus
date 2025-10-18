@@ -11,11 +11,9 @@ import dotty.tools.dotc.plugins.*
 import dotty.tools.dotc.transform.{ElimByName, Pickler, PostTyper}
 import dotty.tools.dotc.util.SrcPos
 import dotty.tools.dotc.typer.Implicits
-import scalus.serialization.flat.FlatInstances
 import scalus.serialization.flat.FlatInstances.SIRHashConsedFlat
 import scalus.sir.SIRPosition
 
-import scala.collection.immutable
 import scala.language.implicitConversions
 
 class Plugin extends StandardPlugin {

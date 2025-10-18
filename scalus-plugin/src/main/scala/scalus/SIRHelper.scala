@@ -128,7 +128,9 @@ extension (singleton: SIRPosition.type)
             )
         else SIRPosition.empty
 
-    def fromSourcePosition(pos: SourcePosition)(using Context): SIRPosition =
+    def fromSourcePosition(
+        pos: SourcePosition
+    )(using @annotation.unused ctx: Context): SIRPosition =
         if pos.span.exists then
             SIRPosition(
               pos.source.path,
