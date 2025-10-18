@@ -344,6 +344,7 @@ object Macros {
       *   }
       * }}}
       */
+    @annotation.nowarn("msg=deprecated")
     def mkGetBuiltinRuntime(
         bm: Expr[BuiltinsMeaning]
     )(using Quotes): Expr[DefaultFun => BuiltinRuntime] = {

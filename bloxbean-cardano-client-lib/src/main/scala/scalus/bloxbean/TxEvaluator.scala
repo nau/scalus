@@ -85,6 +85,7 @@ class TxEvaluationException(
         TxEvaluationException(message, cause, logs, sc :: scriptContext)
 }
 
+@annotation.nowarn("msg=deprecated")
 @deprecated("Use Script instead", "0.10.1")
 enum ScriptVersion:
     case Native

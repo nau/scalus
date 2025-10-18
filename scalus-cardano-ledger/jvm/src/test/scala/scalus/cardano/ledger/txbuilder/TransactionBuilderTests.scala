@@ -889,6 +889,7 @@ val testnetContext: ContextTuple =
 private def fromRight[A, B](e: Either[A, B]): B =
     e match {
         case Right(x) => x
+        case Left(err) => throw new IllegalArgumentException(s"Expected Right but got Left($err)")
     }
 
 // The fields of a Context, to cut down on noise

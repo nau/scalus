@@ -9,7 +9,6 @@ import scalus.builtin.{ByteString, Data}
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.RedeemerTag.Spend
 import scalus.cardano.ledger.txbuilder.*
-import scalus.cardano.ledger.txbuilder.TransactionBuilderStep.*
 import scalus.cardano.ledger.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
 import scalus.|>
 

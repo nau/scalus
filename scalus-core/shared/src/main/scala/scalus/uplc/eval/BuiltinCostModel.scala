@@ -1,7 +1,8 @@
 package scalus.uplc.eval
 
-import scalus.cardano.ledger.Language
+import scalus.cardano.ledger.{CardanoInfo, Language}
 import scalus.macros.Macros
+import scalus.uplc.eval.MachineParams.fromProtocolParams
 import scalus.uplc.{BuiltinSemanticsVariant, PlutusParams}
 import upickle.default.*
 
@@ -140,15 +141,30 @@ object BuiltinCostModel {
     private inline def inlineBuiltinCostModelJson(name: String) = ${
         Macros.inlineResource('name)
     }
-
+    // Deprecated. We recommend using the cost models from CardanoInfo instead.
+    // These will stay for backward compatibility but may be removed in future versions.
+    // We don't need previous versions of the cost models in the library itself as we don't support old versions of Cardano.
+    // These vals increase the size of the JavaScript bundle significantly.
+    @deprecated(
+      "Use CardanoInfo.mainnet.protocolParams.builtinCostModel for current models or load builtinCostModelA.json in your code",
+      "0.12.1"
+    )
     lazy val defaultCostModelA: BuiltinCostModel =
         BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("builtinCostModelA.json"))
 
+    @deprecated(
+      "Use CardanoInfo.mainnet.protocolParams.builtinCostModel for current models or load builtinCostModelB.json in your code",
+      "0.12.1"
+    )
     lazy val defaultCostModelB: BuiltinCostModel =
         BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("builtinCostModelB.json"))
 
+    @deprecated(
+      "Use CardanoInfo.mainnet.protocolParams.builtinCostModel for current models or load builtinCostModelC.json in your code",
+      "0.12.1"
+    )
     lazy val defaultCostModelC: BuiltinCostModel =
-        BuiltinCostModel.fromJsonString(inlineBuiltinCostModelJson("builtinCostModelC.json"))
+        fromProtocolParams(CardanoInfo.mainnet.protocolParams, Language.PlutusV3).builtinCostModel
 
     given ReadWriter[BuiltinCostModel] = readwriter[ujson.Value].bimap(
       model =>
