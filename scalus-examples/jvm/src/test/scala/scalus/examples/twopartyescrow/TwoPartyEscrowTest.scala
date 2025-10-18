@@ -40,7 +40,7 @@ class TwoPartyEscrowTest extends AnyFunSuite with ScalusTest {
           signatories = List(Buyer),
           action = Action.Deposit,
           contractDatum = Option.None,
-          expected = ((), Option.Some(ExBudget(ExCPU(96765204L), ExMemory(358953L))))
+          expected = ((), Option.Some(ExBudget(ExCPU(96429204), ExMemory(356853))))
         ).runWithDebug()
     }
 
@@ -145,7 +145,7 @@ class TwoPartyEscrowTest extends AnyFunSuite with ScalusTest {
           signatories = List(Seller),
           action = Action.Accept,
           contractDatum = Option.Some(escrowDatum),
-          expected = ((), Option.Some(ExBudget(ExCPU(101391448L), ExMemory(385091L))))
+          expected = ((), Option.Some(ExBudget(ExCPU(100911448), ExMemory(382091))))
         ).runWithDebug()
     }
 
@@ -217,7 +217,7 @@ class TwoPartyEscrowTest extends AnyFunSuite with ScalusTest {
           signatories = List(Buyer),
           action = Action.Refund,
           contractDatum = Option.Some(escrowDatum),
-          expected = ((), Option.Some(ExBudget(ExCPU(98509073L), ExMemory(366992L))))
+          expected = ((), Option.Some(ExBudget(ExCPU(97981073), ExMemory(363692))))
         ).runWithDebug()
     }
 
