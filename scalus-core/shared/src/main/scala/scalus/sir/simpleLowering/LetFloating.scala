@@ -524,6 +524,9 @@ object LetFloating:
             case Decl.DeclInfo(data, term, info) =>
                 SIR.Decl(data, generateOutput(term, pendingLets, ctx))
 
+            case Decl.DeclPattern(_, _) =>
+                throw new IllegalStateException("DeclPattern should not appear in let-floating")
+
             case Let.LetInfo(bindings, body, flags, anns, info) =>
                 val isLazy = flags.isLazy
 

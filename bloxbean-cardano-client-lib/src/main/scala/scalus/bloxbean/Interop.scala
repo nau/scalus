@@ -46,6 +46,7 @@ given Ordering[Redeemer] with
             case 0 => x.getIndex.compareTo(y.getIndex)
             case c => c
 
+@annotation.nowarn("msg=deprecated")
 @deprecated("Use Script instead", "0.10.1")
 case class ScriptInfo(hash: ByteString, scriptVersion: ScriptVersion)
 
@@ -116,6 +117,7 @@ object Interop {
     /// Helper for null check
     extension [A](inline a: A) inline infix def ??(b: => A): A = if a != null then a else b
 
+    @annotation.nowarn("msg=deprecated")
     @deprecated("Use getScriptFromScriptRefBytes", "0.10.1")
     def getScriptInfoFromScriptRef(scriptRef: Array[Byte]): ScriptInfo = {
         // script_ref is encoded as CBOR Array

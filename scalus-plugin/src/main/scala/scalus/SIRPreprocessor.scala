@@ -9,7 +9,6 @@ import dotty.tools.dotc.core.Decorators.*
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Flags.*
 import dotty.tools.dotc.core.Names.*
-import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*
 import scalus.sir.{Module as SIRModule, *}

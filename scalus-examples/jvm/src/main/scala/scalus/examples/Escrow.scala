@@ -9,7 +9,6 @@ import scalus.ledger.api.v2.OutputDatum
 import scalus.builtin.Data
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.ledger.api.v1.Value.getLovelace
-import scalus.Compiler.compile
 import scalus.builtin.Builtins.trace
 
 case class EscrowDatum(
