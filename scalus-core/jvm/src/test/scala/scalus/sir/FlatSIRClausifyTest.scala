@@ -85,7 +85,7 @@ class FlatSIRClausifyTest extends AnyFunSuite {
 
     test("desericalize ClausifyTest SIR from file") {
         val fname =
-            "../../scalus-examples/jvm/target/scala-3.3.6/test-classes/scalus/benchmarks/ClausifyTest$.sir"
+            "../../scalus-examples/jvm/target/scala-3.3.7/test-classes/scalus/benchmarks/ClausifyTest$.sir"
 
         val fname1 = "../../scalus-examples"
         println(s"exists ${fname1}: ${new File(fname1).exists()}")
@@ -110,7 +110,7 @@ class FlatSIRClausifyTest extends AnyFunSuite {
 
     test("deserelialize latin1 string with compilation") {
         val fname =
-            "../../scalus-examples/jvm/target/scala-3.3.6/test-classes/ClausifyTest.scala_544.sir"
+            "../../scalus-examples/jvm/target/scala-3.3.7/test-classes/ClausifyTest.scala_544.sir"
 
         val file = new File(fname)
         if !file.exists() then {
