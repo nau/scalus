@@ -3,14 +3,13 @@ package scalus.examples.htlc
 import scalus.builtin.ToData.*
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.Script.PlutusV3
 import scalus.cardano.txbuilder.*
 import scalus.ledger.api.v1.PosixTime
 
 class Transactions(context: BuilderContext) {
 
     val wallet = context.wallet
-    val script = PlutusV3(HtlcValidator.script.cborByteString)
+    val script = HtlcContract.defaultCompiledContract.script
     val scriptAddress = Address(context.env.network, Credential.ScriptHash(script.scriptHash))
 
     def lock(

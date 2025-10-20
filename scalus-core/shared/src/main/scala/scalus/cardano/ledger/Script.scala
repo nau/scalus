@@ -16,6 +16,8 @@ sealed trait PlutusScript extends Script {
 
     /** Get script language */
     def language: Language
+
+    def toHex: String = script.toHex
 }
 
 object Script {

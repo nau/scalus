@@ -3,7 +3,7 @@ package scalus.cardano.blueprint
 import scalus.*
 import scalus.cardano.ledger.{Language, PlutusScript, Script}
 import scalus.sir.SIR
-import scalus.uplc.{Program, Term}
+import scalus.uplc.Program
 
 /** A description of a Scalus application, containing one or more contracts.
   */
@@ -35,42 +35,52 @@ object Application {
         version: String,
         inline code: Any
     ): Application = {
-        val contract = PlutusV3.create[D, R](title)(code)
+        val contract = PlutusV3.create[D, R](title, description)(code)
         Application(title, description, version, Seq(contract))
     }
 }
 
 /** A smart contract compiled with Scalus. */
 trait CompiledContract {
-    def asProgram: Program
-
-    def asScript: PlutusScript
-
-    def describeValidator: Validator
-
     def sir: SIR
+    def program: Program
+    def script: PlutusScript
+    def describeValidator: Validator
+    def blueprint: Blueprint
 }
-case class PlutusV3(
-    title: String,
-    description: String,
-    sir: SIR,
+
+class PlutusV3(
+    preamble: Preamble,
+    override val sir: SIR,
+    override val program: Program,
     datumSchema: Option[PlutusDataSchema],
     redeemerSchema: Option[PlutusDataSchema]
 ) extends CompiledContract {
-    private val uplc: Term = sir.toUplcOptimized()
+    require(
+      preamble.plutusVersion.forall(_ == scalus.cardano.ledger.Language.PlutusV3),
+      "PlutusV3Contract must have PlutusV3 as its plutus version in the preamble"
+    )
 
-    def describeValidator: Validator = {
+    require(
+      program.version == (1, 1, 0),
+      "PlutusV3Contract must have UPLC version 1.1.0"
+    )
+
+    override val script: Script.PlutusV3 = Script.PlutusV3(program.cborByteString)
+
+    override lazy val describeValidator: Validator = {
         Validator(
-          title = title,
+          title = preamble.title,
+          // TODO: test failed if uncommit
+          // description = Some(preamble.description),
           datum = datumSchema.map(schema => TypeDescription(schema = schema)),
           redeemer = redeemerSchema.map(schema => TypeDescription(schema = schema)),
-          compiledCode = Some(asScript.script.toHex),
-          hash = Some(asScript.scriptHash.toHex)
+          compiledCode = Some(script.toHex),
+          hash = Some(script.scriptHash.toHex)
         )
     }
-    def asProgram: Program = uplc.plutusV3
 
-    def asScript: Script.PlutusV3 = Script.PlutusV3(asProgram.cborByteString)
+    override lazy val blueprint: Blueprint = Blueprint(preamble, Seq(describeValidator))
 }
 
 object PlutusV3 {
@@ -80,8 +90,20 @@ object PlutusV3 {
         description: String = ""
     )(inline code: Any): PlutusV3 = {
         val sir = Compiler.compileInline(code)
+        val program = sir.toUplcOptimized().plutusV3
         val datumSchema = PlutusDataSchema.derived[D]
         val redeemerSchema = PlutusDataSchema.derived[R]
-        PlutusV3(title, description, sir, datumSchema, redeemerSchema)
+        PlutusV3(Preamble(title, Some(description)), sir, program, datumSchema, redeemerSchema)
+    }
+
+    inline def create[D, R](
+        preamble: Preamble,
+        options: scalus.Compiler.Options
+    )(inline code: Any): PlutusV3 = {
+        val sir = Compiler.compileInline(code)
+        val program = sir.toUplc(using options)().plutusV3
+        val datumSchema = PlutusDataSchema.derived[D]
+        val redeemerSchema = PlutusDataSchema.derived[R]
+        PlutusV3(preamble, sir, program, datumSchema, redeemerSchema)
     }
 }

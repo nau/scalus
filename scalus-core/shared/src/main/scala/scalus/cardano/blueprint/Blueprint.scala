@@ -88,17 +88,18 @@ case class Preamble(
     title: String,
     description: Option[String] = None,
     version: Option[String] = None,
-    compiler: Option[CompilerInfo] = None,
+    compiler: Option[CompilerInfo] =
+        None, // TODO: failed if make default  Some(CompilerInfo.currentScalus)
     plutusVersion: Option[Language] = None,
     license: Option[String] = None
 )
 
 object Preamble {
-    def apply(title: String, description: String, version: Language): Preamble = Preamble(
+    def apply(title: String, description: String, plutusVersion: Language): Preamble = Preamble(
       title = title,
       description = Some(description),
       compiler = Some(CompilerInfo.currentScalus),
-      plutusVersion = Some(version)
+      plutusVersion = Some(plutusVersion)
     )
 
     given JsonValueCodec[Language] = new JsonValueCodec[Language] {

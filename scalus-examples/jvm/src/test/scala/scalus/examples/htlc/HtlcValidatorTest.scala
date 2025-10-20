@@ -180,7 +180,7 @@ object HtlcValidatorTest extends ScalusTest {
                 case (((), _), scala.util.Success(_))                  =>
                 case (_, actual) => fail(s"Expected: $expected, but got: $actual")
 
-            checkResult(expected = expected, actual = script.runWithDebug(context))
+            checkResult(expected = expected, actual = program.runWithDebug(context))
         }
 
     private def generatePreimage(): Preimage = genByteStringOfN(32).sample.get
@@ -213,5 +213,6 @@ object HtlcValidatorTest extends ScalusTest {
         )
     }
 
-    private lazy val scriptHash = script.hash
+    private lazy val program = HtlcContract.debugCompiledContract.program
+    private lazy val scriptHash = HtlcContract.debugCompiledContract.script.scriptHash
 }

@@ -75,7 +75,13 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
     }
 
     def runValidator(tx: Transaction, utxo: Utxos, wallet: Wallet, scriptInput: TransactionInput) =
-        TestUtil.runValidator(HtlcValidator.script, tx, utxo, wallet, scriptInput)
+        TestUtil.runValidator(
+          HtlcContract.defaultCompiledContract.program,
+          tx,
+          utxo,
+          wallet,
+          scriptInput
+        )
 
     test("receiver reveals preimage before timeout") {
         val lockTx = lockHtlc()
@@ -88,7 +94,8 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
 
         val scriptContext = TestUtil.getScriptContext(revealTx, utxos, htlcUtxo._1)
-        val result = HtlcValidator.script.term.plutusV3.runWithDebug(scriptContext)
+        val result =
+            HtlcContract.defaultCompiledContract.program.term.plutusV3.runWithDebug(scriptContext)
 
         assert(result.isSuccess)
 
@@ -117,7 +124,8 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
 
         val scriptContext = TestUtil.getScriptContext(revealTx, utxos, htlcUtxo._1)
-        val result = HtlcValidator.script.term.plutusV3.runWithDebug(scriptContext)
+        val result =
+            HtlcContract.defaultCompiledContract.program.term.plutusV3.runWithDebug(scriptContext)
 
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.InvalidReceiverPreimage))
@@ -140,7 +148,8 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
             .getOrElse(???)
 
         val scriptContext = TestUtil.getScriptContext(revealTx, utxos, htlcUtxo._1)
-        val result = HtlcValidator.script.term.plutusV3.runWithDebug(scriptContext)
+        val result =
+            HtlcContract.defaultCompiledContract.program.term.plutusV3.runWithDebug(scriptContext)
 
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.InvalidReceiverTimePoint))
@@ -157,7 +166,8 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
 
         val scriptContext = TestUtil.getScriptContext(timeoutTx, utxos, htlcUtxo._1)
-        val result = HtlcValidator.script.term.plutusV3.runWithDebug(scriptContext)
+        val result =
+            HtlcContract.defaultCompiledContract.program.term.plutusV3.runWithDebug(scriptContext)
 
         assert(result.isSuccess)
 
@@ -190,7 +200,8 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
             .getOrElse(???)
 
         val scriptContext = TestUtil.getScriptContext(timeoutTx, utxos, htlcUtxo._1)
-        val result = HtlcValidator.script.term.plutusV3.runWithDebug(scriptContext)
+        val result =
+            HtlcContract.defaultCompiledContract.program.term.plutusV3.runWithDebug(scriptContext)
 
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.InvalidCommitterTimePoint))

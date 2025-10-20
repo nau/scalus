@@ -48,7 +48,7 @@ trait ScalusTest extends ArbitraryInstances {
 
     extension (self: SIR)
         def runScript(using
-            scalusOptions: scalus.Compiler.Options = scalus.Compiler.defaultOptions
+            scalusOptions: scalus.Compiler.Options = scalus.Compiler.Options.default
         )(
             scriptContext: ScriptContext,
             param: Option[Data] = None
@@ -60,7 +60,7 @@ trait ScalusTest extends ArbitraryInstances {
             appliedScript.evaluateDebug
 
         def scriptV3(using
-            scalusOptions: scalus.Compiler.Options = scalus.Compiler.defaultOptions
+            scalusOptions: scalus.Compiler.Options = scalus.Compiler.Options.default
         )(errorTraces: Boolean = true): Program =
             self.toUplc(generateErrorTraces = errorTraces).plutusV3
 

@@ -48,7 +48,7 @@ package object scalus {
         }
 
         def toUplcOptimized(using
-            options: Compiler.Options = Compiler.defaultOptions
+            options: Compiler.Options = Compiler.Options.default
         )(
             generateErrorTraces: Boolean = options.generateErrorTraces,
             backend: Compiler.TargetLoweringBackend = options.targetLoweringBackend,
