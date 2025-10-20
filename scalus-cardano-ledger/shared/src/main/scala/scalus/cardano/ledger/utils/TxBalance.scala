@@ -85,7 +85,8 @@ object TxBalance {
         val conwayTotalDepositsTxCerts = shelleyTotalDepositsTxCerts + conwayDRepDepositsTxCerts
         val getTotalDepositsTxBody = conwayTotalDepositsTxCerts
         val shelleyProducedValue = outputs + Value(txBody.fee + getTotalDepositsTxBody)
-        val getProducedMaryValue = shelleyProducedValue + burned
+        // Since burning is expressed by negative amounts for mints, we need to + (- burned)
+        val getProducedMaryValue = shelleyProducedValue - burned
         val conwayProducedValue =
             getProducedMaryValue + Value(txBody.donation.getOrElse(Coin.zero))
         val getProducedValue = conwayProducedValue
