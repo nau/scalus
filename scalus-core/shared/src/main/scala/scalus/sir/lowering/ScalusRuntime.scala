@@ -97,6 +97,7 @@ object ScalusRuntime {
         val nameTuples = DATA_LIST_TO_TUPLES_LIST_NAME
         val name1 = "fun_" + nameTuples
         val rhs = genDataListToPairDataList(name1)(using lctx)
+        // top-level, not need to set ScopeBrackets
         val funTuples = lvNewLazyNamedVar(
           nameTuples,
           rhs.sirType,

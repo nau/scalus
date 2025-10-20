@@ -362,9 +362,9 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
           )
         )
 
-        val retval = orderedCases.zipWithIndex.foldRight(lastTerm) {
+        val body = orderedCases.zipWithIndex.foldRight(lastTerm) {
             case ((sirCase, caseIndex), state) =>
-                val body = genMatchDataConstrCase(sirCase, dataListVar, optTargetType)
+                val body = genMatchDataConstrCase(sirCase, dataListVar, optTargetType, false)
                 lvIfThenElse(
                   lvEqualsInteger(
                     constrIdxVar,
@@ -379,13 +379,17 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
         lctx.scope = prevScope
 
-        retval
+        ScopeBracketsLoweredValue(
+          Set(scrutineeVar, constrIdxVar, dataListVar),
+          body
+        )
     }
 
     def genMatchDataConstrCase(
         sirCase: SIR.Case,
         dataListVar: IdentifiableLoweredValue,
-        optTargetType: Option[SIRType]
+        optTargetType: Option[SIRType],
+        addDataListToScope: Boolean
     )(using lctx: LoweringContext): LoweredValue = {
         val prevScope = lctx.scope
 
@@ -408,10 +412,12 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
               sirCase.anns.pos
             )
 
-        // The sence of this fold is to add to hre scope all bindingd vars
-        val (lastTail, n) =
-            constrPattern.bindings.zip(constrDecl.params).foldLeft((dataListVar, 0)) {
-                case ((currentTail, idx), (name, typeBinding)) =>
+        val scopedVars0 =
+            if addDataListToScope then Set(dataListVar) else Set.empty[IdentifiableLoweredValue]
+
+        val (lastTail, scopedVars, n) =
+            constrPattern.bindings.zip(constrDecl.params).foldLeft((dataListVar, scopedVars0, 0)) {
+                case ((currentTail, currentSet, idx), (name, typeBinding)) =>
                     val tp0 = typeBinding.tp
                     val prevId = currentTail.id
                     val tp = lctx.resolveTypeVarIfNeeded(tp0)
@@ -449,7 +455,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                                   ),
                                   sirCase.anns.pos
                                 )
-                    (nextTailVar, idx + 1)
+                    (nextTailVar, currentSet + nextTailVar, idx + 1)
             }
 
         // now with the all named variable in the scope we can generate the body
@@ -457,7 +463,7 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
 
         lctx.scope = prevScope
 
-        body
+        ScopeBracketsLoweredValue(scopedVars, body)
     }
 
     def genMatchUplcConstr(

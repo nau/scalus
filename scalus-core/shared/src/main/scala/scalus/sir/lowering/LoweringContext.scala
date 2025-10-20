@@ -17,6 +17,7 @@ class LoweringContext(
     var debug: Boolean = false,
     var debugLevel: Int = 0,
     var nestingLevel: Int = 0,
+    var enclosingLambdaParams: List[IdentifiableLoweredValue] = List.empty,
 ) {
 
     def uniqueVarName(prefix: String = "_v"): String = {

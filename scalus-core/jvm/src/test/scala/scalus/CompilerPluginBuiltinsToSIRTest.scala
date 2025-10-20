@@ -63,8 +63,6 @@ class CompilerPluginBuiltinsToSIRTest extends AnyFunSuite with ScalaCheckPropert
     test("compile chooseList builtins") {
 
         val x: SIR = List(1, 2, 3)
-        println(s"!!!: x = ${x.pretty.render(100)}")
-        println(s"!!!x: x= $x ")
 
         assert(
           compile(

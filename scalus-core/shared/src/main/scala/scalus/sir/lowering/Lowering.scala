@@ -335,7 +335,8 @@ object Lowering {
                     }.toSeq
                     val bodyValue = lowerSIR(body)
                     lctx.scope = prevScope
-                    if flags.isLazy then bodyValue
+                    if flags.isLazy then
+                        ScopeBracketsLoweredValue(bindingValues.map(_._1).toSet, bodyValue)
                     else LetNonRecLoweredValue(bindingValues, bodyValue, sirLet.anns.pos)
                 else {
                     // in rec case, Lazy doesn't make sense, so we ignore it
@@ -564,7 +565,7 @@ object Lowering {
                 case NonFatal(ex) =>
                     println(
                       s"Error generating term of type ${value.sirType.show} at ${value.pos.file}:${value.pos.startLine + 1}\n" +
-                          s"value:\n${value.show}\n" +
+                          s"value:\n${value.shortShow}\n" +
                           s"generatedVars: ${gctx.generatedVars.mkString(", ")}\n" +
                           s"newVars: ${newVars.map(_.id).mkString(", ")}\n" +
                           s"dominatingUplevelVars: ${value.dominatingUplevelVars.map(_.id).mkString(", ")}"

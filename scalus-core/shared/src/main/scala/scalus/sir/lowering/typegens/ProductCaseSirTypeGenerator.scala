@@ -81,17 +81,18 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
             case (ProdDataList, outRep @ ProductCaseClassRepresentation.OneElementWrapper(_)) =>
                 lvBuiltinApply(SIRBuiltins.headList, input, input.sirType, outRep, pos)
             case (ProdDataList, PairData) =>
-                val inputIdv = input match
-                    case idv: IdentifiableLoweredValue => idv
+                val (inputIdv, addToScoped) = input match
+                    case idv: IdentifiableLoweredValue => (idv, false)
                     case other =>
                         val id = lctx.uniqueVarName("dl_to_pair_input")
-                        lvNewLazyIdVar(
+                        val v = lvNewLazyIdVar(
                           id,
                           input.sirType,
                           input.representation,
                           other,
                           pos
                         )
+                        (v, true)
                 val head = lvBuiltinApply(
                   SIRBuiltins.headList,
                   inputIdv,
@@ -113,7 +114,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                   ProductCaseClassRepresentation.ProdDataList,
                   pos
                 )
-                lvBuiltinApply2(
+                val body = lvBuiltinApply2(
                   SIRBuiltins.mkPairData,
                   head,
                   headTailHead,
@@ -121,6 +122,8 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                   ProductCaseClassRepresentation.PairData,
                   pos
                 )
+                if addToScoped then ScopeBracketsLoweredValue(Set(inputIdv), body)
+                else body
             case (PackedDataList, ProdDataList) =>
                 lvBuiltinApply(
                   SIRBuiltins.unListData,
@@ -377,16 +380,19 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
     ): LoweredValue = {
         val dataListScrutinee = loweredScrutinee.toRepresentation(ProdDataList, sel.anns.pos)
         // val prevScope = lctx.scope
-        val list0: IdentifiableLoweredValue =
+        val (list0, addList0ToScope) =
             if dataListScrutinee.isInstanceOf[IdentifiableLoweredValue] then
-                dataListScrutinee.asInstanceOf[IdentifiableLoweredValue]
+                (dataListScrutinee.asInstanceOf[IdentifiableLoweredValue], false)
             else
-                lvNewLazyIdVar(
-                  lctx.uniqueVarName("list_sel"),
-                  dataListScrutinee.sirType,
-                  SumDataList,
-                  dataListScrutinee,
-                  sel.anns.pos
+                (
+                  lvNewLazyIdVar(
+                    lctx.uniqueVarName("list_sel"),
+                    dataListScrutinee.sirType,
+                    SumDataList,
+                    dataListScrutinee,
+                    sel.anns.pos
+                  ),
+                  true
                 )
         val list0id = list0.id
         val constrDecl = retrieveConstrDecl(loweredScrutinee.sirType, sel.anns.pos)
@@ -396,33 +402,37 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
               s"Unknown field ${sel.field} for ${constrDecl.name}",
               sel.anns.pos
             )
-        val selHeadList = (0 until fieldIndex).foldLeft(list0) { (acc, idx) =>
-            val tailId = list0id + s"_tail_${idx + 1}"
-            val tailLazyVar = lctx.scope.getById(tailId) match
-                case Some(v) => v
-                case None =>
-                    lvNewLazyIdVar(
-                      tailId,
-                      SIRType.List(SIRType.Data),
-                      SumDataList,
-                      lvBuiltinApply(
-                        SIRBuiltins.tailList,
-                        acc,
-                        SIRType.List(SIRType.Data),
-                        SumDataList,
-                        sel.anns.pos
-                      ),
-                      sel.anns.pos
-                    )
-            tailLazyVar
+        val scopeVars0: Set[IdentifiableLoweredValue] =
+            if addList0ToScope then Set(list0) else Set.empty
+        val (selHeadList, scopeVars) = (0 until fieldIndex).foldLeft((list0, scopeVars0)) {
+            (acc, idx) =>
+                val tailId = list0id + s"_tail_${idx + 1}"
+                val tailLazyVar = lctx.scope.getById(tailId) match
+                    case Some(v) => v
+                    case None =>
+                        lvNewLazyIdVar(
+                          tailId,
+                          SIRType.List(SIRType.Data),
+                          SumDataList,
+                          lvBuiltinApply(
+                            SIRBuiltins.tailList,
+                            acc._1,
+                            SIRType.List(SIRType.Data),
+                            SumDataList,
+                            sel.anns.pos
+                          ),
+                          sel.anns.pos
+                        )
+                (tailLazyVar, acc._2 + tailLazyVar)
         }
-        lvBuiltinApply(
+        val body = lvBuiltinApply(
           SIRBuiltins.headList,
           selHeadList,
           sel.tp,
           lctx.typeGenerator(sel.tp).defaultDataRepresentation(sel.tp),
           sel.anns.pos
         )
+        ScopeBracketsLoweredValue(scopeVars, body)
     }
 
     override def genMatch(
@@ -503,20 +513,26 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
                         val argsTypes = constrDecl.params.map(_.tp)
                         // TODO: add typeArgs to env ?
                         oneCase.copy(pattern = SIR.Pattern.Constr(constrDecl, argsNames, argsTypes))
-                val dataList = loweredScrutinee.toRepresentation(
+                val (dataList, addToScope) = loweredScrutinee.toRepresentation(
                   ProductCaseClassRepresentation.ProdDataList,
                   loweredScrutinee.pos
                 ) match
-                    case idv: IdentifiableLoweredValue => idv
+                    case idv: IdentifiableLoweredValue => (idv, false)
                     case other =>
-                        lvNewLazyIdVar(
+                        val v = lvNewLazyIdVar(
                           lctx.uniqueVarName("_match_data_list"),
                           SIRType.List(SIRType.Data),
                           SumCaseClassRepresentation.SumDataList,
                           other,
                           matchData.anns.pos
                         )
-                SumCaseSirTypeGenerator.genMatchDataConstrCase(matchCase, dataList, optTargetType)
+                        (v, true)
+                SumCaseSirTypeGenerator.genMatchDataConstrCase(
+                  matchCase,
+                  dataList,
+                  optTargetType,
+                  addToScope
+                )
             case _ =>
                 val myCase = selectMatchCase(
                   matchData,
@@ -538,10 +554,15 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
     class MatchPairDataLoweredValue(
         frs: IdentifiableLoweredValue,
         snd: IdentifiableLoweredValue,
-        scrutinee: LoweredValue,
+        scrutinee: IdentifiableLoweredValue,
+        addScrutineeToScope: Boolean,
         body: LoweredValue,
         inPos: SIRPosition
-    ) extends ComplexLoweredValue(Set(frs, snd), scrutinee, body) {
+    ) extends ComplexLoweredValue(
+          Set(frs, snd) ++ (if addScrutineeToScope then Set(scrutinee) else Set.empty),
+          scrutinee,
+          body
+        ) {
 
         override def sirType: SIRType = body.sirType
 
@@ -579,16 +600,19 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
         // val constrDecl = retrieveConstrDecl(loweredScrutinee.sirType, matchData.anns.pos)
         val myCase = selectMatchCase(matchData, loweredScrutinee, constrDecl)
         val prevScope = lctx.scope
-        val matchVal = loweredScrutinee match
+        val (matchVal, addMatchValToScope) = loweredScrutinee match
             case idv: IdentifiableLoweredValue =>
-                idv
+                (idv, false)
             case other =>
-                lvNewLazyIdVar(
-                  lctx.uniqueVarName("match_pair_data"),
-                  SIRType.List(SIRType.Data),
-                  SumCaseClassRepresentation.SumDataList,
-                  other,
-                  matchData.anns.pos
+                (
+                  lvNewLazyIdVar(
+                    lctx.uniqueVarName("match_pair_data"),
+                    SIRType.List(SIRType.Data),
+                    SumCaseClassRepresentation.SumDataList,
+                    other,
+                    matchData.anns.pos
+                  ),
+                  true
                 )
         val (frsName, sndName) = myCase.pattern match {
             case SIR.Pattern.Constr(constr, bindings, typeParamsBindinsg) =>
@@ -627,6 +651,7 @@ object ProductCaseSirTypeGenerator extends SirTypeUplcGenerator {
           frs,
           snd,
           matchVal,
+          addMatchValToScope,
           lwBody,
           matchData.anns.pos
         )

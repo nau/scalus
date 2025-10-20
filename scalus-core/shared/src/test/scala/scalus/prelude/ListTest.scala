@@ -929,6 +929,7 @@ class ListTest extends StdlibTestKit {
     }
 
     test("filterMap") {
+
         check { (list: List[BigInt], value: BigInt) =>
             val scalusResult = list.filterMap(x => if x > value then Some(x + value) else None)
             val scalaResult =
@@ -954,6 +955,7 @@ class ListTest extends StdlibTestKit {
           ),
           Cons(BigInt(3), Nil)
         )
+
     }
 
     test("find") {

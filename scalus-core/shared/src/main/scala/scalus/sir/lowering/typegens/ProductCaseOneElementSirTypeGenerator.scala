@@ -236,7 +236,7 @@ case class ProductCaseOneElementSirTypeGenerator(
                             )
                             val prevScope = lctx.scope
                             val arg = argLoweredValue(loweredScrutinee)
-                            lvNewLazyNamedVar(
+                            val bindingVar = lvNewLazyNamedVar(
                               bindings.head,
                               argType,
                               arg.representation,
@@ -245,7 +245,7 @@ case class ProductCaseOneElementSirTypeGenerator(
                             )
                             val loweredBody = lctx.lower(body, optTargetType)
                             lctx.scope = prevScope
-                            loweredBody
+                            ScopeBracketsLoweredValue(Set(bindingVar), loweredBody)
                         else
                             throw LoweringException(
                               s"Expected case class ${sirCaseClass.constrDecl.name}, got ${constr.name}",

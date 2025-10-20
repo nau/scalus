@@ -114,6 +114,14 @@ trait LoweredValue {
       */
     def usedUplevelVars: Set[IdentifiableLoweredValue]
 
+    /** Variables, that are directly defined in this value.
+      */
+    def ownVars: Set[IdentifiableLoweredValue]
+
+    /** Internal variables, that are used inside this value.
+      */
+    def internalVars: Set[IdentifiableLoweredValue]
+
     /** Is this value effort-less to compute (i.e. constant or variable or lambda)
       */
     def isEffortLess: Boolean
@@ -124,6 +132,14 @@ trait LoweredValue {
     ): Unit
 
     def show: String = pretty.render(100)
+
+    def shortShow: String = {
+        val s = show
+        val newlinePos = s.indexOf('\n')
+        if newlinePos >= 0 && newlinePos < 60 then s.take(newlinePos) + "..."
+        else if s.length > 60 then s.take(60) + "..."
+        else s
+    }
 
     /** Pretty print this value with all definitona
       * @param style - style of printing
@@ -152,6 +168,8 @@ case class ConstantLoweredValue(
     override def pos: SIRPosition = sir.anns.pos
     override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
     override def usedUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
+    override def ownVars: Set[IdentifiableLoweredValue] = Set.empty
+    override def internalVars: Set[IdentifiableLoweredValue] = Set.empty
     override def isEffortLess: Boolean = true
     override def termInternal(gctx: TermGenerationContext): Term =
         Term.Const(sir.uplcConst)
@@ -186,6 +204,8 @@ case class StaticLoweredValue(
     def pos: SIRPosition = sir.anns.pos
     def dominatingUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
     def usedUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
+    def ownVars: Set[IdentifiableLoweredValue] = Set.empty
+    def internalVars: Set[IdentifiableLoweredValue] = Set.empty
     def termInternal(gctx: TermGenerationContext): Term = term
     def addDependent(value: IdentifiableLoweredValue): Unit = {}
 
@@ -256,6 +276,10 @@ sealed trait IdentifiableLoweredValue extends LoweredValue {
     override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] = {
         Some(this).filter(p).orElse(optRhs.flatMap(_.findSelfOrSubtems(p)))
     }
+
+    override def ownVars: Set[IdentifiableLoweredValue] = Set.empty
+
+    override def internalVars: Set[IdentifiableLoweredValue] = Set.empty
 
     override def isEffortLess: Boolean = true
 
@@ -478,6 +502,12 @@ trait ProxyLoweredValue(val origin: LoweredValue) extends LoweredValue {
     override def usedUplevelVars: Set[IdentifiableLoweredValue] =
         origin.usedUplevelVars
 
+    override def ownVars: Set[IdentifiableLoweredValue] =
+        origin.ownVars
+
+    override def internalVars: Set[IdentifiableLoweredValue] =
+        origin.internalVars
+
     override def addDependent(value: IdentifiableLoweredValue): Unit =
         origin.addDependent(value)
 
@@ -536,8 +566,10 @@ case class ForceLoweredValue(input: LoweredValue, override val pos: SIRPosition)
   * ownVars - var that used in subvalues but defined in this value. (i.e. not propagated up in
   * dominatedUplevelVars)
   */
-trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: LoweredValue*)
-    extends LoweredValue {
+trait ComplexLoweredValue(
+    override val ownVars: Set[IdentifiableLoweredValue],
+    subvalues: LoweredValue*
+) extends LoweredValue {
 
     // TODO: calculate dependency set in one pass
     val usedVarsCount = Lowering.filterAndCountVars(
@@ -555,6 +587,10 @@ trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: Low
 
     override def usedUplevelVars: Set[IdentifiableLoweredValue] =
         cUsedVars
+
+    lazy val cInternalVars = ownVars ++ subvalues.flatMap(_.internalVars).toSet
+
+    override def internalVars: Set[IdentifiableLoweredValue] = cInternalVars
 
     override def addDependent(value: IdentifiableLoweredValue): Unit = {
         subvalues.foreach(_.addDependent(value))
@@ -615,7 +651,7 @@ case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, 
                 case vv: VariableLoweredValue =>
                     vv.optRhs match
                         case Some(rhs) => !rhs.isEffortLess
-                        case None => false // No RHS means it's just a parameter/reference
+                        case None      => false // No RHS means it's just a parameter/reference
                 case dv: DependendVariableLoweredValue =>
                     !dv.rhs.isEffortLess
         }
@@ -625,11 +661,17 @@ case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, 
             c > 1 && v.directDepended.size > 1
         }.keySet
 
-        // Add all vars with non-effortless RHS (lambda barrier)
-        // Variables that reference other variables are effortless and will be inlined
-        val nonEffortlessUsedVars = body.usedUplevelVars.filter(hasNonEffortlessRhs)
+        // Lambda barrier: prevent non-effortless computations from crossing lambda boundary
+        // A variable should stay inside if it depends on ANY lambda parameter:
+        // - The current lambda parameter (newVar), OR
+        // - Any enclosing lambda parameter from outer lambdas
+        val nonEffortlessExternalVars = cUsedVars.filter { v =>
+            hasNonEffortlessRhs(v) && !v.isDependFrom(newVar) && !internalVars.contains(v)
+        }
 
-        normallyDominating ++ nonEffortlessUsedVars
+        val result = normallyDominating ++ nonEffortlessExternalVars
+
+        result
     }
 
     override def termInternal(gctx: TermGenerationContext): Term = {
@@ -656,6 +698,34 @@ case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, 
             if p(newVar) then Some(newVar)
             else body.findSelfOrSubtems(p)
         }
+    }
+
+}
+
+/** Lowered value which exists to create a scope for the set of variables. Need to prevent pulling
+  * out variables outsiode scope from lambda-s, while we have not yet full tracking of control-flow
+  * dependencies. (i.e. variables defined inside scope should not be pulled outside of it
+  * automatically by lambda barrier logic)
+  */
+case class ScopeBracketsLoweredValue(
+    vars: Set[IdentifiableLoweredValue],
+    body: LoweredValue
+) extends ComplexLoweredValue(vars, body) {
+
+    override def sirType: SIRType = body.sirType
+
+    override def representation: LoweredValueRepresentation = body.representation
+
+    override def pos: SIRPosition = body.pos
+
+    override def termInternal(gctx: TermGenerationContext): Term = {
+        body.termWithNeededVars(gctx)
+    }
+
+    override def docDef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
+        val left = Doc.text("scope") + Doc.text("{")
+        val right = Doc.text("}")
+        body.docRef(ctx).bracketBy(left, right).grouped
     }
 
 }
@@ -1351,10 +1421,22 @@ object LoweredValue {
               sir = sirVar,
               representation = inputRepresentation
             )
+
+            // Make inner lambda parameter depend on the immediate outer lambda parameter
+            // Since isDependFrom is transitive, this creates a dependency chain
+            // Update BOTH directions: forward (dependFrom) and reverse (depended)
+            lctx.enclosingLambdaParams.headOption.foreach { outerParam =>
+                newVar.directDependFrom.add(outerParam)
+                outerParam.directDepended.add(newVar)
+            }
+
             val prevScope = lctx.scope
+            val prevEnclosingParams = lctx.enclosingLambdaParams
             lctx.scope = lctx.scope.add(newVar)
+            lctx.enclosingLambdaParams = newVar :: lctx.enclosingLambdaParams
             val body = f(newVar)(using lctx)
             lctx.scope = prevScope
+            lctx.enclosingLambdaParams = prevEnclosingParams
             LambdaLoweredValue(newVar, body, inPos)
         }
 
@@ -1365,7 +1447,7 @@ object LoweredValue {
             tp: SIRType,
             lvr: LoweredValueRepresentation,
             rhs: LoweringContext ?=> LoweredValue,
-            inPos: SIRPosition
+            inPos: SIRPosition,
         )(using lctx: LoweringContext): IdentifiableLoweredValue = {
             val newVar: VariableLoweredValue = new VariableLoweredValue(
               id = id,
