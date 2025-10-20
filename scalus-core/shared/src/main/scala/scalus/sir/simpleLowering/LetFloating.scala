@@ -12,11 +12,18 @@ import scala.collection.mutable
   * Partain, and André Santos. 1996. Let-floating: moving bindings to give faster programs.
   *
   * The algorithm works in three phases:
-  *   1. Down-traversal: Build enriched SIR with node indices and track variable usage
-  *   2. Up-traversal: Find dominating nodes for each lazy let binding
-  *   3. Output generation: Move lazy lets to their dominating nodes
+  *   1. Enrichment pass (down-traversal): Build enriched SIR with node indices, track variable
+  *      usage, lambda context, and dependencies
+  *   2. Analysis pass: Find dominating nodes for each lazy let binding using tracked usage
+  *      information and transitive dependency propagation
+  *   3. Output generation pass (down-traversal): Reconstruct SIR, moving lazy lets to their
+  *      computed dominating nodes
   *
-  * TODO: optimization can introduce expressions like App((lambda x, x),y) which can be eliminaeted.
+  * Lambda barrier: Non-effortless bindings (computations) are prevented from crossing lambda
+  * boundaries to avoid duplicating work when the lambda is called multiple times. Effortless
+  * bindings (constants, variables, lambdas) can cross freely.
+  *
+  * TODO: optimization can introduce expressions like App((lambda x, x),y) which can be eliminated.
   * Maybe add a beta-reduction pass after let-floating, or just handle it here.
   */
 object LetFloating:
@@ -27,7 +34,8 @@ object LetFloating:
         childIndices: List[Int],
         usedVars: Set[VarRef],
         definedVars: Map[String, VarDef],
-        parent: Option[Int] = None // Parent node index for finding suitable insertion points
+        parent: Option[Int] = None, // Parent node index for finding suitable insertion points
+        nearestEnclosingLambda: Option[Int] = None // Index of nearest enclosing lambda node
     )
 
     /** Variable reference: name and defining node index */
@@ -60,6 +68,8 @@ object LetFloating:
         val localScopes = mutable.ArrayBuffer.empty[Map[String, Int]] // name -> defining node
         // Tracks usage nodes and reverse dependencies for each variable
         val trackedVars = mutable.HashMap.empty[VarRef, TrackedVarInfo]
+        // Stack of enclosing lambda node indices
+        val lambdaStack = mutable.ArrayBuffer.empty[Int]
 
         def getNextIndex(): Int =
             val idx = nextIndex
@@ -74,6 +84,23 @@ object LetFloating:
 
         def lookupVar(name: String): Option[Int] =
             localScopes.reverseIterator.flatMap(_.get(name)).nextOption()
+
+        def currentEnclosingLambda: Option[Int] =
+            lambdaStack.lastOption
+
+        def enterLambda(lambdaIndex: Int): Unit =
+            lambdaStack += lambdaIndex
+
+        def exitLambda(): Unit =
+            lambdaStack.remove(lambdaStack.size - 1)
+
+        def createNodeInfo(
+            index: Int,
+            childIndices: List[Int],
+            usedVars: Set[VarRef],
+            definedVars: Map[String, VarDef]
+        ): NodeInfo =
+            NodeInfo(index, childIndices, usedVars, definedVars, None, currentEnclosingLambda)
 
         def trackDirectVarUsage(varRef: VarRef, usageNodeIndex: Int): Unit =
             val info = trackedVars.getOrElseUpdate(varRef, TrackedVarInfo())
@@ -129,13 +156,13 @@ object LetFloating:
                 val usedVars = if defNode >= 0 then Set(VarRef(name, defNode)) else Set.empty
                 // Track direct usage at this Var node
                 usedVars.foreach(varRef => ctx.trackDirectVarUsage(varRef, nodeIndex))
-                val nodeInfo = NodeInfo(nodeIndex, Nil, usedVars, Map.empty)
+                val nodeInfo = ctx.createNodeInfo(nodeIndex, Nil, usedVars, Map.empty)
                 ctx.nodeInfos(nodeIndex) = nodeInfo
                 Var.VarInfo(name, tp, anns, nodeInfo)
 
             case SIR.ExternalVar(moduleName, name, tp, anns) =>
                 // ExternalVars are not tracked as local variables
-                val nodeInfo = NodeInfo(nodeIndex, Nil, Set.empty, Map.empty)
+                val nodeInfo = ctx.createNodeInfo(nodeIndex, Nil, Set.empty, Map.empty)
                 ctx.nodeInfos(nodeIndex) = nodeInfo
                 ExternalVar.ExternalVarInfo(moduleName, name, tp, anns, nodeInfo)
 
@@ -186,19 +213,22 @@ object LetFloating:
                     val dependent = VarRef(varDef.name, varDef.definingNode)
                     for dep <- varDef.dependencies do ctx.trackReverseDependency(dep, dependent)
 
-                val nodeInfo = NodeInfo(nodeIndex, allChildIndices, usedVars, definedVars)
+                val nodeInfo = ctx.createNodeInfo(nodeIndex, allChildIndices, usedVars, definedVars)
                 ctx.nodeInfos(nodeIndex) = nodeInfo
 
                 Let.LetInfo(enrichedBindings, enrichedBody, flags, anns, nodeInfo)
 
             case SIR.LamAbs(param, term, typeParams, anns) =>
                 ctx.enterScope(Map(param.name -> nodeIndex))
+                ctx.enterLambda(nodeIndex)
                 val enrichedTerm = enrichDown(term, ctx)
+                ctx.exitLambda()
                 ctx.exitScope()
 
                 val termInfo = enrichedTerm.info
                 val usedVars = termInfo.usedVars.filterNot(_.name == param.name)
-                val nodeInfo = NodeInfo(nodeIndex, List(termInfo.index), usedVars, Map.empty)
+                val nodeInfo =
+                    ctx.createNodeInfo(nodeIndex, List(termInfo.index), usedVars, Map.empty)
                 ctx.nodeInfos(nodeIndex) = nodeInfo
 
                 LamAbs.LamAbsInfo(
@@ -218,7 +248,12 @@ object LetFloating:
                 val usedVars = fInfo.usedVars ++ argInfo.usedVars
                 ctx.trackMultipleChildrenUsage(nodeIndex, List(fInfo.usedVars, argInfo.usedVars))
                 val nodeInfo =
-                    NodeInfo(nodeIndex, List(fInfo.index, argInfo.index), usedVars, Map.empty)
+                    ctx.createNodeInfo(
+                      nodeIndex,
+                      List(fInfo.index, argInfo.index),
+                      usedVars,
+                      Map.empty
+                    )
                 ctx.nodeInfos(nodeIndex) = nodeInfo
 
                 Apply.ApplyInfo(enrichedF, enrichedArg, tp, anns, nodeInfo)
@@ -227,13 +262,18 @@ object LetFloating:
                 val enrichedScrutinee = enrichDown(scrutinee, ctx)
                 val scrutInfo = enrichedScrutinee.info
                 val nodeInfo =
-                    NodeInfo(nodeIndex, List(scrutInfo.index), scrutInfo.usedVars, Map.empty)
+                    ctx.createNodeInfo(
+                      nodeIndex,
+                      List(scrutInfo.index),
+                      scrutInfo.usedVars,
+                      Map.empty
+                    )
                 ctx.nodeInfos(nodeIndex) = nodeInfo
 
                 Select.SelectInfo(enrichedScrutinee, field, tp, anns, nodeInfo)
 
             case SIR.Const(uplcConst, tp, anns) =>
-                val nodeInfo = NodeInfo(nodeIndex, Nil, Set.empty, Map.empty)
+                val nodeInfo = ctx.createNodeInfo(nodeIndex, Nil, Set.empty, Map.empty)
                 ctx.nodeInfos(nodeIndex) = nodeInfo
                 Const.ConstInfo(uplcConst, tp, anns, nodeInfo)
 
@@ -245,7 +285,12 @@ object LetFloating:
                 val usedVars = aInfo.usedVars ++ bInfo.usedVars
                 ctx.trackMultipleChildrenUsage(nodeIndex, List(aInfo.usedVars, bInfo.usedVars))
                 val nodeInfo =
-                    NodeInfo(nodeIndex, List(aInfo.index, bInfo.index), usedVars, Map.empty)
+                    ctx.createNodeInfo(
+                      nodeIndex,
+                      List(aInfo.index, bInfo.index),
+                      usedVars,
+                      Map.empty
+                    )
                 ctx.nodeInfos(nodeIndex) = nodeInfo
                 And.AndInfo(enrichedA, enrichedB, anns, nodeInfo)
 
@@ -257,14 +302,20 @@ object LetFloating:
                 val usedVars = aInfo.usedVars ++ bInfo.usedVars
                 ctx.trackMultipleChildrenUsage(nodeIndex, List(aInfo.usedVars, bInfo.usedVars))
                 val nodeInfo =
-                    NodeInfo(nodeIndex, List(aInfo.index, bInfo.index), usedVars, Map.empty)
+                    ctx.createNodeInfo(
+                      nodeIndex,
+                      List(aInfo.index, bInfo.index),
+                      usedVars,
+                      Map.empty
+                    )
                 ctx.nodeInfos(nodeIndex) = nodeInfo
                 Or.OrInfo(enrichedA, enrichedB, anns, nodeInfo)
 
             case SIR.Not(a, anns) =>
                 val enrichedA = enrichDown(a, ctx).asInstanceOf[AnnotatedBase[Int, NodeInfo]]
                 val aInfo = enrichedA.info
-                val nodeInfo = NodeInfo(nodeIndex, List(aInfo.index), aInfo.usedVars, Map.empty)
+                val nodeInfo =
+                    ctx.createNodeInfo(nodeIndex, List(aInfo.index), aInfo.usedVars, Map.empty)
                 ctx.nodeInfos(nodeIndex) = nodeInfo
                 Not.NotInfo(enrichedA, anns, nodeInfo)
 
@@ -281,7 +332,7 @@ object LetFloating:
                   nodeIndex,
                   List(condInfo.usedVars, tInfo.usedVars, fInfo.usedVars)
                 )
-                val nodeInfo = NodeInfo(
+                val nodeInfo = ctx.createNodeInfo(
                   nodeIndex,
                   List(condInfo.index, tInfo.index, fInfo.index),
                   usedVars,
@@ -292,14 +343,15 @@ object LetFloating:
                 IfThenElse.IfThenElseInfo(enrichedCond, enrichedT, enrichedF, tp, anns, nodeInfo)
 
             case SIR.Builtin(bn, tp, anns) =>
-                val nodeInfo = NodeInfo(nodeIndex, Nil, Set.empty, Map.empty)
+                val nodeInfo = ctx.createNodeInfo(nodeIndex, Nil, Set.empty, Map.empty)
                 ctx.nodeInfos(nodeIndex) = nodeInfo
                 Builtin.BuiltinInfo(bn, tp, anns, nodeInfo)
 
             case SIR.Error(msg, anns, cause) =>
                 val enrichedMsg = enrichDown(msg, ctx).asInstanceOf[AnnotatedBase[Int, NodeInfo]]
                 val msgInfo = enrichedMsg.info
-                val nodeInfo = NodeInfo(nodeIndex, List(msgInfo.index), msgInfo.usedVars, Map.empty)
+                val nodeInfo =
+                    ctx.createNodeInfo(nodeIndex, List(msgInfo.index), msgInfo.usedVars, Map.empty)
                 ctx.nodeInfos(nodeIndex) = nodeInfo
                 Error.ErrorInfo(enrichedMsg, anns, cause, nodeInfo)
 
@@ -309,7 +361,7 @@ object LetFloating:
                 val usedVars = argInfos.flatMap(_.usedVars).toSet
                 val childIndices = argInfos.map(_.index)
                 ctx.trackMultipleChildrenUsage(nodeIndex, argInfos.map(_.usedVars).toList)
-                val nodeInfo = NodeInfo(nodeIndex, childIndices, usedVars, Map.empty)
+                val nodeInfo = ctx.createNodeInfo(nodeIndex, childIndices, usedVars, Map.empty)
                 ctx.nodeInfos(nodeIndex) = nodeInfo
                 Constr.ConstrInfo(name, data, enrichedArgs, tp, anns, nodeInfo)
 
@@ -335,7 +387,7 @@ object LetFloating:
                 val childIndices = scrutInfo.index :: caseInfos.map(_.index)
                 val allChildrenVars = scrutInfo.usedVars :: caseInfos.map(_.usedVars).toList
                 ctx.trackMultipleChildrenUsage(nodeIndex, allChildrenVars)
-                val nodeInfo = NodeInfo(nodeIndex, childIndices, usedVars, Map.empty)
+                val nodeInfo = ctx.createNodeInfo(nodeIndex, childIndices, usedVars, Map.empty)
                 ctx.nodeInfos(nodeIndex) = nodeInfo
 
                 Match.MatchInfo(enrichedScrutinee, enrichedCases, tp, anns, nodeInfo)
@@ -344,7 +396,12 @@ object LetFloating:
                 val enrichedTerm = enrichDown(term, ctx).asInstanceOf[AnnotatedBase[Int, NodeInfo]]
                 val termInfo = enrichedTerm.info
                 val nodeInfo =
-                    NodeInfo(nodeIndex, List(termInfo.index), termInfo.usedVars, Map.empty)
+                    ctx.createNodeInfo(
+                      nodeIndex,
+                      List(termInfo.index),
+                      termInfo.usedVars,
+                      Map.empty
+                    )
                 ctx.nodeInfos(nodeIndex) = nodeInfo
                 Cast.CastInfo(enrichedTerm, tp, anns, nodeInfo)
 
@@ -397,6 +454,39 @@ object LetFloating:
         // Second pass: propagate constraints from dependents to dependencies
         propagateTargetConstraints(ctx)
 
+    /** Apply lambda barrier: prevent non-effortless bindings from crossing lambda boundaries
+      *
+      * Walks backwards from target through the lambda chain to find the outermost lambda that would
+      * be crossed when moving from defining node to target node.
+      *
+      * @param definingNode
+      *   The node where the binding is defined
+      * @param targetNode
+      *   The proposed target node where the binding would be inserted
+      * @param ctx
+      *   The context containing node information
+      * @return
+      *   The constrained target node (the outermost lambda boundary if crossing lambdas, or
+      *   targetNode if no barrier)
+      */
+    private def applyLambdaBarrier(definingNode: Int, targetNode: Int, ctx: Context): Int =
+        val defLambda = ctx.nodeInfos.get(definingNode).flatMap(_.nearestEnclosingLambda)
+        val targetLambda = ctx.nodeInfos.get(targetNode).flatMap(_.nearestEnclosingLambda)
+
+        // If both are in the same lambda context, no barrier
+        if defLambda == targetLambda then return targetNode
+
+        // Walk backwards from target to find the outermost lambda we'd cross
+        var current = targetLambda
+        var outermost = targetLambda
+
+        while current.isDefined && current != defLambda do
+            outermost = current
+            current = ctx.nodeInfos.get(current.get).flatMap(_.nearestEnclosingLambda)
+
+        // Return the outermost lambda node - we'll insert before it (outside the lambda)
+        outermost.getOrElse(targetNode)
+
     /** Compute initial target based on direct usage only (no transitive dependencies) */
     private def computeInitialTarget(varRef: VarRef, ctx: Context): Int =
         ctx.trackedVars.get(varRef) match
@@ -405,7 +495,26 @@ object LetFloating:
                 val constraints = mutable.ArrayBuffer.empty[Int]
                 info.minDirectUsageNode.foreach(constraints += _)
                 info.minMultipleChildrenNode.foreach(constraints += _)
-                if constraints.isEmpty then Int.MaxValue else constraints.min
+
+                if constraints.isEmpty then Int.MaxValue
+                else
+                    val minTarget = constraints.min
+
+                    // Apply lambda barrier: check if the binding is effortless
+                    // If not effortless, don't let it cross lambda boundaries
+                    ctx.nodeInfos
+                        .get(varRef.definingNode)
+                        .flatMap { defNodeInfo =>
+                            defNodeInfo.definedVars.get(varRef.name).map { varDef =>
+                                if !isEffortLest(varDef.binding.value) then
+                                    // Non-effortless binding - apply lambda barrier
+                                    applyLambdaBarrier(varRef.definingNode, minTarget, ctx)
+                                else
+                                    // Effortless binding - no barrier
+                                    minTarget
+                            }
+                        }
+                        .getOrElse(minTarget)
 
     /** Propagate target constraints from dependents to dependencies using fixpoint iteration */
     private def propagateTargetConstraints(ctx: Context): Unit =

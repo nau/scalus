@@ -114,6 +114,10 @@ trait LoweredValue {
       */
     def usedUplevelVars: Set[IdentifiableLoweredValue]
 
+    /** Is this value effort-less to compute (i.e. constant or variable or lambda)
+      */
+    def isEffortLess: Boolean
+
     /** add identifiable variable to be updated from this variable */
     def addDependent(
         value: IdentifiableLoweredValue
@@ -148,6 +152,7 @@ case class ConstantLoweredValue(
     override def pos: SIRPosition = sir.anns.pos
     override def dominatingUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
     override def usedUplevelVars: Set[IdentifiableLoweredValue] = Set.empty
+    override def isEffortLess: Boolean = true
     override def termInternal(gctx: TermGenerationContext): Term =
         Term.Const(sir.uplcConst)
     override def addDependent(value: IdentifiableLoweredValue): Unit = {
@@ -173,7 +178,8 @@ case class ConstantLoweredValue(
 case class StaticLoweredValue(
     sir: AnnotatedSIR,
     term: Term,
-    representation: LoweredValueRepresentation
+    representation: LoweredValueRepresentation,
+    override val isEffortLess: Boolean
 ) extends LoweredValue {
 
     def sirType: SIRType = sir.tp
@@ -250,6 +256,8 @@ sealed trait IdentifiableLoweredValue extends LoweredValue {
     override def findSelfOrSubtems(p: LoweredValue => Boolean): Option[LoweredValue] = {
         Some(this).filter(p).orElse(optRhs.flatMap(_.findSelfOrSubtems(p)))
     }
+
+    override def isEffortLess: Boolean = true
 
 }
 
@@ -473,6 +481,8 @@ trait ProxyLoweredValue(val origin: LoweredValue) extends LoweredValue {
     override def addDependent(value: IdentifiableLoweredValue): Unit =
         origin.addDependent(value)
 
+    override def isEffortLess: Boolean = origin.isEffortLess
+
     /*
     override def docDef(style: PrettyPrinter.Style = PrettyPrinter.Style.Normal): Doc = {
         (Doc.text("proxy") + PrettyPrinter.inParens(
@@ -550,6 +560,10 @@ trait ComplexLoweredValue(ownVars: Set[IdentifiableLoweredValue], subvalues: Low
         subvalues.foreach(_.addDependent(value))
     }
 
+    // Complex values require evaluation, so they are not effortless by default
+    // Specific subclasses (like LambdaLoweredValue) can override this if needed
+    override def isEffortLess: Boolean = false
+
     def retrieveSubvalues: Seq[LoweredValue] = subvalues
 
     override def docRef(ctx: LoweredValue.PrettyPrintingContext): Doc = {
@@ -583,7 +597,45 @@ case class LambdaLoweredValue(newVar: VariableLoweredValue, body: LoweredValue, 
 
     override def pos: SIRPosition = inPos
 
+    override def isEffortLess: Boolean = {
+        // we need to check depedencies, because body can depend on other variables
+        // and we don;t want to expand lambda in place if body is not effort-less.
+        //  So, we should run effort-elss on dependencies of body.
+        body.usedUplevelVars.forall(_.isEffortLess)
+    }
+
+    // Lambda barrier: mark all non-effortless used vars as dominating
+    // This ensures they are wrapped OUTSIDE the lambda by the parent's generateDominatedUplevelVarsAccess
+    override val dominatingUplevelVars: Set[IdentifiableLoweredValue] = {
+        // Helper to check if a variable has a non-effortless RHS (direct check only)
+        // Effortless variables that reference other variables will be inlined,
+        // so we only need to prevent the actual computation from entering the lambda
+        def hasNonEffortlessRhs(v: IdentifiableLoweredValue): Boolean = {
+            v match
+                case vv: VariableLoweredValue =>
+                    vv.optRhs match
+                        case Some(rhs) => !rhs.isEffortLess
+                        case None => false // No RHS means it's just a parameter/reference
+                case dv: DependendVariableLoweredValue =>
+                    !dv.rhs.isEffortLess
+        }
+
+        // Get the normally dominating vars (multi-use, multi-dependent)
+        val normallyDominating = usedVarsCount.filter { case (v, c) =>
+            c > 1 && v.directDepended.size > 1
+        }.keySet
+
+        // Add all vars with non-effortless RHS (lambda barrier)
+        // Variables that reference other variables are effortless and will be inlined
+        val nonEffortlessUsedVars = body.usedUplevelVars.filter(hasNonEffortlessRhs)
+
+        normallyDominating ++ nonEffortlessUsedVars
+    }
+
     override def termInternal(gctx: TermGenerationContext): Term = {
+        // Lambda barrier: non-effortless vars are already in gctx.generatedVars (marked as dominating)
+        // So body.termWithNeededVars will only wrap effortless vars inside the lambda
+        // The parent will wrap non-effortless vars outside the lambda
         Term.LamAbs(newVar.id, body.termWithNeededVars(gctx.addGeneratedVar(newVar.id)))
     }
 
@@ -1395,7 +1447,8 @@ object LoweredValue {
             StaticLoweredValue(
               SIR.Builtin(fun.bn, tp, AnnotationsDecl(inPos)),
               Lowering.forcedBuiltin(fun.bn) $ Term.Const(Constant.Unit),
-              lvr
+              lvr,
+              false
             )
         }
 

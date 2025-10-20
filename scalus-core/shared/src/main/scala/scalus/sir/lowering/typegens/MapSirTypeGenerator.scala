@@ -134,6 +134,8 @@ object MapSirTypeGenerator extends SirTypeUplcGenerator {
 
         override def representation: LoweredValueRepresentation = body.representation
 
+        override def isEffortLess: Boolean = false
+
         override def termInternal(gctx: TermGenerationContext): Term = {
             // this will add bidndendVar and scrutinee as rhs if needed
             body.termWithNeededVars(gctx)

@@ -229,7 +229,8 @@ object Lowering {
                 StaticLoweredValue(
                   sirConst,
                   Term.Const(const),
-                  LoweredValueRepresentation.constRepresentation(tp)
+                  LoweredValueRepresentation.constRepresentation(tp),
+                  true
                 )
             case SIR.And(lhs, rhs, anns) =>
                 lowerSIR(
@@ -283,7 +284,8 @@ object Lowering {
                 StaticLoweredValue(
                   sirBuiltin,
                   builtinTerms(bn),
-                  SirTypeUplcGenerator(tp).defaultRepresentation(tp)
+                  SirTypeUplcGenerator(tp).defaultRepresentation(tp),
+                  true
                 )
             case sirError @ SIR.Error(msg, anns, cause) =>
                 if lctx.generateErrorTraces then
@@ -293,7 +295,8 @@ object Lowering {
                           msg.anns.pos
                         )
                     val loweredMsg = lowerSIR(msg, Some(SIRType.String))
-                    val errorTerm = StaticLoweredValue(sirError, ~Term.Error, ErrorRepresentation)
+                    val errorTerm =
+                        StaticLoweredValue(sirError, ~Term.Error, ErrorRepresentation, false)
                     lvForce(
                       lvBuiltinApply2(
                         SIRBuiltins.trace,
@@ -305,7 +308,7 @@ object Lowering {
                       ),
                       anns.pos
                     )
-                else StaticLoweredValue(sirError, Term.Error, ErrorRepresentation)
+                else StaticLoweredValue(sirError, Term.Error, ErrorRepresentation, false)
         lctx.nestingLevel -= 1
         retval
     }
@@ -589,6 +592,43 @@ object Lowering {
         }
 
         retval
+    }
+
+    /** Generate uplevel vars access for non-effortless variables only (lambda barrier).
+      *
+      * This is used in lambda bodies to prevent non-effortless computations from being captured
+      * inside the lambda, which would cause them to be re-evaluated on each lambda call. Effortless
+      * variables (constants, vars, lambdas) can be safely captured.
+      */
+    def generateDominatedNonEffortlessUplevelVarsAccess(
+        value: LoweredValue,
+        innerTerm: Term
+    )(using gctx: TermGenerationContext): Term = {
+        // Filter to only non-effortless dominating uplevel vars
+        val nonEffortlessVars = value.dominatingUplevelVars.filter(!_.isEffortLess)
+        val newVars = nonEffortlessVars.filterNot(x => gctx.generatedVars.contains(x.id))
+
+        if newVars.isEmpty then innerTerm
+        else
+            val topSortedNewVars = topologicalSort(newVars)
+
+            topSortedNewVars.foldLeft(innerTerm) { case (term, v) =>
+                val nGctx = gctx.copy(
+                  generatedVars = gctx.generatedVars + v.id
+                )
+                v match
+                    case dv: DependendVariableLoweredValue =>
+                        Term.Apply(Term.LamAbs(dv.id, term), dv.rhs.termWithNeededVars(nGctx))
+                    case v: VariableLoweredValue =>
+                        v.optRhs match
+                            case Some(rhs) =>
+                                Term.Apply(Term.LamAbs(v.id, term), rhs.termWithNeededVars(nGctx))
+                            case None =>
+                                throw LoweringException(
+                                  s"Unexpected variable $v is not in scope",
+                                  value.pos
+                                )
+            }
     }
 
     def addUsedVarsToCounts(
