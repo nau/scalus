@@ -132,7 +132,8 @@ lazy val root: Project = project
       docs
     )
     .settings(
-      publish / skip := true
+      name := "scalus",
+      publish / skip := true,
     )
 
 // all JVM projects are aggregated in the jvm project just for convenience
@@ -248,11 +249,12 @@ lazy val scalusPlugin = project
 //          sharedFiles.map(file => baseDir / file)
 //      },
       Compile / unmanagedSourceDirectories += (Compile / sourceDirectory).value / "shared" / "scala",
-      clean := {
-          (Compile / clean).value
-          streams.value.log.info("Cleaning shared files")
-          IO.delete((Compile / sourceDirectory).value / "shared")
-      },
+      cleanFiles += (Compile / sourceDirectory).value / "shared",
+      // Ensure shared files are copied before any source inspection
+      Compile / sourceGenerators += Def.task {
+          copySharedFiles.value
+          Seq.empty[File]
+      }.taskValue,
       Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value
     )
 
@@ -674,7 +676,7 @@ addCommandAlias(
 addCommandAlias("benchmark", "bench/jmh:run -i 1 -wi 1 -f 1 -t 1 .*")
 addCommandAlias(
   "it",
-  "clean;scalusCardanoLedgerIt/Test/compile;scalusCardanoLedgerIt/test"
+  "clean;scalusCardanoLedgerIt/clean;scalusCardanoLedgerIt/Test/compile;scalusCardanoLedgerIt/test"
 )
 
 // =============================================================================
