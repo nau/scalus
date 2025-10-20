@@ -3,6 +3,7 @@ package scalus.sir.simpleLowering
 import scalus.sir.*
 import scalus.sir.EnrichedSIR.*
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 /** Let-floating transformation that moves lazy let bindings closer to their usage points.
@@ -719,6 +720,19 @@ object LetFloating:
                 throw new IllegalStateException(
                   s"Impossible enriched node in this optimization: $enriched"
                 )
+
+    /** Expression, which not require computations: constants, vars, lamnbdas
+      */
+    @tailrec
+    private def isEffortLest(sir: SIR): Boolean = {
+        sir match
+            case SIR.Const(_, _, _)          => true
+            case SIR.Var(_, _, _)            => true
+            case SIR.ExternalVar(_, _, _, _) => true
+            case SIR.LamAbs(_, _, _, _)      => true
+            case SIR.Decl(data, term)        => isEffortLest(term)
+            case _                           => false
+    }
 
     /** Apply let-floating transformation to SIR */
     def apply(sir: SIR): SIR =
