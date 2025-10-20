@@ -146,6 +146,6 @@ require(tx.isSignedBy(committer), UnsignedCommitterTransaction)
 require(tx.validRange.isAfter(timeout), InvalidCommitterTimePoint)
 ```
 
-**Note:** a transaction does not have `isSignedBy` by default, but since we're writing a Scala program, we can declare an
+**Note:** a transaction does define a `isSignedBy` by default, but since we're writing a Scala program, we can declare an
 extension method to add functionality to an object, simplifying the code and allowing us to express the requirements in one
 simple statement.
