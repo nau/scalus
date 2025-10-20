@@ -44,24 +44,13 @@ object HtlcValidator extends Validator:
         redeemer.to[Action] match
             case Action.Timeout =>
                 require(tx.isSignedBy(committer), UnsignedCommitterTransaction)
-                require(tx.validRange.isAfter(timeout), InvalidCommitterTimePoint)
+                require(tx.validRange.isEntirelyAfter(timeout), InvalidCommitterTimePoint)
 
             case Action.Reveal(preimage) =>
                 require(tx.isSignedBy(receiver), UnsignedReceiverTransaction)
-                require(!tx.validRange.isAfter(timeout), InvalidReceiverTimePoint)
+                require(!tx.validRange.isEntirelyAfter(timeout), InvalidReceiverTimePoint)
                 require(sha3_256(preimage) === image, InvalidReceiverPreimage)
     }
-
-    // Helper methods
-    extension (self: TxInfo)
-        def isSignedBy(pubKeyHash: PubKeyHash): Boolean =
-            self.signatories.exists { _.hash === pubKeyHash }
-
-    extension (self: Interval)
-        infix def isAfter(timePoint: PosixTime): Boolean =
-            self.from.boundType match
-                case IntervalBoundType.Finite(time) => timePoint < time
-                case _                              => false
 
     // Error messages
     inline val InvalidDatum =

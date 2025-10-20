@@ -12,7 +12,9 @@ import scalus.ledger.api.{v1, v2}
 import scalus.prelude.{===, fail, require, Validator}
 import scalus.uplc.Program
 import scalus.*
+import scalus.cardano.blueprint.{Application, Blueprint}
 
+// Datum
 case class State(
     owner: ByteString,
     status: Status,
@@ -22,6 +24,7 @@ case class State(
 ) derives FromData,
       ToData
 
+// Redeemer
 enum Action derives FromData, ToData:
     case Deposit
     case InitiateWithdrawal
@@ -243,3 +246,16 @@ object VaultContract:
         val sir = compiled
         sir.toUplc().plutusV3
     }
+
+    val application: Application = {
+        Application.ofSingleValidator[State, Action](
+          "Vault",
+          "Keeps the funds safe by requiring a 2-stage withdrawal with a mandatory confirmation period.",
+          "1.0.0",
+          Vault.validate
+        )
+    }
+
+    val bluerprint: Blueprint = application.blueprint
+
+end VaultContract

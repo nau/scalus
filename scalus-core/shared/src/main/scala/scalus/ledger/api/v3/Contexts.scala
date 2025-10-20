@@ -968,6 +968,13 @@ object TxInfo {
         def findOwnScriptOutputs(scriptHash: ValidatorHash): List[v2.TxOut] = {
             Utils.findScriptOutputs(self.outputs, scriptHash)
         }
+
+        /** @return
+          *   `true` if the transaction signatories list includes the given keyHash, `false`
+          *   otherwise
+          */
+        def isSignedBy(pubKeyHash: Hash): Boolean =
+            self.signatories.exists { _.hash === pubKeyHash }
     }
 }
 
