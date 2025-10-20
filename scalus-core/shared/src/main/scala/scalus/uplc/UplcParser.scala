@@ -8,7 +8,7 @@ import cats.parse.Parser0
 import cats.parse.Rfc5234.alpha
 import cats.parse.Rfc5234.digit
 import cats.parse.Rfc5234.hexdig
-import scalus.builtin.{platform, BLS12_381_G1_Element, BLS12_381_G2_Element, ByteString, Data, PlatformSpecific, given}
+import scalus.builtin.{platform, BLS12_381_G1_Element, BLS12_381_G2_Element, ByteString, Data, given}
 import scalus.cardano.ledger.Word64
 import scalus.uplc.DefaultUni.ProtoList
 import scalus.uplc.DefaultUni.ProtoPair

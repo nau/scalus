@@ -1,7 +1,7 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.*
-import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
+import scalus.builtin.{platform, ByteString, given}
 
 import scala.annotation.tailrec
 

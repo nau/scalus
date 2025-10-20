@@ -1,6 +1,5 @@
 package scalus.cardano.ledger
 
-import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import io.bullet.borer.*
 
 /** Represents a Delegated Representative (DRep) in the Cardano blockchain.

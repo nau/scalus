@@ -3,7 +3,6 @@ package scalus.uplc
 import io.bullet.borer.Cbor
 import org.typelevel.paiges.Doc
 import scalus.*
-import scalus.builtin.Data.*
 import scalus.builtin.{ByteString, Data}
 import scalus.uplc.Term.Const
 import scalus.utils.Hex

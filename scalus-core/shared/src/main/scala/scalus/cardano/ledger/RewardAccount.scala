@@ -1,7 +1,6 @@
 package scalus.cardano.ledger
 
 import io.bullet.borer.*
-import io.bullet.borer.derivation.ArrayBasedCodecs.*
 import scalus.cardano.address.{Address, StakeAddress}
 import scala.util.control.NonFatal
 

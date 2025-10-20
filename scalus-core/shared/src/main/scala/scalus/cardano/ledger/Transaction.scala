@@ -3,7 +3,7 @@ package scalus.cardano.ledger
 import io.bullet.borer.*
 import io.bullet.borer.NullOptions.given
 import io.bullet.borer.derivation.ArrayBasedCodecs.*
-import scalus.builtin.{platform, ByteString, PlatformSpecific, given}
+import scalus.builtin.{platform, ByteString, given}
 
 import scalus.serialization.cbor.Cbor
 

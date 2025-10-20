@@ -1,15 +1,14 @@
 package scalus.macros
 
-import scalus.{builtin, Compiler}
+import scalus.Compiler
 import scalus.builtin.Builtins
 import scalus.builtin.Data
 import scalus.sir.SIR
-import scalus.uplc.{BuiltinRuntime, BuiltinsMeaning, DefaultFun, Expr as Exp, ExprBuilder, Term as Trm}
+import scalus.uplc.{BuiltinRuntime, BuiltinsMeaning, DefaultFun, Expr as Exp, Term as Trm}
 import scalus.uplc.ExprBuilder.*
 
 import java.io.File
 import java.nio.file.*
-import scala.collection.immutable
 import scala.quoted.*
 import scala.annotation.nowarn
 import scala.collection.mutable.ListBuffer

@@ -22,7 +22,7 @@ object Application {
     def apply(
         title: String,
         description: String,
-        version: String,
+        _version: String,
         contracts: Seq[CompiledContract]
     ): Application = {
         val preamble = Preamble(title, description, Language.PlutusV3)

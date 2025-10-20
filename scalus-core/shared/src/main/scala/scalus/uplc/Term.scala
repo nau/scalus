@@ -1,7 +1,6 @@
 package scalus.uplc
 
 import scalus.*
-import scalus.builtin.Data.*
 import scalus.cardano.ledger.Word64
 
 import scala.collection.immutable

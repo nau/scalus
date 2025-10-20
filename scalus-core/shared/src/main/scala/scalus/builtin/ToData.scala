@@ -49,7 +49,7 @@ object ToData {
     @uplcIntrinsic("bData")
     given ToData[ByteString] = (a: ByteString) => bData(a)
     given ToData[String] = (a: String) => bData(encodeUtf8(a))
-    given ToData[Unit] = (a: Unit) => constrData(0, mkNilData())
+    given ToData[Unit] = (_: Unit) => constrData(0, mkNilData())
 
     given tupleToData[A: ToData, B: ToData]: ToData[(A, B)] =
         (a: (A, B)) =>

@@ -1,7 +1,6 @@
 package scalus.builtin
 
 import io.bullet.borer.{Decoder, Encoder, Reader, Writer}
-import scalus.utils.Hex
 import scalus.utils.Hex.hexToBytes
 
 private trait ByteStringOffchainApi {

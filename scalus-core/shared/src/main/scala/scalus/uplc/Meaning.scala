@@ -1,6 +1,6 @@
 package scalus.uplc
 
-import scalus.builtin.{platform, PlatformSpecific}
+import scalus.builtin.platform
 import scalus.cardano.ledger.{CardanoInfo, Language}
 import scalus.uplc.eval.MachineParams.fromProtocolParams
 

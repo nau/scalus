@@ -4,7 +4,6 @@ import scalus.Compile
 import scalus.builtin.Builtins.*
 import scalus.builtin.Data.fromData
 import scalus.builtin.{Data, FromData, ToData}
-import scalus.cardano.onchain.RequirementError
 import scala.annotation.tailrec
 
 /** Alternative to `scala.collection.immutable.SortedMap` in onchain code.

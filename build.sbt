@@ -407,6 +407,10 @@ lazy val scalusTestkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       },
       Compile / unmanagedSourceDirectories += crossProjectBaseDirectory.value / "core-shared" / "scala",
       Compile / compile := (Compile / compile).dependsOn(copySharedFiles).value,
+      clean := {
+          (Compile / clean).value
+          IO.delete(crossProjectBaseDirectory.value / "core-shared")
+      },
       PluginDependency,
       libraryDependencies += "com.softwaremill.magnolia1_3" %%% "magnolia" % "1.3.18",
       libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0",

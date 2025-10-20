@@ -11,7 +11,6 @@ import java.io.InputStream
 import java.math.BigInteger
 import scala.annotation.tailrec
 import scala.collection.immutable
-import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.util.Try
 
