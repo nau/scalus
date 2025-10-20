@@ -66,7 +66,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     }
 
     def runValidator(tx: Transaction, utxo: Utxos, wallet: Wallet, scriptInput: TransactionInput) =
-        TestUtil.runValidator(VaultContract.script, tx, utxo, wallet, scriptInput)
+        TestUtil.runValidator(Vault.script, tx, utxo, wallet, scriptInput)
 
     test("vault withdrawal request") {
         val lockTx = lockVault(defaultInitialAmount)
@@ -79,7 +79,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val utxos: Utxos = Map(vaultUtxo) ++ wallet.utxo
 
         val scriptContext = TestUtil.getScriptContext(withdrawTx, utxos, vaultUtxo._1)
-        val result = VaultContract.script.term.plutusV3.runWithDebug(scriptContext)
+        val result = Vault.script.term.plutusV3.runWithDebug(scriptContext)
         assert(result.isSuccess)
 
         val newVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
@@ -113,7 +113,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val utxos: Utxos = Map(vaultUtxo) ++ wallet.utxo
 
         val scriptContext = TestUtil.getScriptContext(depositTx, utxos, vaultUtxo._1)
-        val result = VaultContract.script.term.plutusV3.runWithDebug(scriptContext)
+        val result = Vault.script.term.plutusV3.runWithDebug(scriptContext)
         assert(result.isSuccess, s"Deposit should succeed: $result")
 
         val newVaultUtxo = TestUtil.getScriptUtxo(depositTx)
@@ -146,7 +146,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val finalizeTx = new Transactions(context).finalize(vaultUtxo, ownerAddress).getOrElse(???)
 
         val scriptContext = TestUtil.getScriptContext(finalizeTx, utxos, vaultUtxo._1)
-        val result = VaultContract.script.term.plutusV3.runWithDebug(scriptContext)
+        val result = Vault.script.term.plutusV3.runWithDebug(scriptContext)
 
         assert(result.isFailure, "Finalize on Idle vault should fail during transaction building")
         assert(result.logs.last.contains(Vault.ContractMustBePending))
@@ -164,7 +164,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val withdrawScriptContext =
             TestUtil.getScriptContext(withdrawTx, withdrawUtxos, vaultUtxo._1)
-        val withdrawResult = VaultContract.script.term.plutusV3.runWithDebug(withdrawScriptContext)
+        val withdrawResult = Vault.script.term.plutusV3.runWithDebug(withdrawScriptContext)
         assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
 
         val pendingVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
@@ -176,7 +176,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val finalizeScriptContext =
             TestUtil.getScriptContext(finalizeTx, finalizeUtxos, pendingVaultUtxo._1)
-        val finalizeResult = VaultContract.script.term.plutusV3.runWithDebug(finalizeScriptContext)
+        val finalizeResult = Vault.script.term.plutusV3.runWithDebug(finalizeScriptContext)
         assert(finalizeResult.isSuccess, s"Finalize should succeed: $finalizeResult")
 
         val scriptOutputs = finalizeTx.body.value.outputs.filter(_.value.address.hasScript)
@@ -206,7 +206,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val withdrawScriptContext =
             TestUtil.getScriptContext(withdrawTx, withdrawUtxos, vaultUtxo._1)
-        val withdrawResult = VaultContract.script.term.plutusV3.runWithDebug(withdrawScriptContext)
+        val withdrawResult = Vault.script.term.plutusV3.runWithDebug(withdrawScriptContext)
         assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
 
         val pendingVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
@@ -223,7 +223,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val finalizeScriptContext =
             TestUtil.getScriptContext(finalizeTx, utxos, pendingVaultUtxo._1)
-        val finalizeResult = VaultContract.script.term.plutusV3.runWithDebug(finalizeScriptContext)
+        val finalizeResult = Vault.script.term.plutusV3.runWithDebug(finalizeScriptContext)
 
         assert(finalizeResult.isFailure, "Finalize before wait time should fail")
         assert(finalizeResult.logs.last.contains(Vault.DeadlineNotPassed))

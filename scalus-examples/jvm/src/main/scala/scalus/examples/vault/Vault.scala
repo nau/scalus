@@ -12,6 +12,7 @@ import scalus.ledger.api.{v1, v2}
 import scalus.prelude.{===, fail, require, Validator}
 import scalus.uplc.Program
 import scalus.*
+import scalus.Compiler.compile
 import scalus.cardano.blueprint.{Application, Blueprint}
 
 // Datum
@@ -31,6 +32,7 @@ enum Action derives FromData, ToData:
     case FinalizeWithdrawal
     case Cancel
 
+@Compile
 enum Status derives FromData, ToData:
     case Idle
     case Pending
@@ -228,24 +230,25 @@ object Vault extends Validator {
             case Status.Pending => false
         }
     }
-}
 
-object VaultContract:
-    inline def compiled(using options: scalus.Compiler.Options) =
-        scalus.Compiler.compileWithOptions(options, Vault.validate)
-
+    @Ignore
     given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
-      optimizeUplc = false
+      optimizeUplc = true
     )
 
-    lazy val script: Program = createScript
-
-    def createScript: Program = {
-        val sir = compiled
-        sir.toUplc().plutusV3
+    @Ignore
+    val script: Program = {
+        val sir = compile(Vault.validate)
+        sir.toUplc(
+          generateErrorTraces = true,
+          backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
+        ).plutusV3
     }
+}
+
+object VaultContract:
 
     val application: Application = {
         Application.ofSingleValidator[State, Action](
