@@ -19,27 +19,27 @@ config:
 flowchart LR
 EUC[EraRule UTXOW Conway]
     EUC --> babbageUtxowTransition["babbageUtxowTransition
-                                    ??Scalus:CardanoMutator"]:::question
+                                    ??Scalus:CardanoMutator"]:::done
         babbageUtxowTransition --> validateFailedBabbageScripts["validateFailedBabbageScripts
                                                                 Scalus:NativeScriptsValidator"]:::done
         babbageUtxowTransition --> babbageMissingScripts["babbageMissingScripts
                                                         Scalus:MissingOrExtraScriptHashesValidator"]:::done
         babbageUtxowTransition --> missingRequiredDatums["missingRequiredDatums
-                                                        Scalus:MissingRequiredDatumsValidator"]:::todo
+                                                        Scalus:MissingRequiredDatumsValidator"]:::done
         babbageUtxowTransition --> hasExactSetOfRedeemers["hasExactSetOfRedeemers
-                                                        Scalus:ExactSetOfRedeemersValidator"]:::todo
+                                                        Scalus:ExactSetOfRedeemersValidator"]:::done
         babbageUtxowTransition --> validateVerifiedWits["Shelley.validateVerifiedWits
                                                         Scalus:VerifiedSignaturesInWitnessesValidator"]:::done
         babbageUtxowTransition --> validateNeededWitnesses["validateNeededWitnesses
                                                             Scalus:MissingKeyHashesValidator"]:::done
         babbageUtxowTransition --> validateMetadata["Shelley.validateMetadata
-                                                    Scalus:MetadataValidator"]:::todo
+                                                    Scalus:MetadataValidator"]:::done
         babbageUtxowTransition --> validateScriptsWellFormed["validateScriptsWellFormed
-                                                    Scalus:ScriptsWellFormedValidator"]:::todo
+                                                    Scalus:ScriptsWellFormedValidator"]:::done
         babbageUtxowTransition --> ppViewHashesMatch["ppViewHashesMatch
-                                                    Scalus:ProtocolParamsViewHashesMatchValidator"]:::todo
+                                                    Scalus:ProtocolParamsViewHashesMatchValidator"]:::done
         babbageUtxowTransition --> EUTXOC[EraRule UTXO Conway]
-            EUTXOC --> utxoTransition:::question
+            EUTXOC --> utxoTransition:::done
                 utxoTransition --> disjointRefInputs["disjointRefInputs
                                                     Scalus:InputsAndReferenceInputsDisjointValidator"]:::done
                 utxoTransition --> validateOutsideValidityIntervalUtxo["Allegra.validateOutsideValidityIntervalUtxo
@@ -59,26 +59,26 @@ EUC[EraRule UTXOW Conway]
                 utxoTransition --> validateOutputTooBigUTxO["Alonzo.validateOutputTooBigUTxO
                                                            Scalus:OutputsHaveTooBigValueStorageSizeValidator"]:::done 
                 utxoTransition --> validateOutputBootAddrAttrsTooBig["Shelley.validateOutputBootAddrAttrsTooBig
-                                                                    Scalus:OutputBootAddrAttrsTooBigValidator"]:::todo
+                                                                    Scalus:OutputBootAddrAttrsTooBigValidator"]:::done
                 utxoTransition --> validateWrongNetwork["Shelley.validateWrongNetwork
-                                                        Scalus:WrongNetworkValidator"]:::todo
+                                                        Scalus:WrongNetworkValidator"]:::done
                 utxoTransition --> validateWrongNetworkWithdrawal["Shelley.validateWrongNetworkWithdrawal
-                                                                Scalus:WrongNetworkWithdrawalValidator"]:::todo
+                                                                Scalus:WrongNetworkWithdrawalValidator"]:::done
                 utxoTransition --> validateWrongNetworkInTxBody["Alonzo.validateWrongNetworkInTxBody
-                                                                Scalus:WrongNetworkInTxBodyValidator"]:::todo
+                                                                Scalus:WrongNetworkInTxBodyValidator"]:::done
                 utxoTransition --> validateMaxTxSizeUTxO["Shelley.vallidateMaxTxSizeUTxO
                                                                 Scalus:TransactionSizeValidator"]:::done
                 utxoTransition --> validateExUnitsTooBigUTxO["Alonzo.validateExUnitsTooBigUTxO 
                                                             Scalus:Scalus:ExUnitsTooBigValidator"]:::done
                 utxoTransition --> validateTooManyCollateralInputs["Alonzo.validateTooManyCollateralInputs
                                                                 Scalus:TooManyCollateralInputsValidator"]:::done
-                utxoTransition --> EUTXOSC[EraRule UTXOS Conway]
+                utxoTransition --> EUTXOSC[EraRule UTXOS Conway]:::done
                     EUTXOSC --> utxosTransition
                 utxosTransition --> isValidTxL{isValidTxL}
-                    isValidTxL --> |True| conwayEvalScriptsTxValid
+                    isValidTxL --> |True| conwayEvalScriptsTxValid:::done
                         conwayEvalScriptsTxValid --> expectScriptsToPass(expactScriptsToPass)
                         conwayEvalScriptsTxValid --> conwayEvalScriptsTxValidUtxosPrime[(utxos')]
-                    isValidTxL --> |False| babbageEvalScriptsTxInvalid
+                    isValidTxL --> |False| babbageEvalScriptsTxInvalid:::done
                         babbageEvalScriptsTxInvalid --> evalPlutusScripts(evalPlutusScripts FAIL)
                         babbageEvalScriptsTxInvalid --> babbageEvalScriptsTxInvalidUtxosPrime([utxos'])
     EUC --> LedgerState[(LedgerState utxoState'' certStateAfterCERTS)]

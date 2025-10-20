@@ -27,7 +27,7 @@ export const metadata = {
   }
 }
  
-const banner = <Banner storageKey="scalus-club"><a href="https://form.typeform.com/to/XQhDPGGH" target="_blank" rel="noopener noreferrer">Scalus Club is now open! Join us to get an early access to new features 🎉</a></Banner>
+const banner = <Banner storageKey="scalus-club"><a href="https://luma.com/scalus" target="_blank" rel="noopener noreferrer">Scalus Club is now open! Join us to get an early access to new features 🎉</a></Banner>
 
 const navbar = (
   <Navbar
