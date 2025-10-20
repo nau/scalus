@@ -5,6 +5,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
+import scalus.cardano.ledger.Word64
 import scalus.ledger.api.v3.TxId
 import scalus.sir.simpleLowering.SirToUplc110Lowering
 import scalus.uplc.DefaultFun.*
@@ -99,7 +100,7 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
         val sir = compile { prelude.List.Nil: prelude.List[BigInt] }
         val uplc = SirToUplc110Lowering(sir, generateErrorTraces = false).lower()
         // println("compiled:" + uplc.pretty.render(100))
-        val expected = Term.Constr(0, List.empty)
+        val expected = Term.Constr(Word64.Zero, List.empty)
         // println("expected:" + expected.pretty.render(100))
         sir lowersTo expected
     }
@@ -142,7 +143,7 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
         // With LetFloating optimization, the scrutinee lazy let is floated into the case
         // This becomes (lam scrutinee scrutinee) $ (constr 0) in the case scrutinee position
         val expected = Term.Case(
-          lam("scrutinee")(vr"scrutinee") $ Term.Constr(0, List.empty),
+          lam("scrutinee")(vr"scrutinee") $ Term.Constr(Word64.Zero, List.empty),
           List(BigInt(1), λ("h", "tl")(BigInt(2)))
         )
         val compiled = SirToUplc110Lowering(sir, generateErrorTraces = false).lower()
@@ -211,7 +212,7 @@ class SirToUplc110LoweringTest extends AnyFunSuite, ScalaCheckPropertyChecks, Ar
             (hex"DEADBEEF", true)._2
         }
         sir lowersTo Term.Case(
-          Term.Constr(0, List(hex"DEADBEEF", true)),
+          Term.Constr(Word64.Zero, List(hex"DEADBEEF", true)),
           List(λ("_1", "_2")(vr"_2"))
         )
     }

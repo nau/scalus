@@ -10,7 +10,7 @@ class Word64FlatTest extends AnyFunSuite with ScalaCheckPropertyChecks {
 
     private def roundTripFlat(value: Word64) =
         try {
-            val enc = EncoderState(summon[Flat[Word64]].bitSize(value) / 8)
+            val enc = EncoderState(Word64.flatBytesCount(value))
             flat.encode(value, enc)
             val dec = DecoderState(enc.buffer)
             val decoded = flat.decode[Word64](dec)

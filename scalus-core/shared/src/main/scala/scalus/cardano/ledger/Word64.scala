@@ -278,46 +278,34 @@ object Word64 {
                 case other =>
                     reader.validationFailure(s"Expected integer for Word64, got $other")
 
-    given Flat[Word64] with {
-
-        /** PlutusCore/Flat/Encoder/Size.hs:89:1
-          *
-          * sWord64 :: Word64 -> NumBits
-          * sWord64 w
-          * | w < 128 = 8
-          * | w < 16384 = 16
-          * | w < 2097152 = 24
-          * | w < 268435456 = 32
-          * | w < 34359738368 = 40
-          * | w < 4398046511104 = 48
-          * | w < 562949953421312 = 56
-          * | w < 72057594037927936 = 64
-          * | w < 9223372036854775808 = 72
-          * | otherwise = 80
-          */
-        def bitSize(a: Word64): Int = bytes(a) * 8
-
-        /** interpret as unsigned 64-bit
-          */
-        private def unsigned64(a: Word64) =
-            BigInt(a.value) & BigInt("FFFFFFFFFFFFFFFF", 16)
-
-        private def bytes(a: Word64): Int = {
-            val w = unsigned64(a)
-            if w < BigInt(128L) then 1
-            else if w < BigInt(16384L) then 2
-            else if w < BigInt(2097152L) then 3
-            else if w < BigInt(268435456L) then 4
-            else if w < BigInt(34359738368L) then 5
-            else if w < BigInt(4398046511104L) then 6
-            else if w < BigInt(562949953421312L) then 7
-            else if w < BigInt(72057594037927936L) then 8
-            else if w < (BigInt(1) << 63) then 9 // 2^63
-            else 10
+    /** Returns the number of bytes required to encode in flat this unsigned 64-bit value.
+      *
+      * @see
+      *   PlutusCore/Flat/Encoder/Size.hs:89:1
+      */
+    def flatBytesCount(a: Word64): Int =
+        // For negative longs (unsigned values >= 2^63), all need 10 bytes
+        if a.isLargeUnsigned then 10
+        else {
+            // For positive longs, use direct comparisons (no BigInt allocation)
+            if a.value < 128L then 1
+            else if a.value < 16384L then 2
+            else if a.value < 2097152L then 3
+            else if a.value < 268435456L then 4
+            else if a.value < 34359738368L then 5
+            else if a.value < 4398046511104L then 6
+            else if a.value < 562949953421312L then 7
+            else if a.value < 72057594037927936L then 8
+            else 9 // < 2^63
         }
 
+    /** Flat encoder/decoder for Word64 using variable-length encoding.
+      */
+    given Flat[Word64] with {
+        inline def bitSize(a: Word64): Int = flatBytesCount(a) * 8
+
         // Encoded as: data NonEmptyList = Elem Word7 | Cons Word7 NonEmptyList
-        def encode(a: Word64, encode: EncoderState): Unit =
+        inline def encode(a: Word64, encode: EncoderState): Unit =
             for b <- w7l(a.value) do encode.bits(8, b)
 
         def decode(decode: DecoderState): Word64 = {
