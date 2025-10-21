@@ -95,8 +95,8 @@ class PreimageExampleTest extends BaseValidatorTest {
         val validator = compiled.toUplc(generateErrorTraces = true).plutusV2
         // println(validator.showHighlighted)
         val flatSize = validator.flatEncoded.length
-        // V3 backend, optimizeUplc = true
-        assert(flatSize == 389)
+        // V3 backend with lambda barriers, optimizeUplc = true
+        assert(flatSize == 399)
         // V3 backend, optimizeUplc = false
         // assert(flatSize == 380)
         // SimpleBackend

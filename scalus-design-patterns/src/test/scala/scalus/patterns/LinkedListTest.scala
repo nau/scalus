@@ -78,7 +78,7 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
             result.logs.foreach(println)
             println(result)
         else println(result.budget)
-        val budget = ExBudget.fromCpuAndMemory(139593806, 498075)
+        val budget = ExBudget.fromCpuAndMemory(143129594, 515159)
         assert(
           result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
           "Performance regression"
@@ -111,7 +111,7 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
             result.logs.foreach(println)
             println(result)
         else println(result.budget)
-        val budget = ExBudget.fromCpuAndMemory(80700891, 284080)
+        val budget = ExBudget.fromCpuAndMemory(82679667, 293872)
         assert(
           result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
           "Performance regression"
@@ -148,7 +148,7 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
             result.logs.foreach(println)
             println(result)
         else println(result.budget)
-        val budget = ExBudget.fromCpuAndMemory(58708518, 205516)
+        val budget = ExBudget.fromCpuAndMemory(59964752, 212480)
         assert(
           result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
           "Performance regression"
@@ -195,7 +195,7 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
             result.logs.foreach(println)
             println(result)
         else println(result.budget)
-        val budget = ExBudget.fromCpuAndMemory(297789946, 1028573)
+        val budget = ExBudget.fromCpuAndMemory(303439106, 1054709)
         assert(
           result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
           "Performance regression"
@@ -244,7 +244,7 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
             result.logs.foreach(println)
             println(result)
         else println(result.budget)
-        val budget = ExBudget.fromCpuAndMemory(141510242, 499280)
+        val budget = ExBudget.fromCpuAndMemory(143365152, 512280)
         assert(
           result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
           "Performance regression"
@@ -292,7 +292,7 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
             result.logs.foreach(println)
             println(result)
         else println(result.budget)
-        val budget = ExBudget.fromCpuAndMemory(299906087, 1035934)
+        val budget = ExBudget.fromCpuAndMemory(305468667, 1062506)
         assert(
           result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
           "Performance regression"
@@ -348,7 +348,7 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
             result.logs.foreach(println)
             println(result)
         else println(result.budget)
-        val budget = ExBudget.fromCpuAndMemory(289908055, 993799)
+        val budget = ExBudget.fromCpuAndMemory(338398996, 1165209)
         assert(
           result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
           "Performance regression"

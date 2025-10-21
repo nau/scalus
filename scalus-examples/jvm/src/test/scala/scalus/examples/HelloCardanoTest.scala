@@ -36,9 +36,9 @@ class HelloCardanoTest extends AnyFunSuite with ScalusTest {
         val scalusBudget =
             if compilerOptions.targetLoweringBackend == Compiler.TargetLoweringBackend.SirToUplcV3Lowering
             then {
-                // S3 lowering backend
+                // S3 lowering backend with lambda barriers (safer optimization)
                 if compilerOptions.generateErrorTraces then
-                    ExBudget(ExCPU(10701903L), ExMemory(34194L))
+                    ExBudget(ExCPU(10749903L), ExMemory(34494L))
                 else ExBudget(ExCPU(0L), ExMemory(0L))
             } else
                 //  Simple backend.  TODO: test for all backends
