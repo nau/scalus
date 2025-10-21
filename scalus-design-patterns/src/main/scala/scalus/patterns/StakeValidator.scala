@@ -33,9 +33,8 @@ object StakeValidator:
         val scriptCredential = Credential.ScriptCredential(withdrawalScriptHash)
         val scriptPurpose = ScriptPurpose.Rewarding(scriptCredential)
 
-        val redeemer = txInfo.redeemers.get(scriptPurpose).getOrFail(MissingRedeemer)
-        val withdrawalAmount =
-            txInfo.withdrawals.get(scriptCredential).getOrFail(MissingWithdrawal)
+        val redeemer = txInfo.redeemers.getOrFail(scriptPurpose, MissingRedeemer)
+        val withdrawalAmount = txInfo.withdrawals.getOrFail(scriptCredential, MissingWithdrawal)
 
         require(
           withdrawalRedeemerValidator(redeemer, withdrawalAmount),
@@ -46,7 +45,7 @@ object StakeValidator:
     // field is traversed, and no other validations are performed.
     def spendMinimal(withdrawalScriptHash: ValidatorHash, txInfo: TxInfo): Unit =
         val scriptCredential = Credential.ScriptCredential(withdrawalScriptHash)
-        txInfo.withdrawals.get(scriptCredential).getOrFail(MissingWithdrawal)
+        txInfo.withdrawals.getOrFail(scriptCredential, MissingWithdrawal)
 
     // Function to be used under your withdrawal endpoint. The only convenience
     // this function provides is that it'll provide you with the `ScriptHash` of

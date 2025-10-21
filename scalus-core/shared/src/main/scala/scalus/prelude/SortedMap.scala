@@ -609,6 +609,30 @@ object SortedMap {
             go(self.toList)
         }
 
+        /** Retrieves the value associated with a key, or fails with a custom message if the key is
+          * not presented.
+          *
+          * @param key
+          *   the key to retrieve the value for
+          * @param message
+          *   the custom error message to use if the key is not found
+          * @return
+          *   the value associated with the key
+          * @throws NoSuchElementException
+          *   if the key is not present in the map
+          * @example
+          *   {{{
+          *   SortedMap.singleton("key", "value").getOrFail("key") === "value"
+          *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).getOrFail("a") === 1
+          *   SortedMap.fromList(List.Cons(("a", 1), List.Cons(("b", 2), List.Nil))).getOrFail("c") // throws NoSuchElementException
+          *   SortedMap.empty.getOrFail("key") // throws NoSuchElementException
+          *   }}}
+          */
+        inline def getOrFail(
+            key: A,
+            inline message: String = "SortedMap doesn't contain searching key"
+        ): B = get(key).getOrFail(message)
+
         /** Retrieves the value associated with a key, or fails if the key is not present.
           *
           * @param key

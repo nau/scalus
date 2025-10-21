@@ -1215,6 +1215,54 @@ class SortedMapTest extends StdlibTestKit {
         )
     }
 
+    test("getOrFail") {
+        check { (map: SortedMap[BigInt, BigInt], key: BigInt) =>
+            val result = liftThrowableToOption(map.getOrFail(key))
+
+            val expected = map.toList.findMap { case (k, v) =>
+                if k === key then Option.Some(v) else Option.None
+            }
+
+            result === expected
+        }
+
+        assertEvalFails[NoSuchElementException](
+          SortedMap.empty[BigInt, BigInt].getOrFail(BigInt(1))
+        )
+
+        assertEvalEq(
+          SortedMap.singleton(BigInt(1), BigInt(1)).getOrFail(BigInt(1)),
+          BigInt(1)
+        )
+
+        assertEvalFails[NoSuchElementException](
+          SortedMap.singleton(BigInt(1), BigInt(1)).getOrFail(BigInt(0))
+        )
+
+        assertEvalEq(
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .getOrFail(BigInt(2)),
+          BigInt(2)
+        )
+
+        assertEvalFails[NoSuchElementException](
+          SortedMap
+              .fromStrictlyAscendingList(
+                List.Cons(
+                  (BigInt(1), BigInt(1)),
+                  List.Cons((BigInt(2), BigInt(2)), List.Cons((BigInt(3), BigInt(3)), List.Nil))
+                )
+              )
+              .getOrFail(BigInt(4))
+        )
+    }
+
     test("at") {
         check { (map: SortedMap[BigInt, BigInt], key: BigInt) =>
             val result = liftThrowableToOption(map.at(key))

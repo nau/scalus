@@ -379,8 +379,7 @@ object TreasuryValidator extends Validator:
 
                 // All head tokens should be burned
                 val headTokensMint = (-tx.mint).toSortedMap
-                    .get(headMp)
-                    .getOrFail(DeinitTokensNotBurned)
+                    .getOrFail(headMp, DeinitTokensNotBurned)
 
                 require(headTokensInput === headTokensMint, DeinitTokensNotBurned)
 

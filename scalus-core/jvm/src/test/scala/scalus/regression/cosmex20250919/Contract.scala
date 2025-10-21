@@ -567,8 +567,7 @@ object CosmexContract extends DataParameterizedValidator {
                         if sh === cosmexScriptHash then
                             val action =
                                 redeemers
-                                    .get(ScriptPurpose.Spending(txOutRef))
-                                    .getOrFail("No redeemer")
+                                    .getOrFail(ScriptPurpose.Spending(txOutRef), "No redeemer")
                                     .to[Action]
 
                             action match
