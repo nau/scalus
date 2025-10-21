@@ -9,7 +9,7 @@ import com.bloxbean.cardano.client.transaction.spec.{Transaction, TransactionInp
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
 import com.bloxbean.cardano.client.util.JsonUtil
 import scalus.builtin.ByteString
-import scalus.cardano.ledger.{CardanoInfo, MajorProtocolVersion, PlutusScriptEvaluator}
+import scalus.cardano.ledger.{CardanoInfo, MajorProtocolVersion, PlutusScriptEvaluator, SlotConfig}
 import scalus.ledger.api.ScriptContext
 import scalus.uplc.eval.ExBudget
 

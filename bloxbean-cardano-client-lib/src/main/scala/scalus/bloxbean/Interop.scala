@@ -12,7 +12,7 @@ import io.bullet.borer.Cbor
 import scalus.builtin.Builtins.*
 import scalus.builtin.{BuiltinPair, ByteString, Data}
 import scalus.builtin.Data.{toData, ToData}
-import scalus.cardano.ledger.{CostModels, Language, MajorProtocolVersion, Script}
+import scalus.cardano.ledger.{CostModels, Language, MajorProtocolVersion, Script, SlotConfig}
 import scalus.ledger.api
 import scalus.ledger.api.v1.{DCert, ScriptPurpose, StakingCredential}
 import scalus.ledger.api.{v1, v2, v3}

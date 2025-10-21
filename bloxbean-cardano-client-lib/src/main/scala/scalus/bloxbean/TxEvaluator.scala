@@ -1,41 +1,30 @@
 package scalus.bloxbean
 
-import com.bloxbean.cardano.client.address.Address
-import com.bloxbean.cardano.client.address.AddressType
-import com.bloxbean.cardano.client.address.Credential
-import com.bloxbean.cardano.client.address.CredentialType
+import com.bloxbean.cardano.client.address.{Address, AddressType, Credential, CredentialType}
 import com.bloxbean.cardano.client.common.cbor.CborSerializationUtil
 import com.bloxbean.cardano.client.crypto.Blake2bUtil
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.transaction.spec.*
 import com.bloxbean.cardano.client.transaction.spec.cert.*
-import com.bloxbean.cardano.client.transaction.spec.governance.ProposalProcedure
-import com.bloxbean.cardano.client.transaction.spec.governance.VoterType
+import com.bloxbean.cardano.client.transaction.spec.governance.{ProposalProcedure, VoterType}
 import com.bloxbean.cardano.client.transaction.util.TransactionUtil
-import io.bullet.borer.Cbor
-import io.bullet.borer.Decoder
+import io.bullet.borer.{Cbor, Decoder}
 import org.slf4j.LoggerFactory
 import scalus.bloxbean.Interop.*
-import scalus.builtin.ByteString
-import scalus.builtin.Data
-import scalus.cardano.ledger.{MajorProtocolVersion, Script}
+import scalus.builtin.{ByteString, Data}
+import scalus.cardano.ledger.{Language, MajorProtocolVersion, Script}
 import scalus.ledger
 import scalus.ledger.api
-import scalus.cardano.ledger.Language
-import scalus.ledger.api.{v1, v2, v3, ScriptContext}
 import scalus.ledger.api.v2.OutputDatum
-
-import java.nio.file.StandardOpenOption
-import scalus.uplc.{eval, Constant, DeBruijnedProgram, Term}
+import scalus.ledger.api.{v1, v2, v3, ScriptContext}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
+import scalus.uplc.{eval, Constant, DeBruijnedProgram, Term}
 import scalus.utils.Hex.hexToBytes
 import upickle.default.*
 
 import java.math.BigInteger
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
+import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 import java.util
 import scala.annotation.unused
 import scala.beans.BeanProperty
@@ -43,29 +32,11 @@ import scala.collection.immutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 
-case class SlotConfig(zeroTime: Long, zeroSlot: Long, slotLength: Long) {
-    def slotToTime(slot: Long): Long = zeroTime + (slot - zeroSlot) * slotLength
-    def timeToSlot(time: Long): Long = zeroSlot + ((time - zeroTime) / slotLength)
-}
+@deprecated("Use scalus.cardano.ledger.SlotConfig instead", "v0.12.0")
+type SlotConfig = scalus.cardano.ledger.SlotConfig
 
-object SlotConfig {
-    // taken from https://github.com/spacebudz/lucid/blob/main/src/plutus/time.ts
-    val Mainnet: SlotConfig = SlotConfig(
-      zeroTime = 1596059091000L,
-      zeroSlot = 4492800,
-      slotLength = 1000
-    ) // Starting at Shelley era
-    val Preview: SlotConfig = SlotConfig(
-      zeroTime = 1666656000000L,
-      zeroSlot = 0,
-      slotLength = 1000
-    ) // Starting at Shelley era
-    val Preprod: SlotConfig = SlotConfig(
-      zeroTime = 1654041600000L + 1728000000L,
-      zeroSlot = 86400,
-      slotLength = 1000
-    )
-}
+@deprecated("Use scalus.cardano.ledger.SlotConfig instead", "v0.12.0")
+val SlotConfig = scalus.cardano.ledger.SlotConfig
 
 class TxEvaluationException(
     message: String,
@@ -88,7 +59,7 @@ class TxEvaluationException(
   *   This is experimental API and subject to change
   */
 class TxEvaluator(
-    val slotConfig: SlotConfig,
+    val slotConfig: scalus.cardano.ledger.SlotConfig,
     val initialBudget: ExBudget,
     val protocolMajorVersion: Int,
     val costMdls: CostMdls,

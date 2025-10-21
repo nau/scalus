@@ -3,7 +3,13 @@ import sbtwelcome.*
 
 import java.net.URI
 import scala.scalanative.build.*
-import com.typesafe.tools.mima.core.{DirectMissingMethodProblem, MissingClassProblem, ProblemFilters}
+import com.typesafe.tools.mima.core.{
+  DirectMissingMethodProblem,
+  IncompatibleMethTypeProblem,
+  IncompatibleResultTypeProblem,
+  MissingClassProblem,
+  ProblemFilters
+}
 
 // =============================================================================
 // GLOBAL SETTINGS
@@ -481,7 +487,9 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       scalacOptions ++= commonScalacOptions,
       mimaPreviousArtifacts := Set(organization.value %% name.value % scalusCompatibleVersion),
       mimaBinaryIssueFilters ++= Seq(
-        ProblemFilters.exclude[DirectMissingMethodProblem]("scalus.bloxbean.Interop.getScriptInfoFromScriptRef"),
+        ProblemFilters.exclude[DirectMissingMethodProblem](
+          "scalus.bloxbean.Interop.getScriptInfoFromScriptRef"
+        ),
         ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptInfo"),
         ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptInfo$"),
         ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion"),
@@ -492,7 +500,23 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
         ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion$PlutusV2$"),
         ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion$PlutusV3"),
         ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion$PlutusV3$"),
-        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.TxEvaluator$RestrictingBudgetSpenderWithScripDump")
+        ProblemFilters.exclude[MissingClassProblem](
+          "scalus.bloxbean.TxEvaluator$RestrictingBudgetSpenderWithScripDump"
+        ),
+        // SlotConfig moved from scalus.bloxbean to scalus.cardano.ledger
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.SlotConfig"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.SlotConfig$"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem]("scalus.bloxbean.Interop.getInterval"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem]("scalus.bloxbean.Interop.getScriptContextV2"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem]("scalus.bloxbean.Interop.getScriptContextV3"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem]("scalus.bloxbean.Interop.getTxInfoV1"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem]("scalus.bloxbean.Interop.getTxInfoV2"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem]("scalus.bloxbean.Interop.getTxInfoV3"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem]("scalus.bloxbean.ScalusTransactionEvaluator.this"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.ScalusTransactionEvaluator.getSlotConfig"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.ScalusTransactionEvaluator.slotConfig"),
+        ProblemFilters.exclude[IncompatibleMethTypeProblem]("scalus.bloxbean.TxEvaluator.this"),
+        ProblemFilters.exclude[IncompatibleResultTypeProblem]("scalus.bloxbean.TxEvaluator.slotConfig")
       ),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
