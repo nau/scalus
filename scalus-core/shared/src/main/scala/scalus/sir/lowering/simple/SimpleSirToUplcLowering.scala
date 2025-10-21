@@ -1,6 +1,7 @@
 package scalus
 package sir
-package simpleLowering
+package lowering
+package simple
 
 import scalus.sir.SIR.Pattern
 import scalus.uplc.*

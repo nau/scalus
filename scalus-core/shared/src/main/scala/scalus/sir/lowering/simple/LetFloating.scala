@@ -1,4 +1,4 @@
-package scalus.sir.simpleLowering
+package scalus.sir.lowering.simple
 
 import scalus.sir.*
 import scalus.sir.EnrichedSIR.*

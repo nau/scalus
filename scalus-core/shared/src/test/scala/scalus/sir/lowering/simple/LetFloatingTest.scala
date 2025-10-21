@@ -1,4 +1,4 @@
-package scalus.sir.simpleLowering
+package scalus.sir.lowering.simple
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.sir.*

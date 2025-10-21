@@ -1,4 +1,4 @@
-package scalus.sir
+package scalus.sir.lowering.simple
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -7,13 +7,13 @@ import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
 import scalus.cardano.ledger.Word64
 import scalus.ledger.api.v3.TxId
-import scalus.sir.simpleLowering.SirToUplc110Lowering
+import scalus.sir.*
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
-import scalus.uplc.{Constant, DeBruijn, DefaultFun, Term}
 import scalus.uplc.Term.*
 import scalus.uplc.TermDSL.given
 import scalus.uplc.test.ArbitraryInstances
+import scalus.uplc.{Constant, DeBruijn, Term}
 
 import scala.language.implicitConversions
 

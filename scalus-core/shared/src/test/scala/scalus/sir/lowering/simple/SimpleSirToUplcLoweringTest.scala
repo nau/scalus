@@ -1,11 +1,14 @@
-package scalus.sir
+package scalus
+package sir
+package lowering
+package simple
+
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.*
 import scalus.builtin.ByteString.*
 import scalus.sir.SIR.Pattern
 import scalus.sir.SIRType.{FreeUnificator, SumCaseClass, TypeNothing, TypeVar}
-import scalus.sir.simpleLowering.SimpleSirToUplcLowering
 import scalus.uplc.Constant
 import scalus.uplc.DefaultFun.*
 import scalus.uplc.DefaultUni.asConstant
