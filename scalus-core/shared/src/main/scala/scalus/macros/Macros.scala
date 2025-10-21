@@ -362,4 +362,9 @@ object Macros {
         Compiler.compile($code)
     }
 
+    def generateCompileCall(options: Expr[scalus.Compiler.Options], code: Expr[Any])(using
+        Quotes
+    ): Expr[SIR] = '{
+        Compiler.compileWithOptions($options, $code)
+    }
 }

@@ -98,9 +98,9 @@ object PlutusV3 {
 
     inline def create[D, R](
         preamble: Preamble,
-        options: scalus.Compiler.Options
+        inline options: scalus.Compiler.Options
     )(inline code: Any): PlutusV3 = {
-        val sir = Compiler.compileInline(code)
+        val sir = Compiler.compileInlineWithOptions(options, code)
         val program = sir.toUplc(using options)().plutusV3
         val datumSchema = PlutusDataSchema.derived[D]
         val redeemerSchema = PlutusDataSchema.derived[R]

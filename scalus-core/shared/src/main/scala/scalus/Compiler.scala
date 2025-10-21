@@ -147,6 +147,10 @@ object Compiler:
         Macros.generateCompileCall('code)
     }
 
+    inline def compileInlineWithOptions(inline options: Options, inline code: Any): SIR = ${
+        Macros.generateCompileCall('options, 'code)
+    }
+
     private def throwCompilerPluginMissingException(): Nothing =
         throw new RuntimeException(
           "This method call is handled by the Scalus compiler plugin. " +
