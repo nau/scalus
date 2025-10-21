@@ -30,7 +30,26 @@ object Compiler:
         debugLevel: Int = SIRDefaultOptions.debugLevel,
         debug: Boolean = false
     )
-    val defaultOptions: Options = Options()
+
+    object Options {
+        val default: Options = Options()
+
+        val debug: Options = Options(
+          targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+          generateErrorTraces = true,
+          optimizeUplc = false,
+          debug = false
+        )
+
+        val release: Options = Options(
+          targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
+          generateErrorTraces = false,
+          optimizeUplc = true,
+          debug = false
+        )
+    }
+
+    def defaultOptions: Options = Options.default
 
     inline def fieldAsData[A](inline expr: A => Any): Data => Data = ${
         Macros.fieldAsDataMacro('expr)
@@ -124,6 +143,10 @@ object Compiler:
       */
     inline def compileInline(inline code: Any): SIR = ${
         Macros.generateCompileCall('code)
+    }
+
+    inline def compileInlineWithOptions(inline options: Options, inline code: Any): SIR = ${
+        Macros.generateCompileCall('options, 'code)
     }
 
     private def throwCompilerPluginMissingException(): Nothing =

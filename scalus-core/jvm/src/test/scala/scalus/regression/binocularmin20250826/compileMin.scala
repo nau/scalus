@@ -9,7 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class CompileMin extends AnyFunSuite {
 
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = false,

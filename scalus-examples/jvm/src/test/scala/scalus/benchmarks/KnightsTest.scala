@@ -11,7 +11,7 @@ import scalus.testkit.ScalusTest
 class KnightsTest extends AnyFunSuite, ScalusTest:
     import KnightsTest.{*, given}
 
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,

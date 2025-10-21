@@ -1,14 +1,11 @@
 package scalus.examples.htlc
 
 import scalus.*
-import scalus.Compiler.compile
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.builtin.{ByteString, Data, FromData, ToData}
-import scalus.cardano.blueprint.{Application, Blueprint}
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
-import scalus.uplc.Program
 
 type Preimage = ByteString
 type Image = ByteString
@@ -23,10 +20,16 @@ case class ContractDatum(
 ) derives FromData,
       ToData
 
+@Compile
+object ContractDatum
+
 // Redeemer
 enum Action derives FromData, ToData:
     case Timeout
     case Reveal(preimage: Preimage)
+
+@Compile
+object Action
 
 @Compile
 object HtlcValidator extends Validator:
@@ -53,45 +56,11 @@ object HtlcValidator extends Validator:
     }
 
     // Error messages
-    inline val InvalidDatum =
-        "Datum must be a HtlcValidator.ContractDatum(committer, receiver, image, timeout)"
+    inline val InvalidDatum = "Datum must be a ContractDatum(committer, receiver, image, timeout)"
     inline val UnsignedCommitterTransaction = "Transaction must be signed by a committer"
     inline val UnsignedReceiverTransaction = "Transaction must be signed by a receiver"
     inline val InvalidCommitterTimePoint = "Committer Transaction must be exclusively after timeout"
     inline val InvalidReceiverTimePoint = "Receiver Transaction must be inclusively before timeout"
     inline val InvalidReceiverPreimage = "Invalid receiver preimage"
 
-    @Ignore
-    given scalus.Compiler.Options = scalus.Compiler.Options(
-      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
-      generateErrorTraces = true,
-      optimizeUplc = true,
-      debug = false
-    )
-
-    @Ignore
-    val script: Program = {
-        val sir = compile(HtlcValidator.validate)
-        // val lw = sir.toLoweredValue()
-        // println(lw.show)
-        sir.toUplc(
-          generateErrorTraces = true,
-          backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-        ).plutusV3
-    }
-
 end HtlcValidator
-
-object HtlcContract:
-    val application: Application = {
-        Application.ofSingleValidator[ContractDatum, Action](
-          "Hashed timelocked contract",
-          "Releases funds when recipient reveals hash preimage before deadline, otherwise refunds to sender.",
-          "1.0.0",
-          HtlcValidator.validate
-        )
-    }
-
-    val bluerprint: Blueprint = application.blueprint
-
-end HtlcContract

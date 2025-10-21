@@ -2,19 +2,14 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.v1.*
 import scalus.prelude.Option.*
-import scalus.prelude.*
-import scalus.uplc.*
-import scalus.uplc.eval.BuiltinError
-import scalus.uplc.eval.PlutusVM
 import scalus.testkit.ArbitraryInstances
+import scalus.uplc.*
+import scalus.uplc.eval.{BuiltinError, PlutusVM}
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 enum Expected:
     case SuccessAny

@@ -1,7 +1,6 @@
 package scalus.examples
 
 import scalus.builtin.ByteString
-import scalus.builtin.ByteString.*
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
 import scalus.cardano.txbuilder.{Environment, PubKeyWitness, TransactionUnspentOutput, Wallet as WalletTrait, Witness}

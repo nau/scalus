@@ -4,7 +4,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scalus.Compiler.compile
 import scalus.*
-import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.ledger.api.v1.*
@@ -16,7 +15,7 @@ import scala.language.implicitConversions
 
 class PubKeyValidatorTest extends AnyFunSuite with ScalaCheckPropertyChecks:
 
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = false,

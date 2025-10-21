@@ -21,10 +21,6 @@ case class MintingContext(inputs: List[TxOutRef], minted: Value, ownSymbol: Poli
 object MintingPolicy {
     import ScriptPurpose.*
 
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
-      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-    )
-
     given Data.FromData[TxInInfoTxOutRefOnly] = (d: Data) =>
         new TxInInfoTxOutRefOnly(d.toConstr.snd.head.to[TxOutRef])
 
@@ -117,6 +113,11 @@ object MintingPolicy {
     }
 
     @Ignore
+    given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
+    )
+
+    @Ignore
     val compiledOptimizedMintingPolicyScript = compile(
       mintingPolicyScript(optimizedCtxDeserializer)
     )
@@ -161,14 +162,12 @@ object MintingPolicyV2 {
     )
 }
 
-@Compile
 object MintingPolicySimpleBackend {
     // Use SimpleSirToUplcLowering backend explicitly
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering
     )
 
-    @Ignore
     val compiledOptimizedMintingPolicyScript = compile(
       MintingPolicy.mintingPolicyScript(MintingPolicy.optimizedCtxDeserializer)
     )

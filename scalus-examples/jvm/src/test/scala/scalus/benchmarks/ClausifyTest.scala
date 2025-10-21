@@ -15,7 +15,7 @@ class ClausifyTest extends AnyFunSuite, ScalusTest:
     inline val isAlwaysPrintComparison = true
 
     @Ignore
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = false,
@@ -1098,9 +1098,9 @@ object ClausifyTest:
     extension (self: Int) @Ignore inline def toFormula: Formula = Sym(self)
 
     @nowarn @Ignore
-    inline given Conversion[Var, Formula] = (arg: Var) => arg.toFormula
+    given Conversion[Var, Formula] = (arg: Var) => arg.toFormula
     @nowarn @Ignore
-    inline given Conversion[Int, Formula] = (arg: Int) => arg.toFormula
+    given Conversion[Int, Formula] = (arg: Int) => arg.toFormula
 
     extension (self: Formula)
         inline def unary_! : Formula = Not(self)

@@ -1,7 +1,7 @@
 package scalus
 package examples
 
-import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element, ByteString}
+import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element}
 import scalus.builtin.ByteString.*
 import scalus.examples.BilinearAccumulator.checkMembership
 import scalus.examples.BilinearAccumulator.checkNonMembership

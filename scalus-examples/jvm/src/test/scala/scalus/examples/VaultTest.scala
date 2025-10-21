@@ -17,7 +17,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     private val defaultInitialAmount: BigInt = BigInt(10_000_000L)
     private val defaultWaitTime: BigInt = BigInt(10_000L)
 
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = false

@@ -143,7 +143,7 @@ class ParseScriptInfoTest extends AnyFunSuite:
 
 class ParseScriptInfoOldBackendTest extends AnyFunSuite:
 
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,
