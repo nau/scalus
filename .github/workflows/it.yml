@@ -20,7 +20,54 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-        lfs: true
+      - name: Download data
+        uses: robinraju/release-downloader@v1
+        with:
+          # A flag to set the download target as latest release
+          # The default value is 'false'
+          latest: true
+
+          # A flag to download from prerelease. It should be combined with latest flag.
+          # The default value is 'false'
+          preRelease: true
+
+          # The github tag. e.g: v1.0.1
+          # Download assets from a specific tag/version
+          tag: 'it-data'
+
+          # The release id to download files from
+          #releaseId: ''
+
+          # The name of the file to download.
+          # Use this field only to specify filenames other than tarball or zipball, if any.
+          # Supports wildcard pattern (eg: '*', '*.deb', '*.zip' etc..)
+          fileName: 'it-data.zip'
+
+          # Download the attached tarball (*.tar.gz)
+          #tarBall: true
+
+          # Download the attached zipball (*.zip)
+          zipBall: true
+
+          # Relative path under $GITHUB_WORKSPACE to place the downloaded file(s)
+          # It will create the target directory automatically if not present
+          # eg: out-file-path: "my-downloads" => It will create directory $GITHUB_WORKSPACE/my-downloads
+          out-file-path: 'it-data'
+
+          # A flag to set if the downloaded assets are archives and should be extracted
+          # Checks all downloaded files if they end with zip, tar or tar.gz and extracts them, if true.
+          # Prints a warning if enabled but file is not an archive - but does not fail.
+          extract: true
+
+          # Github access token to download files from private repositories
+          # https://docs.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets
+          # eg: token: ${{ secrets.MY_TOKEN }}
+          #token: ''
+
+          # The URL of the Github API, only use this input if you are using Github Enterprise
+          # Default: "https://api.github.com"
+          # Use http(s)://[hostname]/api/v3 to access the API for GitHub Enterprise Server
+          #github-api-url: ''
 
       - uses: cachix/install-nix-action@v31.7.0
         with:
