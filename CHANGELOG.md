@@ -1,5 +1,72 @@
 # Changelog
 
+## 0.13.0 (2025-10-22)
+
+### Added
+
+- new pattern matching based on decision trees
+- primitive constant pattern matching in `SimpleSirToUplcLowering` and `SirToUplc110Lowering`
+  backends
+- LazyVal transformation to float lazy lets closer to their usage points
+- lambda barrier for let-floating optimization to prevent work duplication
+- `evalPlutusScripts` to JScalus for JavaScript platform
+- LinkedList pattern implementation with initialization and de-initialization
+- PlutusScriptEvaluator benchmark for performance testing
+- Fibonacci lookup implementation using pre-packed ByteString
+- UTXO indexers using delayed redeemers
+- `SortedMap.getOrFail` accepts custom error messages
+- Ledger Rules Framework: TraitObjectScanner for automatic discovery of rule implementations
+- `compileWithOptions` method accepting explicit compiler options
+
+### Changed
+
+- updated Scala version to 3.3.7
+- **BREAKING**: repackaged txbuilder from `scalus.cardano.ledger.txbuilder` to
+  `scalus.cardano.txbuilder`
+- **BREAKING**: `ProtocolParams.costModels` type changed to `CostModels`
+- **BREAKING**: removed `semanticVariant` from `MachineParams`
+- moved `SlotConfig` to scalus-core
+- **BREAKING**: replaced `bloxbean.SlotConfig` with `cardano.ledger.SlotConfig`
+- renamed `UTxO` to `Utxos` for consistency
+- updated jsoniter-scala-core to 2.38.3
+- inheritance via inline override for validators
+- updated builtin cost models to use CardanoInfo (reduces scalus-cardano-ledger-opt-bundle.js by ~
+  100k)
+- renamed `builtinsMeaning` to `getBuiltinRuntime` in Cek and PlutusVM
+- pre-compute TxInfo for Plutus versions to optimize redeemer evaluation
+- replaced ProtocolParams instantiation with CardanoInfo for consistency
+- consolidated compile method handling in compiler plugin
+- made validator helper methods public to support inheritance
+- replaced `BuiltinsMeaning` with `CardanoBuiltins`
+- removed deprecated methods and cleaned up code
+- improved error diagnostics for wildcard case positioning
+- enhanced SIRLinker debug logging and error handling
+- modified base validator traits to use inline abstract methods
+- disabled linker in compiler plugin (functionality moved to separate compilation phase)
+- improved script witness computation and UTxO handling
+- optimized ByteString handling and improved offchain method documentation
+- refactored LinkedList contract to use failures instead of bools
+- refactored HTLC and Vault validators for improved clarity
+
+### Fixed
+
+- Word64 flat format encoding
+- `Term.Constr.tag` encoding as unsigned Word64 type
+- pattern matching on primitive constants with default case
+- `@` pattern bindings in nested positions
+- duplicate wildcard cases in pattern match compilation
+- incorrect typing of tail of list pattern
+- bug in alphaEquality (case arguments may be variables)
+- type substitution in constructors
+- `Interop.getMintValue` resolves all BlocksValidation fails
+- Boolean data representation compatibility with Plutus
+- compilation on Windows
+- bug with incorrect handling of `SIR.Const`
+- non-recursive let bindings scoping bug
+- performance regression in LinkedList tests
+- S3LoweringDataAccess regression
+- validation for non-negative integers in flat serialization
+
 ## 0.12.1 (2025-10-08)
 
 ### Added
@@ -7,7 +74,8 @@
 - Address constructors for Credentials
 - Transaction and TransactionOutput constructors
 - `NormalizedInterval` implementation for interval operations
-- ledger rules: `missingRequiredDatums`, `validateOutputBootAddrAttrsTooBig`, `hasExactSetOfRedeemers`
+- ledger rules: `missingRequiredDatums`, `validateOutputBootAddrAttrsTooBig`,
+  `hasExactSetOfRedeemers`
 - upstream tx editor and tx builder
 - additional functions to StdlibTestKit
 
