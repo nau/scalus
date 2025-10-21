@@ -1,14 +1,17 @@
 package scalus.prelude
 
+import scalus.Compile
 import scalus.builtin.Data
 import scalus.ledger.api.v3.*
 
-@scalus.Compile
-//erased [not availanle uet]
+@Compile
 trait Validator {
 
     inline def validate(scData: Data): Unit = {
-        val sc = scData.to[ScriptContext]
+        validateScriptContext(scData.to[ScriptContext])
+    }
+
+    inline def validateScriptContext(sc: ScriptContext): Unit = {
         sc.scriptInfo match
             case ScriptInfo.MintingScript(policyId) =>
                 mint(sc.redeemer, policyId, sc.txInfo)
