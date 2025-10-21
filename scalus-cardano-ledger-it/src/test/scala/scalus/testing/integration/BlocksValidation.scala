@@ -18,7 +18,7 @@ import scalus.bloxbean.Interop.??
 import scalus.bloxbean.TxEvaluator.ScriptHash
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.ledger
-import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CardanoInfo, CostModels, ExUnits, Hash, Language, MajorProtocolVersion, OriginalCborByteArray, PlutusScriptEvaluationException, PlutusScriptEvaluator, ProtocolParams, RedeemerTag, Redeemers, Script, ScriptDataHashGenerator, ValidityInterval}
+import scalus.cardano.ledger.{AddrKeyHash, BlockFile, CardanoInfo, ExUnits, OriginalCborByteArray, PlutusScriptEvaluationException, PlutusScriptEvaluator, ProtocolParams, RedeemerTag, Redeemers, Script, ScriptDataHashGenerator, SlotConfig, ValidityInterval}
 import scalus.ledger.api.v1.ScriptPurpose
 import scalus.ledger.api.v3.ScriptInfo
 import scalus.ledger.api.{v3, ScriptContext}
@@ -30,10 +30,10 @@ import java.nio.channels.FileChannel
 import java.nio.file.*
 import java.util
 import java.util.stream.Collectors
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 import scala.math.Ordering.Implicits.*
-import scala.util.boundary.{break, Break}
+import scala.util.boundary.break
 import scala.util.{boundary, Using}
 
 /** Setup BLOCKFROST_API_KEY environment variable before running this test. In SBT shell:

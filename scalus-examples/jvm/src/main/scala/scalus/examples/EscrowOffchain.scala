@@ -1,6 +1,5 @@
 package scalus.examples
 
-import scalus.bloxbean.SlotConfig
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.api.model.{Amount, Result, Utxo}
 import com.bloxbean.cardano.client.backend.api.DefaultProtocolParamsSupplier
@@ -18,6 +17,7 @@ import scalus.bloxbean.ScalusTransactionEvaluator
 import scalus.builtin.{ByteString, Data}
 import com.bloxbean.cardano.client.plutus.spec.PlutusV3Script
 import scalus.builtin.Data.*
+import scalus.cardano.ledger.SlotConfig
 import scalus.ledger.api.v1.PubKeyHash
 
 import java.util.Optional
