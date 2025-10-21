@@ -94,7 +94,6 @@ lazy val profilingScalacOptions = Seq(
 
 lazy val copySharedFiles = taskKey[Unit]("Copy shared files")
 lazy val prepareNpmPackage = taskKey[Unit]("Make an copy scalus bundle.js to npm directory")
-lazy val unzipItData = taskKey[Unit]("Unzip it-data.zip for integration tests")
 
 // Scalus Compiler Plugin Dependency
 lazy val PluginDependency: List[Def.Setting[?]] = List(scalacOptions ++= {
@@ -617,21 +616,7 @@ lazy val scalusCardanoLedgerIt = project
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-crypto_2.13" % "1.9.11" % "test",
       libraryDependencies += "org.bitcoin-s" % "bitcoin-s-secp256k1jni" % "1.9.11",
       libraryDependencies += "com.lihaoyi" %%% "pprint" % "0.9.4" % "test",
-      inConfig(Test)(PluginDependency),
-      // Unzip integration test data before running tests
-      unzipItData := {
-          val zipFile = baseDirectory.value / "data" / "it-data.zip"
-          val targetDir = target.value / "it-data"
-          val log = streams.value.log
-          unzipFile(zipFile, targetDir, log)
-      },
-      // Set SCALUS_IT_DATA_PATH environment variable for tests
-      Test / envVars := Map(
-        "SCALUS_IT_DATA_PATH" -> (target.value / "it-data" / "it-data").getAbsolutePath
-      ),
-      Test / test := (Test / test).dependsOn(unzipItData).value,
-      Test / testQuick := (Test / testQuick).dependsOn(unzipItData).inputTaskValue,
-      Test / testOnly := (Test / testOnly).dependsOn(unzipItData).inputTaskValue
+      inConfig(Test)(PluginDependency)
     )
 
 // =============================================================================
@@ -651,28 +636,6 @@ def copyFiles(files: Seq[String], baseDir: File, targetDir: File, log: ManagedLo
         } else {
             log.error(s"Shared file $file does not exist in $baseDir")
         }
-    }
-}
-
-def unzipFile(zipFile: File, targetDir: File, log: ManagedLogger): Unit = {
-    if (!zipFile.exists) {
-        log.error(s"Zip file does not exist: $zipFile")
-        return
-    }
-
-    // Check if we need to unzip (compare timestamps)
-    val markerFile = targetDir / ".unzipped"
-    val needsUnzip = !markerFile.exists || zipFile.lastModified() > markerFile.lastModified()
-
-    if (needsUnzip) {
-        log.info(s"Unzipping $zipFile to $targetDir...")
-        IO.delete(targetDir)
-        IO.createDirectory(targetDir)
-        IO.unzip(zipFile, targetDir)
-        IO.touch(markerFile)
-        log.info(s"Successfully unzipped to $targetDir")
-    } else {
-        log.info(s"Skipping unzip, $targetDir is up to date")
     }
 }
 
@@ -717,7 +680,7 @@ addCommandAlias(
 addCommandAlias("benchmark", "bench/jmh:run -i 1 -wi 1 -f 1 -t 1 .*")
 addCommandAlias(
   "it",
-  "clean;scalusCardanoLedgerIt/compile;scalusCardanoLedgerIt/test"
+  "clean;scalusCardanoLedgerIt/clean;scalusCardanoLedgerIt/Test/compile;scalusCardanoLedgerIt/test"
 )
 
 // =============================================================================
