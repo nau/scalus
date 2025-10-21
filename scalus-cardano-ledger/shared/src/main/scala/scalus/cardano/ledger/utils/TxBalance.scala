@@ -58,8 +58,9 @@ object TxBalance {
         val consumedValue = inputs + Value(withdrawals + refunds)
         val minted = Value(
           Coin.zero,
-          MultiAsset(mint.assets.map { case (policy, assets) =>
-              policy -> assets.filter((_, value) => value > 0)
+          MultiAsset(mint.assets.flatMap { case (policy, assets) =>
+              val mints = assets.filter((_, value) => value > 0)
+              if mints.isEmpty then None else Some(policy -> mints)
           })
         )
         val getConsumedMaryValue = consumedValue + minted
@@ -70,13 +71,15 @@ object TxBalance {
     def produced(tx: Transaction): Value = {
         val txBody = tx.body.value
         val mint = txBody.mint.getOrElse(MultiAsset.empty)
-        val burned =
-            val negativeMints = mint.assets.flatMap { case (policy, assets) =>
-                val burns = assets.filter((_, value) => value < 0)
-                if burns.isEmpty then None else Some(policy -> burns)
-            }
-            if negativeMints.isEmpty then Value.zero
-            else Value(Coin.zero, MultiAsset(negativeMints))
+        val burned = Value(
+          Coin.zero,
+          MultiAsset(mint.assets.flatMap { case (policy, assets) =>
+              // In TxBalance.produced, the burned tokens are added with a positive sign.
+              // So we reverse the negative sign that they have in txBody.mint.
+              val burns = assets.collect { case name -> value if value < 0 => name -> -value }
+              if burns.isEmpty then None else Some(policy -> burns)
+          })
+        )
         val outputs = txBody.outputs
             .map(_.value.value)
             .foldLeft(Value.zero)(_ + _)
@@ -85,8 +88,7 @@ object TxBalance {
         val conwayTotalDepositsTxCerts = shelleyTotalDepositsTxCerts + conwayDRepDepositsTxCerts
         val getTotalDepositsTxBody = conwayTotalDepositsTxCerts
         val shelleyProducedValue = outputs + Value(txBody.fee + getTotalDepositsTxBody)
-        // Since burning is expressed by negative amounts for mints, we need to + (- burned)
-        val getProducedMaryValue = shelleyProducedValue - burned
+        val getProducedMaryValue = shelleyProducedValue + burned
         val conwayProducedValue =
             getProducedMaryValue + Value(txBody.donation.getOrElse(Coin.zero))
         val getProducedValue = conwayProducedValue
