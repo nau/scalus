@@ -19,7 +19,7 @@ import scala.util.{Failure, Success, Try}
   */
 class Groth16MinimalTest extends AnyFunSuite:
 
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,

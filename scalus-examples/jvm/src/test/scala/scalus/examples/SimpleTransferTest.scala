@@ -13,7 +13,7 @@ import scalus.testkit.ScalusTest
 
 class SimpleTransferTest extends AnyFunSuite with ScalusTest {
     val fee = 10
-    inline given Compiler.Options = Compiler.Options(
+    given Compiler.Options = Compiler.Options(
       targetLoweringBackend = Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,

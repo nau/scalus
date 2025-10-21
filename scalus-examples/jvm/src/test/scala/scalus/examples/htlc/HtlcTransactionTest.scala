@@ -28,7 +28,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
     private val validPreimage: ByteString = genByteStringOfN(32).sample.get
     private val validImage: ByteString = sha3_256(validPreimage)
 
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = false

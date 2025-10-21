@@ -4,8 +4,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
+import scalus.builtin.Data
 import scalus.builtin.Data.toData
-import scalus.builtin.{ByteString, Data}
 import scalus.ledger.api.v1.PubKeyHash
 import scalus.prelude.*
 import scalus.testkit.ScalusTest
@@ -16,7 +16,7 @@ import scala.language.implicitConversions
 
 class HelloCardanoTest extends AnyFunSuite with ScalusTest {
 
-    inline given scalus.Compiler.Options = scalus.Compiler.Options(
+    given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,

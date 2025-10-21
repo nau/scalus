@@ -4,7 +4,6 @@ import scalus.*
 import scalus.builtin.Data
 import scalus.ledger.api.v3.{PubKeyHash, TxInfo, TxOutRef}
 import scalus.prelude.*
-import scalus.prelude.Prelude.*
 
 /** A simple validator that checks if the redeemer is "Hello, World!" and if the transaction is
   * signed by the owner.
