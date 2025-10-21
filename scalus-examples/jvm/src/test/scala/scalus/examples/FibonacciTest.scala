@@ -83,11 +83,11 @@ class FibonacciTest extends AnyFunSuite with ScalusTest {
     test("fibonacci unfold") {
         val sir = compile(Fib.fib(BigInt(100)))
         println(sir.showHighlighted)
-        val uplc = sir.toUplc() |> Inliner.apply
-        println(s"\n$uplc\n")
+        val uplc: Term = sir.toUplc() |> Inliner.apply
+        println(s"\n${uplc.pretty.render(Int.MaxValue)}\n")
         val x = uplc.evaluate
         println(x)
-        assert(s"$x" === "Const(Integer(218922995834555169026))")
+        assert(s"$x" === "Const(Integer(354224848179261915075))")
     }
 }
 
@@ -98,6 +98,6 @@ object Fib {
             if n > 1 then
                 val x = f(n - 1)
                 (x._2, x._1 + x._2)
-            else (1, 0)
+            else (0, 1)
         f(n)._2
 }
