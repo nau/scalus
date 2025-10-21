@@ -27,8 +27,6 @@ object TaggedSet {
     }
 
     inline def apply[A](s: IndexedSeq[A]): TaggedSet[A] = s
-    @deprecated("Use TaggedSet.from instead", "0.10.0")
-    inline def apply[A](s: Set[A]): TaggedSet[A] = s.toIndexedSeq
 
     /** Creates a `TaggedSet` with the specified elements.
       * @tparam A

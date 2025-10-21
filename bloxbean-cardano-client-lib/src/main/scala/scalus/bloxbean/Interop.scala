@@ -1,7 +1,6 @@
 package scalus.bloxbean
 
 import com.bloxbean.cardano.client.address.{Address, AddressType, Credential, CredentialType}
-import com.bloxbean.cardano.client.crypto.Blake2bUtil.blake2bHash224
 import com.bloxbean.cardano.client.plutus.spec.*
 import com.bloxbean.cardano.client.spec.{Rational, UnitInterval}
 import com.bloxbean.cardano.client.transaction.spec.*
@@ -45,10 +44,6 @@ given Ordering[Redeemer] with
         x.getTag.value.compareTo(y.getTag.value) match
             case 0 => x.getIndex.compareTo(y.getIndex)
             case c => c
-
-@annotation.nowarn("msg=deprecated")
-@deprecated("Use Script instead", "0.10.1")
-case class ScriptInfo(hash: ByteString, scriptVersion: ScriptVersion)
 
 /** Interoperability between Cardano Client Lib and Scalus */
 object Interop {
@@ -116,28 +111,6 @@ object Interop {
 
     /// Helper for null check
     extension [A](inline a: A) inline infix def ??(b: => A): A = if a != null then a else b
-
-    @annotation.nowarn("msg=deprecated")
-    @deprecated("Use getScriptFromScriptRefBytes", "0.10.1")
-    def getScriptInfoFromScriptRef(scriptRef: Array[Byte]): ScriptInfo = {
-        // script_ref is encoded as CBOR Array
-        val (scriptType, scriptCbor) = Cbor.decode(scriptRef).to[(Byte, Array[Byte])].value
-        // and script hash is calculated from the script type byte and the scriptCbor
-        val scriptBytesForScriptHash = Array(scriptType) ++ scriptCbor
-        val hash = ByteString.fromArray(blake2bHash224(scriptBytesForScriptHash))
-        scriptType match
-            case 0 =>
-                ScriptInfo(hash, ScriptVersion.Native)
-            case 1 => // Plutus V1
-                val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
-                ScriptInfo(hash, ScriptVersion.PlutusV1(script))
-            case 2 => // Plutus V2
-                val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
-                ScriptInfo(hash, ScriptVersion.PlutusV2(script))
-            case 3 => // Plutus V3
-                val script = ByteString.fromArray(Cbor.decode(scriptCbor).to[Array[Byte]].value)
-                ScriptInfo(hash, ScriptVersion.PlutusV3(script))
-    }
 
     private[bloxbean] def getScriptFromScriptRefBytes(scriptRefBytes: Array[Byte]): Script = {
         Cbor.decode(scriptRefBytes).to[Script].value

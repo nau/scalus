@@ -83,14 +83,6 @@ class TxEvaluationException(
         TxEvaluationException(message, cause, logs, sc :: scriptContext)
 }
 
-@annotation.nowarn("msg=deprecated")
-@deprecated("Use Script instead", "0.10.1")
-enum ScriptVersion:
-    case Native
-    case PlutusV1(flatScript: ByteString)
-    case PlutusV2(flatScript: ByteString)
-    case PlutusV3(flatScript: ByteString)
-
 /** Evaluate script costs for a transaction using two phase eval.
   * @note
   *   This is experimental API and subject to change
@@ -544,13 +536,6 @@ class TxEvaluator(
         }
         collectedRedeemers
     }
-
-    @deprecated("Use scalus.uplc.eval.RestrictingBudgetSpenderWithScriptDump instead", "0.10.1")
-    class RestrictingBudgetSpenderWithScripDump(maxBudget: ExBudget)
-        extends eval.RestrictingBudgetSpenderWithScriptDump(
-          maxBudget,
-          debugDumpFilesForTesting
-        )
 }
 
 object TxEvaluator {

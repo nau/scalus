@@ -118,9 +118,6 @@ object AssocMap {
 
         def contains(key: A): Boolean = get(key).isDefined
 
-        @deprecated("Use `get` instead")
-        def lookup(key: A): Option[B] = get(key)
-
         def insert(key: A, value: B): AssocMap[A, B] = {
             def go(lst: List[(A, B)]): List[(A, B)] = lst match
                 case Nil =>

@@ -38,31 +38,6 @@ inline def identity[A](inline value: A): A = value
 
 @Compile
 object Prelude {
-    @deprecated("Use `scalus.prelude.Eq` instead")
-    type Eq[-A] = (A, A) => Boolean
-    @deprecated("Use `scalus.prelude.Eq[BigInt]` instead")
-    // given Eq[Nothing] = (x: Nothing, y: Nothing) => throw new Exception("EQN")
-    given Eq[BigInt] = (x: BigInt, y: BigInt) => equalsInteger(x, y)
-    @deprecated("Use `scalus.prelude.Eq[ByteString]` instead")
-    given Eq[ByteString] = (x: ByteString, y: ByteString) => equalsByteString(x, y)
-    @deprecated("Use `scalus.prelude.Eq[String]` instead")
-    given Eq[String] = (x: String, y: String) => equalsString(x, y)
-    @deprecated("Use `scalus.prelude.Eq[Boolean]` instead")
-    given Eq[Boolean] = (x: Boolean, y: Boolean) => x == y
-    @deprecated("Use `scalus.prelude.Eq[Data]` instead")
-    given Eq[Data] = (x: Data, y: Data) => equalsData(x, y)
-    @deprecated("Use `scalus.prelude.Eq[Unit]` instead")
-    given Eq[Unit] = (_: Unit, _: Unit) => true
-
-    extension [A](x: A)
-        @deprecated("Use `scalus.prelude.===` instead") inline def ===(inline y: A)(using
-            inline eq: Eq[A]
-        ): Boolean = eq(x, y)
-    extension [A](x: A)
-        @deprecated("Use `scalus.prelude.!==` instead") inline def !==(inline y: A)(using
-            inline eq: Eq[A]
-        ): Boolean = !eq(x, y)
-
     def encodeHex(input: ByteString): String = {
         import ByteString.*
         val len = lengthOfByteString(input)
@@ -109,14 +84,6 @@ object Prelude {
         val result = go(absValue)
         if isNegative then appendString("-", result) else result
     }
-
-    @deprecated("Use `scalus.prelude.log` instead")
-    inline def log(inline msg: String): Unit = trace(msg)(())
-
-    extension (b: Boolean)
-        @deprecated("Use `scalus.prelude.orFail` instead")
-        inline infix def orFail(inline message: String): Unit =
-            if b then () else fail(message)
 }
 
 /** Tests an expression, throwing an `RequirementError` if false.

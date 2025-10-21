@@ -3,6 +3,7 @@ import sbtwelcome.*
 
 import java.net.URI
 import scala.scalanative.build.*
+import com.typesafe.tools.mima.core.{DirectMissingMethodProblem, MissingClassProblem, ProblemFilters}
 
 // =============================================================================
 // GLOBAL SETTINGS
@@ -479,7 +480,20 @@ lazy val `scalus-bloxbean-cardano-client-lib` = project
       publish / skip := false,
       scalacOptions ++= commonScalacOptions,
       mimaPreviousArtifacts := Set(organization.value %% name.value % scalusCompatibleVersion),
-      mimaBinaryIssueFilters ++= Seq(),
+      mimaBinaryIssueFilters ++= Seq(
+        ProblemFilters.exclude[DirectMissingMethodProblem]("scalus.bloxbean.Interop.getScriptInfoFromScriptRef"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptInfo"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptInfo$"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion$"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion$PlutusV1"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion$PlutusV1$"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion$PlutusV2"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion$PlutusV2$"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion$PlutusV3"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.ScriptVersion$PlutusV3$"),
+        ProblemFilters.exclude[MissingClassProblem]("scalus.bloxbean.TxEvaluator$RestrictingBudgetSpenderWithScripDump")
+      ),
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "2.0.17",
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17" % "test",

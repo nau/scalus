@@ -304,7 +304,7 @@ object Macros {
         impl
     }
 
-    @deprecated("use inlineResource")
+    @deprecated("use inlineResource", "0.11.0")
     def inlineBuiltinCostModelJsonImpl(using Quotes)(name: Expr[String]): Expr[String] =
         inlineResource(name)
 
