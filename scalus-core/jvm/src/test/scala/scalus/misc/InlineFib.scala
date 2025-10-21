@@ -23,10 +23,10 @@ class InlineFibTest extends AnyFunSuite {
         val sir = scalus.Compiler.compile {
             BigInt(InlineFib.fib(10))
         }
-        println(s"SIR:\n${sir.showHighlighted}")
+        // println(s"SIR:\n${sir.showHighlighted}")
         val expectedFib10 = 55
         val uplc = sir.toUplc()
-        println(s"UPLC:\n${uplc.showHighlighted}")
+        // println(s"UPLC:\n${uplc.showHighlighted}")
         val evalResult = uplc.evaluate
         assert(evalResult == Term.Const(Constant.Integer(BigInt(expectedFib10))))
     }
