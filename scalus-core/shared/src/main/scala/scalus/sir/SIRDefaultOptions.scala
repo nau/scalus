@@ -10,11 +10,12 @@ enum TargetLoweringBackend:
   */
 object SIRDefaultOptions {
 
-    val targetLoweringBackend: TargetLoweringBackend = TargetLoweringBackend.SimpleSirToUplcLowering
+    val targetLoweringBackend: TargetLoweringBackend = TargetLoweringBackend.SirToUplcV3Lowering
     val generateErrorTraces: Boolean = true
-    val optimizeUplc: Boolean = false
-    val runtimeLinker: Boolean = true
-    val writeSIRToFile: Boolean = false
+    val optimizeUplc: Boolean = true
+
+    // debugging options
+    val writeSirToFile: Boolean = false
     val debugLevel: Int = 0
 
 }

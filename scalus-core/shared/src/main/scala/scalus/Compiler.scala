@@ -27,8 +27,6 @@ object Compiler:
         targetLoweringBackend: TargetLoweringBackend = SIRDefaultOptions.targetLoweringBackend,
         generateErrorTraces: Boolean = SIRDefaultOptions.generateErrorTraces,
         optimizeUplc: Boolean = SIRDefaultOptions.optimizeUplc,
-        runtimeLinker: Boolean = SIRDefaultOptions.runtimeLinker,
-        writeSIRToFile: Boolean = SIRDefaultOptions.writeSIRToFile,
         debugLevel: Int = SIRDefaultOptions.debugLevel,
         debug: Boolean = false
     )

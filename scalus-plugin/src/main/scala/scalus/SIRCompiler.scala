@@ -80,8 +80,8 @@ case class SIRCompilerOptions(
     backend: String = SIRDefaultOptions.targetLoweringBackend.toString,
     // universalDataRepresentation: Boolean =
     //    (SIRDefaultOptions.targetLoweringBackend == TargetLoweringBackend.SirToUplcV3Lowering),
-    linkInRuntime: Boolean = SIRDefaultOptions.runtimeLinker,
-    writeSirToFile: Boolean = SIRDefaultOptions.writeSIRToFile,
+    // linkInRuntime: Boolean = SIRDefaultOptions.runtimeLinker,
+    writeSirToFile: Boolean = SIRDefaultOptions.writeSirToFile,
     debugLevel: Int = SIRDefaultOptions.debugLevel,
 ) {
 
@@ -1423,10 +1423,13 @@ final class SIRCompiler(
             literal match
                 case Literal(c) if c.tag == Constants.IntTag =>
                     scalus.uplc.Constant.Integer(BigInt(c.intValue))
+                case Inlined(_, _, Typed(Literal(c), tpt))
+                    if c.tag == Constants.IntTag && tpt.tpe =:= defn.IntType =>
+                    scalus.uplc.Constant.Integer(BigInt(c.intValue))
                 case _ =>
                     error(
                       GenericError(
-                        s"""BigInt(${literal.show}) is not a constant expression.
+                        s"""BigInt(${literal.show})(tree: $literal) is not a constant expression.
                                |Try using Int literals, like BigInt(123)
                                |""".stripMargin,
                         t.srcPos
