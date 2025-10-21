@@ -157,6 +157,227 @@ abstract class BaseSimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolea
     protected def getWildcardBindings(constrDecl: ConstrDecl): List[String] =
         constrDecl.params.map(_.name)
 
+    /** Check if a SIR type is a primitive type that supports constant pattern matching. */
+    protected def isPrimitiveType(sirType: SIRType): Boolean = sirType match {
+        case SIRType.Boolean    => true
+        case SIRType.Integer    => true
+        case SIRType.ByteString => true
+        case SIRType.String     => true
+        case _                  => false
+    }
+
+    /** Lower a match expression on primitive types with constant patterns. */
+    protected def lowerPrimitiveMatch(matchExpr: SIR.Match): Term = {
+        val scrutinee = matchExpr.scrutinee
+        val scrutineeTerm = lowerInner(scrutinee)
+        val isUnchecked = matchExpr.anns.data.contains("unchecked")
+
+        scrutinee.tp match {
+            case SIRType.Boolean =>
+                lowerBooleanMatch(scrutineeTerm, matchExpr.cases, isUnchecked, matchExpr.anns)
+            case SIRType.Integer =>
+                lowerIntegerMatch(scrutineeTerm, matchExpr.cases, isUnchecked, matchExpr.anns)
+            case SIRType.ByteString =>
+                lowerByteStringMatch(scrutineeTerm, matchExpr.cases, isUnchecked, matchExpr.anns)
+            case SIRType.String =>
+                lowerStringMatch(scrutineeTerm, matchExpr.cases, isUnchecked, matchExpr.anns)
+            case _ =>
+                throw new IllegalArgumentException(
+                  s"Unsupported primitive type for constant matching: ${scrutinee.tp}"
+                )
+        }
+    }
+
+    /** Lower Boolean constant pattern match. */
+    protected def lowerBooleanMatch(
+        scrutineeTerm: Term,
+        cases: List[SIR.Case],
+        isUnchecked: Boolean,
+        anns: AnnotationsDecl
+    ): Term = {
+        def processCases(cases: List[SIR.Case], matchedValues: Set[Boolean]): Term = cases match {
+            case Nil =>
+                if isUnchecked then
+                    lowerInner(SIR.Error("Non-exhaustive pattern match for Boolean", anns))
+                else
+                    val pos = anns.pos
+                    throw new IllegalArgumentException(
+                      s"Non-exhaustive pattern match for Boolean at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                    )
+            case SIR.Case(SIR.Pattern.Const(constValue), body, caseAnns) :: rest =>
+                constValue.uplcConst match {
+                    case Constant.Bool(boolValue) =>
+                        val newMatched = matchedValues + boolValue
+                        val isExhaustive = newMatched.contains(true) && newMatched.contains(false)
+
+                        if rest.isEmpty && isExhaustive then {
+                            // Last case and exhaustive - just return the body
+                            lowerInner(body)
+                        } else {
+                            // Generate if-then-else
+                            val thenBranch = lowerInner(body)
+                            val elseBranch = processCases(rest, newMatched)
+                            val ifThenElse = !(builtinTerms(
+                              DefaultFun.IfThenElse
+                            ) $ scrutineeTerm $ ~thenBranch $ ~elseBranch)
+                            // if constValue is true: if scrutinee then body else rest
+                            // if constValue is false: if scrutinee then rest else body
+                            if boolValue then ifThenElse
+                            else
+                                !(builtinTerms(
+                                  DefaultFun.IfThenElse
+                                ) $ scrutineeTerm $ ~elseBranch $ ~thenBranch)
+                        }
+                    case _ =>
+                        val pos = caseAnns.pos
+                        throw new IllegalArgumentException(
+                          s"Expected Boolean constant, got ${constValue.uplcConst} at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                        )
+                }
+            case SIR.Case(SIR.Pattern.Wildcard, body, caseAnns) :: rest =>
+                if rest.nonEmpty then {
+                    val pos = caseAnns.pos
+                    throw new IllegalArgumentException(
+                      s"Wildcard pattern must be the last case at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                    )
+                }
+                lowerInner(body)
+            case SIR.Case(SIR.Pattern.Constr(_, _, _), _, caseAnns) :: _ =>
+                val pos = caseAnns.pos
+                throw new IllegalArgumentException(
+                  s"Constructor pattern not supported for Boolean at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                )
+        }
+
+        processCases(cases, Set.empty)
+    }
+
+    /** Lower Integer constant pattern match. */
+    protected def lowerIntegerMatch(
+        scrutineeTerm: Term,
+        cases: List[SIR.Case],
+        isUnchecked: Boolean,
+        anns: AnnotationsDecl
+    ): Term = {
+        def processCases(cases: List[SIR.Case]): Term = cases match {
+            case Nil =>
+                if isUnchecked then
+                    lowerInner(SIR.Error("Non-exhaustive pattern match for Integer", anns))
+                else {
+                    val pos = anns.pos
+                    throw new IllegalArgumentException(
+                      s"Non-exhaustive pattern match for Integer at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                    )
+                }
+            case SIR.Case(SIR.Pattern.Const(constValue), body, caseAnns) :: rest =>
+                val constTerm = lowerInner(constValue)
+                val comparison =
+                    !(builtinTerms(DefaultFun.EqualsInteger) $ scrutineeTerm $ constTerm)
+                val thenBranch = lowerInner(body)
+                val elseBranch = processCases(rest)
+                !(builtinTerms(DefaultFun.IfThenElse) $ comparison $ ~thenBranch $ ~elseBranch)
+            case SIR.Case(SIR.Pattern.Wildcard, body, caseAnns) :: rest =>
+                if rest.nonEmpty then {
+                    val pos = caseAnns.pos
+                    throw new IllegalArgumentException(
+                      s"Wildcard pattern must be the last case at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                    )
+                }
+                lowerInner(body)
+            case SIR.Case(SIR.Pattern.Constr(_, _, _), _, caseAnns) :: _ =>
+                val pos = caseAnns.pos
+                throw new IllegalArgumentException(
+                  s"Constructor pattern not supported for Integer at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                )
+        }
+
+        processCases(cases)
+    }
+
+    /** Lower ByteString constant pattern match. */
+    protected def lowerByteStringMatch(
+        scrutineeTerm: Term,
+        cases: List[SIR.Case],
+        isUnchecked: Boolean,
+        anns: AnnotationsDecl
+    ): Term = {
+        def processCases(cases: List[SIR.Case]): Term = cases match {
+            case Nil =>
+                if isUnchecked then
+                    lowerInner(SIR.Error("Non-exhaustive pattern match for ByteString", anns))
+                else {
+                    val pos = anns.pos
+                    throw new IllegalArgumentException(
+                      s"Non-exhaustive pattern match for ByteString at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                    )
+                }
+            case SIR.Case(SIR.Pattern.Const(constValue), body, caseAnns) :: rest =>
+                val constTerm = lowerInner(constValue)
+                val comparison =
+                    !(builtinTerms(DefaultFun.EqualsByteString) $ scrutineeTerm $ constTerm)
+                val thenBranch = lowerInner(body)
+                val elseBranch = processCases(rest)
+                !(builtinTerms(DefaultFun.IfThenElse) $ comparison $ ~thenBranch $ ~elseBranch)
+            case SIR.Case(SIR.Pattern.Wildcard, body, caseAnns) :: rest =>
+                if rest.nonEmpty then {
+                    val pos = caseAnns.pos
+                    throw new IllegalArgumentException(
+                      s"Wildcard pattern must be the last case at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                    )
+                }
+                lowerInner(body)
+            case SIR.Case(SIR.Pattern.Constr(_, _, _), _, caseAnns) :: _ =>
+                val pos = caseAnns.pos
+                throw new IllegalArgumentException(
+                  s"Constructor pattern not supported for ByteString at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                )
+        }
+
+        processCases(cases)
+    }
+
+    /** Lower String constant pattern match. */
+    protected def lowerStringMatch(
+        scrutineeTerm: Term,
+        cases: List[SIR.Case],
+        isUnchecked: Boolean,
+        anns: AnnotationsDecl
+    ): Term = {
+        def processCases(cases: List[SIR.Case]): Term = cases match {
+            case Nil =>
+                if isUnchecked then
+                    lowerInner(SIR.Error("Non-exhaustive pattern match for String", anns))
+                else {
+                    val pos = anns.pos
+                    throw new IllegalArgumentException(
+                      s"Non-exhaustive pattern match for String at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                    )
+                }
+            case SIR.Case(SIR.Pattern.Const(constValue), body, caseAnns) :: rest =>
+                val constTerm = lowerInner(constValue)
+                val comparison =
+                    !(builtinTerms(DefaultFun.EqualsString) $ scrutineeTerm $ constTerm)
+                val thenBranch = lowerInner(body)
+                val elseBranch = processCases(rest)
+                !(builtinTerms(DefaultFun.IfThenElse) $ comparison $ ~thenBranch $ ~elseBranch)
+            case SIR.Case(SIR.Pattern.Wildcard, body, caseAnns) :: rest =>
+                if rest.nonEmpty then {
+                    val pos = caseAnns.pos
+                    throw new IllegalArgumentException(
+                      s"Wildcard pattern must be the last case at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                    )
+                }
+                lowerInner(body)
+            case SIR.Case(SIR.Pattern.Constr(_, _, _), _, caseAnns) :: _ =>
+                val pos = caseAnns.pos
+                throw new IllegalArgumentException(
+                  s"Constructor pattern not supported for String at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                )
+        }
+
+        processCases(cases)
+    }
+
     /** Lower a constructor expression. Must be implemented by subclasses. */
     protected def lowerConstr(
         name: String,

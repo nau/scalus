@@ -233,3 +233,182 @@ class SimpleSirToUplcLoweringTest
           )
         ) lowersTo (lam("Nil", "Cons")(!vr"Nil") $ ~asConstant(1) $ lam("h", "tl")(2))
     }
+
+    test("lower Boolean constant pattern match") {
+        /* x match
+            case true -> 1
+            case false -> 2
+        lowers to ifThenElse x 1 2
+         */
+        val x = SIR.Var("x", SIRType.Boolean, ae)
+        SIR.Match(
+          x,
+          List(
+            SIR.Case(
+              Pattern.Const(SIR.Const(Constant.Bool(true), SIRType.Boolean, ae)),
+              SIR.Const(asConstant(1), SIRType.Integer, ae),
+              ae
+            ),
+            SIR.Case(
+              Pattern.Const(SIR.Const(Constant.Bool(false), SIRType.Boolean, ae)),
+              SIR.Const(asConstant(2), SIRType.Integer, ae),
+              ae
+            )
+          ),
+          SIRType.Integer,
+          ae
+        ) lowersTo !(!IfThenElse $ vr"x" $ ~asConstant(1) $ ~asConstant(2))
+    }
+
+    test("lower Boolean constant pattern match - exhaustive optimization") {
+        /* x match
+            case false -> 1
+            case true -> 2
+        // Since both cases are covered, the last case should just return the body
+        lowers to ifThenElse x 2 1
+         */
+        val x = SIR.Var("x", SIRType.Boolean, ae)
+        SIR.Match(
+          x,
+          List(
+            SIR.Case(
+              Pattern.Const(SIR.Const(Constant.Bool(false), SIRType.Boolean, ae)),
+              SIR.Const(asConstant(1), SIRType.Integer, ae),
+              ae
+            ),
+            SIR.Case(
+              Pattern.Const(SIR.Const(Constant.Bool(true), SIRType.Boolean, ae)),
+              SIR.Const(asConstant(2), SIRType.Integer, ae),
+              ae
+            )
+          ),
+          SIRType.Integer,
+          ae
+        ) lowersTo !(!IfThenElse $ vr"x" $ ~asConstant(2) $ ~asConstant(1))
+    }
+
+    test("lower Boolean constant pattern match with wildcard") {
+        /* x match
+            case true -> 1
+            case _ -> 2
+        lowers to ifThenElse x 1 2
+         */
+        val x = SIR.Var("x", SIRType.Boolean, ae)
+        SIR.Match(
+          x,
+          List(
+            SIR.Case(
+              Pattern.Const(SIR.Const(Constant.Bool(true), SIRType.Boolean, ae)),
+              SIR.Const(asConstant(1), SIRType.Integer, ae),
+              ae
+            ),
+            SIR.Case(
+              Pattern.Wildcard,
+              SIR.Const(asConstant(2), SIRType.Integer, ae),
+              ae
+            )
+          ),
+          SIRType.Integer,
+          ae
+        ) lowersTo !(!IfThenElse $ vr"x" $ ~asConstant(1) $ ~asConstant(2))
+    }
+
+    test("lower Integer constant pattern match") {
+        /* x match
+            case 1 -> "one"
+            case 2 -> "two"
+            case _ -> "other"
+        lowers to ifThenElse (equalsInteger x 1) "one"
+                    (ifThenElse (equalsInteger x 2) "two" "other")
+         */
+        val x = SIR.Var("x", SIRType.Integer, ae)
+        SIR.Match(
+          x,
+          List(
+            SIR.Case(
+              Pattern.Const(SIR.Const(asConstant(1), SIRType.Integer, ae)),
+              SIR.Const(asConstant("one"), SIRType.String, ae),
+              ae
+            ),
+            SIR.Case(
+              Pattern.Const(SIR.Const(asConstant(2), SIRType.Integer, ae)),
+              SIR.Const(asConstant("two"), SIRType.String, ae),
+              ae
+            ),
+            SIR.Case(
+              Pattern.Wildcard,
+              SIR.Const(asConstant("other"), SIRType.String, ae),
+              ae
+            )
+          ),
+          SIRType.String,
+          ae
+        ) lowersTo !(!IfThenElse $ !(EqualsInteger $ vr"x" $ 1) $ ~"one" $ ~(!(!IfThenElse $ !(
+          EqualsInteger $ vr"x" $ 2
+        ) $ ~"two" $ ~"other")))
+    }
+
+    test("lower ByteString constant pattern match") {
+        /* x match
+            case #deadbeef -> 1
+            case _ -> 2
+        lowers to ifThenElse (equalsByteString x #deadbeef) 1 2
+         */
+        val x = SIR.Var("x", SIRType.ByteString, ae)
+        SIR.Match(
+          x,
+          List(
+            SIR.Case(
+              Pattern.Const(SIR.Const(asConstant(hex"DEADBEEF"), SIRType.ByteString, ae)),
+              SIR.Const(asConstant(1), SIRType.Integer, ae),
+              ae
+            ),
+            SIR.Case(
+              Pattern.Wildcard,
+              SIR.Const(asConstant(2), SIRType.Integer, ae),
+              ae
+            )
+          ),
+          SIRType.Integer,
+          ae
+        ) lowersTo !(!IfThenElse $ !(EqualsByteString $ vr"x" $ hex"DEADBEEF") $ ~asConstant(
+          1
+        ) $ ~asConstant(2))
+    }
+
+    test("lower String constant pattern match") {
+        /* x match
+            case "hello" -> 1
+            case "world" -> 2
+            case _ -> 3
+        lowers to ifThenElse (equalsString x "hello") 1
+                    (ifThenElse (equalsString x "world") 2 3)
+         */
+        val x = SIR.Var("x", SIRType.String, ae)
+        SIR.Match(
+          x,
+          List(
+            SIR.Case(
+              Pattern.Const(SIR.Const(asConstant("hello"), SIRType.String, ae)),
+              SIR.Const(asConstant(1), SIRType.Integer, ae),
+              ae
+            ),
+            SIR.Case(
+              Pattern.Const(SIR.Const(asConstant("world"), SIRType.String, ae)),
+              SIR.Const(asConstant(2), SIRType.Integer, ae),
+              ae
+            ),
+            SIR.Case(
+              Pattern.Wildcard,
+              SIR.Const(asConstant(3), SIRType.Integer, ae),
+              ae
+            )
+          ),
+          SIRType.Integer,
+          ae
+        ) lowersTo !(!IfThenElse $ !(EqualsString $ vr"x" $ "hello") $ ~asConstant(
+          1
+        ) $ ~(!(!IfThenElse $ !(
+          EqualsString $ vr"x" $ "world"
+        ) $ ~asConstant(2) $ ~asConstant(3))))
+    }

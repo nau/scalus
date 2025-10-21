@@ -57,39 +57,44 @@ class SimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolean = false)
         }
 
     override protected def lowerMatch(matchExpr: SIR.Match): Term =
-        /* list match
-            case Nil -> 1
-            case Cons(h, tl) -> 2
-
-            lowers to list (delay 1) (\h tl -> 2)
-         */
         val scrutinee = matchExpr.scrutinee
-        val scrutineeTerm = lowerInner(scrutinee)
-        val constructors = findConstructors(scrutinee.tp)
-        val orderedCases = expandAndSortCases(matchExpr, constructors)
 
-        val casesTerms = orderedCases.map {
-            case SIR.Case(Pattern.Constr(constr, bindings, _), body, anns) =>
-                constr.params match
-                    case Nil => ~lowerInner(body)
-                    case _ =>
-                        bindings.foldRight(lowerInner(body)) { (binding, acc) =>
-                            Term.LamAbs(binding, acc)
-                        }
-            case SIR.Case(Pattern.Const(_), _, anns) =>
-                val pos = anns.pos
-                throw new IllegalArgumentException(
-                  s"Constant pattern not supported in SimpleSirToUplcLowering at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
-                )
-            case SIR.Case(Pattern.Wildcard, _, anns) =>
-                val pos = anns.pos
-                throw new IllegalArgumentException(
-                  s"Wildcard case must have been eliminated at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
-                )
-        }
+        // Check if this is a primitive type match
+        if isPrimitiveType(scrutinee.tp) then lowerPrimitiveMatch(matchExpr)
+        else {
+            /* list match
+                case Nil -> 1
+                case Cons(h, tl) -> 2
 
-        casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) =>
-            Term.Apply(acc, caseTerm)
+                lowers to list (delay 1) (\h tl -> 2)
+             */
+            val scrutineeTerm = lowerInner(scrutinee)
+            val constructors = findConstructors(scrutinee.tp)
+            val orderedCases = expandAndSortCases(matchExpr, constructors)
+
+            val casesTerms = orderedCases.map {
+                case SIR.Case(Pattern.Constr(constr, bindings, _), body, anns) =>
+                    constr.params match
+                        case Nil => ~lowerInner(body)
+                        case _ =>
+                            bindings.foldRight(lowerInner(body)) { (binding, acc) =>
+                                Term.LamAbs(binding, acc)
+                            }
+                case SIR.Case(Pattern.Const(_), _, anns) =>
+                    val pos = anns.pos
+                    throw new IllegalArgumentException(
+                      s"Constant pattern not supported in SimpleSirToUplcLowering at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                    )
+                case SIR.Case(Pattern.Wildcard, _, anns) =>
+                    val pos = anns.pos
+                    throw new IllegalArgumentException(
+                      s"Wildcard case must have been eliminated at ${pos.file}:${pos.startLine}, ${pos.startColumn}"
+                    )
+            }
+
+            casesTerms.foldLeft(scrutineeTerm) { (acc, caseTerm) =>
+                Term.Apply(acc, caseTerm)
+            }
         }
 
     override protected def lowerSelect(
