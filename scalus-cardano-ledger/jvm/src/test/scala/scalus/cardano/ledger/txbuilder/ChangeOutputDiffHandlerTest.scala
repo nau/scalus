@@ -1,12 +1,12 @@
-package scalus.cardano.ledger.txbuilder
+package scalus.cardano.txbuilder
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.{platform, ByteString}
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.rules.{Context, State, ValueNotConservedUTxOValidator}
-import scalus.cardano.ledger.txbuilder.LowLevelTxBuilder.ChangeOutputDiffHandler
-import scalus.cardano.ledger.txbuilder.TxBalancingError.InsufficientFunds
+import scalus.cardano.txbuilder.LowLevelTxBuilder.ChangeOutputDiffHandler
+import scalus.cardano.txbuilder.TxBalancingError.InsufficientFunds
 import scalus.uplc.eval.ExBudget
 
 import scala.collection.immutable.SortedSet

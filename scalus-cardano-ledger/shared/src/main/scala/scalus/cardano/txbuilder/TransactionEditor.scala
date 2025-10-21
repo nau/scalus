@@ -1,4 +1,4 @@
-package scalus.cardano.ledger.txbuilder
+package scalus.cardano.txbuilder
 
 /** Transaction editing utilities with automatic redeemer re-indexing.
   *

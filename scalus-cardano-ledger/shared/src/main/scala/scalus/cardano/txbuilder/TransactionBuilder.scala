@@ -1,4 +1,4 @@
-package scalus.cardano.ledger.txbuilder
+package scalus.cardano.txbuilder
 
 /** This module contains declarative transaction building types and utilities ported from
   * purescript-cardano-transaction-builder with significant modifications and additions.
@@ -21,11 +21,11 @@ import scalus.cardano.ledger.GovAction.*
 import scalus.cardano.ledger.TransactionOutput.Babbage
 import scalus.cardano.ledger.rules.STS.Validator
 import scalus.cardano.ledger.rules.{Context as SContext, STS, State as SState, UtxoEnv}
-import scalus.cardano.ledger.txbuilder.Datum.DatumValue
-import scalus.cardano.ledger.txbuilder.SomeBuildError.{BalancingError, SomeStepError, ValidationError}
-import scalus.cardano.ledger.txbuilder.TransactionBuilder.{Operation, WitnessKind}
-import scalus.cardano.ledger.txbuilder.StepError.*
-import scalus.cardano.ledger.txbuilder.modifyWs
+import scalus.cardano.txbuilder.Datum.DatumValue
+import scalus.cardano.txbuilder.SomeBuildError.{BalancingError, SomeStepError, ValidationError}
+import scalus.cardano.txbuilder.TransactionBuilder.{Operation, WitnessKind}
+import scalus.cardano.txbuilder.StepError.*
+import scalus.cardano.txbuilder.modifyWs
 import scalus.cardano.ledger.utils.{AllResolvedScripts, MinCoinSizedTransactionOutput}
 
 // Type alias for compatibility - DiffHandler is now a function type in new Scalus API

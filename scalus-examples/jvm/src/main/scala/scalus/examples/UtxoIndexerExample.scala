@@ -34,7 +34,7 @@ object Offchain:
     import scalus.cardano.address.Address
     import scalus.cardano.ledger.{Transaction, TransactionInput, TransactionOutput}
     import scalus.cardano.ledger.Script.PlutusV3
-    import scalus.cardano.ledger.txbuilder.{BuilderContext, PaymentBuilder}
+    import scalus.cardano.txbuilder.{BuilderContext, PaymentBuilder}
 
     def makeTransaction(
         context: BuilderContext,

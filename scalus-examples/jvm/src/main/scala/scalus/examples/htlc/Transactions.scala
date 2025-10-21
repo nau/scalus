@@ -4,7 +4,7 @@ import scalus.builtin.ToData.*
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Script.PlutusV3
-import scalus.cardano.ledger.txbuilder.*
+import scalus.cardano.txbuilder.*
 import scalus.ledger.api.v1.PosixTime
 
 class Transactions(context: BuilderContext) {

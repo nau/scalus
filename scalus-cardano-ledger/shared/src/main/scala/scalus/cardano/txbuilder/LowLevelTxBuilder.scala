@@ -1,4 +1,4 @@
-package scalus.cardano.ledger.txbuilder
+package scalus.cardano.txbuilder
 
 import monocle.Focus.focus
 import monocle.Lens

@@ -5,7 +5,7 @@ import scalus.builtin.Data
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.{Credential, DatumOption, Transaction, TransactionInput, TransactionOutput, Value}
 import scalus.cardano.ledger.Script.PlutusV3
-import scalus.cardano.ledger.txbuilder.{BuilderContext, PaymentBuilder}
+import scalus.cardano.txbuilder.{BuilderContext, PaymentBuilder}
 
 class Transactions(context: BuilderContext) {
     val wallet = context.wallet
@@ -67,7 +67,7 @@ class Transactions(context: BuilderContext) {
               script
             )
             .withStep(
-              scalus.cardano.ledger.txbuilder.TransactionBuilderStep
+              scalus.cardano.txbuilder.TransactionBuilderStep
                   .ValidityStartSlot(validityStartSlot)
             )
             .payToScript(scriptAddress, vaultValue, newDatum.toData)
@@ -126,7 +126,7 @@ class Transactions(context: BuilderContext) {
         PaymentBuilder(context)
             .spendScriptOutputs(vaultUtxo, redeemer, script)
             .withStep(
-              scalus.cardano.ledger.txbuilder.TransactionBuilderStep
+              scalus.cardano.txbuilder.TransactionBuilderStep
                   .ValidityStartSlot(finalizationSlot)
             )
             .payTo(ownerAddress, vaultValue)

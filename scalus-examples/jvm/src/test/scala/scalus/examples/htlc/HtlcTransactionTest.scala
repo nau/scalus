@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.ByteString
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.txbuilder.{BuilderContext, Wallet}
+import scalus.cardano.txbuilder.{BuilderContext, Wallet}
 import scalus.examples.TestUtil
 import scalus.ledger.api.v1.PosixTime
 import scalus.testkit.ScalusTest

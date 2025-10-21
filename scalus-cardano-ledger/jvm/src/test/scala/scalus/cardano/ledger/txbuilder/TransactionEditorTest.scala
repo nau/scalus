@@ -1,4 +1,4 @@
-package scalus.cardano.ledger.txbuilder
+package scalus.cardano.txbuilder
 
 import monocle.syntax.all.*
 import monocle.{Focus, Lens}
@@ -8,8 +8,8 @@ import scalus.builtin.Data.toData
 import scalus.builtin.{ByteString, Data}
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.RedeemerTag.Spend
-import scalus.cardano.ledger.txbuilder.*
-import scalus.cardano.ledger.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
+import scalus.cardano.txbuilder.*
+import scalus.cardano.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
 import scalus.|>
 
 import scala.collection.immutable.SortedSet

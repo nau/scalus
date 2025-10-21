@@ -1,4 +1,4 @@
-package scalus.cardano.ledger.txbuilder
+package scalus.cardano.txbuilder
 
 import scalus.cardano.address.Network
 import scalus.cardano.ledger.{Era, PlutusScriptEvaluator, ProtocolParams, SlotConfig}

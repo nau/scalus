@@ -1,4 +1,4 @@
-package scalus.cardano.ledger.txbuilder
+package scalus.cardano.txbuilder
 
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*

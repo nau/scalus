@@ -3,7 +3,7 @@ package scalus.examples
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.examples.vault.Vault
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.txbuilder.{BuilderContext, Wallet}
+import scalus.cardano.txbuilder.{BuilderContext, Wallet}
 import scalus.examples.vault.{State, Status, Transactions, VaultContract}
 import scalus.testkit.ScalusTest
 import scalus.plutusV3

@@ -1,4 +1,4 @@
-package scalus.cardano.ledger.txbuilder
+package scalus.cardano.txbuilder
 
 import monocle.syntax.all.*
 import org.scalacheck.*
@@ -11,8 +11,8 @@ import scalus.cardano.address.{Network, ShelleyAddress, ShelleyDelegationPart, S
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.DatumOption.Inline
 import scalus.cardano.ledger.TransactionOutput.Babbage
-import scalus.cardano.ledger.txbuilder.TransactionBuilder.setMinAda
-import scalus.cardano.ledger.txbuilder.TestPeer.Alice
+import scalus.cardano.txbuilder.TransactionBuilder.setMinAda
+import scalus.cardano.txbuilder.TestPeer.Alice
 import scalus.ledger.api.v1.ArbitraryInstances.genByteStringOfN
 import scalus.prelude.Option as SOption
 import scalus.uplc.eval.ExBudget

@@ -1,4 +1,4 @@
-package scalus.cardano.ledger.txbuilder
+package scalus.cardano.txbuilder
 
 import cats.data.NonEmptyList
 import com.bloxbean.cardano.client.account.Account
