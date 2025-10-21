@@ -3,7 +3,6 @@ package scalus.regression
 import org.scalatest.funsuite.AnyFunSuite
 
 import scalus.*
-import scalus.builtin.Builtins.*
 import scalus.builtin.{ByteString, Data, FromData, ToData}
 import scalus.ledger.api.v3.*
 import scalus.prelude.*

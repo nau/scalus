@@ -12,8 +12,6 @@ import scalus.cardano.txbuilder.*
 import scalus.cardano.txbuilder.TransactionEditor.{editTransaction, editTransactionSafe}
 import scalus.|>
 
-import scala.collection.immutable.SortedSet
-
 private def addInput(input: TransactionInput): Transaction => Transaction =
     txBodyL
         .refocus(_.inputs)

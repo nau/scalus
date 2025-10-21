@@ -2,7 +2,6 @@ package scalus
 package examples
 
 import scalus.Compiler.compile
-import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data
 import scalus.ledger.api.v1.*

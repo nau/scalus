@@ -3,7 +3,6 @@ package scalus.cardano.txbuilder
 import cats.data.NonEmptyList
 import com.bloxbean.cardano.client.account.Account
 import com.bloxbean.cardano.client.common.model.Network as BBNetwork
-import com.bloxbean.cardano.client.crypto.cip1852.DerivationPath
 import com.bloxbean.cardano.client.crypto.cip1852.DerivationPath.createExternalAddressDerivationPathForAccount
 import org.scalacheck.Gen
 import scalus.builtin.Builtins.blake2b_224

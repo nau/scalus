@@ -2,7 +2,6 @@ package scalus.uplc.eval
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.*
 import scalus.uplc.test.ArbitraryInstances
 
 class MemoryUsageTest extends AnyFunSuite with ScalaCheckPropertyChecks with ArbitraryInstances {

@@ -1,7 +1,6 @@
 package scalus.examples
 
 import scalus.{show as _, *}
-import scalus.prelude.Show.*
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.prelude.Option.*
@@ -9,7 +8,6 @@ import scalus.ledger.api.v2.OutputDatum
 import scalus.builtin.Data
 import scalus.builtin.Data.{FromData, ToData}
 import scalus.ledger.api.v1.Value.getLovelace
-import scalus.builtin.Builtins.trace
 
 case class EscrowDatum(
     seller: PubKeyHash,

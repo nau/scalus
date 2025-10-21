@@ -2,10 +2,8 @@ package scalus
 
 import dotty.tools.dotc.*
 import dotty.tools.dotc.ast.tpd
-import dotty.tools.dotc.ast.tpd.*
 import dotty.tools.dotc.core.*
 import dotty.tools.dotc.core.Contexts.Context
-import dotty.tools.dotc.core.Names.*
 import dotty.tools.dotc.core.StdNames.nme
 import dotty.tools.dotc.core.Symbols.*
 import dotty.tools.dotc.core.Types.*

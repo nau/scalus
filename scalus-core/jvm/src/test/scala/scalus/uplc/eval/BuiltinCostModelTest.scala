@@ -1,7 +1,6 @@
 package scalus.uplc.eval
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.*
 import scalus.cardano.ledger.{Language, ProtocolParams}
 import scalus.uplc.*
 

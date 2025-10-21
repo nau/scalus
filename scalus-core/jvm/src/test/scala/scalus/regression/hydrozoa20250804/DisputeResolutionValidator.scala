@@ -1,6 +1,5 @@
 package scalus.regression.hydrozoa20250804
 
-import cats.syntax.group.*
 //import com.bloxbean.cardano.client.address
 //import com.bloxbean.cardano.client.address.AddressProvider
 //import com.bloxbean.cardano.client.plutus.spec.PlutusV3Script

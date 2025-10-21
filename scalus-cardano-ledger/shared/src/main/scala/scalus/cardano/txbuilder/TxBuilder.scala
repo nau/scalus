@@ -1,6 +1,5 @@
 package scalus.cardano.txbuilder
 
-import cats.implicits.*
 import scalus.builtin.Data
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*

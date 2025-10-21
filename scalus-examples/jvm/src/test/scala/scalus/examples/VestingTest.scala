@@ -1,7 +1,6 @@
 package scalus.examples
 
 import scalus.*
-import scalus.builtin.ByteString.*
 import scalus.builtin.Data.toData
 import scalus.builtin.Data
 import scalus.ledger.api.v1.PubKeyHash
@@ -13,7 +12,6 @@ import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.testkit.*
-import scalus.uplc.*
 import scalus.uplc.eval.*
 import scalus.prelude.Option.*
 

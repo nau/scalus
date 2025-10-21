@@ -5,7 +5,6 @@ import scalus.builtin.{ByteString, Data}
 import scalus.builtin.Data.toData
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
-import org.scalatest.matchers.should.Matchers.*
 import scalus.cardano.onchain.RequirementError
 
 class StakeValidatorTest extends StdlibTestKit with scalus.ledger.api.v3.ArbitraryInstances {

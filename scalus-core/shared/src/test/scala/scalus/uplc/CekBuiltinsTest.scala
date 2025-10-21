@@ -161,7 +161,6 @@ open class CekBuiltinsTest
     }
 
     test("UnBData") {
-        import scalus.utils.Utils.*
         assert(
           (UnBData $ Data.B(hex"deadbeef")).evaluate == Const(Constant.ByteString(hex"deadbeef"))
         )

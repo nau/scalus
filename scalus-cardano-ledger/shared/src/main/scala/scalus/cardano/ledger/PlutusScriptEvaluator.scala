@@ -2,7 +2,6 @@ package scalus.cardano.ledger
 
 import scalus.builtin.Data.toData
 import scalus.builtin.{platform, ByteString, Data}
-import scalus.cardano.address.*
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.Language.*
 import scalus.cardano.ledger.LedgerToPlutusTranslation.*
@@ -15,7 +14,6 @@ import scalus.uplc.eval.*
 import scalus.uplc.{Constant, DeBruijnedProgram, Term}
 import scribe.Logger
 
-import scala.collection.immutable
 import scala.util.control.NonFatal
 
 enum EvaluatorMode extends Enum[EvaluatorMode] {

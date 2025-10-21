@@ -2,7 +2,6 @@ package scalus.bloxbean
 
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.cardano.ledger.*
-import scalus.cardano.ledger.Language.*
 
 import java.nio.file.{Files, Path, Paths}
 

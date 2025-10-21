@@ -1,7 +1,6 @@
 package scalus.patterns
 
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers.*
 import scalus.*
 import scalus.builtin.ByteString.*
 import scalus.builtin.Data

@@ -3,8 +3,6 @@ package scalus.regression.cosmex20250919
 import org.scalatest.funsuite.AnyFunSuite
 import scalus.builtin.ByteString
 
-import scalus.*
-
 class CompileCosmexToUpclTest extends AnyFunSuite {
 
     import scalus.ledger.api.v3.*

@@ -2,11 +2,9 @@ package scalus
 
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtin.ByteString
 import scalus.builtin.ByteString.*
 import scalus.ledger.api.v1.{ArbitraryInstances as _, *}
 import scalus.prelude.Option.*
-import scalus.prelude.*
 import scalus.uplc.*
 import scalus.uplc.eval.BuiltinError
 import scalus.uplc.eval.PlutusVM

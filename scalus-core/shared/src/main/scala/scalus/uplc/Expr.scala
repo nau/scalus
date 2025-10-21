@@ -1,7 +1,6 @@
 package scalus.uplc
 
 import scalus.*
-import scalus.builtin.ByteString.*
 import scalus.builtin.{ByteString, Data}
 import scalus.macros.Macros
 import scalus.uplc.Constant.LiftValue

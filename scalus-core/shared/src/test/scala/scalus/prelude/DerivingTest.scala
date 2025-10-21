@@ -65,8 +65,6 @@ object DerivingSpec_Account
 
 class DerivingTest extends AnyFunSuite {
 
-    import DerivingSpecScope.*
-
     protected given PlutusVM = PlutusVM.makePlutusV3VM()
 
     given scalus.Compiler.Options = scalus.Compiler.Options(

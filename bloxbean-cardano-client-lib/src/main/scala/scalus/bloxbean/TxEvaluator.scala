@@ -29,7 +29,6 @@ import java.nio.file.StandardOpenOption
 import scalus.uplc.{eval, Constant, DeBruijnedProgram, Term}
 import scalus.uplc.Term.Const
 import scalus.uplc.eval.*
-import scalus.utils.Hex
 import scalus.utils.Hex.hexToBytes
 import upickle.default.*
 
@@ -41,7 +40,6 @@ import java.util
 import scala.annotation.unused
 import scala.beans.BeanProperty
 import scala.collection.immutable
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 

@@ -2,7 +2,6 @@ package scalus.cardano.ledger
 package rules
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.cardano.address.Network
 import scalus.cardano.address.Network.{Mainnet, Testnet}
 
 class WrongNetworkWithdrawalValidatorTest extends AnyFunSuite, ValidatorRulesTestKit {

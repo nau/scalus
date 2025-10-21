@@ -11,9 +11,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scalus.*
 import scalus.Compiler.compile
 import scalus.builtin.ByteString.*
-import scalus.builtin.{ByteString, Data}
 import scalus.examples.PubKeyValidator
-import scalus.uplc.*
 import scalus.uplc.eval.ExBudget
 import scalus.utils.Hex.hexToBytes
 

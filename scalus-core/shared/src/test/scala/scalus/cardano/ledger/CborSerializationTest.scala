@@ -4,7 +4,6 @@ import io.bullet.borer.{Decoder, Encoder}
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalus.builtin.ByteString.*
 
 import scalus.serialization.cbor.Cbor
 

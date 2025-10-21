@@ -3,7 +3,6 @@ package scalus.regression
 import scala.language.implicitConversions
 import scalus.*
 import scalus.prelude.*
-import scalus.uplc.*
 import scalus.uplc.eval.*
 import org.scalatest.funsuite.AnyFunSuite
 

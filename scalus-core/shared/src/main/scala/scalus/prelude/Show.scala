@@ -38,7 +38,6 @@ object Show {
                 else appendString(head, appendString(", ", showBuiltinList(xs.tail)))
         }
         val showConstr = () => {
-            import scalus.builtin
             val p = unConstrData(x)
             val lst = appendString("[", appendString(showBuiltinList(p.snd), "]"))
             appendString("<", appendString(p.fst.show, appendString(", ", appendString(lst, ">"))))

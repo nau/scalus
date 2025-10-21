@@ -14,7 +14,6 @@ import scalus.ledger.api.ScriptContext
 import scalus.uplc.eval.ExBudget
 
 import java.util
-import java.util.List
 import scala.beans.BeanProperty
 import scala.jdk.CollectionConverters.*
 import scala.jdk.OptionConverters.RichOptional

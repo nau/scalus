@@ -8,7 +8,6 @@ import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.ledger.BloxbeanToLedgerTranslation.*
-import scalus.utils.Hex
 import scalus.utils.Hex.hexToBytes
 
 import scala.collection.mutable
