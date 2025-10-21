@@ -1,29 +1,8 @@
 ---
 #asIndexPage: true
-display: hidden
+#display: hidden
 ---
 import { Steps, Tabs } from 'nextra/components'
-
-
-# Writing a validator
-
-Here is a simple example of a Plutus V3 validator written in Scalus.
-
-```scala mdoc:compile-only
-import scalus.ledger.api.v1.PubKeyHash
-import scalus.ledger.api.v3.*
-import scalus.builtin.ByteString.*
-import scalus.prelude.List
-
-// Use Scala 3 indentation syntax. Look ma, no braces! Like Python!
-val pubKeyValidator = compile:
-    def validator(ctxData: Data) = {
-        val ctx = ctxData.to[ScriptContext]
-        ctx.txInfo.signatories.find {_.hash == hex"deadbeef"}.getOrFail("not signed")
-    }
-    validator
-```
-
 
 # First Smart Contract
 
@@ -59,16 +38,44 @@ Let's create a simple "Hello Cardano" validator script that verifies a specific 
 
 Create or open the file src/main/scala/com/example/contracts/HelloCardano.scala:
 ```scala copy
-...
+package scalus.examples
+
+import scalus.*
+import scalus.builtin.Data
+import scalus.ledger.api.v3.{PubKeyHash, TxInfo, TxOutRef}
+import scalus.prelude.*
+import scalus.prelude.Prelude.*
+
+/** A simple validator that checks if the redeemer is "Hello, World!" and if the transaction is
+  * signed by the owner.
+  */
+@Compile
+object HelloCardano extends Validator {
+    inline override def spend(
+        datum: Option[Data],
+        redeemer: Data,
+        tx: TxInfo,
+        ownRef: TxOutRef
+    ): Unit = {
+        val owner = datum.getOrFail("Datum not found").to[PubKeyHash]
+        val signed = tx.signatories.contains(owner)
+        require(signed, "Must be signed")
+        val saysHello = redeemer.to[String] == "Hello, World!"
+        require(saysHello, "Invalid redeemer")
+    }
+}
+
 ```
 
 This simple validator script demonstrates several key concepts:
-- The @OnChain annotation marks the class for on-chain compilation
-- The validate method defines the validation logic
-- Contract params, Datum, Redeemer
-- We're using the ScriptContext to access transaction information
+- The @Compile annotation marks the object for on-chain compilation
+- The `spend` method defines the spending validator logic
+- Contract params, Datum, Redeemer are first-class Scala types
+- The invariants are enforced using a `require` method
 
 ## Let's test our Smart Contract
+
+todo: prettify hello-cardano test before finishing this section
 
 ## Debugging Smart Contract
 

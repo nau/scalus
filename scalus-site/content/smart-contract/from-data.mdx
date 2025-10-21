@@ -5,7 +5,33 @@ sidebarTitle: Extracting from Data
 ---
 
 # Extracting from Data
-FromData type class is used to convert a Data value to a Scalus value.
+
+`Data` corresponds to Plutus Core Data and encodes arbitrary information.
+When receiving `ScriptContext`, scripts get Datums and Redeemers as data.
+
+Scalus provides type classes `FromData` and `ToData` to convert between user-defined types and `Data`. You can derive instances automatically using Scala 3's `derives` syntax.
+
+One caveat - you must always supply a companion object with @Compile annotation on it even if it is empty.
+This is because Scalus needs to compile the companion object to include the `FromData` instance in the UPLC script.
+
+```scala mdoc:compile-only
+import scalus.builtin.*, Builtins.*, Data.*
+
+case class Account(hash: ByteString, balance: BigInt) derives FromData, ToData
+
+@Compile
+object Account
+
+enum State derives FromData, ToData:
+    case Empty
+    case Active(account: Account)
+
+@Compile
+object State
+
+```
+
+Here's an example of converting standard and user-defined types to and from `Data`.
 
 ```scala mdoc:compile-only
 import scalus.builtin.*, Builtins.*, Data.*
@@ -18,9 +44,9 @@ enum State:
 
 
 val fromDataExample = compile {
-    // The `fromData` function is used to convert a `Data` value to a Scalus value.
+    // The `fromData` function is used to convert a `Data` value to a typed Scala value.
     val data = iData(123)
-    // fromData is a summoner method for the `FromData` type class
+    // fromData is a method that looks up the appropriate `FromData` instance for the type
     // there are instances for all built-in types
     val a = fromData[BigInt](data)
     // also you can use extension method `to` on Data
@@ -35,7 +61,7 @@ val fromDataExample = compile {
         val account = data.to[Account]
     }
 
-    // or your can you a macro to derive the FromData instance
+    // or you can use a macro to derive the FromData instance
     {
         given FromData[Account] = FromData.derived
         given FromData[State] = FromData.derived
@@ -44,22 +70,6 @@ val fromDataExample = compile {
 ```
 
 You can derive `FromData` instances for your case classes and enums via standard Scala 3 `derives` syntax.
-One caveat - you must always supply companion object with @Compile annotation on it even if it is empty.
-This is because Scalus needs to compile the companion object to include the `FromData` instance in the UPLC script.
 
-```scala mdoc:compile-only
-import scalus.builtin.*, Builtins.*, Data.*
-
-case class Account(hash: ByteString, balance: BigInt) derives FromData, ToData
-
-@Compile
-object Account
-
-enum State derives FromData, ToData:
-    case Empty
-    case Active(account: Account2)
-
-@Compile
-object State
-
-```
+> [!NOTE]
+> TODO: Consider documenting types that wouldn't support automatic derivation.
