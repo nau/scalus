@@ -14,11 +14,26 @@ package object scalus {
     /** Pipe operator */
     extension [A](inline a: A) inline infix def |>[B](inline f: A => B): B = f(a)
 
+    /** Truncate a string to a maximum length per line, showing only first line if multiline
+      * @param s
+      *   The string to truncate
+      * @param maxLength
+      *   Maximum length per line (default 60)
+      * @return
+      *   Truncated string with "..." if truncated
+      */
+    private def truncateForDisplay(s: String, maxLength: Int = 60): String = {
+        val firstLine = s.linesIterator.nextOption().getOrElse("")
+        if firstLine.length <= maxLength then firstLine
+        else firstLine.take(maxLength) + "..."
+    }
+
     extension (sir: SIR)
         def pretty: Doc = PrettyPrinter.pretty(sir, Style.Normal)
         def prettyXTerm: Doc = PrettyPrinter.pretty(sir, Style.XTerm)
         def show: String = pretty.render(80)
         def showHighlighted: String = sir.prettyXTerm.render(80)
+        def showShort: String = truncateForDisplay(pretty.render(100), 60)
 
         def toUplc(using
             options: Compiler.Options = Compiler.Options()
@@ -148,6 +163,7 @@ package object scalus {
         def prettyXTerm: Doc = PrettyPrinter.pretty(self, Style.XTerm)
         def show: String = self.pretty.render(80)
         def showHighlighted: String = self.prettyXTerm.render(80)
+        def showShort: String = truncateForDisplay(self.pretty.render(100), 60)
 
         /** Evaluate the term using the given VM.
           * @note

@@ -9,7 +9,7 @@ import scalus.sir.lowering.LoweredValue.Builder.*
 import scalus.uplc.*
 
 import scala.util.control.NonFatal
-import scalus.pretty
+import scalus.{pretty, showShort}
 
 object Lowering {
 
@@ -66,10 +66,10 @@ object Lowering {
                     catch
                         case NonFatal(ex) =>
                             println(
-                              s"Error lowering match: ${sir.pretty.render(100)} at ${anns.pos.show}"
+                              s"Error lowering match: ${sir.showShort} at ${anns.pos.show}"
                             )
                             println(
-                              s"scrutinee: ${scrutinee.pretty.render(100)} of type ${scrutinee.tp.show}"
+                              s"scrutinee: ${scrutinee.showShort} of type ${scrutinee.tp.show}"
                             )
                             throw ex
                 if lctx.debug then
