@@ -48,7 +48,7 @@ class FibonacciTest extends AnyFunSuite with ScalusTest {
         // Compile Scalus function to lookup Fibonacci number from packed ByteString
         val fib = compile: (packedFibonacci: ByteString) =>
             (x: BigInt) =>
-                if x < BigInt(0) then x
+                if x <= BigInt(0) then x
                 else byteStringToInteger(true, sliceByteString(x * 3, 3, packedFibonacci))
 
         // Apply the packed fibonacci ByteString
@@ -79,6 +79,11 @@ class FibonacciTest extends AnyFunSuite with ScalusTest {
                     fail(s"Evaluation failed for fib($n): $err")
             }
         }
+
+        val result = (optFibTerm $ 25.asTerm).evaluateDebug
+        assert(optFibTerm.plutusV3.cborByteString.length == 118)
+        assert(result.asInstanceOf[Result.Success].term == 75025.asTerm)
+        assert(result.budget == ExBudget(ExCPU(1745331), ExMemory(3009)))
     }
 
     test("fibonacci unfold") {
