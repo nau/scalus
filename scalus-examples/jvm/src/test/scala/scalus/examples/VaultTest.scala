@@ -78,8 +78,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val wallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
         val utxos: Utxos = Map(vaultUtxo) ++ wallet.utxo
 
-        val scriptContext = TestUtil.getScriptContext(withdrawTx, utxos, vaultUtxo._1)
-        val result = Vault.script.term.plutusV3.runWithDebug(scriptContext)
+        val result = runValidator(withdrawTx, utxos, wallet, vaultUtxo._1)
         assert(result.isSuccess)
 
         val newVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
@@ -112,8 +111,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val wallet = TestUtil.createTestWallet(ownerAddress, depositAmount + 50_000_000L)
         val utxos: Utxos = Map(vaultUtxo) ++ wallet.utxo
 
-        val scriptContext = TestUtil.getScriptContext(depositTx, utxos, vaultUtxo._1)
-        val result = Vault.script.term.plutusV3.runWithDebug(scriptContext)
+        val result = runValidator(depositTx, utxos, wallet, vaultUtxo._1)
         assert(result.isSuccess, s"Deposit should succeed: $result")
 
         val newVaultUtxo = TestUtil.getScriptUtxo(depositTx)
@@ -145,8 +143,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val context = BuilderContext(env, wallet)
         val finalizeTx = new Transactions(context).finalize(vaultUtxo, ownerAddress).getOrElse(???)
 
-        val scriptContext = TestUtil.getScriptContext(finalizeTx, utxos, vaultUtxo._1)
-        val result = Vault.script.term.plutusV3.runWithDebug(scriptContext)
+        val result = runValidator(finalizeTx, utxos, wallet, vaultUtxo._1)
 
         assert(result.isFailure, "Finalize on Idle vault should fail during transaction building")
         assert(result.logs.last.contains(Vault.ContractMustBePending))
@@ -164,7 +161,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val withdrawScriptContext =
             TestUtil.getScriptContext(withdrawTx, withdrawUtxos, vaultUtxo._1)
-        val withdrawResult = Vault.script.term.plutusV3.runWithDebug(withdrawScriptContext)
+        val withdrawResult = runValidator(withdrawTx, withdrawUtxos, withdrawWallet, vaultUtxo._1)
         assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
 
         val pendingVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
@@ -174,9 +171,8 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val finalizeWallet = TestUtil.createTestWallet(ownerAddress, 50_000_000L)
         val finalizeUtxos: Utxos = Map(pendingVaultUtxo) ++ finalizeWallet.utxo
 
-        val finalizeScriptContext =
-            TestUtil.getScriptContext(finalizeTx, finalizeUtxos, pendingVaultUtxo._1)
-        val finalizeResult = Vault.script.term.plutusV3.runWithDebug(finalizeScriptContext)
+        val finalizeResult =
+            runValidator(finalizeTx, finalizeUtxos, finalizeWallet, pendingVaultUtxo._1)
         assert(finalizeResult.isSuccess, s"Finalize should succeed: $finalizeResult")
 
         val scriptOutputs = finalizeTx.body.value.outputs.filter(_.value.address.hasScript)
