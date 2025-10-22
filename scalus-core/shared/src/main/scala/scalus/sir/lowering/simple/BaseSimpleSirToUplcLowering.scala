@@ -48,6 +48,7 @@ abstract class BaseSimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolea
             case SIRType.SumCaseClass(decl, _) =>
                 decl.constructors
             case SIRType.TypeLambda(_, t) => findConstructors(t)
+            case SIRType.TypeProxy(ref)   => findConstructors(ref)
             case _ =>
                 throw new IllegalArgumentException(
                   s"Expected case class type, got ${sirType}"
