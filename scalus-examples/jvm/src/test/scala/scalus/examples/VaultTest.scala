@@ -7,6 +7,7 @@ import scalus.cardano.txbuilder.{BuilderContext, Wallet}
 import scalus.examples.vault.{State, Status, Transactions, VaultContract}
 import scalus.testkit.ScalusTest
 import scalus.plutusV3
+import scalus.uplc.eval.{ExCPU, ExMemory}
 
 class VaultTest extends AnyFunSuite, ScalusTest {
 
@@ -113,6 +114,8 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val result = runValidator(depositTx, utxos, wallet, vaultUtxo._1)
         assert(result.isSuccess, s"Deposit should succeed: $result")
+        assert(result.budget.cpu <= ExCPU(175_576436L))
+        assert(result.budget.memory <= ExMemory(607420))
 
         val newVaultUtxo = TestUtil.getScriptUtxo(depositTx)
         newVaultUtxo._2 match {

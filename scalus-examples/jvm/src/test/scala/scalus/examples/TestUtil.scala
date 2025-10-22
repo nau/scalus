@@ -4,10 +4,13 @@ import scalus.builtin.ByteString
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
 import scalus.cardano.txbuilder.{Environment, PubKeyWitness, TransactionUnspentOutput, Wallet as WalletTrait, Witness}
+import scalus.examples.vault.Vault
 import scalus.ledger.api.v3
 import scalus.uplc.Program
 import scalus.plutusV3
 import scalus.testkit.ScalusTest
+
+import scala.util.Try
 
 object TestUtil extends ScalusTest {
 
@@ -116,6 +119,7 @@ object TestUtil extends ScalusTest {
         scriptInput: TransactionInput
     ) = {
         val scriptContext = TestUtil.getScriptContext(tx, utxo, scriptInput)
-        validatorProgram.term.plutusV3.runWithDebug(scriptContext)
+        Try(Vault.validateScriptContext(scriptContext))
+        validatorProgram.runWithDebug(scriptContext)
     }
 }
