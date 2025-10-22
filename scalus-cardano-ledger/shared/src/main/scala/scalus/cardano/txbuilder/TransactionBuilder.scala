@@ -13,7 +13,7 @@ import io.bullet.borer.{Cbor, Encoder}
 import monocle.syntax.all.*
 import monocle.{Focus, Lens}
 import scalus.builtin.Builtins.{blake2b_224, serialiseData}
-import scalus.builtin.{ByteString, Data}
+import scalus.builtin.{platform, ByteString, Data}
 import scalus.cardano.address
 import scalus.cardano.address.*
 import scalus.cardano.ledger.*
@@ -1188,13 +1188,25 @@ object TransactionBuilder:
 
     private def useModifyAuxiliaryData(
         modifyAuxiliaryData: TransactionBuilderStep.ModifyAuxiliaryData
-    ): BuilderM[Unit] =
-        modify0(
-          Focus[Context](_.transaction)
-              .refocus(_.auxiliaryData)
-              // Fixed for Scalus 0.12.1+ - auxiliaryData is now wrapped in KeepRaw
-              .modify(a => modifyAuxiliaryData.f(a.map(_.value)).map(KeepRaw(_)))
-        )
+    ): BuilderM[Unit] = {
+        for {
+            ctx <- get0
+            oldData = ctx.transaction.auxiliaryData
+
+            newData = modifyAuxiliaryData.f(oldData.map(_.value)).map(KeepRaw(_))
+            _ <- modify0(
+              Focus[Context](_.transaction)
+                  .refocus(_.auxiliaryData)
+                  // Fixed for Scalus 0.12.1+ - auxiliaryData is now wrapped in KeepRaw
+                  .replace(newData)
+            )
+
+            newHash = newData
+                .map(someData => platform.blake2b_256(ByteString.unsafeFromArray(someData.raw)))
+                .map(AuxiliaryDataHash.fromByteString)
+            _ <- modify0(unsafeCtxBodyL.refocus(_.auxiliaryDataHash).replace(newHash))
+        } yield ()
+    }
 
     // -------------------------------------------------------------------------
     // IssueCertificate step
