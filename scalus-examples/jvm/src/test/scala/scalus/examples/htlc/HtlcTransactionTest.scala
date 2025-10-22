@@ -95,7 +95,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         val scriptContext = TestUtil.getScriptContext(revealTx, utxos, htlcUtxo._1)
         val result =
-            HtlcContract.defaultCompiledContract.program.term.plutusV3.runWithDebug(scriptContext)
+            HtlcContract.defaultCompiledContract.program.runWithDebug(scriptContext)
 
         assert(result.isSuccess)
 
@@ -125,7 +125,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         val scriptContext = TestUtil.getScriptContext(revealTx, utxos, htlcUtxo._1)
         val result =
-            HtlcContract.defaultCompiledContract.program.term.plutusV3.runWithDebug(scriptContext)
+            HtlcContract.defaultCompiledContract.program.runWithDebug(scriptContext)
 
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.InvalidReceiverPreimage))
@@ -149,7 +149,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         val scriptContext = TestUtil.getScriptContext(revealTx, utxos, htlcUtxo._1)
         val result =
-            HtlcContract.defaultCompiledContract.program.term.plutusV3.runWithDebug(scriptContext)
+            HtlcContract.defaultCompiledContract.program.runWithDebug(scriptContext)
 
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.InvalidReceiverTimePoint))
@@ -167,7 +167,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         val scriptContext = TestUtil.getScriptContext(timeoutTx, utxos, htlcUtxo._1)
         val result =
-            HtlcContract.defaultCompiledContract.program.term.plutusV3.runWithDebug(scriptContext)
+            HtlcContract.defaultCompiledContract.program.runWithDebug(scriptContext)
 
         assert(result.isSuccess)
 
@@ -201,7 +201,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         val scriptContext = TestUtil.getScriptContext(timeoutTx, utxos, htlcUtxo._1)
         val result =
-            HtlcContract.defaultCompiledContract.program.term.plutusV3.runWithDebug(scriptContext)
+            HtlcContract.defaultCompiledContract.program.runWithDebug(scriptContext)
 
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.InvalidCommitterTimePoint))

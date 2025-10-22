@@ -10,10 +10,7 @@ import scalus.ledger.api.v2.TxOut
 import scalus.ledger.api.v3.{TxInInfo, TxInfo, TxOutRef}
 import scalus.ledger.api.{v1, v2}
 import scalus.prelude.{===, fail, require, Validator}
-import scalus.uplc.Program
 import scalus.*
-import scalus.Compiler.compile
-import scalus.cardano.blueprint.{Application, Blueprint}
 
 // Datum
 case class State(
@@ -32,7 +29,6 @@ enum Action derives FromData, ToData:
     case FinalizeWithdrawal
     case Cancel
 
-@Compile
 enum Status derives FromData, ToData:
     case Idle
     case Pending
@@ -51,7 +47,7 @@ enum Status derives FromData, ToData:
   * spending of funds.
   */
 @Compile
-object Vault extends Validator {
+object VaultValidator extends Validator {
 
     inline override def spend(
         d: prelude.Option[Data],
@@ -230,35 +226,4 @@ object Vault extends Validator {
             case Status.Pending => false
         }
     }
-
-    @Ignore
-    given scalus.Compiler.Options = scalus.Compiler.Options(
-      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
-      generateErrorTraces = true,
-      optimizeUplc = true
-    )
-
-    @Ignore
-    val script: Program = {
-        val sir = compile(Vault.validate)
-        sir.toUplc(
-          generateErrorTraces = true,
-          backend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering
-        ).plutusV3
-    }
 }
-
-object VaultContract:
-
-    val application: Application = {
-        Application.ofSingleValidator[State, Action](
-          "Vault",
-          "Keeps the funds safe by requiring a 2-stage withdrawal with a mandatory confirmation period.",
-          "1.0.0",
-          Vault.validate
-        )
-    }
-
-    val bluerprint: Blueprint = application.blueprint
-
-end VaultContract

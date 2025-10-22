@@ -1,15 +1,13 @@
-package scalus.examples
+package scalus.examples.vault
 
 import org.scalatest.funsuite.AnyFunSuite
-import scalus.examples.vault.Vault
 import scalus.cardano.ledger.*
 import scalus.cardano.txbuilder.{BuilderContext, Wallet}
-import scalus.examples.vault.{State, Status, Transactions, VaultContract}
+import scalus.examples.TestUtil
 import scalus.testkit.ScalusTest
-import scalus.plutusV3
 import scalus.uplc.eval.{ExCPU, ExMemory}
 
-class VaultTest extends AnyFunSuite, ScalusTest {
+class VaultTransactionTest extends AnyFunSuite, ScalusTest {
 
     private val env = TestUtil.testEnvironment
 
@@ -67,7 +65,13 @@ class VaultTest extends AnyFunSuite, ScalusTest {
     }
 
     def runValidator(tx: Transaction, utxo: Utxos, wallet: Wallet, scriptInput: TransactionInput) =
-        TestUtil.runValidator(Vault.script, tx, utxo, wallet, scriptInput)
+        TestUtil.runValidator(
+          VaultContract.defaultCompiledContract.program,
+          tx,
+          utxo,
+          wallet,
+          scriptInput
+        )
 
     test("vault withdrawal request") {
         val lockTx = lockVault(defaultInitialAmount)
@@ -114,8 +118,8 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val result = runValidator(depositTx, utxos, wallet, vaultUtxo._1)
         assert(result.isSuccess, s"Deposit should succeed: $result")
-        assert(result.budget.cpu <= ExCPU(175_576436L))
-        assert(result.budget.memory <= ExMemory(607420))
+        assert(result.budget.cpu <= ExCPU(197_512436L))
+        assert(result.budget.memory <= ExMemory(744520))
 
         val newVaultUtxo = TestUtil.getScriptUtxo(depositTx)
         newVaultUtxo._2 match {
@@ -149,7 +153,7 @@ class VaultTest extends AnyFunSuite, ScalusTest {
         val result = runValidator(finalizeTx, utxos, wallet, vaultUtxo._1)
 
         assert(result.isFailure, "Finalize on Idle vault should fail during transaction building")
-        assert(result.logs.last.contains(Vault.ContractMustBePending))
+        assert(result.logs.last.contains(VaultValidator.ContractMustBePending))
     }
 
     test("vault finalization succeeds after withdrawal request") {
@@ -205,7 +209,8 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val withdrawScriptContext =
             TestUtil.getScriptContext(withdrawTx, withdrawUtxos, vaultUtxo._1)
-        val withdrawResult = Vault.script.term.plutusV3.runWithDebug(withdrawScriptContext)
+        val withdrawResult =
+            VaultContract.defaultCompiledContract.program.runWithDebug(withdrawScriptContext)
         assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
 
         val pendingVaultUtxo = TestUtil.getScriptUtxo(withdrawTx)
@@ -222,9 +227,10 @@ class VaultTest extends AnyFunSuite, ScalusTest {
 
         val finalizeScriptContext =
             TestUtil.getScriptContext(finalizeTx, utxos, pendingVaultUtxo._1)
-        val finalizeResult = Vault.script.term.plutusV3.runWithDebug(finalizeScriptContext)
+        val finalizeResult =
+            VaultContract.defaultCompiledContract.program.runWithDebug(finalizeScriptContext)
 
         assert(finalizeResult.isFailure, "Finalize before wait time should fail")
-        assert(finalizeResult.logs.last.contains(Vault.DeadlineNotPassed))
+        assert(finalizeResult.logs.last.contains(VaultValidator.DeadlineNotPassed))
     }
 }

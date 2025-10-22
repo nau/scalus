@@ -4,12 +4,11 @@ import scalus.builtin.Data.toData
 import scalus.builtin.Data
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.{Credential, DatumOption, Transaction, TransactionInput, TransactionOutput, Value}
-import scalus.cardano.ledger.Script.PlutusV3
 import scalus.cardano.txbuilder.{BuilderContext, PaymentBuilder}
 
 class Transactions(context: BuilderContext) {
     val wallet = context.wallet
-    val script = PlutusV3(Vault.script.cborByteString)
+    val script = VaultContract.defaultCompiledContract.script
     val scriptAddress = Address(context.env.network, Credential.ScriptHash(script.scriptHash))
 
     def lock(
