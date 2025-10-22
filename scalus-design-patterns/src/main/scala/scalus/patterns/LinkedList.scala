@@ -1,9 +1,10 @@
 package scalus.patterns
 
-import scalus.Compiler.{compile, compileWithOptions}
+import scalus.Compiler.compile
+import scalus.Compiler.compileWithOptions
 import scalus.builtin.Builtins
 import scalus.builtin.ByteString
-import scalus.builtin.ByteString.*
+import scalus.builtin.ByteString.fromString
 import scalus.builtin.Data
 import scalus.builtin.Data.FromData
 import scalus.builtin.Data.ToData
@@ -14,6 +15,7 @@ import scalus.ledger.api.v2.OutputDatum
 import scalus.ledger.api.v3.*
 import scalus.prelude.*
 import scalus.prelude.Option.*
+import scalus.prelude.Ord.*
 import scalus.{show as _, *}
 
 /** Linked list configuration parameter
@@ -51,18 +53,43 @@ type NodeKey = Option[TokenName]
   *   - [[scalus.prelude.Option.Some]] contains a reference key to the next node.
   */
 case class Cons(
-    key: NodeKey, // FIXE: storing key in datum is redundancy, available as a token at value already
-    // TODO: store extra `data: Data`
+    key: NodeKey, // NOTE: storing key in datum is redundancy, available as a token at value already
+    // NEW: `data: Data`
     ref: NodeKey = None
 ) derives FromData,
       ToData
 
 @Compile
 object Cons:
+    /** Constructor of the [[scalus.patterns.Cons]] for a head of the linked list.
+      */
     inline def head(ref: NodeKey = None): Cons = Cons(key = None, ref)
+
+    /** Constructor of the [[scalus.patterns.Cons]] for a node of the linked list.
+      */
     inline def cons(key: TokenName, ref: NodeKey = None): Cons = Cons(key = Some(key), ref)
 
     given Eq[Cons] = (x, y) => x.key === y.key && x.ref === y.ref
+
+    given Ord[Cons] = by: node =>
+        node match
+            case Cons(key, _) => key
+
+    extension (self: Cons)
+
+        /** Create a parent node
+          *
+          * @param at
+          *   New node key, the head of linked list at current node.
+          */
+        inline def succ(at: TokenName): Cons = cons(at, self.ref)
+
+        /** Create a nested node
+          *
+          * @param by
+          *   New node key, the head of tail of linked list at current node.
+          */
+        inline def pred(by: TokenName): Cons = Cons(self.key, Some(by)) // ???: rename to `tail`
 
 /** Every linked list node UTxO:
   *
@@ -82,7 +109,16 @@ case class Node(
 
 @Compile
 object Node:
+
     given Eq[Node] = (x, y) => x.value === y.value && x.cell === y.cell
+
+    given Ord[Node] = by: cons =>
+        cons match
+            case Node(_, cell) => cell
+
+    extension (self: Node)
+
+        def sort(other: Node): (Node, Node) = if self < other then (self, other) else (other, self)
 
 /** Common information shared between all redeemers:
   *
@@ -106,25 +142,41 @@ case class Common(
 @Compile
 object Common
 
-/** Actions that can be performed on the linked list */
+/** Actions that can be performed on the linked list
+  *
+  * @note
+  *   No actions designed to perform in batches.
+  */
 enum NodeAction derives FromData, ToData:
-    /** Initialize linked list head reference cell with current [[scalus.patterns.Config]] */
+    /** Initialize linked list head reference cell with current [[scalus.patterns.Config]]
+      */
     case Init
 
-    /** Burn an empty linked list head reference, pay royalties */
+    /** Burn an empty linked list head reference, pay royalties
+      */
     case Deinit
 
-    /** Insert `key` at `covering`
+    /** Insert new linked list node by `key` at `covering` cell.
+      *
+      * Covering cell could be parent's cell ex reference, but not necessary.
       *
       * @param key
+      *   A `key` the new cell be added at.
       * @param covering
+      *   A pair of `key`'s parent key, that expected to be at linked list, and a reference to the
+      *   new tail.
       */
     case Insert(key: PubKeyHash, covering: Cons)
 
-    /** Remove `key` at `covering`
+    /** Remove a linked list node by `key` at `covering` cell.
+      *
+      * Covering cell must be original parent's cell reference.
       *
       * @param key
+      *   A `key` the cell be removed by.
       * @param covering
+      *   A pair of `key`'s original parent key, that expected to be at linked list, and a reference
+      *   to the original tail, that remains unchanged.
       */
     case Remove(key: PubKeyHash, covering: Cons)
 
@@ -135,172 +187,192 @@ object NodeAction
   * specifically utilizing NFTs (Non-Fungible Tokens) and datums. It provides a structured and
   * efficient way to store and manipulate a list of key/value pairs on-chain.
   *
+  * {{{
+  *   ╭──────╮  ╭───────╮  ╭────────╮  ╭────────╮  ╭───────╮
+  *   │•Head•├─>│ Apple ├─>│ Banana ├─>│ Orange ├─>│ Peach │
+  *   ╰──────╯  ╰───────╯  ╰────────╯  ╰────────╯  ╰───────╯
+  * }}}
+  * &nbsp;
+  * ===Entry Structure&#10;===
+  * &nbsp;
+  *   - Each entry in the list comprises: &#10;&nbsp;
+  *     - [[scalus.ledger.api.v1.TokenName]] '''NFT''': A unique identifier for each entry.
+  *     - [[scalus.patterns.Cons]] '''Datum''': A data structure containing the key/value pair, a
+  *       reference to the entry's NFT, and a pointer to the next NFT in the list.
+  *
+  * ===Operations===
+  * &nbsp;
+  * ====Inserting an Entry====
+  * &nbsp;
+  *   - Insertion involves: &#10;&nbsp;
+  *     - '''Inputs''': Two adjacent list entries.
+  *     - '''Outputs''':
+  *       - The first input entry, modified to point to the new entry.
+  *       - The newly inserted entry, pointing to the second input entry.
+  *       - The second input entry, unchanged.
+  *   - Validation Rules &#10;&nbsp;
+  *     - Keys must maintain the order: `a < b < c`, where `a` is the lowest, `b` is the new key,
+  *       and `c` is the highest.
+  *     - The pointers must be correctly updated to maintain list integrity.
+  *
+  * {{{
+  * ╭──────╮  ╭───────╮  ╭────────╮  ╭────────╮  ╭───────╮
+  * │•Head•├─>│ Apple ├─>│ Banana ├─>│ Orange ├─>│ Peach │
+  * ╰──────╯  ╰───────╯  ╰─────┬──╯  ╰────┬───╯  ╰───────╯
+  *                            │          │
+  *                        ┏━━━V━━━━━━━━━━V━━━━━━━━━━━━━━┓
+  *                        ┃▓█▓▒░ Insert Transaction ░▒▓█┃
+  *                        ┗━━━┯━━━━━━━━━━┯━━━━━━━━━━┯━━━┛
+  *                            │          │          │
+  *   ╭──────╮  ╭───────╮  ╭───V────╮  ╭──V───╮  ╭───V────╮  ╭───────╮
+  *   │•Head•├─>│ Apple ├─>│:Banana:├─>│~Kiwi~├─>│ Orange ├─>│ Peach │
+  *   ╰──────╯  ╰───────╯  ╰────────╯  ╰──────╯  ╰────────╯  ╰───────╯
+  * }}}
+  *
+  * ====Removing an Entry====
+  * &nbsp;
+  *   - To remove an entry: &#10;&nbsp;
+  *     - '''Inputs''': The entry to remove and its preceding entry.
+  *     - '''Output''': The preceding entry is modified to point to what the removed entry was
+  *       pointing to.
+  *
+  * {{{
+  *   ╭──────╮  ╭───────╮  ╭────────╮  ╭──────╮  ╭────────╮  ╭───────╮
+  *   │•Head•├─>│ Apple ├─>│ Banana ├─>│~Kiwi~├─>│ Orange ├─>│ Peach │
+  *   ╰──────╯  ╰───────╯  ╰───┬────╯  ╰──┬───╯  ╰────────╯  ╰───────╯
+  *                            │          │
+  *                        ┏━━━V━━━━━━━━━━V━━━━━━━━━━━━━━┓
+  *                        ┃▓█▓▒░ Delete Transaction ░▒▓█┃
+  *                        ┗━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━┛
+  *                            │
+  * ╭──────╮  ╭───────╮  ╭─────V──╮  ╭────────╮  ╭───────╮
+  * │•Head•├─>│ Apple ├─>│:Banana:├─>│ Orange ├─>│ Peach │
+  * ╰──────╯  ╰───────╯  ╰────────╯  ╰────────╯  ╰───────╯
+  * }}}
+  *
   * @see
   *   [[https://github.com/Anastasia-Labs/aiken-linked-list/tree/0.0.1?tab=readme-ov-file#linked-list Aiken Linked List]]
   * @see
   *   [[https://github.com/Anastasia-Labs/data-structures/blob/2bbe6e7388d3fb0fa5c0e5cbfcaad98294869655/pages/linked_list.mdx#introduction-to-linked-list Plutarch Linked List Guide]]
-  *
-  * @example
-  *   {{{
-  *   ╭──────╮  ╭───────╮  ╭────────╮  ╭────────╮  ╭───────╮
-  *   │•Head•├─>│ Apple ├─>│ Banana ├─>│ Orange ├─>│ Peach │
-  *   ╰──────╯  ╰───────╯  ╰────────╯  ╰────────╯  ╰───────╯
-  *   }}}
-  *
-  * ==Entry Structure==
-  *
-  * Each entry in the list comprises:
-  *
-  *   - [[scalus.ledger.api.v1.TokenName]] '''NFT''': A unique identifier for each entry.
-  *   - [[scalus.patterns.Cons]] '''Datum''': A data structure containing the key/value pair, a
-  *     reference to the entry's NFT, and a pointer to the next NFT in the list.
-  *
-  * ==Operations==
-  *
-  *   - '''Inserting an Entry'''
-  *
-  * Insertion involves:
-  *
-  *   - '''Inputs''': Two adjacent list entries.
-  *   - '''Outputs''':
-  *     - The first input entry, modified to point to the new entry.
-  *     - The newly inserted entry, pointing to the second input entry.
-  *     - The second input entry, unchanged.
-  *
-  * Validation Rules
-  *
-  *   - Keys must maintain the order: `a < b < c`, where `a` is the lowest, `b` is the new key, and
-  *     `c` is the highest.
-  *   - The pointers must be correctly updated to maintain list integrity.
-  *
-  * @example
-  *   {{{
-  *     ╭──────╮  ╭───────╮  ╭────────╮  ╭────────╮  ╭───────╮
-  *     │•Head•├─>│ Apple ├─>│ Banana ├─>│ Orange ├─>│ Peach │
-  *     ╰──────╯  ╰───────╯  ╰─────┬──╯  ╰────┬───╯  ╰───────╯
-  *                                │          │
-  *                            ┏━━━V━━━━━━━━━━V━━━━━━━━━━━━━━┓
-  *                            ┃▓█▓▒░ Insert Transaction ░▒▓█┃
-  *                            ┗━━━┯━━━━━━━━━━┯━━━━━━━━━━┯━━━┛
-  *                                │          │          │
-  *       ╭──────╮  ╭───────╮  ╭───V────╮  ╭──V───╮  ╭───V────╮  ╭───────╮
-  *       │•Head•├─>│ Apple ├─>│:Banana:├─>│~Kiwi~├─>│ Orange ├─>│ Peach │
-  *       ╰──────╯  ╰───────╯  ╰────────╯  ╰──────╯  ╰────────╯  ╰───────╯
-  *   }}}
-  *
-  *   - '''Removing an Entry'''
-  *
-  * To remove an entry:
-  *
-  *   - '''Inputs''': The entry to remove and its preceding entry.
-  *   - '''Output''': The preceding entry is modified to point to what the removed entry was
-  *     pointing to.
-  *
-  * @example
-  *   {{{
-  *       ╭──────╮  ╭───────╮  ╭────────╮  ╭──────╮  ╭────────╮  ╭───────╮
-  *       │•Head•├─>│ Apple ├─>│ Banana ├─>│~Kiwi~├─>│ Orange ├─>│ Peach │
-  *       ╰──────╯  ╰───────╯  ╰───┬────╯  ╰──┬───╯  ╰────────╯  ╰───────╯
-  *                                │          │
-  *                            ┏━━━V━━━━━━━━━━V━━━━━━━━━━━━━━┓
-  *                            ┃▓█▓▒░ Delete Transaction ░▒▓█┃
-  *                            ┗━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━┛
-  *                                │
-  *     ╭──────╮  ╭───────╮  ╭─────V──╮  ╭────────╮  ╭───────╮
-  *     │•Head•├─>│ Apple ├─>│:Banana:├─>│ Orange ├─>│ Peach │
-  *     ╰──────╯  ╰───────╯  ╰────────╯  ╰────────╯  ╰───────╯
-  *   }}}
   */
 @Compile
 object LinkedList extends DataParameterizedValidator:
 
-    def nodeToken(token: TokenName = fromString("")): TokenName =
-        fromString("LAN") ++ token // FIXME: utf8"LAN" syntax
+    /** Linked list node token.
+      *
+      * @param key
+      *   Optional node key argument for the non-head nodes.
+      */
+    def nodeToken(key: TokenName = fromString("")): TokenName =
+        fromString("LAN") ++ key // FIXME: utf8"LAN" syntax
 
+    /** Node token validation.
+      *
+      * @param token
+      *   A node token to check.
+      */
     def isNodeToken(token: TokenName): Boolean = token.take(nodeToken().length) === nodeToken()
 
+    /** Node key by a node token.
+      *
+      * @param token
+      *   A node token.
+      */
     def nodeKey(token: TokenName): NodeKey =
         Some(token.drop(nodeToken().length)).filter(_.nonEmpty)
 
+    /** Common invariants validation, collect node's inputs and outputs.
+      *
+      * @param policy
+      *   A policy of the linked list.
+      * @param tx
+      *   Current transaction metadata.
+      */
     def mkCommon(
         policy: PolicyId,
         tx: TxInfo
     ): (Common, List[TxInInfo], List[TxOut], List[PubKeyHash], Interval) =
-        val fromNodeOutputs =
-            tx.inputs.map(_.resolved).filter(_.value.toSortedMap.contains(policy))
-        val toNodeOutputs = tx.outputs.filter(_.value.toSortedMap.contains(policy))
-        val allNodeOutputs =
-            fromNodeOutputs ++ toNodeOutputs // TODO: reduce computational complexity
+        def withPolicy(outs: List[TxOut]) = outs.filter:
+            _.value.toSortedMap.contains(policy)
 
-        allNodeOutputs.headOption match
+        val policyInOuts = withPolicy(tx.inputs.map(_.resolved))
+        val policyOutputs = withPolicy(tx.outputs)
+        val nodeOuts = policyInOuts ++ policyOutputs
+
+        nodeOuts.headOption match
             case Some(head) =>
                 require(
-                  allNodeOutputs.forall(head.address === _.address),
-                  "All outputs must have same address"
+                  nodeOuts.forall(head.address === _.address),
+                  "All node outputs must have same address"
                 )
-                val nodeInputs = fromNodeOutputs.map(getNodePair)
-                val nodeOutputs = toNodeOutputs.map(out =>
-                    val nodePair = getNodePair(out)
-                    validateNode(policy, nodePair)
-                    nodePair
+                val inputs = policyInOuts.map(getNode)
+                val outputs = policyOutputs.map(out =>
+                    val node = getNode(out)
+                    validateNode(policy, node)
+                    node
                 )
-                val common = Common(policy, tx.mint, nodeInputs, nodeOutputs)
+                val common = Common(policy, tx.mint, inputs, outputs)
                 (common, tx.inputs, tx.outputs, tx.signatories, tx.validRange)
             case _ => fail("There's must be at least one output")
 
-    def getNodePair(out: TxOut): Node = Node(
+    /** Collect node output.
+      *
+      * @param out
+      *   An output to collect.
+      */
+    def getNode(out: TxOut): Node = Node(
       out.value,
       out.datum match
           case OutputDatum.OutputDatum(nodeDatum) => nodeDatum.to[Cons]
           case _                                  => fail("Node datum must be inline")
     )
 
+    /** Validatie a node output invariants.
+      *
+      * @param policy
+      *   A policy of the linked list.
+      * @param node
+      *   A node to validate.
+      */
     def validateNode(policy: PolicyId, node: Node): Unit =
         val Node(value, cell) = node
+        require(
+          cell.key.forall(key => cell.ref.forall(key < _)),
+          "Nodes must be ordered by keys"
+        )
         value.flatten match
-            case List.Cons(adaPolicyTokenAmount, withoutLovelace) =>
+            case List.Cons(adaPolicyTokenAmount, List.Cons(policyTokenAmount, List.Nil)) =>
                 val (adaPolicy, adaToken, _amount) = adaPolicyTokenAmount
-                // require(
-                //   adaPolicy === Value.adaPolicyId && adaToken === Value.adaTokenName,
-                //   "There's must be a lovelace value for each policy output"
-                // )
-                // ???: a bit weird requirement that non-policy value can not has token name
-                //
                 require(
-                  (adaPolicy !== policy) && !isNodeToken(adaToken),
-                  "There's must be a non-policy value for each policy output"
+                  adaPolicy === Value.adaPolicyId && adaToken === Value.adaTokenName,
+                  "There's must be a lovelace value for each policy output"
+                )
+                val (policyId, token, amount) = policyTokenAmount
+                require(
+                  policyId === policy,
+                  "There's must be a token key for the policy output"
+                )
+                require(
+                  amount == BigInt(1),
+                  "Minted token be exactly one per output"
+                )
+                require(
+                  isNodeToken(token),
+                  "Must be valid node token"
+                )
+                require(
+                  nodeKey(token) === cell.key,
+                  "Datum must contain a valid node key"
+                )
+            case _ =>
+                fail(
+                  "There's must be a lovelace value for each policy output\n" +
+                      "There's must be a token key for the policy output\n" +
+                      "Tere's must be no extra values the policy output"
                 )
 
-                withoutLovelace match
-                    case List.Cons(policyTokenAmount, tail) =>
-                        tail match
-                            case List.Nil =>
-                                val (policyId, token, amount) = policyTokenAmount
-                                require( // INFO: this check is redundancy
-                                  policyId === policy,
-                                  "There's must be a token key for the policy output"
-                                )
-                                require(
-                                  amount == BigInt(1),
-                                  "Minted token be exactly one per output"
-                                )
-                                require(
-                                  isNodeToken(token),
-                                  "validate node token"
-                                )
-                                require(
-                                  nodeKey(token) === cell.key,
-                                  "Datum must contain a valid node key"
-                                )
-                                // ???: order is a weird requirement for public keys
-                                require(
-                                  cell.key.forall(key => cell.ref.forall(key < _)),
-                                  "Nodes must be ordered by keys"
-                                )
-                            case _ => fail("Tere's must be no extra values the policy output")
-                    case _ => fail("There's must be a token key for the policy output")
-            case _ => fail("There's must be a lovelace value for each policy output")
-
+    /** Minting validator.
+      */
     inline override def mint(
         cfgData: Data,
         redeemer: Data,
@@ -322,155 +394,165 @@ object LinkedList extends DataParameterizedValidator:
             case NodeAction.Insert(key, covering) =>
                 require(
                   range.isEntirelyBefore(cfg.deadline),
-                  "must be before the deadline"
+                  "Must be before the deadline"
                 )
-                require(signatories.contains(key), "must be signed by a node key")
+                require(
+                  signatories.contains(key),
+                  "Must be signed by a node key"
+                )
                 insert(common, key, covering)
             case NodeAction.Remove(key, covering) =>
                 require(
-                  range.isEntirelyBefore(cfg.deadline),
-                  "must be before the deadline"
+                  signatories.contains(key),
+                  "Must be signed by a node key"
                 )
-                remove(common, range, cfg, outputs, signatories, key, covering)
+                val removed = remove(common, key, covering)
+                val fee = -Builtins.divideInteger(removed.value.getLovelace, -4)
+                require(
+                  range.isEntirelyBefore(cfg.deadline) || outputs.exists(out =>
+                      out.address === cfg.penalty && fee < out.value.getLovelace
+                  ),
+                  "Must satisfy removal broke phase rules"
+                )
 
-    // State transition handlers (used in list minting policy)
-    // aka list natural transformations
+    // MARK: State transition handlers (used in list minting policy)
+    //       aka list natural transformations
 
     /** Initialize an empty unordered list.
       *
       * Application code must ensure that this action can happen only once.
       */
     def init(common: Common): Unit =
-        require(
+        require( // NEW: not checked
           common.inputs.isEmpty,
-          "Must spend nodes"
+          "Must not spend nodes"
         )
         require(
           common.outputs.length == BigInt(1),
-          "Must exactly one node output"
+          "Must a single linked list head node output"
         )
         require(
           common.mint.flatten === List.single((common.policy, nodeToken(), BigInt(1))),
-          "Must mint correctly"
+          "Must mint an node token NFT value for this linked list"
         )
 
     /** Deinitialize an empty unordered list.
       */
-    def deinit(common: Common): Unit =
-        common.inputs match
-            case List.Cons(headNode, tail) =>
-                tail match
-                    case List.Nil =>
-                        headNode.cell.ref match
-                            case None =>
-                                require(
-                                  common.outputs.isEmpty,
-                                  "Must not produce node output"
-                                )
-                                require(
-                                  common.mint.flatten === List.single(
-                                    (common.policy, nodeToken(), BigInt(-1))
-                                  ),
-                                  "Must burn correctly"
-                                )
-                            case _ => fail("Linked list must be empty")
-                    case _ => fail("Head node input must be single")
-            case _ => fail("There must be a head node input")
+    def deinit(common: Common): Unit = common.inputs match
+        case List.Cons(Node(_, Cons(_, None)), List.Nil) =>
+            require(
+              common.outputs.isEmpty,
+              "Must not produce nodes"
+            )
+            require( // NEW: headNode.value.quantityOf(common.policy, nodeToken()) == BigInt(1)
+              common.mint.flatten === List.single(
+                (common.policy, nodeToken(), BigInt(-1))
+              ),
+              "Must burn an node token NFT value for this linked list"
+            )
+        case _ =>
+            fail(
+              "There must be a head node input\n" +
+                  "Head node input must be single\n" +
+                  "Linked list must be empty"
+            )
 
     import Cons.cons
 
-    /** Insert a node under for a key at an unordered list.
+    /** Insert a node `insertKey` at covering `cell` at the linked list.
       *
-      * WARNING: An application using a key-unordered list MUST only add nodes with unique keys to
-      * the list. Duplicate keys break the linked list data structure.
+      * Covering cell could be parent's cell ex reference, but not necessary.
+      *
+      * @param insertKey
+      *   A key the new cell be added at.
+      * @param cell
+      *   A pair of key's parent key, that expected to be at linked list, and a reference to the new
+      *   tail.
       */
-    def insert(common: Common, insertKey: PubKeyHash, cell: Cons): Unit =
-        val PubKeyHash(key) = insertKey
-        require(
-          cell.key.forall(_ < key) && cell.ref.forall(_ > key), // ???: logic???
-          "Must cover inserting key"
-        )
-        common.inputs match
-            case List.Cons(coveringNode, tail) =>
-                tail match
-                    case List.Nil =>
-                        require(
-                          common.outputs.exists(cons(key, cell.ref) === _.cell),
-                          "Must has datum in output"
-                        )
-                        require(
-                          common.outputs.contains(
-                            Node(coveringNode.value, Cons(cell.key, Some(key)))
-                          ),
-                          "Must correct node output"
-                        )
-                        require(
-                          common.mint.flatten === List.single(
-                            (
-                              common.policy,
-                              nodeToken(key),
-                              BigInt(1)
-                            )
-                          ),
-                          "Must mint correctly"
-                        )
-                    case _ => fail("Linked list must be empty")
-            case _ => fail("Covering node input must be single")
-
-    /** Remove a non-root node from the list.
-      */
-    def remove(
-        common: Common,
-        range: Interval,
-        config: Config,
-        outputs: List[TxOut],
-        signatories: List[PubKeyHash],
-        removeKey: PubKeyHash,
-        cell: Cons
-    ): Unit =
-        val PubKeyHash(key) = removeKey
-        require(
-          cell.key.forall(_ < key) && cell.ref.forall(_ > key), // ???: logic???
-          "Must cover remove key"
-        )
-        require( // INFO: parent cell to update with the `removeKey` ref & cell to remove with the key `removeKey`
-          common.inputs.length == BigInt(2),
-          "Must spend two nodes"
-        )
-        common.inputs.find(Cons(cell.key, Some(key)) === _.cell) match
-            case Some(stayNode) =>
-                require(
-                  common.outputs.contains(
-                    Node(stayNode.value, cell)
-                  ),
-                  "Must correct node output"
-                )
-                require(
-                  common.mint.flatten === List.single(
-                    (
-                      common.policy,
-                      nodeToken(key),
-                      BigInt(-1)
+    def insert(common: Common, insertKey: PubKeyHash, cell: Cons): Unit = common.inputs match
+        case List.Cons(parent, List.Nil) =>
+            common.outputs match
+                case List.Cons(fstOut, List.Cons(sndOut, List.Nil)) =>
+                    val (parentOut, insertNode) = fstOut.sort(sndOut)
+                    val PubKeyHash(key) = insertKey
+                    require(
+                      cell.succ(key) === insertNode.cell,
+                      "A covering cell must kept retained at inserted key at outputs,\n" +
+                          "inserted key present at the cell of inserted node"
                     )
-                  ),
-                  "Must mint correctly"
-                )
-                require(
-                  signatories.contains(removeKey),
-                  "Must sign by user"
-                )
-                // TODO: both find in a single pass
-                common.inputs.find(cons(key, cell.ref) === _.cell) match
-                    case Some(removeNode) =>
-                        val fee = -Builtins.divideInteger(removeNode.value.getLovelace, -4)
-                        require(
-                          range.isEntirelyBefore(config.deadline) || outputs.exists(out =>
-                              out.address === config.penalty && fee < out.value.getLovelace
-                          ),
-                          "Must satisfy removal broke phase rules"
+                    require(
+                      parentOut === Node(parent.value, cell.pred(key)),
+                      "An inserted key must be referenced by the parent's key at outputs,\n" +
+                          "parent node's value kept unchanged"
+                    ) // NEW: cell.key === parent.cell.key
+                    require(
+                      common.mint.flatten === List.single(
+                        (
+                          common.policy,
+                          nodeToken(key),
+                          BigInt(1)
                         )
-                    case _ => fail("There must be a remove node input")
-            case _ => fail("There must be a stay node input")
+                      ),
+                      "Must mint an NFT value for the inserted key for this linked list"
+                    )
+                case _ => fail("There must be only a parent and an inserted node outputs")
+        case _ =>
+            fail(
+              "There must be a covering node input\n" +
+                  "Covering node input must be single"
+            )
+
+    // FIXME: linking
+    //
+    // (common.inputs, common.outputs) match
+    //     case (List.Cons(fstIn, List.Cons(sndIn, List.Nil)), List.Cons(parentOut, List.Nil)) =>
+    //
+
+    /** Remove a non-root node `removeKey` at covering `cell` at the linked list.
+      *
+      * Covering cell must be original parent's cell reference.
+      *
+      * @param removeKey
+      *   A key the cell be removed by.
+      * @param cell
+      *   A pair of key's original parent key, that expected to be at linked list, and a reference
+      *   to the original tail, that remains unchanged.
+      */
+    def remove(common: Common, removeKey: PubKeyHash, cell: Cons): Node = common.inputs match
+        case List.Cons(fstIn, List.Cons(sndIn, List.Nil)) =>
+            common.outputs match
+                case List.Cons(parentOut, List.Nil) =>
+                    val (parent, removeNode) = fstIn.sort(sndIn)
+                    val PubKeyHash(key) = removeKey
+                    require(
+                      common.mint.flatten === List.single(
+                        (common.policy, nodeToken(key), BigInt(-1))
+                      ),
+                      "Must burn an NFT value for the removed key for this linked list"
+                    )
+                    require(
+                      cell.pred(key) === parent.cell,
+                      "A remove key must be referenced by parent's cell at inputs,\n" +
+                          "parent key present at the covering cell"
+                    )
+                    require(
+                      parentOut === Node(parent.value, cell),
+                      "A covering cell must be referenced by the parent's key at outputs,\n" +
+                          "parent node's value kept unchanged"
+                    )
+                    require(
+                      cell.succ(key) === removeNode.cell,
+                      "A covering cell must be referenced by removed key at inputs,\n" +
+                          "removed key present at the cell of removed node"
+                    )
+                    removeNode
+                case _ => fail("There must be a single parent output")
+        case _ =>
+            fail(
+              "There must be stay node input\n" +
+                  "There must be a remove node input\n" +
+                  "Must spend parent and removed nodes only"
+            )
 
 object LinkedListContract:
 
