@@ -776,6 +776,26 @@ final class SIRCompiler(
                     else origType
                 val (moduleName, valName) =
                     (e.symbol.owner.fullName.toString, e.symbol.fullName.toString)
+
+                // Check if this is a Data constructor - they should not be used directly
+                if moduleName == "scalus.builtin.Data" && (valName.endsWith(".I") || valName
+                        .endsWith(".B") || valName.endsWith(".Constr") || valName.endsWith(
+                      ".List"
+                    ) || valName.endsWith(".Map"))
+                then
+                    error(
+                      GenericError(
+                        s"Data constructors (Data.I, Data.Constr, Data.List, Data.Map, Data.B) cannot be used directly in Scalus code.\n" +
+                            s"Use ToData/FromData type classes or builtin functions instead.\n" +
+                            s"Constructor: ${valName}",
+                        e.srcPos
+                      ),
+                      SIR.Error(
+                        s"Data constructor ${valName} not allowed",
+                        AnnotationsDecl.fromSrcPos(e.srcPos)
+                      )
+                    )
+
                 (
                   SIR.ExternalVar(
                     moduleName,
