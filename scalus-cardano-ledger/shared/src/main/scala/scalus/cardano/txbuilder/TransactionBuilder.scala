@@ -21,12 +21,12 @@ import scalus.cardano.ledger.GovAction.*
 import scalus.cardano.ledger.TransactionOutput.Babbage
 import scalus.cardano.ledger.rules.STS.Validator
 import scalus.cardano.ledger.rules.{Context as SContext, STS, State as SState, UtxoEnv}
+import scalus.cardano.ledger.utils.{AllResolvedScripts, MinCoinSizedTransactionOutput}
 import scalus.cardano.txbuilder.Datum.DatumValue
 import scalus.cardano.txbuilder.SomeBuildError.{BalancingError, SomeStepError, ValidationError}
-import scalus.cardano.txbuilder.TransactionBuilder.{Operation, WitnessKind}
 import scalus.cardano.txbuilder.StepError.*
+import scalus.cardano.txbuilder.TransactionBuilder.{Operation, WitnessKind}
 import scalus.cardano.txbuilder.modifyWs
-import scalus.cardano.ledger.utils.{AllResolvedScripts, MinCoinSizedTransactionOutput}
 
 // Type alias for compatibility - DiffHandler is now a function type in new Scalus API
 type DiffHandler = (Long, Transaction) => Either[TxBalancingError, Transaction]
@@ -426,25 +426,20 @@ object TransactionBuilder:
             protocolParams: ProtocolParams,
             evaluator: PlutusScriptEvaluator
         ): Either[TxBalancingError, Context] = {
-            val txWithDummySignatures: Transaction =
-                addDummySignatures(this.expectedSigners.size, this.transaction)
             // println(s"txWithDummySignatures=${HexUtil.encodeHexString(txWithDummySignatures.toCbor)}")
 
             for {
                 balanced <- LowLevelTxBuilder.balanceFeeAndChange(
-                  initial = txWithDummySignatures,
+                  initial = this.transaction,
                   diffHandler = diffHandler,
                   protocolParams = protocolParams,
                   resolvedUtxo = this.getUtxos,
                   evaluator = evaluator
                 )
-                txWithoutDummySignatures = removeDummySignatures(
-                  this.expectedSigners.size,
-                  balanced
-                )
+
                 // _ = println(HexUtil.encodeHexString(txWithoutDummySignatures.toCbor))
             } yield Context(
-              transaction = txWithoutDummySignatures,
+              transaction = balanced,
               redeemers = this.redeemers,
               network = this.network,
               expectedSigners = this.expectedSigners,
@@ -480,9 +475,13 @@ object TransactionBuilder:
             diffHandler: DiffHandler,
             evaluator: PlutusScriptEvaluator,
             validators: Seq[Validator]
-        ): Either[SomeBuildError, Context] =
+        ): Either[SomeBuildError, Context] = {
+            val txWithDummySignatures: Transaction =
+                addDummySignatures(this.expectedSigners.size, this.transaction)
+            val contextWithSignatures = this.copy(transaction = txWithDummySignatures)
             for {
-                balancedCtx <- this
+
+                balancedCtx <- contextWithSignatures
                     .setMinAdaAll(protocolParams)
                     .balance(diffHandler, protocolParams, evaluator)
                     .left
@@ -493,7 +492,13 @@ object TransactionBuilder:
                     .left
                     .map(ValidationError(_))
 
-            } yield validatedCtx
+                validatedCtxWithoutSignatures = validatedCtx.copy(
+                  transaction =
+                      removeDummySignatures(this.expectedSigners.size, validatedCtx.transaction)
+                )
+
+            } yield validatedCtxWithoutSignatures
+        }
     }
 
     object Context:
