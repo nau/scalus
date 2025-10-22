@@ -467,9 +467,8 @@ object SIRBuiltins {
 
     val writeBits: SIR.Builtin = SIR.Builtin(
       DefaultFun.WriteBits,
-      SIRType.ByteString ->: SIRType.BuiltinList(
-        SIRType.Integer
-      ) ->: SIRType.Boolean ->: SIRType.ByteString,
+      SIRType.ByteString ->:
+          SIRType.BuiltinList(SIRType.Integer) ->: SIRType.Boolean ->: SIRType.ByteString,
       AnnotationsDecl.empty
     )
 

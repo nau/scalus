@@ -20,6 +20,11 @@ class ExprSizeAndBudgetTest extends AnyFunSuite {
     private val fun1Uplc = compile((b: Boolean) => b).toUplc()
     private val fun1Size = encoder.bitSize(fun1Uplc)
 
+    // SimpleSirToUplcLowering is used to have stable sizes in terms, not in data representation.
+    given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering
+    )
+
     test("unit bit size is 10") {
         assert(unitSize == 10)
     }
