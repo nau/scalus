@@ -3,6 +3,7 @@ package sir
 package lowering
 package simple
 
+import scalus.showShort
 import scalus.sir.SIR.Pattern
 import scalus.uplc.*
 
@@ -117,8 +118,8 @@ abstract class BaseSimpleSirToUplcLowering(sir: SIR, generateErrorTraces: Boolea
                     if idx != enhancedCases.length - 1 then {
                         println(
                           s"Wildcard case must be the last in match expression at ${anns.pos.file}:${anns.pos.startLine}, ${anns.pos.startColumn}\n" +
-                              s"Match expression: ${matchExpr.show}\n" +
-                              s"Cases: ${enhancedCases.map(_.pattern).mkString(", ")}"
+                              s"Match expression: ${matchExpr.showShort}\n" +
+                              s"Cases: ${enhancedCases.map(_.pattern.show).mkString(", ")}"
                         )
                         throw new IllegalArgumentException(
                           s"Wildcard case must be the last and only one in match expression at ${anns.pos.file}:${anns.pos.startLine}, ${anns.pos.startColumn}"

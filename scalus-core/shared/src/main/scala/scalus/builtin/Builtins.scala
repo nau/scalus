@@ -388,10 +388,10 @@ private[builtin] abstract class AbstractBuiltins(using ps: PlatformSpecific):
       */
     def writeBits(
         byteString: ByteString,
-        indexes: scala.collection.immutable.List[BigInt],
+        indexes: BuiltinList[BigInt],
         bit: Boolean
     ): ByteString =
-        BitwiseLogicalOperations.writeBits(byteString, indexes, bit)
+        BitwiseLogicalOperations.writeBits(byteString, indexes.toList, bit)
 
     /** Bitwise logical ReplicateByte for ByteStrings.
       *

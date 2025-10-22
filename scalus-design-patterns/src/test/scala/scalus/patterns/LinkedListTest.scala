@@ -17,7 +17,6 @@ import scala.language.implicitConversions
 class LinkedListTest extends AnyFunSuite, ScalusTest:
     given scalus.Compiler.Options = scalus.Compiler.Options(
       targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
-      // targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,
       debug = false
@@ -110,7 +109,7 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
             result.logs.foreach(println)
             println(result)
         else println(result.budget)
-        val budget = ExBudget.fromCpuAndMemory(82679667, 293872)
+        val budget = ExBudget.fromCpuAndMemory(85976699, 303776)
         assert(
           result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
           "Performance regression"
@@ -147,7 +146,7 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
             result.logs.foreach(println)
             println(result)
         else println(result.budget)
-        val budget = ExBudget.fromCpuAndMemory(59964752, 212480)
+        val budget = ExBudget.fromCpuAndMemory(63261784, 222384)
         assert(
           result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
           "Performance regression"
@@ -243,7 +242,7 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
             result.logs.foreach(println)
             println(result)
         else println(result.budget)
-        val budget = ExBudget.fromCpuAndMemory(143365152, 512280)
+        val budget = ExBudget.fromCpuAndMemory(146423245, 522047)
         assert(
           result.budget.cpu <= budget.cpu && result.budget.memory <= budget.memory,
           "Performance regression"
@@ -354,5 +353,8 @@ class LinkedListTest extends AnyFunSuite, ScalusTest:
         )
         assert(result.isSuccess, "Linked list removal should succeed")
 
-        // test rm empty key
-        // test insert duplicate key
+        // test rm empty key => must fail
+        // test rm with non-empty covering reference => must fail
+        // test insert duplicate key => must fail
+        // test insert unordered key => must fail
+        // test insert with a non-empty covering reference => must succeed

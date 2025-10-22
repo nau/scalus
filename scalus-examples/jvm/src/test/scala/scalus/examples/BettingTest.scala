@@ -19,8 +19,7 @@ import scala.language.implicitConversions
 
 class BettingTest extends AnyFunSuite, ScalusTest:
     given scalus.Compiler.Options = scalus.Compiler.Options(
-      // FIXME: SirToUplcV3Lowering
-      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplc110Lowering,
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SirToUplcV3Lowering,
       generateErrorTraces = true,
       optimizeUplc = true,
       debug = false

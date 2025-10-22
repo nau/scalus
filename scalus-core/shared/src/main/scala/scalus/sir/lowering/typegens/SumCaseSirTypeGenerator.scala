@@ -181,6 +181,20 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
                 )
             case UplcConstrOnData =>
                 ???
+            case TypeVarRepresentation(_) =>
+                // When we have TypeVarRepresentation, convert to the proper representation
+                // for the scrutinee's actual type and recurse
+                val gen = lctx.typeGenerator(loweredScrutinee.sirType)
+                val properRepresentation =
+                    gen.defaultTypeVarReperesentation(loweredScrutinee.sirType)
+
+                val scrutineeWithProperRepr = TypeRepresentationProxyLoweredValue(
+                  loweredScrutinee,
+                  loweredScrutinee.sirType,
+                  properRepresentation,
+                  matchData.anns.pos
+                )
+                genMatch(matchData, scrutineeWithProperRepr, optTargetType)
             case _ =>
                 throw LoweringException(
                   s"Unsupported representation ${loweredScrutinee.representation} for match expression",
@@ -222,15 +236,12 @@ object SumCaseSirTypeGenerator extends SirTypeUplcGenerator {
         // when we have a deconstruction like this:
         // val Some(x) = expr
         // Scala compiler generates an @unchecked annotation
-        // and code like this:
-        // val x = expr match
-        //   case Some(x) => x
-        // }
-        // which doesn't have a wildcard case
-        // so we need to add a wildcard case in this case ;)
+        // In Scala 3, it may or may not generate a wildcard case with ERROR.
+        // We need to add a wildcard case only if one doesn't already exist.
         val isUnchecked = anns.data.contains("unchecked")
+        val hasWildcard = cases.lastOption.exists(_.pattern == SIR.Pattern.Wildcard)
         val enhancedCases =
-            if isUnchecked && cases.length < allConstructors.size then
+            if isUnchecked && cases.length < allConstructors.size && !hasWildcard then
                 cases :+ SIR.Case(
                   SIR.Pattern.Wildcard,
                   SIR.Error(
