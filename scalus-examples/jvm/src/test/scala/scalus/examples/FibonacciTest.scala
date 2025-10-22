@@ -14,15 +14,16 @@ import scalus.uplc.transform.{CaseConstrApply, Inliner}
 import scala.annotation.tailrec
 import scala.language.implicitConversions
 
-/** Fibonacci Lookup Implementation using Pre-packed ByteString
-  *
-  * This implementation stores pre-computed Fibonacci numbers as a ByteString where each number is
-  * encoded as 3 bytes (big-endian). The lookup function slices the appropriate 3 bytes and converts
-  * them to an integer.
-  *
-  * Based on Plutarch implementation by SeungheonOh
-  */
 class FibonacciTest extends AnyFunSuite with ScalusTest {
+
+    /** Fibonacci Lookup Implementation using Pre-packed ByteString
+      *
+      * This implementation stores pre-computed Fibonacci numbers as a ByteString where each number
+      * is encoded as 3 bytes (big-endian). The lookup function slices the appropriate 3 bytes and
+      * converts them to an integer.
+      *
+      * Based on Plutarch implementation by SeungheonOh
+      */
     test("fibonacci packed") {
 
         // Helper to generate Fibonacci sequence as ByteString
@@ -81,7 +82,18 @@ class FibonacciTest extends AnyFunSuite with ScalusTest {
     }
 
     test("fibonacci unfold") {
-        val sir = compile(Fib.fib(BigInt(100)))
+        val sir = compile(FibUnfold.fib(BigInt(100)))
+        println(sir.showHighlighted)
+        val uplc: Term = sir.toUplc() |> Inliner.apply
+        println(s"\n${uplc.pretty.render(Int.MaxValue)}\n")
+        println(uplc.plutusV3.cborByteString.size)
+        val x = uplc.evaluate
+        println(x)
+        assert(s"$x" === "Const(Integer(354224848179261915075))")
+    }
+
+    ignore("fibonacci broken") {
+        val sir = compile(BrokenFib.fib(BigInt(100)).get(BigInt(0)))
         println(sir.showHighlighted)
         val uplc: Term = sir.toUplc() |> Inliner.apply
         println(s"\n${uplc.pretty.render(Int.MaxValue)}\n")
@@ -93,9 +105,19 @@ class FibonacciTest extends AnyFunSuite with ScalusTest {
 }
 
 @Compile
-object Fib {
+object FibUnfold {
     def fib(n: BigInt): BigInt =
         @tailrec def f(n: BigInt, x: BigInt, y: BigInt): BigInt =
             if n > 1 then f(n - 1, y, x + y) else y
         f(n, 0, 1)
+}
+
+@Compile
+object BrokenFib {
+    import scalus.prelude.*
+    import List.*
+    def fib(n: BigInt): List[BigInt] = if n > 1 then
+        fib(n - 1) match
+            case r @ Cons(a, Cons(b, _)) => Cons(a + b, r)
+    else List(1, 0)
 }
