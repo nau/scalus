@@ -197,13 +197,19 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
         val appliedValidator =
             validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
         val flatSize = Program.plutusV2(appliedValidator).flatEncoded.length
-        assert(flatSize == 2161)
+        assert(flatSize == 1642)
         performMintingPolicyValidatorChecks(appliedValidator)(withScriptContextV2)
     }
 
     test("Minting Policy Validator Optimized") {
         // Import SimpleSirToUplcLowering backend from MintingPolicySimpleBackend
         import MintingPolicySimpleBackend.given scalus.Compiler.Options
+
+        // Compile evaledTokens with the same SimpleSirToUplcLowering backend
+        val evaledTokensSimple =
+            val tokensSIR =
+                compile(SortedMap.singleton(hex"484f534b59", BigInt("1000000000000000")))
+            tokensSIR.toUplc().evaluate
 
         // println(MintingPolicySimpleBackend.compiledOptimizedMintingPolicyScript.pretty.render(100))
         val validator =
@@ -213,7 +219,7 @@ class MintingPolicyExampleTest extends BaseValidatorTest {
             )
         // println(s"Validator UPLC:\n${validator.pretty.render(100)}")
         val appliedValidator =
-            validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokens
+            validator $ hoskyMintTxOutRef.id.hash $ hoskyMintTxOutRef.idx $ evaledTokensSimple
         // println(s"Applied Validator UPLC:\n${appliedValidator.pretty.render(100)}")
         val flatSize = Program.plutusV1(appliedValidator).flatEncoded.length
         // println(s"Flat size: $flatSize")
