@@ -10,7 +10,7 @@ enum TargetLoweringBackend:
   */
 object SIRDefaultOptions {
 
-    val targetLoweringBackend: TargetLoweringBackend = TargetLoweringBackend.SimpleSirToUplcLowering
+    val targetLoweringBackend: TargetLoweringBackend = TargetLoweringBackend.SirToUplcV3Lowering
     val generateErrorTraces: Boolean = true
     val optimizeUplc: Boolean = false
 
