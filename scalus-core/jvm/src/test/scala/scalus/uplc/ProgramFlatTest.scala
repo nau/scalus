@@ -11,7 +11,7 @@ class ProgramFlatTest extends AnyFunSuite with ScalaCheckPropertyChecks with Arb
         forAll { (p: Program) =>
             val str = p.show
             val bytes = UplcCli.uplcToFlat(str)
-            assert(Utils.bytesToHex(bytes) == Utils.bytesToHex(p.flatEncoded))
+            assert(Utils.bytesToHex(bytes) == Utils.bytesToHex(p.flatEncoded), p.showHighlighted)
         }
     }
 
