@@ -614,6 +614,7 @@ open class CekBuiltinsTest
 
         assertEvalEq(WriteBits $ hex"FF" $ List(0) $ true, hex"FF")
         assertEvalEq(WriteBits $ hex"00" $ List(0) $ false, hex"00")
+
     }
 
     test("ReplicateByte follows CIP-122") {

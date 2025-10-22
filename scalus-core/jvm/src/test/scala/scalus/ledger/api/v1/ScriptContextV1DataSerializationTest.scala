@@ -114,6 +114,14 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
     val machineParamsV2 =
         MachineParams.defaultParamsFor(Language.PlutusV2, MajorProtocolVersion.vasilPV)
 
+    // in Data-based backend, to/from Data is no-op, so use simple backend
+    given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering,
+      generateErrorTraces = true,
+      optimizeUplc = false,
+      debug = false
+    )
+
     test("ScriptContext is the same as in Plutus") {
         // byte array to hex string
 
@@ -139,6 +147,7 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
     }
 
     test("deserialize ScriptContext V1 using Scalus") {
+
         import scalus.uplc.TermDSL.given
         given PlutusVM = PlutusVM.makePlutusV1VM(machineParamsV1)
         val applied = Program((1, 0, 0), scalusDeserializerV1 $ scriptContextV1.toData)
@@ -163,6 +172,7 @@ class ScriptContextV1DataSerializationTest extends BaseValidatorTest:
     }
 
     test("deserialize ScriptContext V2 using Scalus") {
+
         import scalus.uplc.TermDSL.given
         val applied = Program((1, 0, 0), scalusDeserializerV2 $ scriptContextV2.toData)
 

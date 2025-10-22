@@ -18,22 +18,27 @@ import scala.math.Ordering.Implicits.*
 class CaseConstrApplyTest extends AnyFunSuite {
     private given PlutusVM = PlutusVM.makePlutusV3VM()
 
+    given scalus.Compiler.Options = scalus.Compiler.Options(
+      targetLoweringBackend = scalus.Compiler.TargetLoweringBackend.SimpleSirToUplcLowering
+    )
+
     test("replace (apply (apply (apply f a) b) c) with (case (constr 0 [a, b, c]) f)") {
         val sir = compile(((a: BigInt) => (b: BigInt) => (c: ByteString) => c)(0)(1)(hex"1012"))
         val uplc = sir.toUplc()
         val (optimized, logs) = CaseConstrApply.extractPass(uplc)
         assert(
-          optimized == Case(
-            Constr(
-              Word64.Zero,
-              List(
-                Const(Constant.Integer(0)),
-                Const(Constant.Integer(1)),
-                Const(Constant.ByteString(hex"1012"))
+          optimized ==
+              Case(
+                Constr(
+                  Word64.Zero,
+                  List(
+                    Const(Constant.Integer(0)),
+                    Const(Constant.Integer(1)),
+                    Const(Constant.ByteString(hex"1012"))
+                  )
+                ),
+                λ("a", "b", "c")(vr"c") :: Nil
               )
-            ),
-            λ("a", "b", "c")(vr"c") :: Nil
-          )
         )
         assert(logs == Seq("Replacing 3 Apply with Case/Constr"))
         (uplc.evaluateDebug, optimized.evaluateDebug) match

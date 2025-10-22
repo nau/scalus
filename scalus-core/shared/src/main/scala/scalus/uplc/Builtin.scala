@@ -1031,7 +1031,7 @@ class BuiltinsMeaning(
                   case _ => throw new KnownTypeUnliftingError(DefaultUni.Integer, args(1))
               }
               val bit = args(2).asBool
-              VCon(asConstant(writeBits(byteString, indexes, bit)))
+              VCon(asConstant(writeBits(byteString, BuiltinList.from(indexes), bit)))
           ,
           builtinCostModel.writeBits
         )
