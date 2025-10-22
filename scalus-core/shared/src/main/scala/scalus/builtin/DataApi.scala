@@ -86,11 +86,11 @@ private trait DataApi {
                     // otherwise, chunk the bytes
                     val bytes =
                         val bytes = x.toByteArray
+                        if x.signum < 0 then
+                            bytes.mapInPlace(b => (~b.toInt).toByte) // basically, -1 - x
                         // in Java first byte CAN be zero (for sign bit), in Haskell it can not
                         if bytes.head == 0 then bytes.tail else bytes
-                    if x.signum < 0 then
-                        bytes.mapInPlace(b => (~b.toInt).toByte) // basically, -1 - x
-                        writer.writeTag(Tag.NegativeBigNum)
+                    if x.signum < 0 then writer.writeTag(Tag.NegativeBigNum)
                     else writer.writeTag(Tag.PositiveBigNum)
                     writeChunkedByteArray(bytes)
             }

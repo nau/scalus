@@ -38,9 +38,15 @@ class DataCborCodecTest extends AnyFunSuite with ScalaCheckPropertyChecks with A
 
         val minusTwoTo520 = -BigInt(2).pow(520)
         val expectedMinusTwo =
-            "c35f584000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff42ffffff"
+            "c35f5840ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff41ffff"
         assert(encodeHex(I(minusTwoTo520)) == expectedMinusTwo)
         assert(decodeHex(expectedMinusTwo) == I(minusTwoTo520))
+    }
+
+    test("Fix of bug with encoding large negative BigInt into CBOR") {
+        val negative = BigInt("-249855028377480970714957382941817618225")
+        val expectedNegative = "c350bbf853fdc212d25fb51f31598036bf30"
+        assert(encodeHex(I(negative)) == expectedNegative)
     }
 
     test("Fix of bug with encoding large BigInt into CBOR") {

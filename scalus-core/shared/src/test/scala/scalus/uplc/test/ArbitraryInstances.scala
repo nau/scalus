@@ -18,6 +18,8 @@ import scalus.uplc.Constant.BLS12_381_G1_Element
 import scalus.uplc.Constant.BLS12_381_G2_Element
 import scalus.uplc.Constant.BLS12_381_MlResult
 
+import scala.math.pow
+
 // ScalaCheck uses Stream for shrinking, which is deprecated
 // Remove the deprecation warning for now
 @nowarn("cat=deprecation")
@@ -46,6 +48,9 @@ trait ArbitraryInstances:
       yield Builtins.bls12_381_G2_hashToGroup(bs, dst = ByteString.fromString("Test"))
     )
 
+    // from: https://stackoverflow.com/questions/24834074/how-to-create-a-bigint-by-rounding-from-a-double-in-scala
+    private def round(d: Double) =
+        BigDecimal(d).setScale(0, BigDecimal.RoundingMode.HALF_UP).toBigInt
     given iArb: Arbitrary[I] = Arbitrary(
       for n <- Gen.oneOf[BigInt](
             Gen.const[BigInt](0),
@@ -57,7 +62,7 @@ trait ArbitraryInstances:
             Gen.const[BigInt](Int.MinValue),
             Gen.const[BigInt](Long.MaxValue),
             Gen.const[BigInt](Long.MinValue),
-            Gen.choose[BigInt](2 ^ 32, 2 ^ 64)
+            Gen.choose[BigInt](round(pow(2, 128)) * -1, round(pow(2, 128)))
           )
       yield I(n)
     )
