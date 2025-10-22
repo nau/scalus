@@ -88,23 +88,15 @@ class FibonacciTest extends AnyFunSuite with ScalusTest {
 
     test("fibonacci unfold") {
         val sir = compile(FibUnfold.fib(BigInt(100)))
-        println(sir.showHighlighted)
         val uplc: Term = sir.toUplc() |> Inliner.apply
-        println(s"\n${uplc.pretty.render(Int.MaxValue)}\n")
-        println(uplc.plutusV3.cborByteString.size)
         val x = uplc.evaluate
-        println(x)
         assert(s"$x" === "Const(Integer(354224848179261915075))")
     }
 
     ignore("fibonacci broken") {
         val sir = compile(BrokenFib.fib(BigInt(100)).get(BigInt(0)))
-        println(sir.showHighlighted)
         val uplc: Term = sir.toUplc() |> Inliner.apply
-        println(s"\n${uplc.pretty.render(Int.MaxValue)}\n")
-        println(uplc.plutusV3.cborByteString.size)
         val x = uplc.evaluate
-        println(x)
         assert(s"$x" === "Const(Integer(354224848179261915075))")
     }
 }
