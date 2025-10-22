@@ -10,6 +10,7 @@ import scalus.testutil.ArbitraryDerivation.autoDerived
 
 import scala.collection.immutable
 import scala.collection.immutable.SortedMap
+import scala.math.pow
 
 object ArbitraryInstances extends ArbitraryInstances
 trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
@@ -70,8 +71,8 @@ trait ArbitraryInstances extends scalus.cardano.address.ArbitraryInstances {
           arbitrary[ScriptHash].map(Credential.ScriptHash.apply)
         )
     }
-    // TODO: either use BigInt/BigInterger or limit to 53 bits for Longs
-    given Arbitrary[Coin] = Arbitrary(Gen.choose(0L, 2L ^ 53).map(Coin.apply))
+
+    given Arbitrary[Coin] = Arbitrary(Gen.choose(0L, pow(2L, 53).toLong).map(Coin.apply))
     given Arbitrary[AssetName] = Arbitrary(
       Gen.choose(0, 32).flatMap(genByteStringOfN).map(AssetName.apply)
     )
