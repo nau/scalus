@@ -95,10 +95,7 @@ class FibonacciTest extends AnyFunSuite with ScalusTest {
 @Compile
 object Fib {
     def fib(n: BigInt): BigInt =
-        def f(n: BigInt): (BigInt, BigInt) =
-            if n > 1 then
-                val x = f(n - 1)
-                (x._2, x._1 + x._2)
-            else (0, 1)
-        f(n)._2
+        @tailrec def f(n: BigInt, x: BigInt, y: BigInt): BigInt =
+            if n > 1 then f(n - 1, y, x + y) else y
+        f(n, 0, 1)
 }
