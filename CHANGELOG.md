@@ -66,6 +66,7 @@
 - performance regression in LinkedList tests
 - S3LoweringDataAccess regression
 - validation for non-negative integers in flat serialization
+- Data CBOR encoding for large negative integers (Java adds an extra 0 byte)
 
 ## 0.12.1 (2025-10-08)
 
