@@ -572,6 +572,14 @@ lazy val bench = project
       name := "scalus-bench",
       PluginDependency,
       publish / skip := true,
+      // Increase stack size for JIT compilation and deeply nested UPLC terms
+      Jmh / javaOptions ++= Seq(
+        "-Xss64m",  // Increase stack size to 64MB (default is usually 1MB)
+        "-Xmx4g"    // Increase heap to 4GB for large compilations
+      ),
+      // Fix JMH compilation issues
+      Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+      Jmh / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
       libraryDependencies += "org.slf4j" % "slf4j-simple" % "2.0.17",
       libraryDependencies += "com.bloxbean.cardano" % "cardano-client-lib" % "0.7.0",
       libraryDependencies += "com.fasterxml.jackson.core" % "jackson-databind" % "2.20.0",
