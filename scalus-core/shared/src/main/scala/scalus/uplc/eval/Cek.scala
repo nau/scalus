@@ -658,7 +658,7 @@ class CekMachine(
                 args match
                     case arg :: rest =>
                         Compute(FrameConstr(env, tag, rest, ArraySeq.empty, ctx), env, arg)
-                    case Nil => returnCek(ctx, env, VConstr(tag, Nil))
+                    case Nil => Return(ctx, env, VConstr(tag, Nil))
             case Case(scrut, cases) =>
                 spendBudget(ExBudgetCategory.Step(StepKind.Case), costs.caseCost, env)
                 Compute(FrameCases(env, cases, ctx), env, scrut)
@@ -676,7 +676,7 @@ class CekMachine(
                 todo match
                     case arg :: rest =>
                         Compute(FrameConstr(env, tag, rest, newEvaled, ctx), env, arg)
-                    case Nil => returnCek(ctx, env, VConstr(tag, newEvaled))
+                    case Nil => Return(ctx, env, VConstr(tag, newEvaled))
             case FrameCases(env, cases, ctx) =>
                 value match
                     case VConstr(tag, args) =>
