@@ -754,7 +754,7 @@ object TransactionBuilder:
             _ <- modify0(
               unsafeCtxBodyL
                   .refocus(_.inputs)
-                  .modify(inputs => TaggedOrderedSet.from(appendDistinct(utxo.input, inputs.toSeq)))
+                  .modify(inputs => TaggedSortedSet.from(appendDistinct(utxo.input, inputs.toSeq)))
             )
             // Add utxo to resolvedUtxos
             _ <- Context.addResolvedUtxo(utxo)
@@ -1080,7 +1080,7 @@ object TransactionBuilder:
               unsafeCtxBodyL
                   .refocus(_.referenceInputs)
                   .modify(inputs =>
-                      TaggedOrderedSet.from(
+                      TaggedSortedSet.from(
                         appendDistinct(referenceOutput.utxo.input, inputs.toSeq)
                       )
                   )
@@ -1161,7 +1161,7 @@ object TransactionBuilder:
               unsafeCtxBodyL
                   .refocus(_.collateralInputs)
                   .modify(inputs =>
-                      TaggedOrderedSet.from(appendDistinct(addCollateral.utxo.input, inputs.toSeq))
+                      TaggedSortedSet.from(appendDistinct(addCollateral.utxo.input, inputs.toSeq))
                   )
             )
         } yield ()
@@ -1225,7 +1225,7 @@ object TransactionBuilder:
               unsafeCtxBodyL
                   .refocus(_.certificates)
                   .modify(certificates =>
-                      TaggedSet.from(
+                      TaggedOrderedSet.from(
                         appendDistinct(issueCertificate.cert, certificates.toIndexedSeq)
                       )
                   )
@@ -1370,7 +1370,7 @@ object TransactionBuilder:
                   .refocus(_.proposalProcedures)
                   .modify(proposals =>
                       TaggedOrderedSet.from(
-                        appendDistinct(submitProposal.proposal, proposals.toSeq)
+                        appendDistinct(submitProposal.proposal, proposals.toIndexedSeq)
                       )
                   )
             )
@@ -1695,8 +1695,8 @@ object TransactionBuilder:
             _ <- modify0(
               (Focus[Context](_.transaction) >>> txBodyL)
                   .refocus(_.requiredSigners)
-                  .modify((s: TaggedOrderedSet[AddrKeyHash]) =>
-                      TaggedOrderedSet.from(
+                  .modify((s: TaggedSortedSet[AddrKeyHash]) =>
+                      TaggedSortedSet.from(
                         s.toSortedSet ++ additionalSigners.map(_.hash)
                       )
                   )
@@ -2090,15 +2090,15 @@ private def generateUniqueKeys(n: Int): Set[VKeyWitness] = {
     (0 until n).map(i => generateVKeyWitness(i)).toSet
 }
 
-def txInputsL: Lens[Transaction, TaggedOrderedSet[TransactionInput]] = {
+def txInputsL: Lens[Transaction, TaggedSortedSet[TransactionInput]] = {
     txBodyL.refocus(_.inputs)
 }
 
-def txReferenceInputsL: Lens[Transaction, TaggedOrderedSet[TransactionInput]] = {
+def txReferenceInputsL: Lens[Transaction, TaggedSortedSet[TransactionInput]] = {
     txBodyL.refocus(_.referenceInputs)
 }
 
-def txRequiredSignersL: Lens[Transaction, TaggedOrderedSet[AddrKeyHash]] = {
+def txRequiredSignersL: Lens[Transaction, TaggedSortedSet[AddrKeyHash]] = {
     txBodyL.refocus(_.requiredSigners)
 }
 

@@ -574,8 +574,8 @@ lazy val bench = project
       publish / skip := true,
       // Increase stack size for JIT compilation and deeply nested UPLC terms
       Jmh / javaOptions ++= Seq(
-        "-Xss64m",  // Increase stack size to 64MB (default is usually 1MB)
-        "-Xmx4g"    // Increase heap to 4GB for large compilations
+        "-Xss64m", // Increase stack size to 64MB (default is usually 1MB)
+        "-Xmx4g" // Increase heap to 4GB for large compilations
       ),
       // Fix JMH compilation issues
       Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
