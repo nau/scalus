@@ -2,6 +2,7 @@ package scalus.uplc.eval
 
 import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element, Builtins, ByteString, Data}
 import scalus.uplc.{Constant, DefaultFun, Term}
+import scalus.uplc.DefaultUni.asConstant
 import scalus.*
 import scalus.uplc.eval.ExBudgetCategory.{Startup, Step}
 
@@ -100,7 +101,7 @@ object JIT {
                             (name -> args.head.asInstanceOf[quotes.reflect.Term]) :: env,
                             logger,
                             budget,
-                            params
+                            params,
                           ).asTerm
                               .changeOwner(methSym)
                       }
@@ -154,7 +155,21 @@ object JIT {
                         )
                         $expr
                     }
-                case Term.Builtin(DefaultFun.AddInteger) => '{ Builtins.addInteger.curried }
+                case Term.Builtin(DefaultFun.AddInteger) =>
+                    '{ (x: BigInt) => (y: BigInt) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.addInteger
+                                  .calculateCost(
+                                    CekValue.VCon(asConstant(x)),
+                                    CekValue.VCon(asConstant(y))
+                                  ),
+                              Nil
+                            )
+                            x + y
+                        }
+                    }
                 case Term.Builtin(DefaultFun.EqualsData) => '{ Builtins.equalsData.curried }
                 case Term.Builtin(DefaultFun.LessThanInteger) =>
                     '{ Builtins.lessThanInteger.curried }
@@ -199,11 +214,13 @@ object JIT {
                     }
                 case Term.Case(arg, cases) =>
                     val constr =
-                        genCode(arg, env, logger, budget, params).asExprOf[(Long, List[Any])]
+                        genCode(arg, env, logger, budget, params)
+                            .asExprOf[(Long, List[Any])]
                     val caseFuncs =
                         Expr.ofList(
                           cases.map(c =>
-                              genCode(c, env, logger, budget, params).asExprOf[Any => Any]
+                              genCode(c, env, logger, budget, params)
+                                  .asExprOf[Any => Any]
                           )
                         )
                     '{
@@ -250,9 +267,9 @@ object JIT {
       * @throws RuntimeException
       *   if the term contains unsupported constructs or if compilation fails
       */
-    def jitUplc(term: Term): (Logger, BudgetSpender, MachineParams) => Any = staging.run {
-        (quotes: Quotes) ?=>
+    def jitUplc(term: Term): (Logger, BudgetSpender, MachineParams) => Any =
+        staging.run { (quotes: Quotes) ?=>
             val expr = genCodeFromTerm(term)
             expr
-    }
+        }
 }
