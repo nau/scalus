@@ -539,43 +539,17 @@ object TransactionBuilder:
     private val unsafeCtxWitnessL: Lens[Context, TransactionWitnessSet] =
         Focus[Context](_.transaction).refocus(_.witnessSet)
 
-    /** Recursively calculate the minAda for UTxO.
-      *
-      * @param candidateOutput
-      *   The initial output
-      * @param params
-      *   Protocol params (for minAda calculation)
-      * @param update
-      *   A function that takes the calculated minAda for the [[candidateOutput]] and modifies the
-      *   output to calculate the new minAda. By default, it is [[replaceAdaUpdate]]
-      * @return
-      *   An output that has the [[update]] function applied to it until the minAda condition is
-      *   satisfied for the UTxO
+    /** Update the given transaction output to have the minimum required ada, only changing its
+      * Coin.
       */
-    @tailrec
-    def setMinAda[TO <: TransactionOutput](
-        candidateOutput: TO,
-        params: ProtocolParams,
-        update: (Coin, TO) => TO = replaceAdaUpdate
-    ): TO = {
-        val minAda = MinCoinSizedTransactionOutput(Sized(candidateOutput), params)
-        //    println(s"Current candidate output value: ${candidateOutput.value.coin};" +
-        //        s" minAda required for current candidate output: $minAda; " +
-        //        s" size of current candidate output: ${Sized(candidateOutput.asInstanceOf[TransactionOutput]).size}")
-        if minAda <= candidateOutput.value.coin
-        then candidateOutput
-        else setMinAda(update(minAda, candidateOutput), params, update)
-    }
 
-    /** An update function for use with calcMinAda. It replaces the output's coin with the given
-      * coin.
-      */
-    // TODO: try to make it polymorphic
-    private def replaceAdaUpdate(coin: Coin, to: TransactionOutput): TransactionOutput =
-        to match {
-            case s: TransactionOutput.Shelley => s.focus(_.value.coin).replace(coin)
-            case b: TransactionOutput.Babbage => b.focus(_.value.coin).replace(coin)
-        }
+    def setMinAda(
+        candidateOutput: TransactionOutput,
+        params: ProtocolParams
+    ): TransactionOutput = {
+        val minAda = MinCoinSizedTransactionOutput(Sized(candidateOutput), params)
+        candidateOutput |> TransactionOutput.valueLens.refocus(_.coin).replace(minAda)
+    }
 
     /** Build a transaction from scratch, starting with an "empty" transaction and no signers. */
     def build(
