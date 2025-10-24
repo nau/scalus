@@ -70,19 +70,22 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite with ScalaCheckPropertyChe
         )
     }
 
-    test("MinCoinSizedTransactionOutput should return the same after setting minAda") {
-        val out = Babbage(address = addr, value = Value.zero)
-        val initialMinAda = MinCoinSizedTransactionOutput(Sized(out), protocolParams = params)
-        val outWithMinAda = Babbage(address = addr, value = Value(initialMinAda))
-        val newMinAda = MinCoinSizedTransactionOutput(Sized(outWithMinAda), protocolParams = params)
+    test("MinCoinSizedTransactionOutput should ceil the output up to an actual min coin value") {
+        val zeroOut = Babbage(address = addr, value = Value.zero)
+        val zeroOutAfterMinCoin =
+            MinCoinSizedTransactionOutput(Sized(zeroOut), protocolParams = params)
 
-        if initialMinAda == newMinAda
-        then ()
-        else fail(s"Initial minAda ${initialMinAda} and new minAda ${newMinAda} not equal.")
+        val minOut = Babbage(address = addr, value = Value(zeroOutAfterMinCoin))
+        val minOutValueCoin = MinCoinSizedTransactionOutput(Sized(minOut), protocolParams = params)
+
+        assert(
+          zeroOutAfterMinCoin == minOutValueCoin,
+          s"Initial minAda ${zeroOutAfterMinCoin} and new minAda ${minOutValueCoin} are not equal."
+        )
     }
 
     test("MinTransactionFee should return the same after setting fee") {
-        val tx = Transaction(
+        val emptyTx = Transaction(
           body = TransactionBody(
             inputs = TaggedOrderedSet.empty,
             outputs = IndexedSeq.empty,
@@ -92,8 +95,8 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite with ScalaCheckPropertyChe
         )
 
         val res = for {
-            initialFee <- MinTransactionFee(tx, Map.empty, params)
-            newTx = tx |>
+            initialFee <- MinTransactionFee(emptyTx, Map.empty, params)
+            newTx = emptyTx |>
                 Focus[Transaction](_.body)
                     .andThen(KeepRaw.lens[TransactionBody]())
                     .refocus(_.fee)
@@ -102,9 +105,12 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite with ScalaCheckPropertyChe
         } yield (initialFee, newFee)
 
         res match {
-            case Left(e)               => fail(s"fee calculation failed: ${e.toString}")
-            case Right(i, n) if i != n => fail(s"initial fee $i and new fee $n not equal ")
-            case _                     => ()
+            case Left(e) => fail(s"fee calculation failed: ${e.toString}")
+            case Right(initialFee, newFee) =>
+                assert(
+                  initialFee == newFee,
+                  s"initial fee $initialFee and new fee $newFee are not equal "
+                )
         }
     }
 
@@ -180,12 +186,12 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite with ScalaCheckPropertyChe
 
     // General case, should pass easily.
     test("balanced transaction should pass FeesOkValidator when starting with zero fee") {
-        checkFeeOk(3_000_000, 2_000_000, 0)
+        checkFeeOk(inAda = 3_000_000, outAda = 2_000_000, feeAda = 0)
     }
 
     test(
       "balanced transaction with massive input should pass FeesOkValidator when starting with zero fee"
-    )(checkFeeOk(pow(2, 56).toLong, 0, 0))
+    )(checkFeeOk(inAda = pow(2, 56).toLong, outAda = 0, feeAda = 0))
 
     implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
         PropertyCheckConfiguration(minSuccessful = 100_000)
@@ -293,8 +299,8 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite with ScalaCheckPropertyChe
 
     }
 
-    private def checkFeeOk(i: Long, o: Long, f: Long): Unit = {
-        val (utxo, tx) = mkTx(Coin(i), Coin(o), Coin(f))
+    private def checkFeeOk(inAda: Long, outAda: Long, feeAda: Long): Unit = {
+        val (utxo, tx) = mkTx(Coin(inAda), Coin(outAda), Coin(feeAda))
         val handler = ChangeOutputDiffHandler(params, 0)
         val result = LowLevelTxBuilder.balanceFeeAndChange(
           tx,
