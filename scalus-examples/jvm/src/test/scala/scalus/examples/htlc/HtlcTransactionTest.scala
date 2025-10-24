@@ -26,10 +26,10 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
     private val wrongReceiverPkh =
         ByteString.fromArray(TestUtil.createTestAddress("d" * 56).payment.asHash.bytes)
 
-    private val defaultLockAmount: Long = 10_000L
-    private val defaultAmount: Long = 50_000_000L
+    private val lockAmount: Long = 10_000L
+    private val amount: Long = 50_000_000L
 
-    private val defaultTimeout: PosixTime = 1_745_261_347_000L
+    private val timeout: PosixTime = 1_745_261_347_000L
     private val beforeTimeout: PosixTime = 1_745_261_346_000L
     private val afterTimeout: PosixTime = 1_745_261_348_000L
 
@@ -38,12 +38,13 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
     private val validImage: ByteString = sha3_256(validPreimage)
 
     private val lockHtlc: Transaction = {
-        val wallet = TestUtil.createTestWallet(committerAddress, defaultLockAmount + defaultAmount)
+        val wallet = TestUtil.createTestWallet(committerAddress, lockAmount + amount)
         val context = BuilderContext(env, wallet)
-        val value = Value.lovelace(defaultLockAmount)
+        val value = Value.lovelace(lockAmount)
         new Transactions(context, compiledContract)
-            .lock(value, committerPkh, receiverPkh, validImage, defaultTimeout)
-            .getOrElse(???)
+            .lock(value, committerPkh, receiverPkh, validImage, timeout)
+            .toOption
+            .get
     }
 
     private val htlcUtxo = TestUtil
@@ -51,20 +52,21 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
           lockHtlc,
           Address(env.network, Credential.ScriptHash(compiledContract.script.scriptHash))
         )
-        .getOrElse(???)
+        .get
 
     private def revealHtlc(
         preimage: ByteString,
         receiverPkh: ByteString,
         time: PosixTime
     ): (Transaction, Result) = {
-        val wallet = TestUtil.createTestWallet(receiverAddress, defaultAmount)
+        val wallet = TestUtil.createTestWallet(receiverAddress, amount)
         val context = BuilderContext(env, wallet)
         val validityStartSlot =
             CardanoInfo.mainnet.slotConfig.timeToSlot(time.toLong)
         val tx = new Transactions(context, compiledContract)
             .reveal(htlcUtxo, preimage, receiverAddress, receiverPkh, validityStartSlot)
-            .getOrElse(???)
+            .toOption
+            .get
 
         val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
         val result = runValidator(tx, utxos)
@@ -76,13 +78,14 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         committerPkh: ByteString,
         time: PosixTime
     ): (Transaction, Result) = {
-        val wallet = TestUtil.createTestWallet(committerAddress, defaultAmount)
+        val wallet = TestUtil.createTestWallet(committerAddress, amount)
         val context = BuilderContext(env, wallet)
         val validityStartSlot =
             CardanoInfo.mainnet.slotConfig.timeToSlot(time.toLong)
         val tx = new Transactions(context, compiledContract)
             .timeout(htlcUtxo, committerAddress, committerPkh, validityStartSlot)
-            .getOrElse(???)
+            .toOption
+            .get
 
         val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
         val result = runValidator(tx, utxos)
@@ -111,7 +114,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         // verify that the locked funds were successfully withdrawn, and the sum of the outputs exceeds the starting wallet funds.
         val totalReceiverOutput = receiverOutputs.map(_.value.value.coin.value).sum
-        assert(totalReceiverOutput > defaultAmount)
+        assert(totalReceiverOutput > amount)
     }
 
     test("receiver fails with wrong preimage") {
@@ -149,7 +152,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         assert(committerOutputs.nonEmpty)
 
         val totalCommitterOutput = committerOutputs.map(_.value.value.coin.value).sum
-        assert(totalCommitterOutput > defaultAmount)
+        assert(totalCommitterOutput > amount)
     }
 
     test("committer fails before timeout") {
