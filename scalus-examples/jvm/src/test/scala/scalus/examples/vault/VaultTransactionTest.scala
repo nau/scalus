@@ -167,7 +167,7 @@ class VaultTransactionTest extends AnyFunSuite, ScalusTest {
         val withdrawUtxos: Utxos = Map(vaultUtxo) ++ withdrawWallet.utxo
 
         val withdrawScriptContext =
-            TestUtil.getScriptContext(withdrawTx, withdrawUtxos, vaultUtxo._1)
+            TestUtil.getScriptContextV3(withdrawTx, withdrawUtxos, vaultUtxo._1)
         val withdrawResult = runValidator(withdrawTx, withdrawUtxos, withdrawWallet, vaultUtxo._1)
         assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
 
@@ -208,7 +208,7 @@ class VaultTransactionTest extends AnyFunSuite, ScalusTest {
         val withdrawUtxos = Map(vaultUtxo) ++ withdrawWallet.utxo
 
         val withdrawScriptContext =
-            TestUtil.getScriptContext(withdrawTx, withdrawUtxos, vaultUtxo._1)
+            TestUtil.getScriptContextV3(withdrawTx, withdrawUtxos, vaultUtxo._1)
         val withdrawResult =
             VaultContract.defaultCompiledContract.program.runWithDebug(withdrawScriptContext)
         assert(withdrawResult.isSuccess, s"Withdraw should succeed: $withdrawResult")
@@ -226,7 +226,7 @@ class VaultTransactionTest extends AnyFunSuite, ScalusTest {
                 .getOrElse(???)
 
         val finalizeScriptContext =
-            TestUtil.getScriptContext(finalizeTx, utxos, pendingVaultUtxo._1)
+            TestUtil.getScriptContextV3(finalizeTx, utxos, pendingVaultUtxo._1)
         val finalizeResult =
             VaultContract.defaultCompiledContract.program.runWithDebug(finalizeScriptContext)
 
