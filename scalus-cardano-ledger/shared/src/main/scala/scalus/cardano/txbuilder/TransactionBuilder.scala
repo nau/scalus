@@ -402,12 +402,12 @@ object TransactionBuilder:
         }
 
         /** Ensure that all transaction outputs in the context have min ada. */
-        def setMinAdaAll(protocolParams: ProtocolParams): Context = {
+        def ensureMinAdaAll(protocolParams: ProtocolParams): Context = {
             this |> unsafeCtxBodyL
                 .refocus(_.outputs)
                 .modify(os =>
                     os.map((to: Sized[TransactionOutput]) =>
-                        Sized(setMinAda(to.value, protocolParams))
+                        Sized(ensureMinAda(to.value, protocolParams))
                     )
                 )
         }
@@ -482,7 +482,7 @@ object TransactionBuilder:
             for {
 
                 balancedCtx <- contextWithSignatures
-                    .setMinAdaAll(protocolParams)
+                    .ensureMinAdaAll(protocolParams)
                     .balance(diffHandler, protocolParams, evaluator)
                     .left
                     .map(BalancingError(_))
@@ -543,12 +543,14 @@ object TransactionBuilder:
       * Coin.
       */
 
-    def setMinAda(
+    def ensureMinAda(
         candidateOutput: TransactionOutput,
         params: ProtocolParams
     ): TransactionOutput = {
         val minAda = MinCoinSizedTransactionOutput(Sized(candidateOutput), params)
-        candidateOutput |> TransactionOutput.valueLens.refocus(_.coin).replace(minAda)
+        if candidateOutput.value.coin < minAda
+        then candidateOutput |> TransactionOutput.valueLens.refocus(_.coin).replace(minAda)
+        else candidateOutput
     }
 
     /** Build a transaction from scratch, starting with an "empty" transaction and no signers. */
