@@ -19,7 +19,5 @@ object ListJitRepr {
           cl.value.map(RuntimeHelper.uplcToJitAny)
         )
     }
-    
-    
 
 }
