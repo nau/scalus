@@ -5,10 +5,11 @@ import scalus.builtin.Builtins.sha3_256
 import scalus.builtin.ByteString
 import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
-import scalus.cardano.txbuilder.{BuilderContext, Wallet}
+import scalus.cardano.txbuilder.BuilderContext
 import scalus.examples.TestUtil
 import scalus.ledger.api.v1.PosixTime
 import scalus.testkit.ScalusTest
+import scalus.uplc.eval.Result
 
 class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
@@ -26,6 +27,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         ByteString.fromArray(TestUtil.createTestAddress("d" * 56).payment.asHash.bytes)
 
     private val defaultLockAmount: Long = 10_000L
+    private val defaultAmount: Long = 50_000_000L
 
     private val defaultTimeout: PosixTime = 1_745_261_347_000L
     private val beforeTimeout: PosixTime = 1_745_261_346_000L
@@ -36,7 +38,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
     private val validImage: ByteString = sha3_256(validPreimage)
 
     private val lockHtlc: Transaction = {
-        val wallet = TestUtil.createTestWallet(committerAddress, defaultLockAmount + 50_000_000L)
+        val wallet = TestUtil.createTestWallet(committerAddress, defaultLockAmount + defaultAmount)
         val context = BuilderContext(env, wallet)
         val value = Value.lovelace(defaultLockAmount)
         new Transactions(context, compiledContract)
@@ -55,46 +57,46 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         preimage: ByteString,
         receiverPkh: ByteString,
         time: PosixTime
-    ): Transaction = {
-        val wallet = TestUtil.createTestWallet(receiverAddress, 50_000_000L)
+    ): (Transaction, Result) = {
+        val wallet = TestUtil.createTestWallet(receiverAddress, defaultAmount)
         val context = BuilderContext(env, wallet)
         val validityStartSlot =
             CardanoInfo.mainnet.slotConfig.timeToSlot(time.toLong)
-        new Transactions(context, compiledContract)
+        val tx = new Transactions(context, compiledContract)
             .reveal(htlcUtxo, preimage, receiverAddress, receiverPkh, validityStartSlot)
             .getOrElse(???)
+
+        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
+        val result = runValidator(tx, utxos)
+
+        (tx, result)
     }
 
     private def timeoutHtlc(
         committerPkh: ByteString,
         time: PosixTime
-    ): Transaction = {
-        val wallet = TestUtil.createTestWallet(committerAddress, 50_000_000L)
+    ): (Transaction, Result) = {
+        val wallet = TestUtil.createTestWallet(committerAddress, defaultAmount)
         val context = BuilderContext(env, wallet)
         val validityStartSlot =
             CardanoInfo.mainnet.slotConfig.timeToSlot(time.toLong)
-        new Transactions(context, compiledContract)
+        val tx = new Transactions(context, compiledContract)
             .timeout(htlcUtxo, committerAddress, committerPkh, validityStartSlot)
             .getOrElse(???)
+        
+        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
+        val result = runValidator(tx, utxos)
+
+        (tx, result)
     }
 
-    def runValidator(tx: Transaction, utxo: Utxos, wallet: Wallet, scriptInput: TransactionInput) =
-        TestUtil.runValidator(
-          compiledContract.program,
-          tx,
-          utxo,
-          wallet,
-          scriptInput,
-          RedeemerTag.Spend,
-          env
-        )
+    private def runValidator(tx: Transaction, utxo: Utxos) = {
+        val scriptContext = TestUtil.getScriptContextV3(tx, utxo, htlcUtxo._1, RedeemerTag.Spend, env)
+        compiledContract.program.runWithDebug(scriptContext)
+    }
 
     test("receiver reveals preimage before timeout") {
-        val revealTx = revealHtlc(validPreimage, receiverPkh, beforeTimeout)
-        val receiverWalletInput = 50_000_000L
-        val wallet = TestUtil.createTestWallet(receiverAddress, receiverWalletInput)
-        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
-        val result = runValidator(revealTx, utxos, wallet, htlcUtxo._1)
+        val (revealTx, result) = revealHtlc(validPreimage, receiverPkh, beforeTimeout)
 
         assert(result.isSuccess)
 
@@ -108,49 +110,33 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
         // verify that the locked funds were successfully withdrawn, and the sum of the outputs exceeds the starting wallet funds.
         val totalReceiverOutput = receiverOutputs.map(_.value.value.coin.value).sum
-        assert(totalReceiverOutput > receiverWalletInput)
+        assert(totalReceiverOutput > defaultAmount)
     }
 
     test("receiver fails with wrong preimage") {
-        val revealTx = revealHtlc(wrongPreimage, receiverPkh, beforeTimeout)
-        val receiverWalletInput = 50_000_000L
-        val wallet = TestUtil.createTestWallet(receiverAddress, receiverWalletInput)
-        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
-        val result = runValidator(revealTx, utxos, wallet, htlcUtxo._1)
+        val (_, result) = revealHtlc(wrongPreimage, receiverPkh, beforeTimeout)
 
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.InvalidReceiverPreimage))
     }
 
     test("receiver fails with wrong receiver pubkey hash") {
-        val revealTx = revealHtlc(validPreimage, wrongReceiverPkh, beforeTimeout)
-        val receiverWalletInput = 50_000_000L
-        val wallet = TestUtil.createTestWallet(receiverAddress, receiverWalletInput)
-        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
-        val result = runValidator(revealTx, utxos, wallet, htlcUtxo._1)
+        val (_, result) = revealHtlc(validPreimage, wrongReceiverPkh, beforeTimeout)
 
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.UnsignedReceiverTransaction))
     }
 
     test("receiver fails after timeout") {
-        val revealTx = revealHtlc(validPreimage, receiverPkh, afterTimeout)
-        val receiverWalletInput = 50_000_000L
-        val wallet = TestUtil.createTestWallet(receiverAddress, receiverWalletInput)
-        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
-        val result = runValidator(revealTx, utxos, wallet, htlcUtxo._1)
+        val (_, result) = revealHtlc(validPreimage, receiverPkh, afterTimeout)
 
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.InvalidReceiverTimePoint))
     }
 
     test("committer reclaims after timeout") {
-        val timeoutTx = timeoutHtlc(committerPkh, afterTimeout)
-        val committerWalletInput = 50_000_000L
-        val wallet = TestUtil.createTestWallet(committerAddress, committerWalletInput)
-        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
-        val result = runValidator(timeoutTx, utxos, wallet, htlcUtxo._1)
-
+        val (timeoutTx, result) = timeoutHtlc(committerPkh, afterTimeout)
+        
         assert(result.isSuccess)
 
         val scriptOutputs = timeoutTx.body.value.outputs.filter(_.value.address.hasScript)
@@ -162,27 +148,19 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         assert(committerOutputs.nonEmpty)
 
         val totalCommitterOutput = committerOutputs.map(_.value.value.coin.value).sum
-        assert(totalCommitterOutput > committerWalletInput)
+        assert(totalCommitterOutput > defaultAmount)
     }
 
     test("committer fails before timeout") {
-        val timeoutTx = timeoutHtlc(committerPkh, beforeTimeout)
-        val committerWalletInput = 50_000_000L
-        val wallet = TestUtil.createTestWallet(committerAddress, committerWalletInput)
-        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
-        val result = runValidator(timeoutTx, utxos, wallet, htlcUtxo._1)
+        val (_, result) = timeoutHtlc(committerPkh, beforeTimeout)
 
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.InvalidCommitterTimePoint))
     }
 
     test("committer fails with wrong committer pubkey hash") {
-        val timeoutTx = timeoutHtlc(wrongCommitterPkh, afterTimeout)
-        val committerWalletInput = 50_000_000L
-        val wallet = TestUtil.createTestWallet(committerAddress, committerWalletInput)
-        val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
-        val result = runValidator(timeoutTx, utxos, wallet, htlcUtxo._1)
-
+        val (_, result) = timeoutHtlc(wrongCommitterPkh, afterTimeout)
+        
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.UnsignedCommitterTransaction))
     }
