@@ -1,16 +1,12 @@
 package scalus.examples
 
-import scalus.builtin.ByteString
+import scalus.builtin.{ByteString, Data}
 import scalus.cardano.address.{Address, ShelleyAddress, ShelleyDelegationPart, ShelleyPaymentPart}
 import scalus.cardano.ledger.*
 import scalus.cardano.txbuilder.{Environment, PubKeyWitness, TransactionUnspentOutput, Wallet as WalletTrait, Witness}
-import scalus.examples.vault.VaultValidator
 import scalus.ledger.api.v3
 import scalus.uplc.Program
-import scalus.plutusV3
 import scalus.testkit.ScalusTest
-
-import scala.util.Try
 
 object TestUtil extends ScalusTest {
 
@@ -19,7 +15,7 @@ object TestUtil extends ScalusTest {
     val testEnvironment: Environment = Environment(
       protocolParams = testProtocolParams,
       slotConfig = CardanoInfo.mainnet.slotConfig,
-      evaluator = (tx: Transaction, utxos: Map[TransactionInput, TransactionOutput]) => Seq.empty,
+      evaluator = (_: Transaction, _: Map[TransactionInput, TransactionOutput]) => Seq.empty,
       network = CardanoInfo.mainnet.network
     )
 
@@ -62,52 +58,80 @@ object TestUtil extends ScalusTest {
     }
 
     def getScriptUtxo(tx: Transaction): (TransactionInput, TransactionOutput) = {
-        val outputs = tx.body.value.outputs
-
-        val scriptOutputWithIndex = outputs.zipWithIndex
-            .find { case (output, _) => output.value.address.hasScript }
+        val (transactionOutput, index) = tx.body.value.outputs.view
+            .map(_.value)
+            .zipWithIndex
+            .find { (transactionOutput, _) => transactionOutput.address.hasScript }
             .getOrElse(throw new Exception("No script output found in transaction"))
 
-        val (scriptOutput, index) = scriptOutputWithIndex
-
-        val txHash = tx.id
-        val input = TransactionInput(txHash, index)
-
-        (input, scriptOutput.value)
+        (TransactionInput(tx.id, index), transactionOutput)
     }
 
-    def getScriptContext(
+    def findUtxoByAddress(
+        tx: Transaction,
+        address: Address
+    ): Option[(TransactionInput, TransactionOutput)] = {
+        tx.body.value.outputs.view
+            .map(_.value)
+            .zipWithIndex
+            .find { (transactionOutput, _) => transactionOutput.address == address }
+            .map { (transactionOutput, index) =>
+                (TransactionInput(tx.id, index), transactionOutput)
+            }
+    }
+
+    def extractDatumFromOutput(
+        tx: Transaction,
+        output: TransactionOutput
+    ): Option[Data] = {
+        def getDatum(dataHash: DataHash) = tx.witnessSet.plutusData.value.toIndexedSeq
+            .find { datum =>
+                datum.dataHash == dataHash
+            }
+            .map(_.value)
+
+        output match
+            case TransactionOutput.Shelley(_, _, Some(datumHash)) =>
+                getDatum(datumHash)
+            case TransactionOutput.Babbage(_, _, datumOption, _) =>
+                datumOption match
+                    case Some(DatumOption.Hash(hash))   => getDatum(hash)
+                    case Some(DatumOption.Inline(data)) => Some(data)
+                    case None                           => None
+            case _ => None
+    }
+
+    def getScriptContextV3(
         tx: Transaction,
         utxos: Utxos,
-        spentInput: TransactionInput
+        input: TransactionInput,
+        redeemerTag: RedeemerTag = RedeemerTag.Spend,
+        environment: Environment = testEnvironment
     ): v3.ScriptContext = {
         val inputs = tx.body.value.inputs
         // assume 1 script input
-        val inputIdx = inputs.toSeq.indexWhere(_ == spentInput)
+        val inputIdx = inputs.toSeq.indexWhere(_ == input)
 
         val redeemersMap = tx.witnessSet.redeemers.get.value.toMap
         val (data, exUnits) = redeemersMap.getOrElse(
-          (RedeemerTag.Spend, inputIdx),
-          throw new Exception(s"No redeemer found for spend input at index $inputIdx")
+          (redeemerTag, inputIdx),
+          throw new Exception(s"No redeemer found for $redeemerTag input at index $inputIdx")
         )
-        val redeemer = scalus.cardano.ledger.Redeemer(RedeemerTag.Spend, inputIdx, data, exUnits)
+        val redeemer = scalus.cardano.ledger.Redeemer(redeemerTag, inputIdx, data, exUnits)
 
         val spentOutput = utxos.getOrElse(
-          spentInput,
-          throw new Exception(s"Spent output not found in UTxO set: $spentInput")
+          input,
+          throw new Exception(s"$redeemerTag output not found in UTxO set: $input")
         )
-        val datum = spentOutput match {
-            case TransactionOutput.Babbage(_, _, Some(DatumOption.Inline(d)), _) => Some(d)
-            case _                                                               => None
-        }
+        val datum = extractDatumFromOutput(tx, spentOutput)
 
         LedgerToPlutusTranslation.getScriptContextV3(
           redeemer,
           datum,
           tx,
           utxos,
-          CardanoInfo.mainnet.slotConfig,
-          CardanoInfo.mainnet.majorProtocolVersion
+          environment.slotConfig,
+          environment.protocolParams.protocolVersion.toMajor
         )
     }
 
@@ -116,10 +140,12 @@ object TestUtil extends ScalusTest {
         tx: Transaction,
         utxo: Utxos,
         wallet: WalletTrait,
-        scriptInput: TransactionInput
+        scriptInput: TransactionInput,
+        redeemerTag: RedeemerTag = RedeemerTag.Spend,
+        environment: Environment = testEnvironment
     ) = {
-        val scriptContext = TestUtil.getScriptContext(tx, utxo, scriptInput)
-        Try(VaultValidator.validateScriptContext(scriptContext))
+        val scriptContext =
+            TestUtil.getScriptContextV3(tx, utxo, scriptInput, redeemerTag, environment)
         validatorProgram.runWithDebug(scriptContext)
     }
 }

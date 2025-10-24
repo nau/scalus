@@ -5,11 +5,15 @@ import scalus.cardano.address.Address
 import scalus.cardano.ledger.*
 import scalus.cardano.txbuilder.*
 import scalus.ledger.api.v1.PosixTime
+import scalus.cardano.blueprint.PlutusV3CompiledContract
 
-class Transactions(context: BuilderContext) {
+class Transactions(
+    context: BuilderContext,
+    compiledContract: PlutusV3CompiledContract = HtlcContract.defaultCompiledContract
+) {
 
     val wallet = context.wallet
-    val script = HtlcContract.defaultCompiledContract.script
+    val script = compiledContract.script
     val scriptAddress = Address(context.env.network, Credential.ScriptHash(script.scriptHash))
 
     def lock(

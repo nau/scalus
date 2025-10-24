@@ -35,7 +35,7 @@ object Application {
         version: String,
         inline code: Any
     ): Application = {
-        val contract = PlutusV3.create[D, R](title, description)(code)
+        val contract = PlutusV3CompiledContract.create[D, R](title, description)(code)
         Application(title, description, version, Seq(contract))
     }
 }
@@ -49,7 +49,7 @@ trait CompiledContract {
     def blueprint: Blueprint
 }
 
-class PlutusV3(
+class PlutusV3CompiledContract(
     preamble: Preamble,
     override val sir: SIR,
     override val program: Program,
@@ -83,27 +83,33 @@ class PlutusV3(
     override lazy val blueprint: Blueprint = Blueprint(preamble, Seq(describeValidator))
 }
 
-object PlutusV3 {
+object PlutusV3CompiledContract {
 
     inline def create[D, R](
         title: String,
         description: String = ""
-    )(inline code: Any): PlutusV3 = {
+    )(inline code: Any): PlutusV3CompiledContract = {
         val sir = Compiler.compileInline(code)
         val program = sir.toUplcOptimized().plutusV3
         val datumSchema = PlutusDataSchema.derived[D]
         val redeemerSchema = PlutusDataSchema.derived[R]
-        PlutusV3(Preamble(title, Some(description)), sir, program, datumSchema, redeemerSchema)
+        PlutusV3CompiledContract(
+          Preamble(title, Some(description)),
+          sir,
+          program,
+          datumSchema,
+          redeemerSchema
+        )
     }
 
     inline def create[D, R](
         preamble: Preamble,
         inline options: scalus.Compiler.Options
-    )(inline code: Any): PlutusV3 = {
+    )(inline code: Any): PlutusV3CompiledContract = {
         val sir = Compiler.compileInlineWithOptions(options, code)
         val program = sir.toUplc(using options)().plutusV3
         val datumSchema = PlutusDataSchema.derived[D]
         val redeemerSchema = PlutusDataSchema.derived[R]
-        PlutusV3(preamble, sir, program, datumSchema, redeemerSchema)
+        PlutusV3CompiledContract(preamble, sir, program, datumSchema, redeemerSchema)
     }
 }
