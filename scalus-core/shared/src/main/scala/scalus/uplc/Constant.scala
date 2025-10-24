@@ -76,7 +76,7 @@ object Constant:
         case DefaultUni.String     => String(a.asInstanceOf[java.lang.String])
         case DefaultUni.Unit       => Unit
         case DefaultUni.Bool       => Bool(a.asInstanceOf[Boolean])
-        case DefaultUni.Data =>
+        case DefaultUni.Data       =>
             Data(a.asInstanceOf[scalus.builtin.Data])
         case DefaultUni.Apply(DefaultUni.ProtoList, elemType) =>
             List(elemType, a.asInstanceOf[Seq[Any]].toList.map(fromValue(elemType, _)))
@@ -105,5 +105,5 @@ object Constant:
         case Pair(a, b)                  => (toValue(a), toValue(b))
         case BLS12_381_G1_Element(value) => value
         case BLS12_381_G2_Element(value) => value
-        case BLS12_381_MlResult(value) =>
+        case BLS12_381_MlResult(value)   =>
             throw new IllegalArgumentException("Cannot convert BLS12_381_MlResult")

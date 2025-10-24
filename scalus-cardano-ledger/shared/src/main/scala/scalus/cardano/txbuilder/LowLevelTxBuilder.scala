@@ -84,7 +84,7 @@ object LowLevelTxBuilder {
             val providedTxFee = tx.body.value.fee
 
             computeScriptsWitness(resolvedUtxo, evaluator, protocolParams)(tx) match
-                case Left(error) => Left(error)
+                case Left(error)          => Left(error)
                 case Right(txWithExUnits) =>
                     MinTransactionFee(txWithExUnits, resolvedUtxo, protocolParams) match
                         case Right(minFee) =>
