@@ -1,6 +1,6 @@
 package scalus.uplc.eval
 
-import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element, Builtins, ByteString, Data}
+import scalus.builtin.{BLS12_381_G1_Element, BLS12_381_G2_Element, BuiltinPair, Builtins, ByteString, Data}
 import scalus.uplc.{Constant, DefaultFun, Term}
 import scalus.uplc.DefaultUni.asConstant
 import scalus.*
@@ -50,14 +50,17 @@ object JIT {
 
     private def constantToExpr(const: Constant)(using Quotes): Expr[Any] = {
         const match
-            case Constant.Integer(value)        => Expr(value)
-            case Constant.ByteString(value)     => Expr(value)
-            case Constant.String(value)         => Expr(value)
-            case Constant.Unit                  => '{ () }
-            case Constant.Bool(value)           => Expr(value)
-            case Constant.Data(value)           => Expr(value)
-            case Constant.List(elemType, value) => Expr.ofList(value.map(constantToExpr))
-            case Constant.Pair(a, b) => Expr.ofTuple(constantToExpr(a), constantToExpr(b))
+            case Constant.Integer(value)    => Expr(value)
+            case Constant.ByteString(value) => Expr(value)
+            case Constant.String(value)     => Expr(value)
+            case Constant.Unit              => '{ () }
+            case Constant.Bool(value)       => Expr(value)
+            case Constant.Data(value)       => Expr(value)
+            case Constant.List(elemType, value) =>
+                '{ ListJitRepr(${ Expr(elemType) }, ${ Expr.ofList(value.map(constantToExpr)) }) }
+            case Constant.Pair(a, b) =>
+                '{ BuiltinPair(${ constantToExpr(a) }, ${ constantToExpr(b) }) }
+                // Expr.ofTuple(constantToExpr(a), constantToExpr(b))
             case Constant.BLS12_381_G1_Element(value) =>
                 '{ BLS12_381_G1_Element(${ Expr(value.toCompressedByteString) }) }
             case Constant.BLS12_381_G2_Element(value) =>
@@ -246,27 +249,130 @@ object JIT {
                         {
                             $budget.spendBudget(
                               Step(StepKind.Builtin),
-                              $params.builtinCostModel.trace
-                                  .calculateCost(
-                                    CekValue.VCon(asConstant(s)),
-                                    CekValue.VCon(RuntimeHelper.anyUplcConstant(a))
-                                  ),
+                              $params.builtinCostModel.trace.constantCost,
                               Nil
                             )
                             ${ logger }.log(s); a
                         }
                     }
-                case Term.Builtin(DefaultFun.FstPair) => '{ () => () => Builtins.fstPair }
-                case Term.Builtin(DefaultFun.SndPair) => '{ () => () => Builtins.sndPair }
+                case Term.Builtin(DefaultFun.FstPair) =>
+                    '{ () => () =>
+                        { (x: BuiltinPair[?, ?]) =>
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.fstPair.constantCost,
+                              Nil
+                            )
+                            Builtins.fstPair(x)
+                        }
+                    }
+                case Term.Builtin(DefaultFun.SndPair) =>
+                    '{ () => () =>
+                        { (x: BuiltinPair[?, ?]) =>
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.sndPair.constantCost,
+                              Nil
+                            )
+                            Builtins.sndPair(x)
+                        }
+                    }
                 case Term.Builtin(DefaultFun.ChooseList) =>
-                    '{ () => () => Builtins.chooseList.curried }
-                case Term.Builtin(DefaultFun.Sha2_256)     => '{ Builtins.sha2_256 }
-                case Term.Builtin(DefaultFun.HeadList)     => '{ () => Builtins.headList }
-                case Term.Builtin(DefaultFun.TailList)     => '{ () => Builtins.tailList }
-                case Term.Builtin(DefaultFun.UnConstrData) => '{ Builtins.unConstrData }
-                case Term.Builtin(DefaultFun.UnListData)   => '{ Builtins.unListData }
-                case Term.Builtin(DefaultFun.UnIData)      => '{ Builtins.unIData }
-                case Term.Builtin(DefaultFun.UnBData)      => '{ Builtins.unBData }
+                    '{ () => () => (la: Any) => (e: Any) => (ne: Any) =>
+                        {
+                            la match
+                                case l: ListJitRepr =>
+                                    $budget.spendBudget(
+                                      Step(StepKind.Builtin),
+                                      $params.builtinCostModel.chooseList.constantCost,
+                                      Nil
+                                    )
+                                    if l.elements.isEmpty then e else ne
+                                case _ =>
+                                    // TODO: diagnostic
+                                    throw new IllegalArgumentException(
+                                      s"chooseList expected ListJitRepr but got ${la.getClass}"
+                                    )
+                        }
+                    }
+                case Term.Builtin(DefaultFun.Sha2_256) =>
+                    '{ (bs: ByteString) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.sha2_256
+                                  .calculateCost(CekValue.VCon(asConstant(bs))),
+                              Nil
+                            )
+                            Builtins.sha2_256(bs)
+                        }
+                    }
+                case Term.Builtin(DefaultFun.HeadList) =>
+                    '{ () =>
+                        { (y: ListJitRepr) =>
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.headList.constantCost,
+                              Nil
+                            )
+                            y.elements.head
+                        }
+                    }
+                case Term.Builtin(DefaultFun.TailList) =>
+                    '{ () =>
+                        { (x: ListJitRepr) =>
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.tailList.constantCost,
+                              Nil
+                            )
+                            ListJitRepr(x.elementType, x.elements.tail)
+                        }
+                    }
+                case Term.Builtin(DefaultFun.UnConstrData) =>
+                    '{ (x: Data) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.unConstrData.constantCost,
+                              Nil
+                            )
+                            RuntimeHelper.unConstrData(x)
+                        }
+                    }
+                case Term.Builtin(DefaultFun.UnListData) =>
+                    '{ (x: Data) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.unListData.constantCost,
+                              Nil
+                            )
+                            RuntimeHelper.unListData(x)
+                        }
+                    }
+                case Term.Builtin(DefaultFun.UnIData) =>
+                    '{ (x: Data) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.unIData.constantCost,
+                              Nil
+                            )
+                            Builtins.unIData(x)
+                        }
+                    }
+                case Term.Builtin(DefaultFun.UnBData) =>
+                    '{ (x: Data) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.unBData.constantCost,
+                              Nil
+                            )
+                            Builtins.unBData(x)
+                        }
+                    }
                 case Term.Builtin(bi) =>
                     sys.error(
                       s"Builtin $bi is not yet supported by the JIT compiler. Please add implementation in the Builtin pattern matching section."
@@ -306,10 +412,14 @@ object JIT {
                     }
         }
 
-        '{ (logger: Logger, budget: BudgetSpender, params: MachineParams) =>
+        val retval = '{ (logger: Logger, budget: BudgetSpender, params: MachineParams) =>
             budget.spendBudget(Startup, params.machineCosts.startupCost, Nil)
             ${ genCode(term, Nil, 'logger, 'budget, 'params) }
         }
+
+        // println(retval.show)
+
+        retval
     }
 
     /** Compiles a UPLC term into an optimized JVM function using JIT compilation.
