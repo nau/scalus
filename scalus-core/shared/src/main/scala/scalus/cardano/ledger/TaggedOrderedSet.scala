@@ -15,6 +15,9 @@ import io.bullet.borer.{DataItem, Decoder, Encoder, Reader, Tag, Writer}
   * `opaque type TaggedSet[+A] <: IndexedSeq[A] = IndexedSeq[A]`
   *
   * because then `Encoder[TaggedSet[A]]` conflicts with [[Encoder.forIndexedSeq]]
+  *
+  * Important: This implementation does not allow duplicates in input (i.e. throws exception) and
+  * keeps order of data (does not sort).
   */
 opaque type TaggedOrderedSet[+A] = IndexedSeq[A]
 object TaggedOrderedSet {

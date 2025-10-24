@@ -15,6 +15,9 @@ import io.bullet.borer.{DataItem, Decoder, Encoder, Reader, Tag, Writer}
   * `opaque type TaggedSet[+A] <: IndexedSeq[A] = IndexedSeq[A]`
   *
   * because then `Encoder[TaggedSet[A]]` conflicts with [[Encoder.forIndexedSeq]]
+  *
+  * Important: This implementation allows duplicates in input (i.e. does not throw exception) and
+  * keeps order of data (does not sort) .
   */
 opaque type TaggedSet[+A] = IndexedSeq[A]
 object TaggedSet {
@@ -39,8 +42,6 @@ object TaggedSet {
     def apply[A](elems: A*): TaggedSet[A] = from(elems)
 
     def from[A](it: IterableOnce[A]): TaggedSet[A] = Set.from(it).toIndexedSeq
-
-    extension [A](s: TaggedSet[A]) def +(a: A): TaggedSet[A] = s.appended(a)
 
     given [A: Encoder]: Encoder[TaggedSet[A]] with
         def write(w: Writer, value: TaggedSet[A]): Writer = {
