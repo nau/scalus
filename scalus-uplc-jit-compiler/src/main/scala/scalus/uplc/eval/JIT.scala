@@ -170,17 +170,91 @@ object JIT {
                             x + y
                         }
                     }
-                case Term.Builtin(DefaultFun.EqualsData) => '{ Builtins.equalsData.curried }
+                case Term.Builtin(DefaultFun.EqualsData) =>
+                    '{ (x: Data) => (y: Data) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.equalsData
+                                  .calculateCost(
+                                    CekValue.VCon(asConstant(x)),
+                                    CekValue.VCon(asConstant(y))
+                                  ),
+                              Nil
+                            )
+                            Builtins.equalsData(x, y)
+                        }
+                    }
                 case Term.Builtin(DefaultFun.LessThanInteger) =>
-                    '{ Builtins.lessThanInteger.curried }
-                case Term.Builtin(DefaultFun.EqualsInteger) => '{ Builtins.equalsInteger.curried }
+                    '{ (x: BigInt) => (y: BigInt) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.lessThanInteger
+                                  .calculateCost(
+                                    CekValue.VCon(asConstant(x)),
+                                    CekValue.VCon(asConstant(y))
+                                  ),
+                              Nil
+                            )
+                            x < y
+                        }
+                    }
+                case Term.Builtin(DefaultFun.EqualsInteger) =>
+                    '{ (x: BigInt) => (y: BigInt) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.equalsInteger
+                                  .calculateCost(
+                                    CekValue.VCon(asConstant(x)),
+                                    CekValue.VCon(asConstant(y))
+                                  ),
+                              Nil
+                            )
+                            x == y
+                        }
+                    }
                 case Term.Builtin(DefaultFun.EqualsByteString) =>
-                    '{ Builtins.equalsByteString.curried }
+                    '{ (x: ByteString) => (y: ByteString) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.equalsByteString
+                                  .calculateCost(
+                                    CekValue.VCon(asConstant(x)),
+                                    CekValue.VCon(asConstant(y))
+                                  ),
+                              Nil
+                            )
+                            x == y
+                        }
+                    }
                 case Term.Builtin(DefaultFun.IfThenElse) =>
-                    '{ () => (c: Boolean) => (t: Any) => (f: Any) => Builtins.ifThenElse(c, t, f) }
+                    '{ () => (c: Boolean) => (t: Any) => (f: Any) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.ifThenElse.constantCost,
+                              Nil
+                            )
+                            if c then t else f
+                        }
+                    }
                 case Term.Builtin(DefaultFun.Trace) =>
                     '{ () => (s: String) => (a: Any) =>
-                        ${ logger }.log(s); a
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.trace
+                                  .calculateCost(
+                                    CekValue.VCon(asConstant(s)),
+                                    CekValue.VCon(RuntimeHelper.anyUplcConstant(a))
+                                  ),
+                              Nil
+                            )
+                            ${ logger }.log(s); a
+                        }
                     }
                 case Term.Builtin(DefaultFun.FstPair) => '{ () => () => Builtins.fstPair }
                 case Term.Builtin(DefaultFun.SndPair) => '{ () => () => Builtins.sndPair }

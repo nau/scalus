@@ -40,7 +40,8 @@ case class BuiltinCostModel(
     encodeUtf8: DefaultCostingFun[OneArgument],
     decodeUtf8: DefaultCostingFun[OneArgument],
     // Bool
-    ifThenElse: DefaultCostingFun[ThreeArguments],
+    // ifThenElse: DefaultCostingFun[ThreeArguments],
+    ifThenElse: ConstCostingFun,
     // Unit
     chooseUnit: DefaultCostingFun[TwoArguments],
     // Tracing
@@ -292,7 +293,7 @@ object BuiltinCostModel {
             equalsString = read[DefaultCostingFun[TwoArguments]](json("equalsString")),
             encodeUtf8 = read[DefaultCostingFun[OneArgument]](json("encodeUtf8")),
             decodeUtf8 = read[DefaultCostingFun[OneArgument]](json("decodeUtf8")),
-            ifThenElse = read[DefaultCostingFun[ThreeArguments]](json("ifThenElse")),
+            ifThenElse = read[ConstCostingFun](json("ifThenElse")),
             chooseUnit = read[DefaultCostingFun[TwoArguments]](json("chooseUnit")),
             trace = read[DefaultCostingFun[TwoArguments]](json("trace")),
             fstPair = read[DefaultCostingFun[OneArgument]](json("fstPair")),
@@ -901,13 +902,9 @@ object BuiltinCostModel {
               )
             )
           ),
-          ifThenElse = DefaultCostingFun(
-            cpu = ThreeArguments.ConstantCost(
-              cost = params.`ifThenElse-cpu-arguments`
-            ),
-            memory = ThreeArguments.ConstantCost(
-              cost = params.`ifThenElse-memory-arguments`
-            )
+          ifThenElse = ConstCostingFun(
+            cpu = params.`ifThenElse-cpu-arguments`,
+            memory = params.`ifThenElse-memory-arguments`
           ),
           chooseUnit = DefaultCostingFun(
             cpu = TwoArguments.ConstantCost(

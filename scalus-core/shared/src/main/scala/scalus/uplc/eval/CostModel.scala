@@ -502,6 +502,29 @@ case class DefaultCostingFun[+M <: CostModel](cpu: M, memory: M) extends Costing
     }
 }
 
+case class ConstCostingFun(cpu: CostingInteger, memory: CostingInteger) extends CostingFun {
+
+    def calculateCost(args: CekValue*): ExBudget = {
+        constantCost
+    }
+
+    def constantCost: ExBudget = ExBudget(ExCPU(cpu), ExMemory(memory))
+
+}
+
+object ConstCostingFun {
+    given ReadWriter[ConstCostingFun] = readwriter[ujson.Value].bimap(
+      { case ConstCostingFun(cpu, memory) =>
+          ujson.Obj("cpu" -> cpu, "memory" -> memory)
+      },
+      json => {
+          val cpu = json.obj("cpu").num.toLong
+          val memory = json.obj("memory").num.toLong
+          ConstCostingFun(cpu, memory)
+      }
+    )
+}
+
 /** When invoking `integerToByteString` built-in function, its second argument is a built-in Integer
   * but with a different size measure, specifying the width (in bytes) of the output bytestring
   * (zero-padded to the desired size). The memory consumed by the function is given by `w`, not the
