@@ -323,7 +323,7 @@ object TransactionBuilder:
           */
         def addUtxo(utxo: TransactionUnspentOutput): Option[ResolvedUtxos] =
             utxos.get(utxo.input) match {
-                case None => Some(ResolvedUtxos(utxos + utxo.toTuple))
+                case None                 => Some(ResolvedUtxos(utxos + utxo.toTuple))
                 case Some(existingOutput) =>
                     if existingOutput == utxo.output
                     then Some(ResolvedUtxos(utxos))
@@ -722,7 +722,7 @@ object TransactionBuilder:
             liftF0(address match {
                 case sa: ShelleyAddress =>
                     sa.payment match {
-                        case kh: ShelleyPaymentPart.Key => Right(kh.hash)
+                        case kh: ShelleyPaymentPart.Key   => Right(kh.hash)
                         case _: ShelleyPaymentPart.Script =>
                             Left(
                               WrongOutputType(WitnessKind.KeyBased, utxo)
@@ -736,7 +736,7 @@ object TransactionBuilder:
                 case sa: ShelleyAddress =>
                     sa.payment match {
                         case s: ShelleyPaymentPart.Script => Right(s.hash)
-                        case _: ShelleyPaymentPart.Key =>
+                        case _: ShelleyPaymentPart.Key    =>
                             Left(
                               WrongOutputType(WitnessKind.ScriptBased, utxo)
                             )
@@ -813,7 +813,7 @@ object TransactionBuilder:
                     )
                 case Some(DatumOption.Inline(_)) =>
                     datum match {
-                        case Datum.DatumInlined => pure0(())
+                        case Datum.DatumInlined  => pure0(())
                         case Datum.DatumValue(_) =>
                             liftF0(
                               Left(DatumValueForUtxoWithInlineDatum(utxo, datum))
@@ -1424,7 +1424,7 @@ object TransactionBuilder:
                     case Voter.StakingPoolKey(poolKeyHash) =>
                         val credential = Credential.KeyHash(poolKeyHash)
                         submitVotingProcedure.witness match {
-                            case _: PubKeyWitness.type => pure0(credential)
+                            case _: PubKeyWitness.type                   => pure0(credential)
                             case witness: TwoArgumentPlutusScriptWitness =>
                                 liftF0(
                                   Left(UnneededSpoVoteWitness(credential, witness))
@@ -1746,7 +1746,7 @@ object TransactionBuilder:
             context: Context <- get0
             addrNetwork <- addr.getNetwork match
                 case Some(network) => pure0(network)
-                case None =>
+                case None          =>
                     liftF0(
                       Left(ByronAddressesNotSupported(addr))
                     )

@@ -83,7 +83,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
         val tx = new Transactions(context, compiledContract)
             .timeout(htlcUtxo, committerAddress, committerPkh, validityStartSlot)
             .getOrElse(???)
-        
+
         val utxos: Utxos = Map(htlcUtxo) ++ wallet.utxo
         val result = runValidator(tx, utxos)
 
@@ -91,7 +91,8 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
     }
 
     private def runValidator(tx: Transaction, utxo: Utxos) = {
-        val scriptContext = TestUtil.getScriptContextV3(tx, utxo, htlcUtxo._1, RedeemerTag.Spend, env)
+        val scriptContext =
+            TestUtil.getScriptContextV3(tx, utxo, htlcUtxo._1, RedeemerTag.Spend, env)
         compiledContract.program.runWithDebug(scriptContext)
     }
 
@@ -136,7 +137,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
     test("committer reclaims after timeout") {
         val (timeoutTx, result) = timeoutHtlc(committerPkh, afterTimeout)
-        
+
         assert(result.isSuccess)
 
         val scriptOutputs = timeoutTx.body.value.outputs.filter(_.value.address.hasScript)
@@ -160,7 +161,7 @@ class HtlcTransactionTest extends AnyFunSuite, ScalusTest {
 
     test("committer fails with wrong committer pubkey hash") {
         val (_, result) = timeoutHtlc(wrongCommitterPkh, afterTimeout)
-        
+
         assert(result.isFailure)
         assert(result.logs.last.contains(HtlcValidator.UnsignedCommitterTransaction))
     }
