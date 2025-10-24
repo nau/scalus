@@ -156,7 +156,7 @@ class ChangeOutputDiffHandlerTest extends AnyFunSuite {
         )
         val tx = Transaction(
           TransactionBody(
-            inputs = TaggedOrderedSet(SortedSet(input)),
+            inputs = TaggedSortedSet(SortedSet(input)),
             outputs = Vector(
               Sized(
                 TransactionOutput(
