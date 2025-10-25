@@ -173,6 +173,36 @@ object JIT {
                             x + y
                         }
                     }
+                case Term.Builtin(DefaultFun.SubtractInteger) =>
+                    '{ (x: BigInt) => (y: BigInt) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.subtractInteger
+                                  .calculateCost(
+                                    CekValue.VCon(asConstant(x)),
+                                    CekValue.VCon(asConstant(y))
+                                  ),
+                              Nil
+                            )
+                            x - y
+                        }
+                    }
+                case Term.Builtin(DefaultFun.MultiplyInteger) =>
+                    '{ (x: BigInt) => (y: BigInt) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.multiplyInteger
+                                  .calculateCost(
+                                    CekValue.VCon(asConstant(x)),
+                                    CekValue.VCon(asConstant(y))
+                                  ),
+                              Nil
+                            )
+                            x * y
+                        }
+                    }
                 case Term.Builtin(DefaultFun.EqualsData) =>
                     '{ (x: Data) => (y: Data) =>
                         {
@@ -201,6 +231,21 @@ object JIT {
                               Nil
                             )
                             x < y
+                        }
+                    }
+                case Term.Builtin(DefaultFun.LessThanEqualsInteger) =>
+                    '{ (x: BigInt) => (y: BigInt) =>
+                        {
+                            $budget.spendBudget(
+                              Step(StepKind.Builtin),
+                              $params.builtinCostModel.lessThanEqualsInteger
+                                  .calculateCost(
+                                    CekValue.VCon(asConstant(x)),
+                                    CekValue.VCon(asConstant(y))
+                                  ),
+                              Nil
+                            )
+                            x <= y
                         }
                     }
                 case Term.Builtin(DefaultFun.EqualsInteger) =>
